@@ -119,6 +119,26 @@ public class SplitPaneSkin extends SkinBase<SplitPane> {
      *                                                                         *
      **************************************************************************/
 
+    protected List< SplitPaneSkin.Content > getVisibleContents()
+    {
+        return contentRegions;
+    }
+
+    protected final ObservableList< Content > getContentRegions()
+    {
+        return contentRegions;
+    }
+
+    protected final ObservableList< ContentDivider > getContentDividers()
+    {
+        return contentDividers;
+    }
+
+    protected final boolean isHorizontal()
+    {
+        return horizontal;
+    }
+
     /** {@inheritDoc} */
     @Override protected void layoutChildren(final double x, final double y,
                                             final double w, final double h) {
@@ -135,7 +155,7 @@ public class SplitPaneSkin extends SkinBase<SplitPane> {
         if (contentDividers.size() > 0 && previousSize != -1 && previousSize != (horizontal ? sw  : sh)) {
             //This algorithm adds/subtracts a little to each panel on every resize
             List<Content> resizeList = new ArrayList<Content>();
-            for (Content c: contentRegions) {
+            for (Content c: getVisibleContents()) {
                 if (c.isResizableWithParent()) {
                     resizeList.add(c);
                 }
@@ -495,9 +515,14 @@ public class SplitPaneSkin extends SkinBase<SplitPane> {
      **************************************************************************/
 
     private void addContent(int index, Node n) {
-        Content c = new Content(n);
+        Content c = createContent( n );
         contentRegions.add(index, c);
         getChildren().add(index, c);
+    }
+
+    protected Content createContent( final Node n )
+    {
+        return new Content(n);
     }
 
     private void removeContent(Node n) {
@@ -610,8 +635,8 @@ public class SplitPaneSkin extends SkinBase<SplitPane> {
         checkDividerPos = true;
     }
 
-    private void addDivider(SplitPane.Divider d) {
-        ContentDivider c = new ContentDivider(d);
+    protected ContentDivider addDivider(SplitPane.Divider d) {
+        ContentDivider c = createContentDivider( d );
         c.setInitialPos(d.getPosition());
         c.setDividerPos(-1);
         ChangeListener<Number> posPropertyListener = new PosPropertyListener(c);
@@ -620,6 +645,12 @@ public class SplitPaneSkin extends SkinBase<SplitPane> {
         initializeDivderEventHandlers(c);
         contentDividers.add(c);
         getChildren().add(c);
+        return c;
+    }
+
+    protected ContentDivider createContentDivider( final SplitPane.Divider d )
+    {
+        return new ContentDivider(d);
     }
 
     private void removeAllDividers() {
@@ -891,7 +922,7 @@ public class SplitPaneSkin extends SkinBase<SplitPane> {
         checkDividerPos = true;
     }
 
-    private void layoutDividersAndContent(double width, double height) {
+    protected void layoutDividersAndContent(double width, double height) {
         final double paddingX = snappedLeftInset();
         final double paddingY = snappedTopInset();
         final double dividerWidth = contentDividers.isEmpty() ? 0 : contentDividers.get(0).prefWidth(-1);
@@ -959,7 +990,7 @@ public class SplitPaneSkin extends SkinBase<SplitPane> {
     }
 
 
-    class ContentDivider extends StackPane {
+    protected class ContentDivider extends StackPane {
         private double initialPos;
         private double dividerPos;
         private double pressPos;
@@ -1107,7 +1138,7 @@ public class SplitPaneSkin extends SkinBase<SplitPane> {
         }
     }
 
-    static class Content extends StackPane {
+    protected static class Content extends StackPane {
         private Node content;
         private Rectangle clipRect;
         private double x;

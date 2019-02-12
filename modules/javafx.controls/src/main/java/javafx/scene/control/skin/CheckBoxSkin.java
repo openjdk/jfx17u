@@ -25,16 +25,13 @@
 
 package javafx.scene.control.skin;
 
-import com.sun.javafx.scene.control.behavior.BehaviorBase;
-import com.sun.javafx.scene.control.skin.Utils;
-import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import com.sun.javafx.scene.control.behavior.ButtonBehavior;
+import com.sun.javafx.scene.control.skin.Utils;
+import javafx.geometry.NodeOrientation;
+import javafx.geometry.Pos;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Control;
 import javafx.scene.layout.StackPane;
-
-import javafx.geometry.NodeOrientation;
 
 /**
  * Default skin implementation for the tri-state {@link CheckBox} control.
@@ -52,11 +49,11 @@ public class CheckBoxSkin extends LabeledSkinBase<CheckBox> {
 
     private final StackPane box = new StackPane();
     private StackPane innerbox;
-    private final BehaviorBase<CheckBox> behavior;
+    private final ButtonBehavior< ? extends CheckBox > behavior;
 
 
 
-    /* *************************************************************************
+    /***************************************************************************
      *                                                                         *
      * Constructors                                                            *
      *                                                                         *
@@ -73,7 +70,7 @@ public class CheckBoxSkin extends LabeledSkinBase<CheckBox> {
         super(control);
 
         // install default input map for the CheckBox control
-        behavior = new ButtonBehavior<>(control);
+        behavior = createBehavior( control );
 //        control.setInputMap(behavior.getInputMap());
 
         box.getStyleClass().setAll("box");
@@ -84,6 +81,10 @@ public class CheckBoxSkin extends LabeledSkinBase<CheckBox> {
         updateChildren();
     }
 
+    protected ButtonBehavior< ? extends CheckBox > createBehavior( final CheckBox control )
+    {
+        return new ButtonBehavior<>(control);
+    }
 
 
     /* *************************************************************************
@@ -135,17 +136,23 @@ public class CheckBoxSkin extends LabeledSkinBase<CheckBox> {
     @Override protected void layoutChildren(final double x, final double y,
             final double w, final double h) {
         final CheckBox checkBox = getSkinnable();
+        final Pos alignment = checkBox.getAlignment();
+        final String txt = checkBox.getText();
+        final boolean noTxt = txt == null || txt.isEmpty();
+        final boolean noGraphic = checkBox.getGraphic() == null;
+        final boolean labelIsEmpty = noTxt && noGraphic; // fixing centering box inside layout width if there's no label
+
         final double boxWidth = snapSizeX(box.prefWidth(-1));
         final double boxHeight = snapSizeY(box.prefHeight(-1));
         final double computeWidth = Math.max(checkBox.prefWidth(-1), checkBox.minWidth(-1));
-        final double labelWidth = Math.min( computeWidth - boxWidth, w - snapSizeX(boxWidth));
-        final double labelHeight = Math.min(checkBox.prefHeight(labelWidth), h);
+        final double labelWidth = labelIsEmpty ? 0 : Math.min( computeWidth - boxWidth, w - snapSizeX(boxWidth));
+        final double labelHeight = labelIsEmpty ? 0 : Math.min(checkBox.prefHeight(labelWidth), h);
         final double maxHeight = Math.max(boxHeight, labelHeight);
-        final double xOffset = Utils.computeXOffset(w, labelWidth + boxWidth, checkBox.getAlignment().getHpos()) + x;
-        final double yOffset = Utils.computeYOffset(h, maxHeight, checkBox.getAlignment().getVpos()) + y;
+        final double xOffset = Utils.computeXOffset(w, labelWidth + boxWidth, alignment.getHpos()) + x;
+        final double yOffset = Utils.computeYOffset(h, maxHeight, alignment.getVpos()) + y;
 
-        layoutLabelInArea(xOffset + boxWidth, yOffset, labelWidth, maxHeight, checkBox.getAlignment());
+        layoutLabelInArea(xOffset + boxWidth, yOffset, labelWidth, maxHeight, alignment );
         box.resize(boxWidth, boxHeight);
-        positionInArea(box, xOffset, yOffset, boxWidth, maxHeight, 0, checkBox.getAlignment().getHpos(), checkBox.getAlignment().getVpos());
+        positionInArea(box, xOffset, yOffset, boxWidth, maxHeight, 0, alignment.getHpos(), alignment.getVpos());
     }
 }

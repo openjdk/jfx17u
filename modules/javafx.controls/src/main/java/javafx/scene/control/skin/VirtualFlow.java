@@ -996,7 +996,10 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
         return cellFactory;
     }
 
-
+    protected final StackPane getCorner()
+    {
+        return corner;
+    }
 
     /* *************************************************************************
      *                                                                         *
@@ -1855,6 +1858,11 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
         return vbar;
     }
 
+    protected final ClippedContainer getClipView()
+    {
+        return clipView;
+    }
+
     /**
      * The maximum preferred size in the non-virtual direction. For example,
      * if vertical, then this is the max pref width of all cells encountered.
@@ -1865,10 +1873,10 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
      * jitter. The access on this variable is package ONLY FOR TESTING.
      */
     private double maxPrefBreadth;
-    private final void setMaxPrefBreadth(double value) {
+    protected final void setMaxPrefBreadth(double value) {
         this.maxPrefBreadth = value;
     }
-    final double getMaxPrefBreadth() {
+    protected final double getMaxPrefBreadth() {
         return maxPrefBreadth;
     }
 
@@ -1879,10 +1887,10 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
      * The access on this variable is package ONLY FOR TESTING.
      */
     private double viewportBreadth;
-    private final void setViewportBreadth(double value) {
+    protected final void setViewportBreadth(double value) {
         this.viewportBreadth = value;
     }
-    private final double getViewportBreadth() {
+    protected final double getViewportBreadth() {
         return viewportBreadth;
     }
 
@@ -1893,7 +1901,7 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
      * The access on this variable is package ONLY FOR TESTING.
      */
     private double viewportLength;
-    void setViewportLength(double value) {
+    protected void setViewportLength(double value) {
         if (value == this.viewportLength) {
             return;
         }
@@ -1901,7 +1909,7 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
         this.absoluteOffset = getPosition() * (estimatedSize - viewportLength);
         recalculateEstimatedSize();
     }
-    double getViewportLength() {
+    protected double getViewportLength() {
         return viewportLength;
     }
 
@@ -1913,7 +1921,7 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
      * which is not associated with any cell, so we have to do a bit of work
      * to use a cell as a helper for computing cell size in some cases.
      */
-    double getCellLength(int index) {
+    public double getCellLength(int index) {
         if (fixedCellSizeEnabled) return getFixedCellSize();
 
         T cell = getCell(index);
@@ -1925,7 +1933,7 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
 
     /**
      */
-    double getCellBreadth(int index) {
+    public double getCellBreadth(int index) {
         T cell = getCell(index);
         double b = getCellBreadth(cell);
         releaseCell(cell);
@@ -2007,7 +2015,7 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
      * @return the cells displayed in the current viewport
      * @since 12
      */
-    protected List<T> getCells() {
+    protected final List<T> getCells() {
         return cells;
     }
 
@@ -2018,7 +2026,7 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
      * @return last visible cell whose bounds are entirely within the viewport
      * @since 12
      */
-    protected T getLastVisibleCellWithinViewport() {
+    public T getLastVisibleCellWithinViewport() {
         if (cells.isEmpty() || getViewportLength() <= 0) return null;
 
         T cell;
@@ -2047,7 +2055,7 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
      * @return first visible cell whose bounds are entirely within the viewport
      * @since 12
      */
-    protected T getFirstVisibleCellWithinViewport() {
+    public T getFirstVisibleCellWithinViewport() {
         if (cells.isEmpty() || getViewportLength() <= 0) return null;
 
         T cell;
@@ -2305,7 +2313,7 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
         requestLayout();
     }
 
-    void setCellDirty(int index) {
+    protected void setCellDirty(int index) {
         dirtyCells.set(index);
         requestLayout();
     }
@@ -3148,7 +3156,7 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
      * A simple extension to Region that ensures that anything wanting to flow
      * outside of the bounds of the Region is clipped.
      */
-    static class ClippedContainer extends Region {
+    protected static class ClippedContainer extends Region {
 
         /**
          * The Node which is embedded within this {@code ClipView}.

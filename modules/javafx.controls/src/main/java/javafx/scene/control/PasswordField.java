@@ -25,6 +25,7 @@
 
 package javafx.scene.control;
 
+import com.sun.javafx.scene.control.skin.PasswordFieldSkin;
 import javafx.scene.AccessibleAttribute;
 import javafx.scene.AccessibleRole;
 
@@ -83,5 +84,11 @@ public class PasswordField extends TextField {
             case TEXT: return null;
             default: return super.queryAccessibleAttribute(attribute, parameters);
         }
+    }
+
+    @Override
+    protected Skin< ? > createDefaultSkin()
+    {
+        return new PasswordFieldSkin( this );
     }
 }

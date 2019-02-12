@@ -235,7 +235,7 @@ public class TableViewSkin<T> extends TableViewSkinBase<T, T, TableView<T>, Tabl
     }
 
     /** {@inheritDoc} */
-    @Override void horizontalScroll() {
+    @Override protected void horizontalScroll() {
         super.horizontalScroll();
         if (getSkinnable().getFixedCellSize() > 0) {
             flow.requestCellLayout();
