@@ -261,7 +261,7 @@ public abstract class ComboBoxBaseSkin<T> extends SkinBase<ComboBoxBase<T>> {
         getSkinnable().hide();
     }
 
-    private boolean isButton() {
+    protected boolean isButton() {
         return getMode() == ComboBoxMode.BUTTON;
     }
 

@@ -26,34 +26,42 @@
 package javafx.scene.control.skin;
 
 import com.sun.javafx.scene.control.Properties;
+import com.sun.javafx.scene.control.skin.resources.ControlResources;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
+import javafx.beans.WeakInvalidationListener;
+import javafx.beans.property.ObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
+import javafx.collections.WeakListChangeListener;
+import javafx.geometry.HPos;
+import javafx.geometry.VPos;
 import javafx.scene.AccessibleAttribute;
 import javafx.scene.Node;
-import javafx.scene.control.*;
-
+import javafx.scene.control.Control;
+import javafx.scene.control.FocusModel;
+import javafx.scene.control.IndexedCell;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollToEvent;
+import javafx.scene.control.SelectionModel;
+import javafx.scene.control.TableColumnBase;
+import javafx.scene.control.TableFocusModel;
+import javafx.scene.control.TablePositionBase;
+import javafx.scene.control.TableSelectionModel;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TreeTableView;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.util.Callback;
 
-import javafx.collections.WeakListChangeListener;
-import com.sun.javafx.scene.control.skin.resources.ControlResources;
-
 import java.lang.ref.WeakReference;
-import java.util.List;
-import javafx.beans.WeakInvalidationListener;
-import javafx.beans.property.ObjectProperty;
-import javafx.geometry.HPos;
-import javafx.geometry.VPos;
-
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.List;
 
 /**
  * TableViewSkinBase is the base skin class used by controls such as
@@ -514,26 +522,41 @@ public abstract class TableViewSkinBase<M, S, C extends Control, I extends Index
      * @return the {@code TableHeaderRow} for this {@code TableViewSkinBase}
      * @since 12
      */
-    protected TableHeaderRow getTableHeaderRow() {
+    protected final ObjectProperty<ObservableList<S>> itemsProperty()
+    {
+        return TableSkinUtils.itemsProperty(this);
+    }
+
+    protected final ObjectProperty< Node > placeholderProperty()
+    {
+        return TableSkinUtils.placeholderProperty( this );
+    }
+
+    protected final TableHeaderRow getTableHeaderRow() {
         return tableHeaderRow;
     }
 
-    private TableSelectionModel<S> getSelectionModel() {
+    protected final TableSelectionModel<S> getSelectionModel() {
         return TableSkinUtils.getSelectionModel(this);
     }
 
-    private TableFocusModel<M,?> getFocusModel() {
+    protected final TableFocusModel<M,?> getFocusModel() {
         return TableSkinUtils.getFocusModel(this);
     }
 
     // returns the currently focused cell in the focus model
-    private TablePositionBase<? extends TC> getFocusedCell() {
+    protected final TablePositionBase<? extends TC> getFocusedCell() {
         return TableSkinUtils.getFocusedCell(this);
     }
 
     // returns an ObservableList of the visible leaf columns of the control
-    private ObservableList<? extends TC> getVisibleLeafColumns() {
+    protected final ObservableList<? extends TC> getVisibleLeafColumns() {
         return TableSkinUtils.getVisibleLeafColumns(this);
+    }
+
+    // returns an ObservableList of the visible leaf columns of the control
+    protected final ObservableList<TableColumnBase< ?, ?>> getColumns() {
+        return TableSkinUtils.getColumns( this );
     }
 
     /** {@inheritDoc} */
@@ -572,7 +595,7 @@ public abstract class TableViewSkinBase<M, S, C extends Control, I extends Index
         }
     }
 
-    void horizontalScroll() {
+    protected void horizontalScroll() {
         tableHeaderRow.updateScrollX();
     }
 
@@ -704,8 +727,12 @@ public abstract class TableViewSkinBase<M, S, C extends Control, I extends Index
         getSkinnable().requestLayout();
     }
 
-    Region getColumnReorderLine() {
+    protected final Region getColumnReorderLine() {
         return columnReorderLine;
+    }
+
+    protected final Region getColumnReorderOverlay() {
+        return columnReorderOverlay;
     }
 
     /**
@@ -835,7 +862,7 @@ public abstract class TableViewSkinBase<M, S, C extends Control, I extends Index
         requestRebuildCells();
     }
 
-    final void updatePlaceholderRegionVisibility() {
+    protected final void updatePlaceholderRegionVisibility() {
         boolean visible = visibleColCount == 0 || getItemCount() == 0;
 
         if (visible) {

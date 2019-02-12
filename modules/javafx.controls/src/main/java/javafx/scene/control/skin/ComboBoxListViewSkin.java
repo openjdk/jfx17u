@@ -288,6 +288,43 @@ public class ComboBoxListViewSkin<T> extends ComboBoxPopupControl<T> {
 
         reconfigurePopup();
 
+        // https://bugs.openjdk.java.net/browse/JDK-8178102
+        if( !getSkinnable().isEditable() )
+        {
+            if( getDisplayNode() == null )
+            {
+                updateDisplayArea();
+            }
+
+
+            final double arrowWidth = snapSizeX(arrow.prefWidth(-1));
+            final double arrowButtonWidth = isButton() ? 0 :
+                arrowButton.snappedLeftInset() +
+                    arrowWidth +
+                    arrowButton.snappedRightInset();
+
+            double displayNodeWidth = 0;
+
+            if( getDisplayNode() instanceof ListCell )
+            {
+                ListCell buttonCell = (ListCell)getDisplayNode();
+                int index = buttonCell.getIndex();
+                for( int i = 0; i < comboBox.getItems().size(); i++ )
+                {
+                    buttonCell.updateIndex( i );
+                    displayNodeWidth = Math.max( displayNodeWidth, buttonCell.prefWidth( height ) );
+                }
+                buttonCell.updateIndex( index );
+            }
+
+            displayNodeWidth = Math.max( 50, Math.max( displayNodeWidth,
+                getDisplayNode() == null ? 0 : getDisplayNode().prefWidth( height ) ) );
+
+            final double totalWidth = displayNodeWidth + arrowButtonWidth;
+
+            return leftInset + totalWidth + rightInset;
+        }
+
         return pw;
     }
 
@@ -306,7 +343,9 @@ public class ComboBoxListViewSkin<T> extends ComboBoxPopupControl<T> {
     /** {@inheritDoc} */
     @Override protected double computePrefHeight(double width, double topInset, double rightInset, double bottomInset, double leftInset) {
         reconfigurePopup();
-        return super.computePrefHeight(width, topInset, rightInset, bottomInset, leftInset);
+        final double minHeight = computeMinHeight( width, topInset, rightInset, bottomInset, leftInset );
+        final double computed = super.computePrefHeight( width, topInset, rightInset, bottomInset, leftInset );
+        return Math.max( minHeight, computed );
     }
 
     /** {@inheritDoc} */

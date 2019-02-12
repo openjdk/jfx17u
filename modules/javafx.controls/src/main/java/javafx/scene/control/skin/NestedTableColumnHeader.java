@@ -73,8 +73,7 @@ public class NestedTableColumnHeader extends TableColumnHeader {
 
     private static final String TABLE_COLUMN_KEY = "TableColumn";
     private static final String TABLE_COLUMN_HEADER_KEY = "TableColumnHeader";
-
-
+    private final TableViewSkinBase skin;
 
     /* *************************************************************************
      *                                                                         *
@@ -116,13 +115,14 @@ public class NestedTableColumnHeader extends TableColumnHeader {
      *
      * @param tc The table column to be visually represented by this instance.
      */
-    public NestedTableColumnHeader(final TableColumnBase tc) {
+    public NestedTableColumnHeader(final TableViewSkinBase aSkin, final TableColumnBase tc) {
         super(tc);
+        skin = aSkin;
 
         setFocusTraversable(false);
 
         // init UI
-        label = createTableColumnHeader(getTableColumn());
+        label = createTableColumnHeader(getTableViewSkin(), getTableColumn());
         label.setTableHeaderRow(getTableHeaderRow());
         label.setParentHeader(getParentHeader());
         label.setNestedColumnHeader(this);
@@ -271,11 +271,17 @@ public class NestedTableColumnHeader extends TableColumnHeader {
      * @return the unmodifiable list of TableColumnHeader of this NestedTableColumnHeader
      */
     public final ObservableList<TableColumnHeader> getColumnHeaders() {
-        if (columnHeaders == null) {
-            columnHeaders = FXCollections.<TableColumnHeader>observableArrayList();
-            unmodifiableColumnHeaders = FXCollections.unmodifiableObservableList(columnHeaders);
+        if (unmodifiableColumnHeaders == null) {
+            unmodifiableColumnHeaders = FXCollections.unmodifiableObservableList(getColumnHeadersInternal());
         }
         return unmodifiableColumnHeaders;
+    }
+
+    protected final ObservableList<TableColumnHeader> getColumnHeadersInternal() {
+        if (columnHeaders == null) {
+            columnHeaders = FXCollections.<TableColumnHeader>observableArrayList();
+        }
+        return columnHeaders;
     }
 
     /** {@inheritDoc} */
@@ -382,12 +388,16 @@ public class NestedTableColumnHeader extends TableColumnHeader {
      * @param col the table column
      * @return A new TableColumnHeader instance.
      */
-    protected TableColumnHeader createTableColumnHeader(TableColumnBase col) {
+    protected TableColumnHeader createTableColumnHeader(final TableViewSkinBase aSkin, TableColumnBase col) {
         return col == null || col.getColumns().isEmpty() || col == getTableColumn() ?
                 new TableColumnHeader(col) :
-                new NestedTableColumnHeader(col);
+                new NestedTableColumnHeader(aSkin, col);
     }
 
+    protected final TableViewSkinBase getTableViewSkin()
+    {
+        return skin;
+    }
 
 
     /* *************************************************************************
@@ -464,7 +474,7 @@ public class NestedTableColumnHeader extends TableColumnHeader {
                 List<TableColumnHeader> parentColumnHeaders = parentHeader.getColumnHeaders();
                 int index = parentColumnHeaders.indexOf(this);
                 if (index >= 0 && index < parentColumnHeaders.size()) {
-                    parentColumnHeaders.set(index, createColumnHeader(getTableColumn()));
+                    parentColumnHeaders.set(index, createColumnHeader(getTableViewSkin(), getTableColumn()));
                 }
             } else {
                 // otherwise just remove all the columns
@@ -491,7 +501,7 @@ public class NestedTableColumnHeader extends TableColumnHeader {
 
                 // otherwise create a new table column header
                 if (!found) {
-                    newHeaders.add(createColumnHeader(column));
+                    newHeaders.add(createColumnHeader(getTableViewSkin(), column));
                 }
             }
 
@@ -644,8 +654,8 @@ public class NestedTableColumnHeader extends TableColumnHeader {
         }
     }
 
-    private TableColumnHeader createColumnHeader(TableColumnBase col) {
-        TableColumnHeader newCol = createTableColumnHeader(col);
+    private TableColumnHeader createColumnHeader(final TableViewSkinBase aSkin, final TableColumnBase col) {
+        TableColumnHeader newCol = createTableColumnHeader(aSkin, col);
         newCol.setTableHeaderRow(getTableHeaderRow());
         newCol.setParentHeader(this);
         return newCol;

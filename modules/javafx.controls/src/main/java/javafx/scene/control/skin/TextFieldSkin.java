@@ -148,9 +148,7 @@ public class TextFieldSkin extends TextInputControlSkin<TextField> {
         super(control);
 
         // install default input map for the text field control
-        this.behavior = (control instanceof PasswordField)
-                ? new PasswordFieldBehavior((PasswordField)control)
-                : new TextFieldBehavior(control);
+        this.behavior = createBehavior( control );
         this.behavior.setTextFieldSkin(this);
 //        control.setInputMap(behavior.getInputMap());
 
@@ -381,7 +379,10 @@ public class TextFieldSkin extends TextInputControlSkin<TextField> {
         }
     }
 
-
+    protected TextFieldBehavior createBehavior( final TextField control )
+    {
+        return new TextFieldBehavior( control );
+    }
 
     /* *************************************************************************
      *                                                                         *
