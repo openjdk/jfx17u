@@ -25,24 +25,48 @@
 
 package com.sun.javafx.scene.control.behavior;
 
+import static com.sun.javafx.scene.control.inputmap.InputMap.KeyMapping;
+import static javafx.scene.input.KeyCode.A;
+import static javafx.scene.input.KeyCode.ADD;
+import static javafx.scene.input.KeyCode.DOWN;
+import static javafx.scene.input.KeyCode.END;
+import static javafx.scene.input.KeyCode.ENTER;
+import static javafx.scene.input.KeyCode.ESCAPE;
+import static javafx.scene.input.KeyCode.F2;
+import static javafx.scene.input.KeyCode.HOME;
+import static javafx.scene.input.KeyCode.KP_DOWN;
+import static javafx.scene.input.KeyCode.KP_LEFT;
+import static javafx.scene.input.KeyCode.KP_RIGHT;
+import static javafx.scene.input.KeyCode.KP_UP;
+import static javafx.scene.input.KeyCode.LEFT;
+import static javafx.scene.input.KeyCode.MULTIPLY;
+import static javafx.scene.input.KeyCode.PAGE_DOWN;
+import static javafx.scene.input.KeyCode.PAGE_UP;
+import static javafx.scene.input.KeyCode.RIGHT;
+import static javafx.scene.input.KeyCode.SPACE;
+import static javafx.scene.input.KeyCode.SUBTRACT;
+import static javafx.scene.input.KeyCode.UP;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.sun.javafx.PlatformUtil;
 import com.sun.javafx.scene.control.inputmap.InputMap;
+import com.sun.javafx.scene.control.inputmap.KeyBinding;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ListChangeListener;
 import javafx.collections.WeakListChangeListener;
 import javafx.event.EventHandler;
-import javafx.scene.control.*;
-import javafx.scene.input.*;
+import javafx.scene.control.FocusModel;
+import javafx.scene.control.MultipleSelectionModel;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeView;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.util.Callback;
-
-import java.util.ArrayList;
-import java.util.List;
-import com.sun.javafx.PlatformUtil;
-import com.sun.javafx.scene.control.inputmap.KeyBinding;
-
-import static javafx.scene.input.KeyCode.*;
-import static com.sun.javafx.scene.control.inputmap.InputMap.KeyMapping;
 
 public class TreeViewBehavior<T> extends BehaviorBase<TreeView<T>> {
 
@@ -92,6 +116,13 @@ public class TreeViewBehavior<T> extends BehaviorBase<TreeView<T>> {
 
     private Runnable onFocusNextRow;
     public void setOnFocusNextRow(Runnable r) { onFocusNextRow = r; }
+
+    private Runnable onSelectParent;
+
+    public void setOnSelectParent( Runnable r )
+    {
+        onSelectParent = r;
+    }
 
     private boolean selectionChanging = false;
 
@@ -638,6 +669,8 @@ public class TreeViewBehavior<T> extends BehaviorBase<TreeView<T>> {
     private void collapseRow() {
         TreeView<T> control = getNode();
         TreeViewBehavior.collapseRow(control.getSelectionModel(), control.getRoot(), control.isShowRoot());
+
+        if (onSelectParent != null) onSelectParent.run();
     }
 
     static <T> void expandRow(final MultipleSelectionModel<TreeItem<T>> sm, Callback<TreeItem<T>, Integer> getIndex) {
