@@ -27,7 +27,9 @@ package test.com.sun.javafx.collections;
 
 import com.sun.javafx.binding.SetExpressionHelper;
 import com.sun.javafx.collections.SetListenerHelper;
+import com.sun.javafx.collections.SingleComplexChangeAdapter;
 import javafx.beans.InvalidationListener;
+import javafx.collections.SetComplexChangeListener;
 import test.javafx.beans.InvalidationListenerMock;
 import javafx.beans.Observable;
 import javafx.collections.FXCollections;
@@ -38,6 +40,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.BitSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -100,8 +103,18 @@ public class SetListenerHelperTest {
     }
 
     @Test(expected = NullPointerException.class)
+    public void testRemoveSetComplexChangeListener_Null() {
+        SetListenerHelper.removeListener(helper, (SetComplexChangeListener<Object>) null);
+    }
+
+    @Test(expected = NullPointerException.class)
     public void testAddSetChangeListener_Null() {
         SetListenerHelper.addListener(helper, (SetChangeListener<Object>) null);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void testAddSetComplexChangeListener_Null() {
+        SetListenerHelper.addListener(helper, (SetComplexChangeListener<Object>) null);
     }
 
     @Test
@@ -737,6 +750,96 @@ public class SetListenerHelperTest {
         SetListenerHelper.fireValueChangedEvent(helper,change);
 
         assertEquals(4, called.get());
+    }
+
+    @Test
+    public void testComplexListenerForSimpleChange()
+    {
+        final AtomicInteger invocations1 = new AtomicInteger( 0 );
+        helper = SetListenerHelper.addListener(helper, (SetComplexChangeListener.Change<? extends Object> c) -> { invocations1.incrementAndGet(); });
+        SetListenerHelper.fireValueChangedEvent(helper,change);
+        assertEquals(1, invocations1.get());
+    }
+
+    @Test
+    public void testComplexListenerForComplexChange()
+    {
+        final AtomicInteger invocations1 = new AtomicInteger( 0 );
+        helper = SetListenerHelper.addListener(helper, (SetComplexChangeListener.Change<? extends Object> c) -> { invocations1.incrementAndGet(); });
+        SetListenerHelper.fireValueChangedEvent(helper,new SingleComplexChangeAdapter<>( change ) );
+        assertEquals(1, invocations1.get());
+    }
+
+    @Test
+    public void testTwoTypesChangeListenerForComplexChange()
+    {
+        final AtomicInteger invocations1 = new AtomicInteger( 0 );
+        final AtomicInteger invocations2 = new AtomicInteger( 0 );
+        helper = SetListenerHelper.addListener(helper, (SetComplexChangeListener.Change<? extends Object> c) -> { invocations1.incrementAndGet(); });
+        helper = SetListenerHelper.addListener(helper, (SetChangeListener.Change<? extends Object> c) -> { invocations2.incrementAndGet(); });
+        SetListenerHelper.fireValueChangedEvent(helper,new SingleComplexChangeAdapter<>( change ) );
+        assertEquals(1, invocations1.get());
+        assertEquals(1, invocations2.get());
+    }
+
+    @Test
+    public void testTwoTypesChangeListenerForSimpleChange()
+    {
+        final AtomicInteger invocations1 = new AtomicInteger( 0 );
+        final AtomicInteger invocations2 = new AtomicInteger( 0 );
+        helper = SetListenerHelper.addListener(helper, (SetComplexChangeListener.Change<? extends Object> c) -> { invocations1.incrementAndGet(); });
+        helper = SetListenerHelper.addListener(helper, (SetChangeListener.Change<? extends Object> c) -> { invocations2.incrementAndGet(); });
+        SetListenerHelper.fireValueChangedEvent(helper, change );
+        assertEquals(1, invocations1.get());
+        assertEquals(1, invocations2.get());
+    }
+
+    @Test
+    public void testTwoTypesChangeListenerForComplexChangeWithMultipleValuesRemoved()
+    {
+        final AtomicInteger invocations1 = new AtomicInteger( 0 );
+        final AtomicInteger invocations2 = new AtomicInteger( 0 );
+        helper = SetListenerHelper.addListener(helper, (SetComplexChangeListener.Change<? extends Object> c) -> { invocations1.incrementAndGet(); });
+        helper = SetListenerHelper.addListener(helper, (SetChangeListener.Change<? extends Object> c) -> { invocations2.incrementAndGet(); });
+        SetListenerHelper.fireValueChangedEvent( helper, new SetComplexChangeListener.Change< Object >( set ) {
+            @Override
+            public Set< Object > getRemoved()
+            {
+                return Set.of( 1, 2, 3 );
+            }
+
+            @Override
+            public Set< Object > getAdded()
+            {
+                return Set.of();
+            }
+        } );
+        assertEquals(1, invocations1.get());
+        assertEquals(3, invocations2.get());
+    }
+
+    @Test
+    public void testTwoTypesChangeListenerForComplexChangeWithMultipleValuesAdded()
+    {
+        final AtomicInteger invocations1 = new AtomicInteger( 0 );
+        final AtomicInteger invocations2 = new AtomicInteger( 0 );
+        helper = SetListenerHelper.addListener(helper, (SetComplexChangeListener.Change<? extends Object> c) -> { invocations1.incrementAndGet(); });
+        helper = SetListenerHelper.addListener(helper, (SetChangeListener.Change<? extends Object> c) -> { invocations2.incrementAndGet(); });
+        SetListenerHelper.fireValueChangedEvent( helper, new SetComplexChangeListener.Change< Object >( set ) {
+            @Override
+            public Set< Object > getRemoved()
+            {
+                return Set.of();
+            }
+
+            @Override
+            public Set< Object > getAdded()
+            {
+                return Set.of( 1, 2 );
+            }
+        } );
+        assertEquals(1, invocations1.get());
+        assertEquals(2, invocations2.get());
     }
 
 }

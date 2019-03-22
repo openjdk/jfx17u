@@ -25,6 +25,8 @@
 
 package javafx.collections;
 
+import com.sun.javafx.collections.SingleComplexChangeAdapter;
+
 /**
  * Interface that receives notifications of changes to an ObservableSet.
  * @param <E> the element type
@@ -45,6 +47,7 @@ public interface SetChangeListener<E> {
     public static abstract class Change<E> {
 
         private ObservableSet<E> set;
+        private SetComplexChangeListener.Change< E > cachedConverted;
 
         /**
          * Constructs a change associated with a set.
@@ -85,6 +88,15 @@ public interface SetChangeListener<E> {
          * @return the element that was just removed
          */
         public abstract E getElementRemoved();
+
+        public SetComplexChangeListener.Change< E > getAsComplex()
+        {
+            if( cachedConverted == null )
+            {
+                cachedConverted = new SingleComplexChangeAdapter<>( this );
+            }
+            return cachedConverted;
+        }
 
     }
 

@@ -39,16 +39,46 @@ import javafx.beans.Observable;
  * @param <E> the set element type
  * @since JavaFX 2.1
  */
-public interface ObservableSet<E> extends Set<E>, Observable {
+public interface ObservableSet< E > extends Set< E >, Observable
+{
     /**
      * Add a listener to this observable set.
-     * @param listener the listener for listening to the set changes
+     *
+     * @param listener
+     *     the listener for listening to the set changes
      */
-    public void addListener(SetChangeListener<? super E> listener);
+    public void addListener( SetChangeListener< ? super E > listener );
+
     /**
      * Tries to removed a listener from this observable set. If the listener is not
      * attached to this list, nothing happens.
-     * @param listener a listener to remove
+     *
+     * @param listener
+     *     a listener to remove
      */
-    public void removeListener(SetChangeListener<? super E> listener);
+    public void removeListener( SetChangeListener< ? super E > listener );
+
+    /**
+     * Add a listener to this observable set.
+     *
+     * @param listener
+     *     the listener for listening to the set changes
+     */
+    default public void addListener( SetComplexChangeListener< ? super E > listener )
+    {
+        throw new UnsupportedOperationException( "Complex listener is not supported" );
+    }
+
+    /**
+     * Tries to removed a listener from this observable set. If the listener is not
+     * attached to this list, nothing happens.
+     *
+     * @param listener
+     *     a listener to remove
+     */
+    default public void removeListener( SetComplexChangeListener< ? super E > listener )
+    {
+        throw new UnsupportedOperationException( "Complex listener is not supported" );
+    }
+
 }
