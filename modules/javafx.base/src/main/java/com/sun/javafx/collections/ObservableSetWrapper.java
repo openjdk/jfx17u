@@ -25,22 +25,23 @@
 
 package com.sun.javafx.collections;
 
-import javafx.beans.InvalidationListener;
-import javafx.collections.ObservableSet;
-import javafx.collections.SetChangeListener;
-
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Set;
 
+import javafx.beans.InvalidationListener;
+import javafx.collections.ObservableSetBase;
+import javafx.collections.SetChangeBuilder;
+import javafx.collections.SetChangeListener;
+import javafx.collections.SetComplexChangeListener;
+
 /**
  * A Set wrapper class that implements observability.
  */
-public class ObservableSetWrapper<E> implements ObservableSet<E> {
+public class ObservableSetWrapper<E> extends ObservableSetBase<E>
+{
 
     private final Set<E> backingSet;
-
-    private SetListenerHelper<E> listenerHelper;
 
     /**
      * Creates new instance of ObservableSet that wraps
@@ -50,114 +51,6 @@ public class ObservableSetWrapper<E> implements ObservableSet<E> {
      */
     public ObservableSetWrapper(Set<E> set) {
         this.backingSet = set;
-    }
-
-    private class SimpleAddChange extends SetChangeListener.Change<E> {
-
-        private final E added;
-
-        public SimpleAddChange(E added) {
-            super(ObservableSetWrapper.this);
-            this.added = added;
-        }
-
-        @Override
-        public boolean wasAdded() {
-            return true;
-        }
-
-        @Override
-        public boolean wasRemoved() {
-            return false;
-        }
-
-        @Override
-        public E getElementAdded() {
-            return added;
-        }
-
-        @Override
-        public E getElementRemoved() {
-            return null;
-        }
-
-        @Override
-        public String toString() {
-            return "added " + added;
-        }
-
-    }
-
-    private class SimpleRemoveChange extends SetChangeListener.Change<E> {
-
-        private final E removed;
-
-        public SimpleRemoveChange(E removed) {
-            super(ObservableSetWrapper.this);
-            this.removed = removed;
-        }
-
-        @Override
-        public boolean wasAdded() {
-            return false;
-        }
-
-        @Override
-        public boolean wasRemoved() {
-            return true;
-        }
-
-        @Override
-        public E getElementAdded() {
-            return null;
-        }
-
-        @Override
-        public E getElementRemoved() {
-            return removed;
-        }
-
-        @Override
-        public String toString() {
-            return "removed " + removed;
-        }
-
-    }
-
-    private void callObservers(SetChangeListener.Change<E> change) {
-        SetListenerHelper.fireValueChangedEvent(listenerHelper, change);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void addListener(InvalidationListener listener) {
-        listenerHelper = SetListenerHelper.addListener(listenerHelper, listener);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void removeListener(InvalidationListener listener) {
-        listenerHelper = SetListenerHelper.removeListener(listenerHelper, listener);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void addListener(SetChangeListener<?super E> observer) {
-        listenerHelper = SetListenerHelper.addListener(listenerHelper, observer);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void removeListener(SetChangeListener<?super E> observer) {
-        listenerHelper = SetListenerHelper.removeListener(listenerHelper, observer);
     }
 
     /**
@@ -222,8 +115,10 @@ public class ObservableSetWrapper<E> implements ObservableSet<E> {
 
             @Override
             public void remove() {
+                beginChange();
                 backingIt.remove();
-                callObservers(new SimpleRemoveChange(lastElement));
+                nextRemove( lastElement );
+                endChange();
             }
         };
     }
@@ -264,10 +159,12 @@ public class ObservableSetWrapper<E> implements ObservableSet<E> {
      */
     @Override
     public boolean add(E o) {
+        beginChange();
         boolean ret = backingSet.add(o);
         if (ret) {
-            callObservers(new SimpleAddChange(o));
+            nextAdd( o );
         }
+        endChange();
         return ret;
     }
 
@@ -282,10 +179,12 @@ public class ObservableSetWrapper<E> implements ObservableSet<E> {
      */
     @Override
     public boolean remove(Object o) {
+        beginChange();
         boolean ret = backingSet.remove(o);
         if (ret) {
-            callObservers(new SimpleRemoveChange((E)o));
+            nextAdd( (E)o );
         }
+        endChange();
         return ret;
     }
 
@@ -313,10 +212,12 @@ public class ObservableSetWrapper<E> implements ObservableSet<E> {
      */
     @Override
     public boolean addAll(Collection<?extends E> c) {
+        beginChange();
         boolean ret = false;
         for (E element : c) {
             ret |= add(element);
         }
+        endChange();
         return ret;
     }
 
@@ -348,15 +249,17 @@ public class ObservableSetWrapper<E> implements ObservableSet<E> {
     }
 
     private boolean removeRetain(Collection<?> c, boolean remove) {
+        beginChange();
         boolean removed = false;
         for (Iterator<E> i = backingSet.iterator(); i.hasNext();) {
             E element = i.next();
             if (remove == c.contains(element)) {
                 removed = true;
                 i.remove();
-                callObservers(new SimpleRemoveChange(element));
+                nextRemove( element );
             }
         }
+        endChange();
         return removed;
     }
 
@@ -367,11 +270,13 @@ public class ObservableSetWrapper<E> implements ObservableSet<E> {
      */
     @Override
     public void clear() {
+        beginChange();
         for (Iterator<E> i = backingSet.iterator(); i.hasNext(); ) {
             E element = i.next();
             i.remove();
-            callObservers(new SimpleRemoveChange(element));
+            nextRemove( element );
         }
+        endChange();
     }
 
     /**
