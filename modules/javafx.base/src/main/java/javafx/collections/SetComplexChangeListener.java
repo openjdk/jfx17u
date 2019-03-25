@@ -244,6 +244,12 @@ public interface SetComplexChangeListener< E >
             {
                 return removed;
             }
+
+            @Override
+            public String toString()
+            {
+                return "RemoveChange{" + "removed=" + removed + '}';
+            }
         }
 
         protected class AddChange< E > extends SetChangeListener.Change< E >
@@ -279,6 +285,12 @@ public interface SetComplexChangeListener< E >
             public E getElementRemoved()
             {
                 return null;
+            }
+
+            @Override
+            public String toString()
+            {
+                return "AddChange{" + "added=" + added + '}';
             }
         }
     }
