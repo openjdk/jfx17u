@@ -27,6 +27,7 @@ package javafx.collections;
 
 import com.sun.javafx.collections.ListListenerHelper;
 import com.sun.javafx.collections.MapListenerHelper;
+import com.sun.javafx.collections.SetAdapterComplexChange;
 import com.sun.javafx.collections.SetListenerHelper;
 import java.lang.reflect.Array;
 import java.util.AbstractList;
@@ -1668,23 +1669,23 @@ public class FXCollections {
 
         private final ObservableSet<E> backingSet;
         private SetListenerHelper<E> listenerHelper;
-        private SetChangeListener<E> listener;
+        private SetComplexChangeListener<E> complexListener;
 
         public UnmodifiableObservableSet(ObservableSet<E> backingSet) {
             this.backingSet = backingSet;
-            this.listener = null;
+            this.complexListener = null;
         }
 
         private void initListener() {
-            if (listener == null) {
-                listener = c -> {
-                    callObservers(new SetAdapterChange<E>(UnmodifiableObservableSet.this, c));
+            if (complexListener == null) {
+                complexListener = c -> {
+                    callObservers(new SetAdapterComplexChange<E>(UnmodifiableObservableSet.this, c));
                 };
-                this.backingSet.addListener(new WeakSetChangeListener<E>(listener));
+                this.backingSet.addListener(new WeakSetComplexChangeListener<>(complexListener));
             }
         }
 
-        private void callObservers(SetChangeListener.Change<? extends E> change) {
+        private void callObservers(SetComplexChangeListener.Change<? extends E> change) {
             SetListenerHelper.fireValueChangedEvent(listenerHelper, change);
         }
 
@@ -1739,6 +1740,19 @@ public class FXCollections {
 
         @Override
         public void removeListener(SetChangeListener<? super E> listener) {
+            listenerHelper = SetListenerHelper.removeListener(listenerHelper, listener);
+        }
+
+        @Override
+        public void addListener( final SetComplexChangeListener< ? super E > listener )
+        {
+            initListener();
+            listenerHelper = SetListenerHelper.addListener(listenerHelper, listener);
+        }
+
+        @Override
+        public void removeListener( final SetComplexChangeListener< ? super E > listener )
+        {
             listenerHelper = SetListenerHelper.removeListener(listenerHelper, listener);
         }
 
