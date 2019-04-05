@@ -182,7 +182,7 @@ public class ObservableSetWrapper<E> extends ObservableSetBase<E>
         beginChange();
         boolean ret = backingSet.remove(o);
         if (ret) {
-            nextAdd( (E)o );
+            nextRemove( (E)o );
         }
         endChange();
         return ret;
