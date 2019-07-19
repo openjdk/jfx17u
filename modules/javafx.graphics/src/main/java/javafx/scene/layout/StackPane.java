@@ -282,37 +282,43 @@ public class StackPane extends Pane {
         return bias;
     }
 
-    @Override protected double computeMinWidth(double height) {
-        List<Node>managed = getManagedChildren();
-        return getInsets().getLeft() +
+    @Override
+    protected double computeMinWidth( final double height) {
+        final List<Node> managed = getManagedChildren();
+        final Insets insets = getInsets();
+        return snapSpaceX( insets.getLeft() ) +
                computeMaxMinAreaWidth(managed, marginAccessor, height, true) +
-               getInsets().getRight();
+            snapSpaceX( insets.getRight() );
     }
 
-    @Override protected double computeMinHeight(double width) {
-        List<Node>managed = getManagedChildren();
-        return getInsets().getTop() +
+    @Override
+    protected double computeMinHeight( final double width) {
+        final List<Node> managed = getManagedChildren();
+        final Insets insets = getInsets();
+        return snapSpaceY( insets.getTop() ) +
                computeMaxMinAreaHeight(managed, marginAccessor, getAlignmentInternal().getVpos(), width) +
-               getInsets().getBottom();
+            snapSpaceY( insets.getBottom() );
     }
 
-    @Override protected double computePrefWidth(double height) {
-        List<Node>managed = getManagedChildren();
-        Insets padding = getInsets();
-        return padding.getLeft() +
+    @Override
+    protected double computePrefWidth( final double height) {
+        final List<Node> managed = getManagedChildren();
+        final Insets insets = getInsets();
+        return snapSpaceX( insets.getLeft() ) +
                computeMaxPrefAreaWidth(managed, marginAccessor,
-                                       (height == -1) ? -1 : (height - padding.getTop() - padding.getBottom()), true) +
-               padding.getRight();
+                                       (height == -1) ? -1 : (height - insets.getTop() - insets.getBottom()), true) +
+            snapSpaceX( insets.getRight() );
     }
 
-    @Override protected double computePrefHeight(double width) {
-        List<Node>managed = getManagedChildren();
-        Insets padding = getInsets();
-        return padding.getTop() +
+    @Override
+    protected double computePrefHeight( final double width) {
+        final List<Node> managed = getManagedChildren();
+        final Insets insets = getInsets();
+        return snapSpaceY( insets.getTop() ) +
                computeMaxPrefAreaHeight(managed, marginAccessor,
-                                        (width == -1) ? -1 : (width - padding.getLeft() - padding.getRight()),
+                                        (width == -1) ? -1 : (width - insets.getLeft() - insets.getRight()),
                                         getAlignmentInternal().getVpos()) +
-               padding.getBottom();
+               snapSpaceY( insets.getBottom() );
     }
 
 
@@ -329,10 +335,11 @@ public class StackPane extends Pane {
         VPos alignVpos = align.getVpos();
         final double width = getWidth();
         double height = getHeight();
-        double top = getInsets().getTop();
-        double right = getInsets().getRight();
-        double left = getInsets().getLeft();
-        double bottom = getInsets().getBottom();
+        final Insets insets = getInsets();
+        double top = insets.getTop();
+        double right = insets.getRight();
+        double left = insets.getLeft();
+        double bottom = insets.getBottom();
         double contentWidth = width - left - right;
         double contentHeight = height - top - bottom;
         double baselineOffset = alignVpos == VPos.BASELINE ?
