@@ -326,12 +326,12 @@ public abstract class LabeledSkinBase<C extends Labeled> extends SkinBase<C> {
 
         double textWidth = 0.0;
         if (!emptyText) {
-            textWidth = Utils.computeTextWidth(font, cleanText, 0);
+            textWidth = snapSizeX(Utils.computeTextWidth(font, cleanText, 0));
         }
 
         // Fix for RT-39889
         double graphicWidth = graphic == null ? 0.0 :
-                Utils.boundedSize(graphic.prefWidth(-1), graphic.minWidth(-1), graphic.maxWidth(-1));
+            snapSizeX( Utils.boundedSize(graphic.prefWidth(-1), graphic.minWidth(-1), graphic.maxWidth(-1)) );
 
         // Now add on the graphic, gap, and padding as appropriate
         if (isIgnoreGraphic()) {
@@ -339,8 +339,8 @@ public abstract class LabeledSkinBase<C extends Labeled> extends SkinBase<C> {
         } else if (isIgnoreText()) {
             return graphicWidth + widthPadding;
         } else if (labeled.getContentDisplay() == ContentDisplay.LEFT
-                || labeled.getContentDisplay() == ContentDisplay.RIGHT) {
-            return textWidth + labeled.getGraphicTextGap() + graphicWidth + widthPadding;
+            || labeled.getContentDisplay() == ContentDisplay.RIGHT) {
+            return textWidth + snapSpaceX( labeled.getGraphicTextGap() ) + graphicWidth + widthPadding;
         } else {
             return Math.max(textWidth, graphicWidth) + widthPadding;
         }
@@ -381,10 +381,14 @@ public abstract class LabeledSkinBase<C extends Labeled> extends SkinBase<C> {
         if (!isIgnoreGraphic()) {
             final Node graphic = labeled.getGraphic();
             if (contentDisplay == TOP || contentDisplay == BOTTOM) {
-                h = graphic.prefHeight(width) + gap + textHeight;
+                h = snapSizeY( graphic.prefHeight(width) + textHeight ) + snapSpaceY( gap ) ;
             } else {
-                h = Math.max(textHeight, graphic.prefHeight(width));
+                h = snapSizeY( Math.max(textHeight, graphic.prefHeight(width)) );
             }
+        }
+        else
+        {
+            h = snapSizeY( h );
         }
 
         double padding = topInset + bottomInset;
@@ -393,7 +397,7 @@ public abstract class LabeledSkinBase<C extends Labeled> extends SkinBase<C> {
             padding += topLabelPadding() + bottomLabelPadding();
         }
 
-        return  h + padding;
+        return h + padding;
     }
 
     /** {@inheritDoc} */
@@ -811,13 +815,13 @@ public abstract class LabeledSkinBase<C extends Labeled> extends SkinBase<C> {
         final Node graphic = labeled.getGraphic();
         double width;
         if (isIgnoreGraphic()) {
-            width = minTextWidth;
+            width = snapSizeX( minTextWidth );
         } else if (isIgnoreText()) {
-            width = graphic.minWidth(-1);
+            width = snapSizeX(graphic.minWidth(-1));
         } else if (contentDisplay == LEFT || contentDisplay == RIGHT){
-            width = (minTextWidth + graphic.minWidth(-1) + gap);
+            width = snapSizeX(minTextWidth + graphic.minWidth(-1) ) + snapSpaceX( gap );
         } else {
-            width = Math.max(minTextWidth, graphic.minWidth(-1));
+            width = snapSizeX( Math.max(minTextWidth, graphic.minWidth(-1)) );
         }
 
         double padding = leftInset + rightInset;
@@ -852,10 +856,14 @@ public abstract class LabeledSkinBase<C extends Labeled> extends SkinBase<C> {
             final Node graphic = labeled.getGraphic();
             if (labeled.getContentDisplay() == ContentDisplay.TOP
                     || labeled.getContentDisplay() == ContentDisplay.BOTTOM) {
-                h = graphic.minHeight(width) + labeled.getGraphicTextGap() + textHeight;
+                h = snapSizeY( graphic.minHeight(width) + textHeight ) + snapSpaceY( labeled.getGraphicTextGap() );
             } else {
-                h = Math.max(textHeight, graphic.minHeight(width));
+                h = snapSizeY( Math.max(textHeight, graphic.minHeight(width)) );
             }
+        }
+        else
+        {
+            h = snapSpaceY( h );
         }
 
         double padding = topInset + bottomInset;
