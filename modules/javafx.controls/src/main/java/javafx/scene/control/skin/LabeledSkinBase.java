@@ -376,28 +376,23 @@ public abstract class LabeledSkinBase<C extends Labeled> extends SkinBase<C> {
                 labeled.isWrapText() ? textWidth : 0,
                 labeled.getLineSpacing(), text.getBoundsType());
 
-        // Now we want to add on the graphic if necessary!
-        double h = textHeight;
-        if (!isIgnoreGraphic()) {
-            final Node graphic = labeled.getGraphic();
-            if (contentDisplay == TOP || contentDisplay == BOTTOM) {
-                h = snapSizeY( graphic.prefHeight(width) + textHeight ) + snapSpaceY( gap ) ;
-            } else {
-                h = snapSizeY( Math.max(textHeight, graphic.prefHeight(width)) );
-            }
-        }
-        else
-        {
-            h = snapSizeY( h );
+        final Node graphic = labeled.getGraphic();
+        double height;
+        if (isIgnoreGraphic()) {
+            height = snapSizeY( textHeight );
+        } else if (isIgnoreText()) {
+            height = snapSizeY(graphic.prefHeight(-1));
+        } else if (contentDisplay == TOP || contentDisplay == BOTTOM){
+            height = snapSizeY(textHeight + graphic.prefHeight(-1) ) + snapSpaceY( labeled.getGraphicTextGap() );
+        } else {
+            height = snapSizeY( Math.max(textHeight, graphic.prefHeight(-1)) );
         }
 
         double padding = topInset + bottomInset;
-
-        if (!isIgnoreText() || isLayoutWithLabelPadding()) {
-            padding += topLabelPadding() + bottomLabelPadding();
+        if (!isIgnoreText() || isLayoutWithLabelPadding() ) {
+            padding += topLabelPadding() - bottomLabelPadding();
         }
-
-        return h + padding;
+        return height + padding;
     }
 
     /** {@inheritDoc} */
@@ -849,28 +844,25 @@ public abstract class LabeledSkinBase<C extends Labeled> extends SkinBase<C> {
         double s = labeled.getLineSpacing();
         final double textHeight = Utils.computeTextHeight(font, cleanText, 0, s, text.getBoundsType());
 
-        double h = textHeight;
-
-        // Now we want to add on the graphic if necessary!
-        if (!isIgnoreGraphic()) {
-            final Node graphic = labeled.getGraphic();
-            if (labeled.getContentDisplay() == ContentDisplay.TOP
-                    || labeled.getContentDisplay() == ContentDisplay.BOTTOM) {
-                h = snapSizeY( graphic.minHeight(width) + textHeight ) + snapSpaceY( labeled.getGraphicTextGap() );
-            } else {
-                h = snapSizeY( Math.max(textHeight, graphic.minHeight(width)) );
-            }
-        }
-        else
-        {
-            h = snapSpaceY( h );
+        final ContentDisplay contentDisplay = labeled.getContentDisplay();
+        final Node graphic = labeled.getGraphic();
+        double height;
+        if (isIgnoreGraphic()) {
+            height = snapSizeY( textHeight );
+        } else if (isIgnoreText()) {
+            height = snapSizeY(graphic.minHeight(-1));
+        } else if (contentDisplay == TOP || contentDisplay == BOTTOM){
+            height = snapSizeY(textHeight + graphic.minHeight(-1) ) + snapSpaceY( labeled.getGraphicTextGap() );
+        } else {
+            height = snapSizeY( Math.max(textHeight, graphic.minHeight(-1)) );
         }
 
         double padding = topInset + bottomInset;
         if (!isIgnoreText() || isLayoutWithLabelPadding() ) {
             padding += topLabelPadding() - bottomLabelPadding();
         }
-        return h + padding;
+
+        return height + padding;
     }
 
     double topLabelPadding() {
