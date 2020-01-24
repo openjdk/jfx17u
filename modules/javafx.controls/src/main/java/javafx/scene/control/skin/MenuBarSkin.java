@@ -151,6 +151,7 @@ public class MenuBarSkin extends SkinBase<MenuBar> {
     private ChangeListener<Boolean> menuBarFocusedPropertyListener;
     private ChangeListener<Scene> sceneChangeListener;
     private ChangeListener<Boolean> menuVisibilityChangeListener;
+    private ChangeListener<Boolean> windowFocusListener;
 
     private boolean pendingDismiss = false;
 
@@ -328,7 +329,7 @@ public class MenuBarSkin extends SkinBase<MenuBar> {
             scene.addEventFilter(MouseEvent.MOUSE_CLICKED, weakSceneMouseEventHandler);
         });
 
-        weakWindowFocusListener = new WeakChangeListener<Boolean>((ov, t, t1) -> {
+        weakWindowFocusListener = new WeakChangeListener<Boolean>( windowFocusListener = (ov, t, t1) -> {
             if (!t1) {
               unSelectMenus();
             }
