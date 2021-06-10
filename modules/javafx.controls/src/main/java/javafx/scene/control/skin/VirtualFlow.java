@@ -3084,6 +3084,10 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
     private boolean recalculating = false;
 
     private void recalculateAndImproveEstimatedSize(int improve) {
+        final Callback<VirtualFlow<T>,T> currentCellFactory = getCellFactory();
+        if (currentCellFactory == null) {
+            return;
+        }
         if (recalculating) return;
         recalculating = true;
         try {
