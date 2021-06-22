@@ -454,6 +454,7 @@ class WCGraphicsPrismContext extends WCGraphicsContext {
     }
 
     public void setClip(WCRectangle c) {
+        this.clearRect( c.getX(), c.getY(), c.getWidth(), c.getHeight() );
         setClip(new Rectangle((int)c.getX(), (int)c.getY(),
                               (int)c.getWidth(), (int)c.getHeight()));
     }
