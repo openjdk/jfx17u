@@ -373,55 +373,7 @@ public final class WebPage {
     }
 
     private void scroll(int x, int y, int w, int h, int dx, int dy) {
-        if (paintLog.isLoggable(Level.FINEST)) {
-            paintLog.finest("rect=[" + x + ", " + y + " " + w + "x" + h +
-                            "] delta=[" + dx + ", " + dy + "]");
-        }
-        dx += currentFrame.scrollDx;
-        dy += currentFrame.scrollDy;
-
-        if (Math.abs(dx) < w && Math.abs(dy) < h) {
-            int cx = (dx >= 0) ? x : x - dx;
-            int cy = (dy >= 0) ? y : y - dy;
-            int cw = (dx == 0) ? w : w - Math.abs(dx);
-            int ch = (dy == 0) ? h : h - Math.abs(dy);
-
-            WCRenderQueue rq = WCGraphicsManager.getGraphicsManager()
-                    .createRenderQueue(
-                            new WCRectangle(0, 0, width, height), false);
-            ByteBuffer buffer = ByteBuffer.allocate(32)
-                    .order(ByteOrder.nativeOrder())
-                    .putInt(GraphicsDecoder.COPYREGION)
-                    .putInt(backbuffer.getID())
-                    .putInt(cx).putInt(cy).putInt(cw).putInt(ch)
-                    .putInt(dx).putInt(dy);
-            buffer.flip();
-            rq.addBuffer(buffer);
-            // Ignore previous COPYREGION
-            currentFrame.drop();
-            currentFrame.addRenderQueue(rq);
-            currentFrame.scrollDx = dx;
-            currentFrame.scrollDy = dy;
-            // Now we have to translate "old" dirty rects that fit to the frame's
-            // content as the content is already scrolled at the moment by webkit.
-            if (!dirtyRects.isEmpty()) {
-                WCRectangle scrollRect = new WCRectangle(x, y, w, h);
-                for (WCRectangle r: dirtyRects) {
-                    if (scrollRect.contains(r)) {
-                        if (paintLog.isLoggable(Level.FINEST)) {
-                            paintLog.finest("translating old dirty rect by the delta: " + r);
-                        }
-                        r.translate(dx, dy);
-                    }
-                }
-            }
-        }
-
-        // Add the dirty (not copied) rects
-        addDirtyRect(new WCRectangle(x, dy >= 0 ? y : y + h + dy,
-                                     w, Math.abs(dy)));
-        addDirtyRect(new WCRectangle(dx >= 0 ? x : x + w + dx, y,
-                                     Math.abs(dx), h - Math.abs(dy)));
+        addDirtyRect(new com.sun.webkit.graphics.WCRectangle(0f,0f,(float)width,(float)height));
     }
 
     // Instances of this class may not be accessed and modified concurrently
