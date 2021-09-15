@@ -14,5 +14,5 @@ Backport LONG-COMMIT-HASH
 where `LONG-COMMIT-HASH` is the long (40 char) commit hash of the fix as found in the main jfx repo. The Skara tooling will then note that it is a backport, and replace the title with the correct issue title.
 
 If Skara detemines that the backport is clean, the bot will add the `clean` label and mark it as `ready` for integration. _If_ a project lead has approved
-including this bug to the current update release, a review of a clean backport is optional; such a backport may be integrated without further review. If
+this bug for inclusion in the current update release, a review of a clean backport is optional; such a backport may be integrated without further review. If
 there is any concern over the risk of the backport, please ask for a review.
