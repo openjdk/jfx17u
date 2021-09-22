@@ -241,7 +241,7 @@ class PrintLogger extends Logger {
     public void renderEnd() {
         newPhase(null); // finish the current phase on the render thread
         renderData.state = COMPLETE;
-        for (;;) {
+        while( renderData != null ) {
             renderData.printAndReset();
             if (active.decrementAndGet() == 0) {
                 break;
