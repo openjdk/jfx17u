@@ -528,11 +528,13 @@ if (IS_MAC) {
 //
 
 // The following properties should be left alone by developers and set only from Hudson.
-defineProperty("HUDSON_JOB_NAME", "not_hudson")
+defineProperty("HUDSON_JOB_NAME", "buildjfx")
 defineProperty("HUDSON_BUILD_NUMBER","0000")
 defineProperty("PROMOTED_BUILD_NUMBER", "0")
-defineProperty("MILESTONE_FCS", "false")
-ext.IS_MILESTONE_FCS = Boolean.parseBoolean(MILESTONE_FCS)
+
+loadProperties("$projectDir/release.properties")
+ext.BUILD_ALPHA = Boolean.parseBoolean( buildAlpha )
+ext.IS_MILESTONE_FCS = Boolean.parseBoolean( buildRelease ) || ext.BUILD_ALPHA
 
 // The following properties define the product name for Oracle JDK and OpenJDK
 // for VersionInfo and the DLL manifest.
@@ -569,17 +571,14 @@ defineProperty("RELEASE_VERSION_PADDED", "${jfxReleaseMajorVersion}.${jfxRelease
 def buildDate = new java.util.Date()
 def buildTimestamp = new java.text.SimpleDateFormat("yyyy-MM-dd-HHmmss").format(buildDate)
 defineProperty("BUILD_TIMESTAMP", buildTimestamp)
-def relSuffix = ""
-def relOpt = ""
-if (HUDSON_JOB_NAME == "not_hudson") {
-    relSuffix = "-internal"
-    relOpt = "-${buildTimestamp}"
-} else {
-    relSuffix = IS_MILESTONE_FCS ? "" : jfxReleaseSuffix
+def relSuffix = jfxReleaseSuffix
+if( ext.BUILD_ALPHA )
+{
+    relSuffix += "-ALPHA-" + Integer.parseInt( buildAlphaNumber )
 }
 defineProperty("RELEASE_SUFFIX", relSuffix)
 defineProperty("RELEASE_VERSION_SHORT", "${RELEASE_VERSION}${RELEASE_SUFFIX}")
-defineProperty("RELEASE_VERSION_LONG", "${RELEASE_VERSION_SHORT}+${PROMOTED_BUILD_NUMBER}${relOpt}")
+defineProperty("RELEASE_VERSION_LONG", "${RELEASE_VERSION_SHORT}+${PROMOTED_BUILD_NUMBER}")
 defineProperty("MAVEN_VERSION", IS_MAVEN_PUBLISH ? (IS_MILESTONE_FCS ? "${RELEASE_VERSION_SHORT}" : "${RELEASE_VERSION_LONG}") : "")
 
 // Check whether the COMPILE_TARGETS property has been specified (if so, it was done by
@@ -1611,10 +1610,11 @@ void addMavenPublication(Project project, List<String> projectDependencies) {
     project.publishing {
         repositories {
             maven {
-                def repositoryUrl = project.hasProperty('repositoryUrl') ? project.getProperty('repositoryUrl') : ""
-                def repositoryUsername = project.hasProperty('repositoryUsername') ? project.getProperty('repositoryUsername') : ""
-                def repositoryPassword = project.hasProperty('repositoryPassword') ? project.getProperty('repositoryPassword') : ""
+                def repositoryUrl = project.hasProperty('repositoryUrl') ? project.getProperty('repositoryUrl') : this.repositoryUrl
+                def repositoryUsername = project.hasProperty('repositoryUsername') ? project.getProperty('repositoryUsername') : this.repositoryUsername
+                def repositoryPassword = project.hasProperty('repositoryPassword') ? project.getProperty('repositoryPassword') : this.repositoryPassword
                 url repositoryUrl
+                allowInsecureProtocol = true
                 credentials {
                    username repositoryUsername
                    password repositoryPassword
@@ -1634,6 +1634,8 @@ void addMavenPublication(Project project, List<String> projectDependencies) {
                         artifact project.tasks."modularPublicationJar$t.capital" {
                             classifier "$t.name"
                         }
+                        artifact project.tasks."modularSourcesPublicationJar$t.capital"
+                        artifact project.tasks."modularJavadocPublicationJar$t.capital"
                     }
 
                     pom.withXml {
@@ -2114,6 +2116,7 @@ project(":graphics") {
     project.ext.includeSources = true
     project.ext.moduleRuntime = true
     project.ext.moduleName = "javafx.graphics"
+    project.ext.mavenPublish = true
 
     getConfigurations().create("antlr");
 
@@ -2701,6 +2704,7 @@ project(":swt") {
                 // for the sake of the IDEs we need to have a single stable name that works
                 // on every platform
                 copy {
+                    duplicatesStrategy = DuplicatesStrategy.INCLUDE
                     into libsDir
                     from f.getParentFile()
                     include "**/*swt*.jar"
@@ -4068,17 +4072,16 @@ task createMSPfile() {
     }
 }
 
-task javadoc(type: Javadoc, dependsOn: createMSPfile) {
-    group = "Basic"
-    description = "Generates the JavaDoc for all the public API"
-    executable = JAVADOC
-    def projectsToDocument = [
-            project(":base"), project(":graphics"), project(":controls"), project(":media"),
-            project(":swing"), /*project(":swt"),*/ project(":fxml"), project(":web")]
-    source(projectsToDocument.collect({
-        [it.sourceSets.main.java]
-    }));
-    setDestinationDir(new File(buildDir, 'javadoc'));
+Javadoc addJavadocTask( String taskName, Project javadocRootProject, String outputDir, List<Project> projectsToDocument ) {
+    return javadocRootProject.task(taskName, type: Javadoc, dependsOn: createMSPfile) {
+        group = "Basic"
+        description = "Generates the JavaDoc for all the public API"
+        executable = JAVADOC
+
+        source(projectsToDocument.collect({
+            [it.sourceSets.main.java]
+        }));
+        setDestinationDir(new File(outputDir));
 
     exclude("com/**/*", "Compile*", "javafx/builder/**/*", "javafx/scene/accessibility/**/*");
 
@@ -4105,7 +4108,7 @@ task javadoc(type: Javadoc, dependsOn: createMSPfile) {
         options.links(JDK_DOCS);
     }
     options.addBooleanOption("XDignore.symbol.file").setValue(true);
-    options.addBooleanOption("Xdoclint:${DOC_LINT}").setValue(IS_DOC_LINT);
+    options.addBooleanOption('Xdoclint:none', true) // javadoc references are throwing exceptions
     options.addBooleanOption("html5").setValue(true);
     options.addBooleanOption("javafx").setValue(true);
     options.addBooleanOption("use").setValue(true);
@@ -4120,7 +4123,7 @@ task javadoc(type: Javadoc, dependsOn: createMSPfile) {
 
     doLast {
         projectsToDocument.each { p ->
-            def destDir = "$buildDir/javadoc/${p.ext.moduleName}"
+            def destDir = "$outputDir/${p.ext.moduleName}"
             copy {
                 from("$p.projectDir/src/main/docs") {
                     include "**/*.html"
@@ -4138,7 +4141,13 @@ task javadoc(type: Javadoc, dependsOn: createMSPfile) {
     }
 
     dependsOn(projectsToDocument.collect { project -> project.getTasksByName("classes", true)});
+    }
 }
+
+def projects = [
+        project(":base"), project(":graphics"), project(":controls"), project(":media"),
+        project(":swing"), /*project(":swt"),*/ project(":fxml"), project(":web")]
+addJavadocTask( 'javadoc', rootProject, "$buildDir/javadoc", projects )
 
 task sdk() {
     if (DO_BUILD_SDK_FOR_TEST) {
@@ -4271,6 +4280,10 @@ compileTargets { t ->
 }
 
 project(":apps") {
+    if( true )
+    {
+        return;
+    }
     // The apps build is Ant based, we will exec ant from gradle.
 
     // Download the Lucene libraries needed for the Ensemble8 app
@@ -4610,6 +4623,64 @@ compileTargets { t ->
     }
     buildModules.dependsOn(buildModulesTask)
 
+    // prepare sources
+    moduleProjList.each { project ->
+        def buildDir = project.buildDir
+        def sourcesDir = "${buildDir}/${platformPrefix}module-sources"
+        // Copy module sources
+        // FIXME: javafx.swt sources?
+        def copySources = project.hasProperty("includeSources") && project.includeSources
+        def copySourceFilesTask = project.task("copySourceFiles$t.capital", type: Copy) {
+            if (copySources) {
+                from "${project.projectDir}/src/main/java"
+                if (project.name.equals("base")) {
+                    from "${project.projectDir}/build/gensrc/java"
+                }
+                if (project.name.equals("web")) {
+                    from "${project.projectDir}/src/main/native/Source/WebCore/bindings/java/dom3/java"
+                }
+            } else {
+                from "${project.projectDir}/src/main/java/module-info.java"
+            }
+            into sourcesDir
+            include "**/*.java"
+
+            if (project.hasProperty("sourceFilter")) {
+                filter(project.sourceFilter)
+            }
+        }
+
+        // Copy .html and other files needed for doc bundles
+        def copyDocFiles = project.task("copyDocFiles$t.capital", type: Copy, dependsOn: copySourceFilesTask) {
+            if (copySources) {
+                from("${project.projectDir}/src/main/docs") {
+                    include "**/*.html"
+                    filter { line ->
+                        line = line.replace("@FXVERSION@", RELEASE_VERSION)
+                    }
+                }
+                from("${project.projectDir}/src/main/docs") {
+                    exclude "**/*.html"
+                }
+                from("${project.projectDir}/src/main/java") {
+                    exclude "**/*.java"
+                }
+
+                into sourcesDir
+            }
+        }
+        buildModulesTask.dependsOn(
+                copySourceFilesTask,
+                copyDocFiles)
+    }
+
+    // javadoc for each module
+    moduleProjList.each { p ->
+        def buildDir = p.buildDir
+        def javadocDir = "${buildDir}/${platformPrefix}module-javadoc"
+        def javadocTask = addJavadocTask( "javadocGenerate$t.capital", p, javadocDir, [p] )
+        buildModulesTask.dependsOn( javadocTask )
+    }
     // BUNDLED SDK
     moduleProjList.each { project ->
         // Copy classes, bin, and lib directories
@@ -4639,53 +4710,17 @@ compileTargets { t ->
             into dstLibsDir
         }
 
-        // Copy module sources
-        // FIXME: javafx.swt sources?
-        def copySources = project.hasProperty("includeSources") && project.includeSources
-        def copySourceFilesTask = project.task("copySourceFiles$t.capital", type: Copy, dependsOn: copyLibFilesTask) {
-            if (copySources) {
-                from "${project.projectDir}/src/main/java"
-                if (project.name.equals("base")) {
-                    from "${project.projectDir}/build/gensrc/java"
-                }
-                if (project.name.equals("web")) {
-                    from "${project.projectDir}/src/main/native/Source/WebCore/bindings/java/dom3/java"
-                }
-            } else {
-                from "${project.projectDir}/src/main/java/module-info.java"
-            }
-            into "${modulesSrcDir}/${moduleName}"
-            include "**/*.java"
-
-            if (project.hasProperty("sourceFilter")) {
-                filter(project.sourceFilter)
-            }
-        }
-
-        // Copy .html and other files needed for doc bundles
-        def copyDocFiles = project.task("copyDocFiles$t.capital", type: Copy, dependsOn: copySourceFilesTask) {
-            if (copySources) {
-                from("${project.projectDir}/src/main/docs") {
-                    include "**/*.html"
-                    filter { line->
-                        line = line.replace("@FXVERSION@", RELEASE_VERSION)
-                    }
-                }
-                from("${project.projectDir}/src/main/docs") {
-                    exclude "**/*.html"
-                }
-                from("${project.projectDir}/src/main/java") {
-                    exclude "**/*.java"
-                }
-
-                into "${modulesSrcDir}/${moduleName}"
-            }
+        def sourcesDir = "${buildDir}/${platformPrefix}module-sources"
+        def dstSourceDir = "${modulesSrcDir}/${moduleName}"
+        def copySourceFilesTask = project.task("copySourcesForSdk$t.capital", type: Copy, dependsOn: copyLibFilesTask) {
+            from sourcesDir
+            into dstSourceDir
         }
 
         // Copy make/build.properties
         def srcMakeDir = "${project.projectDir}/make"
         def dstMakeDir = "${modulesMakeDir}/${moduleName}"
-        def copyBuildPropertiesTask = project.task("copyBuildProperties$t.capital", type: Copy, dependsOn: copyDocFiles) {
+        def copyBuildPropertiesTask = project.task("copyBuildProperties$t.capital", type: Copy, dependsOn: copySourceFilesTask) {
             from srcMakeDir
             into dstMakeDir
         }
@@ -4705,7 +4740,6 @@ compileTargets { t ->
             copyClassFilesTask,
             copyLibFilesTask,
             copySourceFilesTask,
-            copyDocFiles,
             copyBuildPropertiesTask,
             copyLegalTask)
     }
@@ -4811,6 +4845,7 @@ compileTargets { t ->
         def buildDir = project.buildDir
 
         def dstModularJarDir="${publicationDir}"
+        def srcSourcesDir = "${buildDir}/${platformPrefix}module-sources"
         def srcClassesDir = "${buildDir}/${platformPrefix}module-classes"
         def srcLibsDir = "${buildDir}/${platformPrefix}module-lib"
 
@@ -4831,6 +4866,24 @@ compileTargets { t ->
             archiveFileName = modularPublicationJarName
             from srcLibsDir
             from srcClassesDir
+        }
+
+        def modularSourcesPublicationJarName = "${moduleName}-sources.jar"
+        def modularSourcesPublicationJarTask = project.task("modularSourcesPublicationJar${t.capital}", type: Jar, dependsOn: modularPublicationJarTask) {
+            from srcSourcesDir
+            destinationDir = file("${dstModularJarDir}")
+            archiveName = modularSourcesPublicationJarName
+            classifier = 'sources'
+
+        }
+
+        def modularJavadocPublicationJarName = "${moduleName}-javadoc.jar"
+        def modularJavadocPublicationJarTask = project.task("modularJavadocPublicationJar${t.capital}", type: Jar, dependsOn: [project.tasks.'javadoc', modularSourcesPublicationJarTask]) {
+            destinationDir = file("${dstModularJarDir}")
+            archiveName = modularJavadocPublicationJarName
+            classifier = 'javadoc'
+            def javadocDir = "${buildDir}/${platformPrefix}module-javadoc"
+            from javadocDir
         }
 
         buildModulesTask.dependsOn(modularPublicationJarTask)
