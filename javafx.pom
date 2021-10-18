@@ -12,6 +12,7 @@
     <properties>
         <javafx.version>@VERSION@</javafx.version>
     </properties>
+    <url>https://github.com/PSI-Polska/jfx17u</url>
     <dependencyManagement>
     </dependencyManagement>
     <profiles>
