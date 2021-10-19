@@ -356,7 +356,7 @@ public abstract class TableRowSkinBase<T,
                 // may be variable and / or dynamic.
                 isVisible = isColumnPartiallyOrFullyVisible(tableColumn);
 
-                height = fixedCellSize;
+                height = snapSizeY( fixedCellSize );
             } else {
                 height = Math.max(controlHeight, tableCell.prefHeight(-1));
                 height = snapSizeY(height) - snapSizeY(verticalPadding);
@@ -581,7 +581,7 @@ public abstract class TableRowSkinBase<T,
     /** {@inheritDoc} */
     @Override protected double computePrefHeight(double width, double topInset, double rightInset, double bottomInset, double leftInset) {
         if (fixedCellSizeEnabled) {
-            return fixedCellSize;
+            return snapSizeY( fixedCellSize );
         }
 
         // fix for RT-29080
@@ -611,7 +611,7 @@ public abstract class TableRowSkinBase<T,
     /** {@inheritDoc} */
     @Override protected double computeMinHeight(double width, double topInset, double rightInset, double bottomInset, double leftInset) {
         if (fixedCellSizeEnabled) {
-            return fixedCellSize;
+            return snapSizeY( fixedCellSize );
         }
 
         // fix for RT-29080
@@ -639,7 +639,7 @@ public abstract class TableRowSkinBase<T,
     /** {@inheritDoc} */
     @Override protected double computeMaxHeight(double width, double topInset, double rightInset, double bottomInset, double leftInset) {
         if (fixedCellSizeEnabled) {
-            return fixedCellSize;
+            return snapSizeY( fixedCellSize );
         }
         return super.computeMaxHeight(width, topInset, rightInset, bottomInset, leftInset);
     }

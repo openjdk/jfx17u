@@ -1995,10 +1995,10 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
 
         if (isVertical()) {
             double width = Math.max(getMaxPrefBreadth(), getViewportBreadth());
-            cell.resize(width, fixedCellSizeEnabled ? getFixedCellSize() : Utils.boundedSize(cell.prefHeight(width), cell.minHeight(width), cell.maxHeight(width)));
+            cell.resize(width, fixedCellSizeEnabled ? snapSizeY( getFixedCellSize() ) : Utils.boundedSize(cell.prefHeight(width), cell.minHeight(width), cell.maxHeight(width)));
         } else {
             double height = Math.max(getMaxPrefBreadth(), getViewportBreadth());
-            cell.resize(fixedCellSizeEnabled ? getFixedCellSize() : Utils.boundedSize(cell.prefWidth(height), cell.minWidth(height), cell.maxWidth(height)), height);
+            cell.resize(fixedCellSizeEnabled ? snapSizeX( getFixedCellSize() ) : Utils.boundedSize(cell.prefWidth(height), cell.minWidth(height), cell.maxWidth(height)), height);
         }
     }
 
