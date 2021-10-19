@@ -40,7 +40,10 @@ public final class TableViewSkinHelper
     public static void resizeColumnToFitContent( TableViewSkinBase< ?, ?, ?, ?, ? > tableSkin,
         TableColumnBase< ?, ? > tc )
     {
-        TableSkinUtils.resizeColumnToFitContent( tableSkin, tc, -1 );
+        TableHeaderRow tableHeader = tableSkin.getTableHeaderRow();
+        TableColumnHeader columnHeader = tableHeader.getColumnHeaderFor(tc);
+        if (columnHeader != null) {
+            columnHeader.resizeColumnToFitContent(-1);
+        }
     }
-
 }
