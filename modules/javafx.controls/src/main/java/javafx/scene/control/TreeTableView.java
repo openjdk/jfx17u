@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.IntPredicate;
+import java.util.function.Function;
 
 import javafx.application.Platform;
 import javafx.beans.DefaultProperty;
@@ -1512,6 +1513,26 @@ public class TreeTableView<S> extends Control {
         return onSort;
     }
 
+    /**
+     * Row size supplier function that will be used by {@link TreeTableViewSkin}.
+     */
+    private Function< TreeItem< S >, Double > rowSizeSupplier;
+
+    /**
+     * @see #rowSizeSupplier
+     */
+    public Function< TreeItem< S >, Double > getRowSizeSupplier()
+    {
+        return rowSizeSupplier;
+    }
+
+    /**
+     * @see #rowSizeSupplier
+     */
+    public void setRowSizeSupplier( final Function< TreeItem< S >, Double > aRowSizeSupplier )
+    {
+        rowSizeSupplier = aRowSizeSupplier;
+    }
 
 
     /* *************************************************************************
