@@ -39,6 +39,7 @@ import com.sun.javafx.scene.control.behavior.TreeTableViewBehavior;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
@@ -349,6 +350,8 @@ public class TreeTableViewSkin<T> extends TableViewSkinBase<T, TreeItem<T>, Tree
         int oldCount = flow.getCellCount();
         int newCount = getItemCount();
 
+        populateCache( newCount );
+
         // if this is not called even when the count is the same, we get a
         // memory leak in VirtualFlow.sheet.children. This can probably be
         // optimised in the future when time permits.
@@ -363,5 +366,66 @@ public class TreeTableViewSkin<T> extends TableViewSkinBase<T, TreeItem<T>, Tree
         } else {
             needCellsReconfigured = true;
         }
+    }
+
+    private void populateCache( final int aNewCount )
+    {
+        // do not populate cache if there is an fixed cell size
+        if( getSkinnable().getFixedCellSize() > 0 )
+        {
+            return;
+        }
+        final Function< TreeItem< T >, Double > rowSizeSupplier = getSkinnable().getRowSizeSupplier();
+        final VirtualFlow< TreeTableRow< T > > flow = getVirtualFlow();
+        if( rowSizeSupplier == null )
+        {
+            flow.setCellSizeProvider( null );
+            return;
+        }
+        final TreeItem< T > root = getRoot();
+        if( root == null || aNewCount == 0 )
+        {
+            flow.setCellSizeProvider( null );
+            return;
+        }
+        final Double[] itemSizes = new Double[ aNewCount ];
+        int currentIndex = 0;
+        if( getSkinnable().isShowRoot() )
+        {
+            itemSizes[ currentIndex++ ] = rowSizeSupplier.apply( root );
+        }
+        populateDesc( root, currentIndex, itemSizes, rowSizeSupplier );
+        final VirtualFlow.CellSizeProvider currentCellSizeProvider = flow.getCellSizeProvider();
+        if( currentCellSizeProvider == null || currentCellSizeProvider.isFixedSize() )
+        {
+            flow.setCellSizeProvider( new VirtualFlow.StaticCellSizeProvider( itemSizes ) );
+        }
+        else
+        {
+            currentCellSizeProvider.setItemSizes( itemSizes );
+        }
+    }
+
+    private int populateDesc( final TreeItem< T > aTreeItem, int aCurrentIndex, final Double[] aItemSizes,
+        final Function< TreeItem< T >, Double > aRowSizeSupplier )
+    {
+        if( !aTreeItem.isExpanded() )
+        {
+            return 0;
+        }
+        if( aTreeItem.isLeaf() )
+        {
+            return 0;
+        }
+        int count = 0;
+        for( final TreeItem< T > child : aTreeItem.getChildren() )
+        {
+            count++;
+            aItemSizes[ aCurrentIndex++ ] = aRowSizeSupplier.apply( child );
+            final int addedCount = populateDesc( child, aCurrentIndex, aItemSizes, aRowSizeSupplier );
+            count += addedCount;
+            aCurrentIndex += addedCount;
+        }
+        return count;
     }
 }

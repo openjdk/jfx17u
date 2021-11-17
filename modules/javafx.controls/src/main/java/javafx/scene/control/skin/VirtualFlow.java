@@ -282,6 +282,7 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
      * cleared.
      */
     private ArrayList<Double> itemSizeCache = new ArrayList<>();
+    private CellSizeProvider cellSizeProvider;
 
     // used for panning the virtual flow
     private double lastX;
@@ -897,6 +898,7 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
     public final void setCellCount(int value) {
         resetSizeEstimates();
         cellCount.set(value);
+        populateCellSizes();
         adjustAbsoluteOffset();
     }
     public final IntegerProperty cellCountProperty() { return cellCount; }
@@ -934,7 +936,12 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
      */
     private DoubleProperty fixedCellSize = new SimpleDoubleProperty(this, "fixedCellSize") {
         @Override protected void invalidated() {
+            final boolean previousFixedCellSizeEnabled = fixedCellSizeEnabled;
             fixedCellSizeEnabled = get() > 0;
+            if( previousFixedCellSizeEnabled != fixedCellSizeEnabled )
+            {
+                populateCellSizes();
+            }
             needsCellsLayout = true;
             layoutChildren();
         }
@@ -3063,6 +3070,34 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
     // end of old PositionMapper code
 
 
+    private void populateCellSizes() {
+        final CellSizeProvider cellSizeProvider =
+            fixedCellSizeEnabled ? new FixedCellSizeProvider( getFixedCellSize() ) : this.cellSizeProvider;
+        if( cellSizeProvider == null ) {
+            return;
+        }
+        itemSizeCache.clear();
+        final int cellCount = getCellCount();
+        for( int i = 0; i < cellCount; i++ ) {
+            itemSizeCache.add( cellSizeProvider.getCellSize( i ) );
+        }
+        recalculateEstimatedSize();
+    }
+
+    protected CellSizeProvider getCellSizeProvider() {
+        return cellSizeProvider;
+    }
+
+    protected void setCellSizeProvider( final CellSizeProvider aCellSizeProvider )
+    {
+        final CellSizeProvider previousOne = cellSizeProvider;
+        cellSizeProvider = aCellSizeProvider;
+        if (previousOne != aCellSizeProvider && !fixedCellSizeEnabled) {
+            resetSizeEstimates();
+            populateCellSizes();
+        }
+    }
+
 
 
     /* *************************************************************************
@@ -3070,6 +3105,76 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
      * Support classes                                                         *
      *                                                                         *
      **************************************************************************/
+
+    protected interface CellSizeProvider
+    {
+        Double getCellSize( final int aCellIndex );
+
+        void setItemSizes( final Double[] aItemSizes );
+
+        boolean isFixedSize();
+    }
+
+    protected static class FixedCellSizeProvider implements CellSizeProvider
+    {
+        private final double fixedSize;
+
+        public FixedCellSizeProvider( final double aFixedSize )
+        {
+            fixedSize = aFixedSize;
+        }
+
+        @Override
+        public Double getCellSize( final int aCellIndex )
+        {
+            return fixedSize;
+        }
+
+        @Override
+        public void setItemSizes( final Double[] aItemSizes )
+        {
+            throw new UnsupportedOperationException(
+                "FixedCellSizeProvider does not support setting item size." );
+        }
+
+        @Override
+        public boolean isFixedSize()
+        {
+            return true;
+        }
+    }
+
+    protected static class StaticCellSizeProvider implements CellSizeProvider
+    {
+        private Double[] itemSizes;
+
+        public StaticCellSizeProvider( final Double[] aItemSizes )
+        {
+            itemSizes = aItemSizes;
+        }
+
+        @Override
+        public void setItemSizes( final Double[] aItemSizes )
+        {
+            itemSizes = aItemSizes;
+        }
+
+        @Override
+        public Double getCellSize( final int aCellIndex )
+        {
+            if( aCellIndex >= itemSizes.length )
+            {
+                return null;
+            }
+            return itemSizes[ aCellIndex ];
+        }
+
+        @Override
+        public boolean isFixedSize()
+        {
+            return false;
+        }
+    }
 
     /**
      * A simple extension to Region that ensures that anything wanting to flow
