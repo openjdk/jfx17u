@@ -104,7 +104,7 @@ public class TreeTableCellSkin<S,T> extends TableCellSkinBase<TreeItem<S>, T, Tr
     }
 
     /** {@inheritDoc} */
-    @Override double leftLabelPadding() {
+    @Override protected double leftLabelPadding() {
         double leftPadding = super.leftLabelPadding();
 
         // RT-27167: we must take into account the disclosure node and the
