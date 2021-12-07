@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,35 +23,26 @@
  * questions.
  */
 
-#include "config.h"
+package com.sun.glass.ui.mac;
 
-#include "BitmapTextureJava.h"
-#include "GraphicsLayer.h"
-#include "NotImplemented.h"
-#include "PlatformContextJava.h"
-#include "TextureMapperJava.h"
+import com.sun.glass.ui.Clipboard;
 
-namespace WebCore {
+import java.util.HashMap;
 
-void BitmapTextureJava::updateContents(const void*, const IntRect&, const IntPoint&, int)
-{
+public class MacPasteboardShim {
+
+    private static MacSystemClipboard dndClipboard;
+
+    public MacPasteboardShim() {
+        dndClipboard = new MacSystemClipboard(Clipboard.DND);
+    }
+
+    public void pushMacPasteboard(HashMap<String, Object> data) {
+        dndClipboard.pushToSystem(data, Clipboard.ACTION_ANY);
+    }
+
+    public Object popMacPasteboard(String mime) {
+        return dndClipboard.popFromSystem(mime);
+    }
+
 }
-
-void BitmapTextureJava::didReset()
-{
-    float devicePixelRatio = 1.0;
-    m_image = ImageBuffer::create(contentSize(), RenderingMode::Accelerated, devicePixelRatio);
-}
-
-void BitmapTextureJava::updateContents(Image* image, const IntRect& targetRect, const IntPoint& offset)
-{
-    m_image->context().drawImage(*image, targetRect, IntRect(offset, targetRect.size()), CompositeOperator::Copy);
-}
-
-RefPtr<BitmapTexture> BitmapTextureJava::applyFilters(TextureMapper&, const FilterOperations&)
-{
-    notImplemented();
-    return this;
-}
-
-} // namespace WebCore
