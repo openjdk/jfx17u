@@ -26,6 +26,7 @@
 package javafx.scene;
 
 import java.security.AccessController;
+import java.security.PrivilegedAction;
 
 class PropertyHelper {
 
@@ -33,16 +34,13 @@ class PropertyHelper {
     // this runs within a doPrivilege block so this function must be package-private.
     static boolean getBooleanProperty(final String propName) {
         try {
-            @SuppressWarnings("removal")
-            boolean answer =
-                AccessController.doPrivileged((java.security.PrivilegedAction<Boolean>) () -> {
-                        String propVal = System.getProperty(propName);
-                        return "true".equals(propVal.toLowerCase());
-                    });
-            return answer;
+            return AccessController.doPrivileged((PrivilegedAction<Boolean>) () -> {
+                String propVal = System.getProperty(propName);
+                return Boolean.parseBoolean(propVal);
+            });
         } catch (Exception any) {
+            return false;
         }
-        return false;
     }
 
 }
