@@ -370,6 +370,30 @@ public class TreeTableViewSkin<T> extends TableViewSkinBase<T, TreeItem<T>, Tree
         }
     }
 
+    /**
+     * Forces {@link VirtualFlow} to re-estimate cell sizes.
+     */
+    @Override
+    protected void layoutChildren( final double x, final double y, final double w, final double h )
+    {
+        final TreeTableView< T > skinnable = getSkinnable();
+
+        // an unlikely scenario, but it does pop up in unit tests, so guarding
+        // here to prevent test failures seems ok.
+        if (skinnable == null) {
+            return;
+        }
+        int oldCount = flow.getCellCount();
+        checkState();
+        int newCount = getItemCount();
+        boolean itemCountChanged = oldCount != newCount;
+        if (!itemCountChanged && needCellsRecreated) {
+            populateCache(newCount);
+            flow.setCellCount(newCount);
+        }
+        super.layoutChildren(x, y, w, h);
+    }
+
     private void populateCache( final int aNewCount )
     {
         // do not populate cache if there is an fixed cell size

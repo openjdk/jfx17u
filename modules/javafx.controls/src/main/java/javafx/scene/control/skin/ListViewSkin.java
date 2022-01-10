@@ -52,11 +52,13 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.SelectionModel;
 import com.sun.javafx.scene.control.behavior.ListViewBehavior;
+import javafx.scene.control.TreeTableView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.StackPane;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.function.Function;
 
 import com.sun.javafx.scene.control.skin.resources.ControlResources;
 
@@ -297,8 +299,15 @@ public class ListViewSkin<T> extends VirtualContainerBase<ListView<T>, ListCell<
     /** {@inheritDoc} */
     @Override protected void layoutChildren(final double x, final double y,
                                             final double w, final double h) {
+        int oldCount = flow.getCellCount();
         super.layoutChildren(x, y, w, h);
-
+        int newCount = getItemCount();
+        boolean itemCountChanged = oldCount != newCount;
+        if (!itemCountChanged && needCellsRebuilt) {
+            // Forces VirtualFlow to re-estimate cell sizes.
+            populateCache( newCount );
+            flow.setCellCount( newCount );
+        }
         if (needCellsRebuilt) {
             flow.rebuildCells();
         } else if (needCellsReconfigured) {
@@ -352,6 +361,7 @@ public class ListViewSkin<T> extends VirtualContainerBase<ListView<T>, ListCell<
         int oldCount = itemCount;
         int newCount = listViewItems == null ? 0 : listViewItems.size();
 
+        populateCache( newCount );
         itemCount = newCount;
 
         flow.setCellCount(newCount);
@@ -678,5 +688,44 @@ public class ListViewSkin<T> extends VirtualContainerBase<ListView<T>, ListCell<
         int newSelectionIndex = firstVisibleCell.getIndex();
         flow.scrollTo(firstVisibleCell);
         return newSelectionIndex;
+    }
+
+    private void populateCache( final int aNewCount )
+    {
+        // do not populate cache if there is an fixed cell size
+        if( getSkinnable().getFixedCellSize() > 0 )
+        {
+            return;
+        }
+        final Function< T, Double > rowSizeSupplier = getSkinnable().getRowSizeSupplier();
+        if( rowSizeSupplier == null )
+        {
+            flow.setCellSizeProvider( null );
+            return;
+        }
+        if( aNewCount == 0 )
+        {
+            flow.setCellSizeProvider( null );
+            return;
+        }
+        final List< T > items = getSkinnable().getItems();
+        if( items == null )
+        {
+            return;
+        }
+        final Double[] itemSizes = new Double[ aNewCount ];
+        for( int i = 0; i < aNewCount; i++ )
+        {
+            itemSizes[ i ] = rowSizeSupplier.apply( items.get( i ) );
+        }
+        final VirtualFlow.CellSizeProvider currentCellSizeProvider = flow.getCellSizeProvider();
+        if( currentCellSizeProvider == null || currentCellSizeProvider.isFixedSize() )
+        {
+            flow.setCellSizeProvider( new VirtualFlow.StaticCellSizeProvider( itemSizes ) );
+        }
+        else
+        {
+            currentCellSizeProvider.setItemSizes( itemSizes );
+        }
     }
 }

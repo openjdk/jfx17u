@@ -67,6 +67,7 @@ import javafx.css.converter.SizeConverter;
 import javafx.scene.control.skin.ListViewSkin;
 
 import java.lang.ref.WeakReference;
+import java.util.function.Function;
 
 import javafx.css.PseudoClass;
 import javafx.beans.DefaultProperty;
@@ -677,6 +678,27 @@ public class ListView<T> extends Control {
             };
         }
         return fixedCellSize;
+    }
+
+    /**
+     * Row size supplier function that will be used by {@link ListViewSkin}.
+     */
+    private Function< T, Double > rowSizeSupplier;
+
+    /**
+     * @see #rowSizeSupplier
+     */
+    public Function< T, Double > getRowSizeSupplier()
+    {
+        return rowSizeSupplier;
+    }
+
+    /**
+     * @see #rowSizeSupplier
+     */
+    public void setRowSizeSupplier( final Function< T, Double > aRowSizeSupplier )
+    {
+        rowSizeSupplier = aRowSizeSupplier;
     }
 
 
