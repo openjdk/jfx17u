@@ -8,14 +8,6 @@ As of JDK 11 the JavaFX modules are delivered separately from the JDK. These rel
 
 JavaFX 17.0.2 requires JDK 11 or later.
 
-## List of Task
-
-Issue key|Summary|Subcomponent
----------|-------|------------
-[JDK-8272638](https://bugs.openjdk.java.net/browse/JDK-8272638)|Update copyright header for files modified in 2021|other
-[JDK-8274413](https://bugs.openjdk.java.net/browse/JDK-8274413)|FX: Update copyright year in docs, readme files to 2022|other
-[JDK-8279396](https://bugs.openjdk.java.net/browse/JDK-8279396)|Define version in .jcheck/conf|other
-
 ## List of Fixed Bugs
 
 Issue key|Summary|Subcomponent
