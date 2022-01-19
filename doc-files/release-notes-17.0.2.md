@@ -29,3 +29,9 @@ Issue key|Summary|Subcomponent
 [JDK-8160597](https://bugs.openjdk.java.net/browse/JDK-8160597)|IllegalArgumentException when we initiate drag on Image|window-toolkit
 [JDK-8274929](https://bugs.openjdk.java.net/browse/JDK-8274929)|Crash while reading specific clipboard content|window-toolkit
 [JDK-8275723](https://bugs.openjdk.java.net/browse/JDK-8275723)|Crash on macOS 12 in GlassRunnable::dealloc|window-toolkit
+
+## List of Security fixes
+
+Issue key|Summary|Subcomponent
+---------|-------|------------
+JDK-8272546 (not public) | Better TrueType font loading | graphics
