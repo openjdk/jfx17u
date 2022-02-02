@@ -674,6 +674,27 @@ public class TreeTableCellTest {
     }
 
     /**
+     * The {@link TreeTableRow} should never be null inside the {@link TreeTableCell} during auto sizing.
+     * Note: The auto sizing is triggered as soon as the table has a scene - so when the {@link StageLoader} is created.
+     * See also: JDK-8251481
+     */
+    @Test
+    public void testRowIsNotNullWhenAutoSizing() {
+        TreeTableColumn<String, String> treeTableColumn = new TreeTableColumn<>();
+        treeTableColumn.setCellFactory(col -> new TreeTableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+
+                assertNotNull(getTableRow());
+            }
+        });
+        tree.getColumns().add(treeTableColumn);
+
+        stageLoader = new StageLoader(tree);
+    }
+
+    /**
      * Table: Editable<br>
      * Row: Not editable<br>
      * Column: Editable<br>
