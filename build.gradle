@@ -459,6 +459,7 @@ ext.IS_WORKER_DEBUG = Boolean.parseBoolean(WORKER_DEBUG);
 defineProperty("CONF", "Debug")
 ext.IS_DEBUG_JAVA = CONF == "Debug" || CONF == "DebugNative"
 ext.IS_DEBUG_NATIVE = CONF == "DebugNative"
+ext.IS_RELEASE = !ext.IS_DEBUG_JAVA
 
 // Specifies whether to enable the Maven publishing tasks
 defineProperty("MAVEN_PUBLISH", "false")
@@ -4961,6 +4962,9 @@ compileTargets { t ->
 
         def library = targetProperties.library
 
+        def doStrip = targetProperties.containsKey('strip') && IS_RELEASE
+        def strip = doStrip ? targetProperties.strip : null
+        def stripArgs = doStrip ? targetProperties.stripArgs : null
         def useLipo = targetProperties.containsKey('useLipo') ? targetProperties.useLipo : false
         def modLibDest = targetProperties.modLibDest
         def moduleNativeDirName = "${platformPrefix}module-$modLibDest"
@@ -5009,7 +5013,8 @@ compileTargets { t ->
             group = "Basic"
             description = "copies javafx.graphics native libraries"
 
-            into "${graphicsProject.buildDir}/${moduleNativeDirName}"
+            def destDirName = "${graphicsProject.buildDir}/${moduleNativeDirName}"
+            into destDirName
 
             from("${graphicsProject.buildDir}/libs/jsl-decora/${t.name}/${library(targetProperties.decora.lib)}")
             def libs = ['font', 'prism', 'prismSW', 'glass', 'iio']
@@ -5035,13 +5040,32 @@ compileTargets { t ->
                     from ("$winsdklib");
                 }
             }
+
+            if (doStrip) {
+                doLast {
+                    def inputFiles = fileTree(dir: destDirName)
+                    inputFiles.include("*.dll")
+                    inputFiles.include("*.dylib")
+                    inputFiles.include("*.so")
+                    // FIXME: if we ever need to strip on Windows platforms, we must
+                    // exclude the Microsoft DLLs (VS2017DLLNames and WinSDKDLLNames)
+
+                    inputFiles.each { file ->
+                        exec {
+                            def cmd = [ strip, stripArgs, file ].flatten()
+                            commandLine(cmd)
+                        }
+                    }
+                }
+            }
         }
 
         def buildModuleMediaTask = task("buildModuleMedia$t.capital", type: Copy, dependsOn: [mediaProject.assemble, prepOpenJfxStubs]) {
             group = "Basic"
             description = "copies javafx.media native libraries"
 
-            into "${mediaProject.buildDir}/${moduleNativeDirName}"
+            def destDirName = "${mediaProject.buildDir}/${moduleNativeDirName}"
+            into destDirName
 
             def mediaBuildType = project(":media").ext.buildType
             if (IS_COMPILE_MEDIA) {
@@ -5072,19 +5096,52 @@ compileTargets { t ->
                     from ("$MEDIA_STUB/${library("glib-lite")}")
                 }
             }
+
+            if (doStrip && IS_COMPILE_MEDIA) {
+                doLast {
+                    def inputFiles = fileTree(dir: destDirName)
+                    inputFiles.include("*.dll")
+                    inputFiles.include("*.dylib")
+                    inputFiles.include("*.so")
+
+                    inputFiles.each { file ->
+                        exec {
+                            def cmd = [ strip, stripArgs, file ].flatten()
+                            commandLine(cmd)
+                        }
+                    }
+                }
+            }
         }
 
         def buildModuleWeb = task("buildModuleWeb$t.capital", type: Copy, dependsOn: [webProject.assemble, prepOpenJfxStubs]) {
             group = "Basic"
             description = "copies javafx.web native libraries"
 
-            into "${webProject.buildDir}/${moduleNativeDirName}"
+            def destDirName = "${webProject.buildDir}/${moduleNativeDirName}"
+            into destDirName
 
             if (IS_COMPILE_WEBKIT) {
                 from ("${webProject.buildDir}/libs/${t.name}/${library('jfxwebkit')}")
             } else {
                 if (t.name != "android" && t.name != "ios" && t.name != "dalvik") {
                     from ("$WEB_STUB/${library('jfxwebkit')}")
+                }
+            }
+
+            if (doStrip && IS_COMPILE_WEBKIT) {
+                doLast {
+                    def inputFiles = fileTree(dir: destDirName)
+                    inputFiles.include("*.dll")
+                    inputFiles.include("*.dylib")
+                    inputFiles.include("*.so")
+
+                    inputFiles.each { file ->
+                        exec {
+                            def cmd = [ strip, stripArgs, file ].flatten()
+                            commandLine(cmd)
+                        }
+                    }
                 }
             }
         }
@@ -5258,13 +5315,6 @@ compileTargets { t ->
         def standaloneSdkDir = "${rootProject.buildDir}/${standaloneSdkDirName}"
         def standaloneLegalDir = "${standaloneSdkDir}/legal"
 
-        def excludeNativeLibs = []
-        if (IS_WINDOWS) {
-            // List of duplicate Microsoft DLLs to exclude
-            excludeNativeLibs += targetProperties.VS2017DLLNames
-            excludeNativeLibs += targetProperties.WinSDKDLLNames
-        }
-
         moduleProjList.each { project ->
             def moduleName = project.ext.moduleName
             def buildDir = project.buildDir
@@ -5273,9 +5323,36 @@ compileTargets { t ->
             def srcLibDir = "${buildDir}/${platformPrefix}module-lib"
             def srcLegalDir = "${standaloneLegalDir}/${moduleName}"
 
+            def jmodLibDir = srcLibDir
+            if (IS_WINDOWS) {
+                jmodLibDir = "${srcLibDir}-jmod"
+            }
+
             def jmodName = "${moduleName}.jmod"
             def jmodFile = "${jmodsDir}/${jmodName}"
-            def jmodTask = project.task("jmod$t.capital", group: "Build", dependsOn: sdk) {
+
+            // On Windows, copy the native libraries in the jmod image
+            // to a "javafx" subdir to avoid conflicting with the Microsoft
+            // DLLs that are shipped with the JDK
+            def jmodCopyLibTask = project.task("jmodCopyLib$t.capital", type: Copy, dependsOn: sdk) {
+                enabled = IS_WINDOWS
+
+                group = "Basic"
+                description = "copied Windows DLLs into javafx subdir for jmods"
+
+                into jmodLibDir
+
+                from (srcLibDir) {
+                    exclude("*.dll")
+                }
+
+                from (srcLibDir) {
+                    include("*.dll")
+                    into("javafx")
+                }
+            }
+
+            def jmodTask = project.task("jmod$t.capital", group: "Build", dependsOn: [sdk, jmodCopyLibTask]) {
                 doLast {
                     mkdir jmodsDir
                     delete(jmodFile);
@@ -5285,16 +5362,9 @@ compileTargets { t ->
                         args("--class-path")
                         args(srcClassesDir)
                         // Not all modules have a "lib" dir
-                        if (file(srcLibDir).isDirectory()) {
+                        if (file(jmodLibDir).isDirectory()) {
                             args("--libs")
-                            args(srcLibDir)
-                        }
-                        // Exclude duplicate native libs from javafx.graphics.jmod
-                        if (moduleName == "javafx.graphics") {
-                            excludeNativeLibs.each { name ->
-                                args("--exclude")
-                                args(name)
-                            }
+                            args(jmodLibDir)
                         }
                         args("--legal-notices")
                         args(srcLegalDir)
