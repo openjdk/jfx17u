@@ -80,18 +80,29 @@ public class TreeTableRowBehavior<T> extends TableRowBehaviorBase<TreeTableRow<T
     protected void handleClicks(MouseButton button, int clickCount, boolean isAlreadySelected) {
         // handle editing, which only occurs with the primary mouse button
         TreeItem<T> treeItem = getNode().getTreeItem();
-        if (button == MouseButton.PRIMARY) {
-            if (clickCount == 1 && isAlreadySelected) {
-                edit(getNode());
-            } else if (clickCount == 1) {
+        if( button == MouseButton.PRIMARY )
+        {
+            if( clickCount == 1 && isAlreadySelected )
+            {
+                edit( getNode() );
+            }
+            else if( clickCount == 1 )
+            {
                 // cancel editing
-                edit(null);
-            } else if (clickCount == 2 && treeItem.isLeaf()) {
-                // attempt to edit
-                edit(getNode());
-            } else if (clickCount % 2 == 0) {
-                // try to expand/collapse branch tree item
-                treeItem.setExpanded(! treeItem.isExpanded());
+                edit( null );
+            }
+            else if( treeItem != null )
+            {
+                if( clickCount == 2 && treeItem.isLeaf() )
+                {
+                    // attempt to edit
+                    edit( getNode() );
+                }
+                else if( clickCount % 2 == 0 )
+                {
+                    // try to expand/collapse branch tree item
+                    treeItem.setExpanded( !treeItem.isExpanded() );
+                }
             }
         }
     }
