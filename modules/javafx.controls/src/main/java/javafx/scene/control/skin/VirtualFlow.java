@@ -897,8 +897,8 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
     public final int getCellCount() { return cellCount.get(); }
     public final void setCellCount(int value) {
         resetSizeEstimates();
+        populateCellSizes(value);
         cellCount.set(value);
-        populateCellSizes();
         adjustAbsoluteOffset();
     }
     public final IntegerProperty cellCountProperty() { return cellCount; }
@@ -3071,15 +3071,18 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
 
 
     private void populateCellSizes() {
+        populateCellSizes(getCellCount());
+    }
+
+    private void populateCellSizes(final int cellCount) {
         final CellSizeProvider cellSizeProvider =
-            fixedCellSizeEnabled ? new FixedCellSizeProvider( getFixedCellSize() ) : this.cellSizeProvider;
-        if( cellSizeProvider == null ) {
+            fixedCellSizeEnabled ? new FixedCellSizeProvider(getFixedCellSize()) : this.cellSizeProvider;
+        if(cellSizeProvider == null) {
             return;
         }
         itemSizeCache.clear();
-        final int cellCount = getCellCount();
-        for( int i = 0; i < cellCount; i++ ) {
-            itemSizeCache.add( cellSizeProvider.getCellSize( i ) );
+        for(int i = 0; i < cellCount; i++) {
+            itemSizeCache.add(cellSizeProvider.getCellSize(i));
         }
         recalculateEstimatedSize();
     }
