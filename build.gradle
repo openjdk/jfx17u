@@ -534,7 +534,8 @@ defineProperty("PROMOTED_BUILD_NUMBER", "0")
 
 loadProperties("$projectDir/release.properties")
 ext.BUILD_ALPHA = Boolean.parseBoolean( buildAlpha )
-ext.IS_MILESTONE_FCS = Boolean.parseBoolean( buildRelease ) || ext.BUILD_ALPHA
+ext.BUILD_RC = Boolean.parseBoolean( buildRc )
+ext.IS_MILESTONE_FCS = Boolean.parseBoolean( buildRelease ) || ext.BUILD_ALPHA || ext.BUILD_RC
 
 // The following properties define the product name for Oracle JDK and OpenJDK
 // for VersionInfo and the DLL manifest.
@@ -575,6 +576,10 @@ def relSuffix = jfxReleaseSuffix
 if( ext.BUILD_ALPHA )
 {
     relSuffix += "-ALPHA-" + Integer.parseInt( buildAlphaNumber )
+}
+if( ext.BUILD_RC )
+{
+    relSuffix += "-RC-" + Integer.parseInt( buildRcNumber )
 }
 defineProperty("RELEASE_SUFFIX", relSuffix)
 defineProperty("RELEASE_VERSION_SHORT", "${RELEASE_VERSION}${RELEASE_SUFFIX}")
