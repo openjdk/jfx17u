@@ -68,6 +68,8 @@ public class WindowStage extends GlassStage {
 
     private OverlayWarning warning = null;
     private boolean rtl = false;
+    private boolean minimizable = true;
+    private boolean closable = true;
     private boolean transparent = false;
     private boolean isPrimaryStage = false;
     private boolean isAppletStage = false; // true if this is an embedded applet window
@@ -182,6 +184,14 @@ public class WindowStage extends GlassStage {
                             if (ownerWindow != null || modality != Modality.NONE) {
                                 windowMask &=
                                     ~(Window.MINIMIZABLE | Window.MAXIMIZABLE);
+                            }
+                            if (!closable)
+                            {
+                                windowMask &= ~(Window.CLOSABLE);
+                            }
+                            if (!minimizable)
+                            {
+                                windowMask &= ~(Window.MINIMIZABLE);
                             }
                             resizable = true;
                             break;
@@ -968,6 +978,14 @@ public class WindowStage extends GlassStage {
 
     @Override public void setRTL(boolean b) {
         rtl = b;
+    }
+
+    public void setClosable(boolean closable) {
+        this.closable = closable;
+    }
+
+    public void setMinimizable(boolean minimizable) {
+        this.minimizable = minimizable;
     }
 
 }
