@@ -204,7 +204,7 @@ public final class KeyboardShortcutsHandler extends BasicEventDispatcher {
         */
         if (!PlatformUtil.isMac() && !event.isConsumed()) {
             if (keyPressedEvent) {
-                if (keyEvent.isAltDown()) {
+                if (keyEvent.isAltDown() && !keyEvent.isControlDown()) {
                     // show mnemonic underline when alt is pressed
                     if (!isMnemonicsDisplayEnabled()) {
                         setMnemonicsDisplayEnabled(true);
