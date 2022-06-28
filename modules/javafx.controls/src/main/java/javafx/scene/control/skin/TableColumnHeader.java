@@ -370,6 +370,7 @@ public class TableColumnHeader extends Region {
 
         double cornerRegionPadding = tableHeaderRow == null ? 0.0 : tableHeaderRow.cornerPadding.get();
         double sortWidth = 0;
+        double arrowWidth = 0;
         double w = snapSizeX(getWidth()) - (snappedLeftInset() + snappedRightInset()) - cornerRegionPadding;
         double h = getHeight() - (snappedTopInset() + snappedBottomInset());
         double x = w;
@@ -378,6 +379,7 @@ public class TableColumnHeader extends Region {
         // in size
         if (arrow != null) {
             arrow.setMaxSize(arrow.prefWidth(-1), arrow.prefHeight(-1));
+            arrowWidth = arrow.getWidth();
         }
 
         if (sortArrow != null && sortArrow.isVisible()) {
@@ -388,7 +390,7 @@ public class TableColumnHeader extends Region {
         }
 
         if (label != null) {
-            layoutLabel( snappedLeftInset(), 0, w - sortWidth, getHeight() );
+            layoutLabel( snappedLeftInset(), 0, w - sortWidth - arrowWidth , getHeight() );
         }
     }
 
