@@ -371,6 +371,7 @@ public class TableColumnHeader extends Region {
         }
 
         double sortWidth = 0;
+        double arrowWidth = 0;
         double w = snapSizeX(getWidth()) - (snappedLeftInset() + snappedRightInset());
         double h = getHeight() - (snappedTopInset() + snappedBottomInset());
         double x = w;
@@ -379,6 +380,7 @@ public class TableColumnHeader extends Region {
         // in size
         if (arrow != null) {
             arrow.setMaxSize(arrow.prefWidth(-1), arrow.prefHeight(-1));
+            arrowWidth = arrow.getWidth();
         }
 
         if (sortArrow != null && sortArrow.isVisible()) {
@@ -389,7 +391,7 @@ public class TableColumnHeader extends Region {
         }
 
         if (label != null) {
-            layoutLabel( snappedLeftInset(), 0, w - sortWidth, getHeight() );
+            layoutLabel( snappedLeftInset(), 0, w - sortWidth - arrowWidth , getHeight() );
         }
     }
 
