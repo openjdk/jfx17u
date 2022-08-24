@@ -25,24 +25,35 @@
 
 package javafx.scene.control.skin;
 
+import javafx.beans.property.DoubleProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.WeakListChangeListener;
+import javafx.css.CssMetaData;
+import javafx.css.StyleConverter;
+import javafx.css.Styleable;
+import javafx.css.StyleableDoubleProperty;
+import javafx.css.StyleableProperty;
 import javafx.event.EventHandler;
 import javafx.geometry.NodeOrientation;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
+import javafx.scene.control.Label;
 import javafx.scene.control.ResizeFeaturesBase;
 import javafx.scene.control.TableColumnBase;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TreeTableView;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Callback;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -69,7 +80,9 @@ public class NestedTableColumnHeader extends TableColumnHeader {
 
     static final String DEFAULT_STYLE_CLASS = "nested-column-header";
 
-    private static final int DRAG_RECT_WIDTH = 4;
+    private static final double DRAG_RECT_WIDTH = 8.0;
+
+    private static final int DRAG_RECT_MIN_WIDTH = 4;
 
     private static final String TABLE_COLUMN_KEY = "TableColumn";
     private static final String TABLE_COLUMN_HEADER_KEY = "TableColumnHeader";
@@ -327,7 +340,8 @@ public class NestedTableColumnHeader extends TableColumnHeader {
             Rectangle dragRect = dragRects.get(n.getTableColumn());
             if (dragRect != null) {
                 dragRect.setHeight(n.getDragRectHeight());
-                dragRect.relocate(x - DRAG_RECT_WIDTH / 2, snappedTopInset() + labelHeight);
+                dragRect.relocate(x - dragRect.getWidth() / 2, snappedTopInset() + labelHeight);
+                setResizeGrabRectangleWidth(dragRect, n);
             }
         }
     }
@@ -633,7 +647,7 @@ public class NestedTableColumnHeader extends TableColumnHeader {
             final Rectangle rect = new Rectangle();
             rect.getProperties().put(TABLE_COLUMN_KEY, c);
             rect.getProperties().put(TABLE_COLUMN_HEADER_KEY, this);
-            rect.setWidth(DRAG_RECT_WIDTH);
+            rect.setWidth(getResizeGrabWidth());
             rect.setHeight(getHeight() - label.getHeight());
             rect.setFill(Color.TRANSPARENT);
             rect.visibleProperty().bind(c.visibleProperty().and(c.resizableProperty()));
@@ -698,5 +712,119 @@ public class NestedTableColumnHeader extends TableColumnHeader {
         columnReorderLine.setTranslateX(0.0F);
         columnReorderLine.setLayoutX(0.0F);
         lastX = 0.0F;
+    }
+
+    /**
+     * Calculates and sets what width of the resize rectangle (rectangle between column
+     * headers) should size should be.
+     * @return
+     */
+    private void setResizeGrabRectangleWidth(Rectangle aDragRectangle, TableColumnHeader aTableColumnHeader) {
+
+        double thresholdWidth = calculateThreshold(aTableColumnHeader);
+        if (thresholdWidth > getResizeGrabWidth() / 2) {
+            aDragRectangle.setWidth(getResizeGrabWidth());
+            return;
+        }
+        if (thresholdWidth < DRAG_RECT_MIN_WIDTH / 2) {
+            aDragRectangle.setWidth(DRAG_RECT_MIN_WIDTH);
+            return;
+        }
+        double newRectWidth = thresholdWidth * 2;
+        aDragRectangle.setWidth(newRectWidth);
+    }
+
+    private double calculateThreshold(TableColumnHeader aTableColumnHeader) {
+        double headerHeight = aTableColumnHeader.getHeight();
+        double sumPrefWidth = 0.0;
+
+        for (Node node: aTableColumnHeader.getChildrenUnmodifiable()) {
+            if (!(node instanceof Region)) {
+                continue;
+            }
+            Region region = (Region) node;
+            if (region instanceof NestedTableColumnHeader)  {
+                continue;
+            }
+            if (region instanceof  TableColumnHeader) {
+                return calculateThreshold((TableColumnHeader)region);
+            }
+            if (region instanceof Label || region instanceof GridPane) {
+               sumPrefWidth += region.prefWidth(headerHeight);
+            }
+        }
+        return aTableColumnHeader.getWidth() - sumPrefWidth;
+    }
+
+    private DoubleProperty resizeGrabWidth;
+    private DoubleProperty resizeGrabWidthProperty() {
+        if (resizeGrabWidth == null) {
+            resizeGrabWidth = new StyleableDoubleProperty(DRAG_RECT_WIDTH) {
+                @Override
+                protected void invalidated() {
+                    NestedTableColumnHeader.this.layoutChildren();
+                }
+
+                @Override
+                public CssMetaData<NestedTableColumnHeader, Number> getCssMetaData() {
+                    return RESIZE_GRAB_WIDTH_METADATA;
+                }
+                @Override
+                public Object getBean() {
+                    return NestedTableColumnHeader.this;
+                }
+                @Override
+                public String getName() {
+                    return "resizeGrabWidth";
+                }
+            };
+        }
+        return resizeGrabWidth;
+    }
+
+    private final static List<CssMetaData<? extends Styleable, ?>> CLASS_CSS_META_DATA;
+
+    private final static CssMetaData<NestedTableColumnHeader, Number> RESIZE_GRAB_WIDTH_METADATA =
+            new CssMetaData<NestedTableColumnHeader, Number>(
+            "-fx-resize-grab-width",
+                    StyleConverter.getSizeConverter()) {
+
+        @Override
+        public boolean isSettable(NestedTableColumnHeader styleable) {
+            return styleable.resizeGrabWidth== null || !styleable.resizeGrabWidth.isBound();
+        }
+
+        @Override
+        public StyleableProperty<Number> getStyleableProperty(NestedTableColumnHeader styleable) {
+            return (StyleableProperty<Number>)styleable.resizeGrabWidthProperty();
+        }
+    };
+
+    static {
+        List<CssMetaData<? extends Styleable, ?>> parent = TableColumnHeader.getClassCssMetaData();
+        List<CssMetaData<? extends Styleable, ?>> additional = Arrays.asList(RESIZE_GRAB_WIDTH_METADATA);
+        List<CssMetaData<? extends Styleable, ?>> own = new ArrayList(parent.size()+ additional.size());
+
+        own.addAll(parent);
+        own.addAll(additional);
+
+        CLASS_CSS_META_DATA = Collections.unmodifiableList(own);
+    }
+
+    public static List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
+        return CLASS_CSS_META_DATA;
+    }
+
+    @Override
+    public List<CssMetaData<? extends Styleable, ?>> getCssMetaData() {
+        return CLASS_CSS_META_DATA;
+    }
+
+    private double getResizeGrabWidth() {
+        return resizeGrabWidth == null ? DRAG_RECT_WIDTH: resizeGrabWidthProperty().doubleValue();
+    }
+
+    public final void setResizeGrabWidthProperty(double value) {
+        this.resizeGrabWidthProperty().set(value);
     }
 }
