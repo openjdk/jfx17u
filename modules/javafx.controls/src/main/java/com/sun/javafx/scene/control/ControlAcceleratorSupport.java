@@ -193,6 +193,15 @@ public class ControlAcceleratorSupport {
                     accelerators.put(menuitem.getAccelerator(), acceleratorRunnable);
                 }
 
+                WeakReference<ChangeListener<KeyCombination>> listenerW = changeListenerMap.get(menuitem);
+                if (listenerW != null) {
+                    ChangeListener<KeyCombination> listener = listenerW.get();
+                    if (listener != null) {
+                        menuitem.acceleratorProperty().removeListener(listener);
+                    }
+                    changeListenerMap.remove(menuitem);
+                }
+
                 // We also listen to the accelerator property for changes, such
                 // that we can update the scene when a menu item accelerator changes.
                 menuitem.acceleratorProperty().addListener(getListener(scene, menuitem));
