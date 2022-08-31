@@ -28,8 +28,6 @@ package javafx.scene.control.skin;
 import com.sun.javafx.scene.control.LambdaMultiplePropertyChangeListenerHandler;
 import com.sun.javafx.scene.control.Properties;
 import com.sun.javafx.scene.control.TableColumnBaseHelper;
-import com.sun.javafx.scene.control.TreeTableViewBackingList;
-import com.sun.javafx.scene.control.skin.Utils;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -53,21 +51,14 @@ import javafx.scene.AccessibleRole;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
-import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableColumnBase;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TreeTableCell;
-import javafx.scene.control.TreeTableColumn;
-import javafx.scene.control.TreeTableRow;
-import javafx.scene.control.TreeTableView;
 import javafx.scene.input.ContextMenuEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
-import javafx.util.Callback;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -633,165 +624,7 @@ public class TableColumnHeader extends Region {
         TableColumnBase<?, ?> tc = getTableColumn();
         if (!tc.isResizable()) return;
 
-        Object control = this.getTableSkin().getSkinnable();
-        if (control instanceof TableView) {
-            resizeColumnToFitContent((TableView) control, (TableColumn) tc, this.getTableSkin(), maxRows);
-        } else if (control instanceof TreeTableView) {
-            resizeColumnToFitContent((TreeTableView) control, (TreeTableColumn) tc, this.getTableSkin(), maxRows);
-        }
-    }
-
-    private <T,S> void resizeColumnToFitContent(TableView<T> tv, TableColumn<T, S> tc, TableViewSkinBase tableSkin, int maxRows) {
-        List<?> items = tv.getItems();
-        if (items == null || items.isEmpty()) return;
-
-        Callback/*<TableColumn<T, ?>, TableCell<T,?>>*/ cellFactory = tc.getCellFactory();
-        if (cellFactory == null) return;
-
-        TableCell<T,?> cell = (TableCell<T, ?>) cellFactory.call(tc);
-        if (cell == null) return;
-
-        // set this property to tell the TableCell we want to know its actual
-        // preferred width, not the width of the associated TableColumnBase
-        cell.getProperties().put(Properties.DEFER_TO_PARENT_PREF_WIDTH, Boolean.TRUE);
-
-        // determine cell padding
-        double padding = 10;
-        Node n = cell.getSkin() == null ? null : cell.getSkin().getNode();
-        if (n instanceof Region) {
-            Region r = (Region) n;
-            padding = r.snappedLeftInset() + r.snappedRightInset();
-        }
-
-        int rows = maxRows == -1 ? items.size() : Math.min(items.size(), maxRows);
-        double maxWidth = 0;
-        for (int row = 0; row < rows; row++) {
-            cell.updateTableColumn(tc);
-            cell.updateTableView(tv);
-            cell.updateIndex(row);
-
-            if ((cell.getText() != null && !cell.getText().isEmpty()) || cell.getGraphic() != null) {
-                tableSkin.getChildren().add(cell);
-                cell.applyCss();
-                maxWidth = Math.max(maxWidth, cell.prefWidth(-1));
-                tableSkin.getChildren().remove(cell);
-            }
-        }
-
-        // dispose of the cell to prevent it retaining listeners (see RT-31015)
-        cell.updateIndex(-1);
-
-        // RT-36855 - take into account the column header text / graphic widths.
-        // Magic 10 is to allow for sort arrow to appear without text truncation.
-        TableColumnHeader header = tableSkin.getTableHeaderRow().getColumnHeaderFor(tc);
-        double headerTextWidth = Utils.computeTextWidth(header.label.getFont(), tc.getText(), -1);
-        Node graphic = header.label.getGraphic();
-        double headerGraphicWidth = graphic == null ? 0 : graphic.prefWidth(-1) + header.label.getGraphicTextGap();
-        double headerWidth = headerTextWidth + headerGraphicWidth + 10 + header.snappedLeftInset() + header.snappedRightInset();
-        maxWidth = Math.max(maxWidth, headerWidth);
-
-        // RT-23486
-        maxWidth += padding;
-        if (tv.getColumnResizePolicy() == TableView.CONSTRAINED_RESIZE_POLICY && tv.getWidth() > 0) {
-            if (maxWidth > tc.getMaxWidth()) {
-                maxWidth = tc.getMaxWidth();
-            }
-
-            int size = tc.getColumns().size();
-            if (size > 0) {
-                TableColumnHeader columnHeader = getTableHeaderRow().getColumnHeaderFor(tc.getColumns().get(size - 1));
-                if (columnHeader != null) {
-                    columnHeader.resizeColumnToFitContent(maxRows);
-                }
-                return;
-            }
-
-            TableSkinUtils.resizeColumn(tableSkin, tc, Math.round(maxWidth - tc.getWidth()));
-        } else {
-            TableColumnBaseHelper.setWidth(tc, maxWidth);
-        }
-    }
-
-    private <T,S> void resizeColumnToFitContent(TreeTableView<T> ttv, TreeTableColumn<T, S> tc, TableViewSkinBase tableSkin, int maxRows) {
-        List<?> items = new TreeTableViewBackingList(ttv);
-        if (items == null || items.isEmpty()) return;
-
-        Callback cellFactory = tc.getCellFactory();
-        if (cellFactory == null) return;
-
-        TreeTableCell<T,S> cell = (TreeTableCell) cellFactory.call(tc);
-        if (cell == null) return;
-
-        // set this property to tell the TableCell we want to know its actual
-        // preferred width, not the width of the associated TableColumnBase
-        cell.getProperties().put(Properties.DEFER_TO_PARENT_PREF_WIDTH, Boolean.TRUE);
-
-        // determine cell padding
-        double padding = 10;
-        Node n = cell.getSkin() == null ? null : cell.getSkin().getNode();
-        if (n instanceof Region) {
-            Region r = (Region) n;
-            padding = r.snappedLeftInset() + r.snappedRightInset();
-        }
-
-        TreeTableRow<T> treeTableRow = new TreeTableRow<>();
-        treeTableRow.updateTreeTableView(ttv);
-
-        int rows = maxRows == -1 ? items.size() : Math.min(items.size(), maxRows);
-        double maxWidth = 0;
-        for (int row = 0; row < rows; row++) {
-            treeTableRow.updateIndex(row);
-            treeTableRow.updateTreeItem(ttv.getTreeItem(row));
-
-            cell.updateTableColumn(tc);
-            cell.updateTreeTableView(ttv);
-            cell.updateTableRow(treeTableRow);
-            cell.updateIndex(row);
-
-            if ((cell.getText() != null && !cell.getText().isEmpty()) || cell.getGraphic() != null) {
-                tableSkin.getChildren().add(cell);
-                cell.applyCss();
-
-                double w = cell.prefWidth(-1);
-
-                maxWidth = Math.max(maxWidth, w);
-                tableSkin.getChildren().remove(cell);
-            }
-        }
-
-        // dispose of the cell to prevent it retaining listeners (see RT-31015)
-        cell.updateIndex(-1);
-
-        // RT-36855 - take into account the column header text / graphic widths.
-        // Magic 10 is to allow for sort arrow to appear without text truncation.
-        TableColumnHeader header = tableSkin.getTableHeaderRow().getColumnHeaderFor(tc);
-        double headerTextWidth = Utils.computeTextWidth(header.label.getFont(), tc.getText(), -1);
-        Node graphic = header.label.getGraphic();
-        double headerGraphicWidth = graphic == null ? 0 : graphic.prefWidth(-1) + header.label.getGraphicTextGap();
-        double headerWidth = headerTextWidth + headerGraphicWidth + 10 + header.snappedLeftInset() + header.snappedRightInset();
-        maxWidth = Math.max(maxWidth, headerWidth);
-
-        // RT-23486
-        maxWidth += padding;
-        if (ttv.getColumnResizePolicy() == TreeTableView.CONSTRAINED_RESIZE_POLICY && ttv.getWidth() > 0) {
-
-            if (maxWidth > tc.getMaxWidth()) {
-                maxWidth = tc.getMaxWidth();
-            }
-
-            int size = tc.getColumns().size();
-            if (size > 0) {
-                TableColumnHeader columnHeader = getTableHeaderRow().getColumnHeaderFor(tc.getColumns().get(size - 1));
-                if (columnHeader != null) {
-                    columnHeader.resizeColumnToFitContent(maxRows);
-                }
-                return;
-            }
-
-            TableSkinUtils.resizeColumn(tableSkin, tc, Math.round(maxWidth - tc.getWidth()));
-        } else {
-            TableColumnBaseHelper.setWidth(tc, maxWidth);
-        }
+        ExtendedTableSkinUtils.resizeColumnToFitVisibleContent( this.getTableSkin(), tc, maxRows );
     }
 
     private void updateSortPosition() {
