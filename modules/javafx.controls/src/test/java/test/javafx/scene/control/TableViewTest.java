@@ -3479,28 +3479,28 @@ public class TableViewTest {
         // in TableColumnHeader
 
         // Drag column 1 to slot 1. As expected, the column position doesn't change.
-        TableColumnHeaderUtil.moveColumn(column1, 9, 61);
+        TableColumnHeaderUtil.moveColumn(column1, 0);
         assertEquals(column1, table.getVisibleLeafColumn(0));
         assertEquals(column2, table.getVisibleLeafColumn(1));
         assertEquals(0, TableColumnHeaderShim.getColumnIndex(header1));
         assertEquals(1, TableColumnHeaderShim.getColumnIndex(header2));
 
         // Drag column 1 to slot 2. As expected, the column 1 and 2 swap positions.
-        TableColumnHeaderUtil.moveColumn(column1, 12, 139);
+        TableColumnHeaderUtil.moveColumn(column1, 1);
         assertEquals(column2, table.getVisibleLeafColumn(0));
         assertEquals(column1, table.getVisibleLeafColumn(1));
         assertEquals(1, TableColumnHeaderShim.getColumnIndex(header1));
         assertEquals(0, TableColumnHeaderShim.getColumnIndex(header2));
 
         // Drag column 1 to slot 0. As expected, the column 1 and 2 swap positions.
-        TableColumnHeaderUtil.moveColumn(column1, 45, 21);
+        TableColumnHeaderUtil.moveColumn(column1, 0);
         assertEquals(column1, table.getVisibleLeafColumn(0));
         assertEquals(column2, table.getVisibleLeafColumn(1));
         assertEquals(0, TableColumnHeaderShim.getColumnIndex(header1));
         assertEquals(1, TableColumnHeaderShim.getColumnIndex(header2));
 
         // Drag column 1 to slot 1 again. What? Why did they swap positions this time?
-        TableColumnHeaderUtil.moveColumn(column1, 19, 63);
+        TableColumnHeaderUtil.moveColumn(column1, 0);
         assertEquals(column1, table.getVisibleLeafColumn(0));
         assertEquals(column2, table.getVisibleLeafColumn(1));
         assertEquals(0, TableColumnHeaderShim.getColumnIndex(header1));
@@ -3602,21 +3602,21 @@ public class TableViewTest {
         // in TableColumnHeader
 
         // Drag column 1 to slot 2. As expected, the column 1 and 2 swap positions
-        TableColumnHeaderUtil.moveColumn(column1, 25, 136);
+        TableColumnHeaderUtil.moveColumn(column1, 1);
         assertEquals(column2, table.getVisibleLeafColumn(0));
         assertEquals(column1, table.getVisibleLeafColumn(1));
         assertEquals(1, TableColumnHeaderShim.getColumnIndex(header1));
         assertEquals(0, TableColumnHeaderShim.getColumnIndex(header2));
 
         // Drag column 1 to slot 0. As expected, the column 1 and 2 swap positions.
-        TableColumnHeaderUtil.moveColumn(column1, 51, 23);
+        TableColumnHeaderUtil.moveColumn(column1, 0);
         assertEquals(column1, table.getVisibleLeafColumn(0));
         assertEquals(column2, table.getVisibleLeafColumn(1));
         assertEquals(0, TableColumnHeaderShim.getColumnIndex(header1));
         assertEquals(1, TableColumnHeaderShim.getColumnIndex(header2));
 
         // Drag column 4 to slot 1. What? It behaves like it was dragged to slot 0?!
-        TableColumnHeaderUtil.moveColumn(column4, 56, 103);
+        TableColumnHeaderUtil.moveColumn(column4, 1);
         assertEquals(column1, table.getVisibleLeafColumn(0));
         assertEquals(column4, table.getVisibleLeafColumn(1));
         assertEquals(column2, table.getVisibleLeafColumn(2));

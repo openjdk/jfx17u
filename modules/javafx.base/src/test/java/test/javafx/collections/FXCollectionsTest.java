@@ -26,19 +26,37 @@
 package test.javafx.collections;
 
 import javafx.beans.InvalidationListener;
-import org.junit.Test;
-
-import java.util.*;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
-import test.javafx.collections.MockSetObserver.Tuple;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.collections.ObservableSet;
+import org.junit.Test;
+import test.javafx.collections.MockSetObserver.Tuple;
 
-import static org.junit.Assert.*;
+import java.util.AbstractList;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.ConcurrentModificationException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class FXCollectionsTest {
 
@@ -343,8 +361,9 @@ public class FXCollectionsTest {
             observer.assertAdded(Tuple.tup("foo3"));
             set.add("foo4");
             observer.assertAdded(1, Tuple.tup("foo4"));
-            set.addAll(Arrays.asList("foo5", "foo6"));
+            set.add("foo5");
             observer.assertAdded(2, Tuple.tup("foo5"));
+            set.add("foo6");
             observer.assertAdded(3, Tuple.tup("foo6"));
             assertEquals(4, observer.getCallsNumber());
             set.remove("foo2");

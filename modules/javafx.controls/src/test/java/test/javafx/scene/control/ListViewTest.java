@@ -768,14 +768,14 @@ public class ListViewTest {
 
         StageLoader sl = new StageLoader(listView);
 
-        assertEquals(24, rt_31200_count);
+        assertEquals(58, rt_31200_count);
 
         // resize the stage
         sl.getStage().setHeight(250);
         Toolkit.getToolkit().firePulse();
         sl.getStage().setHeight(50);
         Toolkit.getToolkit().firePulse();
-        assertEquals(24, rt_31200_count);
+        assertEquals(58, rt_31200_count);
 
         sl.dispose();
     }
@@ -1126,7 +1126,7 @@ public class ListViewTest {
                     items.remove(12);
                     Platform.runLater(() -> {
                         Toolkit.getToolkit().firePulse();
-                        assertEquals(useFixedCellSize ? 5 : 7, rt_35395_counter);
+                        assertEquals(useFixedCellSize ? 6 : 7, rt_35395_counter);
                         rt_35395_counter = 0;
                         items.add(12, "yellow");
                         Platform.runLater(() -> {
@@ -1141,7 +1141,7 @@ public class ListViewTest {
                                 listView.scrollTo(55);
                                 Platform.runLater(() -> {
                                     Toolkit.getToolkit().firePulse();
-                                    assertEquals(useFixedCellSize ? 21 : 23, rt_35395_counter);
+                                    assertEquals(useFixedCellSize ? 17 : 23, rt_35395_counter);
                                     sl.dispose();
                                 });
                             });
