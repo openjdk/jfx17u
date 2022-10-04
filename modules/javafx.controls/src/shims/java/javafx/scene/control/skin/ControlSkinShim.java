@@ -42,7 +42,7 @@ public class ControlSkinShim {
      */
     public static BehaviorBase<?> getBehavior(Skin<?> skin) {
         try {
-            Field field = skin.getClass().getDeclaredField("behavior");
+            Field field = getField(skin);
             field.setAccessible(true);
             return (BehaviorBase<?>) field.get(skin);
         } catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
@@ -50,6 +50,16 @@ public class ControlSkinShim {
         }
     }
 
+    private static Field getField(Skin<?> aSkin) throws NoSuchFieldException {
+        Field field;
+        Class<? extends Skin> skinClass = aSkin.getClass();
+        try {
+            field = skinClass.getDeclaredField("behavior");
+        } catch (NoSuchFieldException e) {
+            field = skinClass.getSuperclass().getDeclaredField("behavior");
+        }
+        return field;
+    }
 
     private ControlSkinShim() {}
 }
