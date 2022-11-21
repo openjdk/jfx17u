@@ -24,7 +24,6 @@
  */
 package test.javafx.scene.control;
 
-import com.sun.javafx.tk.Toolkit;
 import javafx.scene.AccessibleRole;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
