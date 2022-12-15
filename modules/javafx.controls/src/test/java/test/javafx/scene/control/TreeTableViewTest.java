@@ -74,6 +74,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.event.EventHandler;
+import javafx.scene.AccessibleAttribute;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -7086,5 +7087,29 @@ public class TreeTableViewTest {
         // Verify that the arrow is fully visible, and it is not overlapped
         // by the corner region
         assertTrue(arrowMaxX < cornerMinX);
+    }
+
+    @Test
+    public void testQueryAccessibleAttributeSelectedItemsWithNullSelectionModel() {
+        treeTableView.setSelectionModel(null);
+        stageLoader = new StageLoader(treeTableView);
+
+        Object result = treeTableView.queryAccessibleAttribute(AccessibleAttribute.SELECTED_ITEMS);
+        // Should be an empty observable array list
+        assertEquals(FXCollections.observableArrayList(), result);
+    }
+
+    @Ignore("JDK-8296413")
+    @Test
+    public void testQueryAccessibleAttributeFocusItemWithNullFocusModel() {
+        treeTableView.setSelectionModel(null);
+        stageLoader = new StageLoader(treeTableView);
+
+        Object result = treeTableView.queryAccessibleAttribute(AccessibleAttribute.FOCUS_ITEM);
+
+        // TODO it seems to return a Label; possibly the placeholder label.
+        // we need to check whether it's what is expected, whether TableView should use the same logic
+        // And also check whether it *is* a placeholder label, see TreeTableView:2146
+        assertNull(result);
     }
 }
