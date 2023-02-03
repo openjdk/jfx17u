@@ -292,8 +292,6 @@ public class TableColumnHeader extends Region {
         }
     };
 
-
-
     /* *************************************************************************
      *                                                                         *
      * Properties                                                              *
@@ -370,8 +368,9 @@ public class TableColumnHeader extends Region {
             isSizeDirty = false;
         }
 
+        double cornerRegionPadding = tableHeaderRow == null ? 0.0 : tableHeaderRow.cornerPadding.get();
         double sortWidth = 0;
-        double w = snapSizeX(getWidth()) - (snappedLeftInset() + snappedRightInset());
+        double w = snapSizeX(getWidth()) - (snappedLeftInset() + snappedRightInset()) - cornerRegionPadding;
         double h = getHeight() - (snappedTopInset() + snappedBottomInset());
         double x = w;
 
@@ -474,7 +473,17 @@ public class TableColumnHeader extends Region {
     }
 
     void setTableHeaderRow(TableHeaderRow thr) {
+        if (tableHeaderRow != null) {
+            changeListenerHandler.unregisterChangeListeners(tableHeaderRow.cornerPadding);
+        }
         tableHeaderRow = thr;
+        if (tableHeaderRow != null) {
+            changeListenerHandler.registerChangeListener(tableHeaderRow.cornerPadding, o -> {
+                if (isLastVisibleColumn) {
+                    requestLayout();
+                }
+            });
+        }
         updateTableSkin();
     }
 
