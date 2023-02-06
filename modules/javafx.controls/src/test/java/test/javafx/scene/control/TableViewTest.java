@@ -5941,29 +5941,6 @@ public class TableViewTest {
         assertTrue(arrowMaxX < cornerMinX);
     }
 
-    @Test
-    public void testQueryAccessibleAttributeSelectedItemsWithNullSelectionModel() {
-        table.getItems().addAll("1", "2");
-        table.setSelectionModel(null);
-        stageLoader = new StageLoader(table);
-
-        Object result = table.queryAccessibleAttribute(AccessibleAttribute.SELECTED_ITEMS);
-        // Should be an empty observable array list
-        assertEquals(FXCollections.observableArrayList(), result);
-    }
-
-    @Test
-    public void testQueryAccessibleAttributeFocusItemWithNullFocusModel() {
-        table.getItems().addAll("1", "2");
-        table.setFocusModel(null);
-
-        stageLoader = new StageLoader(table);
-
-        Object result = table.queryAccessibleAttribute(AccessibleAttribute.FOCUS_ITEM);
-
-        assertNull(result);
-    }
-
     // See JDK-8089280
     @Test
     public void testSuppressHorizontalScrollBar() {
@@ -5990,5 +5967,44 @@ public class TableViewTest {
 
         hbar = VirtualFlowTestUtils.getVirtualFlowHorizontalScrollbar(table);
         assertFalse(hbar.isVisible()); // used to fail here
+    }
+
+
+    @Test
+    public void testQueryAccessibleAttributeSelectedItemsWithNullSelectionModel() {
+        table.getItems().addAll("1", "2");
+        table.setSelectionModel(null);
+        stageLoader = new StageLoader(table);
+
+        Object result = table.queryAccessibleAttribute(AccessibleAttribute.SELECTED_ITEMS);
+        // Should be an empty observable array list
+        assertEquals(FXCollections.observableArrayList(), result);
+    }
+
+    @Test
+    public void testQueryAccessibleAttributeFocusItemWithNullFocusModel() {
+        table.getItems().addAll("1", "2");
+        table.setFocusModel(null);
+
+        stageLoader = new StageLoader(table);
+
+        Object result = table.queryAccessibleAttribute(AccessibleAttribute.FOCUS_ITEM);
+
+        assertNull(result);
+    }
+
+    // See JDK-8138842
+    @Test
+    public void testFirstRowSelectionWithEmptyArrayAsParameter() {
+        table.getItems().addAll("1", "2", "3");
+
+        table.getSelectionModel().selectIndices(0, new int[0]);
+        assertEquals(0, table.getSelectionModel().getSelectedIndex());
+
+        table.getSelectionModel().selectIndices(1, new int[0]);
+        assertEquals(1, table.getSelectionModel().getSelectedIndex());
+
+        table.getSelectionModel().selectIndices(1, new int[]{1, 2});
+        assertEquals(2, table.getSelectionModel().getSelectedIndex());
     }
 }

@@ -7177,4 +7177,24 @@ public class TreeTableViewTest {
         hbar = VirtualFlowTestUtils.getVirtualFlowHorizontalScrollbar(table);
         assertFalse(hbar.isVisible()); // used to fail here
     }
+
+    // See JDK-8138842
+    @Test
+    public void testFirstRowSelectionWithEmptyArrayAsParameter() {
+        treeTableView.setRoot(new TreeItem("Root"));
+        treeTableView.getRoot().setExpanded(true);
+        for (int i = 0; i < 4; i++) {
+            TreeItem parent = new TreeItem("item - " + i);
+            treeTableView.getRoot().getChildren().add(parent);
+        }
+
+        treeTableView.getSelectionModel().selectIndices(0, new int[0]);
+        assertEquals(0, treeTableView.getSelectionModel().getSelectedIndex());
+
+        treeTableView.getSelectionModel().selectIndices(1, new int[0]);
+        assertEquals(1, treeTableView.getSelectionModel().getSelectedIndex());
+
+        treeTableView.getSelectionModel().selectIndices(1, new int[]{1, 2});
+        assertEquals(2, treeTableView.getSelectionModel().getSelectedIndex());
+    }
 }
