@@ -105,7 +105,8 @@ public class TreeAndTableViewTest {
         // toggling sorting ascending -> descending -> none
         {
             for (Object x: table.lookupAll(".table-column")) {
-                if (x instanceof TableColumnHeader n) {
+                if (x instanceof TableColumnHeader) {
+                    TableColumnHeader n = (TableColumnHeader)x;
                     mouseClick(n);
                     assertEquals(1, table.getSortOrder().size());
                     table.sort();
@@ -179,7 +180,8 @@ public class TreeAndTableViewTest {
         // toggling sorting ascending -> descending -> none
         {
             for (Object x: tree.lookupAll(".table-column")) {
-                if (x instanceof TableColumnHeader n) {
+                if (x instanceof TableColumnHeader) {
+                    TableColumnHeader n = (TableColumnHeader)x;
                     mouseClick(n);
                     assertEquals(1, tree.getSortOrder().size());
                     tree.sort();
