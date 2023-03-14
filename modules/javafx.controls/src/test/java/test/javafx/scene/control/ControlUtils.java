@@ -107,7 +107,8 @@ public class ControlUtils {
     public static TreeTableCell getTreeTableCell(TreeTableView t, int row, int column) {
         TreeTableColumn col = (TreeTableColumn)t.getColumns().get(column);
         return findTheOnly(t, ".tree-table-cell", TreeTableCell.class, (n) -> {
-            if (n instanceof TreeTableCell c) {
+            if (n instanceof TreeTableCell) {
+                TreeTableCell c = (TreeTableCell)n;
                 if (row == c.getTableRow().getIndex()) {
                     if (col == c.getTableColumn()) {
                         return true;
@@ -124,7 +125,8 @@ public class ControlUtils {
      */
     public static TreeTableRow getTreeTableRow(TreeTableView t, int row) {
         return findTheOnly(t, ".tree-table-row-cell", TreeTableRow.class, (n) -> {
-            if (n instanceof TreeTableRow c) {
+            if (n instanceof TreeTableRow) {
+                TreeTableRow c = (TreeTableRow)n;
                 if (row == c.getIndex()) {
                     return true;
                 }
@@ -140,7 +142,8 @@ public class ControlUtils {
     public static TableCell getTableCell(TableView t, int row, int column) {
         TableColumn col = (TableColumn)t.getColumns().get(column);
         return findTheOnly(t, ".table-cell", TableCell.class, (x) -> {
-            if (x instanceof TableCell c) {
+            if (x instanceof TableCell) {
+                TableCell c = (TableCell)x;
                 if (row == c.getTableRow().getIndex()) {
                     if (col == c.getTableColumn()) {
                         return true;
@@ -157,7 +160,8 @@ public class ControlUtils {
      */
     public static TableRow getTableRow(TableView t, int row) {
         return findTheOnly(t, ".table-row-cell", TableRow.class, (x) -> {
-            if (x instanceof TableRow c) {
+            if (x instanceof TableRow) {
+                TableRow c = (TableRow)x;
                 if (row == c.getIndex()) {
                     return true;
                 }
