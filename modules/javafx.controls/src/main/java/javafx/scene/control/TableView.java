@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -995,6 +995,7 @@ public class TableView<S> extends Control {
         @Override protected void invalidated() {
 
             if (oldValue != null) {
+                oldValue.clearSelection();
                 oldValue.cellSelectionEnabledProperty().removeListener(weakCellSelectionModelInvalidationListener);
 
                 if (oldValue instanceof TableViewArrayListSelectionModel) {
@@ -1567,20 +1568,26 @@ public class TableView<S> extends Control {
             return;
         }
 
-        final List<TablePosition> prevState = new ArrayList<>(getSelectionModel().getSelectedCells());
-        final int itemCount = prevState.size();
+        TableViewSelectionModel<S> selectionModel = getSelectionModel();
+        final List<TablePosition> prevState = selectionModel == null ?
+                null :
+                new ArrayList<>(selectionModel.getSelectedCells());
 
         // we set makeAtomic to true here, so that we don't fire intermediate
         // sort events - instead we send a single permutation event at the end
         // of this method.
-        getSelectionModel().startAtomic();
+        if (selectionModel != null) {
+            selectionModel.startAtomic();
+        }
 
         // get the sort policy and run it
         Callback<TableView<S>, Boolean> sortPolicy = getSortPolicy();
         if (sortPolicy == null) return;
         Boolean success = sortPolicy.call(this);
 
-        getSelectionModel().stopAtomic();
+        if (selectionModel != null) {
+            selectionModel.stopAtomic();
+        }
 
         if (success == null || ! success) {
             // the sort was a failure. Need to backout if possible
@@ -1593,15 +1600,16 @@ public class TableView<S> extends Control {
             // selection model that the items list has 'permutated' to a new ordering
 
             // FIXME we should support alternative selection model implementations!
-            if (getSelectionModel() instanceof TableViewArrayListSelectionModel) {
-                final TableViewArrayListSelectionModel<S> sm = (TableViewArrayListSelectionModel<S>) getSelectionModel();
+            if (selectionModel instanceof TableViewArrayListSelectionModel) {
+                final TableViewArrayListSelectionModel<S> sm = (TableViewArrayListSelectionModel<S>)selectionModel;
                 final ObservableList<TablePosition<S,?>> newState = (ObservableList<TablePosition<S,?>>)(Object)sm.getSelectedCells();
 
                 List<TablePosition<S, ?>> removed = new ArrayList<>();
-                for (int i = 0; i < itemCount; i++) {
-                    TablePosition<S, ?> prevItem = prevState.get(i);
-                    if (!newState.contains(prevItem)) {
-                        removed.add(prevItem);
+                if (prevState != null) {
+                    for (TablePosition<S, ?> prevItem : prevState) {
+                        if (!newState.contains(prevItem)) {
+                            removed.add(prevItem);
+                        }
                     }
                 }
 
@@ -1611,6 +1619,7 @@ public class TableView<S> extends Control {
                     // TablePosition's changing (which may reside in the same list
                     // position before and after the sort). Therefore, we need to fire
                     // a single add/remove event to cover the added and removed positions.
+                    int itemCount = prevState == null ? 0 : prevState.size();
                     ListChangeListener.Change<TablePosition<S, ?>> c = new NonIterableChange.GenericAddRemoveChange<>(0, itemCount, removed, newState);
                     sm.fireCustomSelectedCellsListChangeEvent(c);
                 }
@@ -1781,10 +1790,15 @@ public class TableView<S> extends Control {
                 @SuppressWarnings("unchecked")
                 ObservableList<TableRow<S>> rows = (ObservableList<TableRow<S>>)super.queryAccessibleAttribute(attribute, parameters);
                 List<Node> selection = new ArrayList<>();
-                for (TableRow<S> row : rows) {
-                    @SuppressWarnings("unchecked")
-                    ObservableList<Node> cells = (ObservableList<Node>)row.queryAccessibleAttribute(attribute, parameters);
-                    if (cells != null) selection.addAll(cells);
+                if (rows != null) {
+                    for (TableRow<S> row: rows) {
+                        @SuppressWarnings("unchecked")
+                        ObservableList<Node> cells =
+                            (ObservableList<Node>)row.queryAccessibleAttribute(attribute, parameters);
+                        if (cells != null) {
+                            selection.addAll(cells);
+                        }
+                    }
                 }
                 return FXCollections.observableArrayList(selection);
             }
@@ -2810,10 +2824,6 @@ public class TableView<S> extends Control {
             startAtomic();
             selectedCellsMap.clear();
             stopAtomic();
-        }
-
-        @Override public boolean isSelected(int index) {
-            return isSelected(index, null);
         }
 
         @Override

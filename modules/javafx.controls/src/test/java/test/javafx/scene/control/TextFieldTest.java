@@ -474,6 +474,13 @@ public class TextFieldTest {
         assertEquals(4, txtField.getSelection().getEnd());
     }
 
+    @Test public void stripInvalidCharacters() {
+        txtField.setText("abcdefghijklm");
+        char[] c = new char[]{0x7F, 0xA, 0x9, 0x00, 0x05, 0x10, 0x19};
+        txtField.setText(String.valueOf(c));
+        assertEquals("", txtField.getText());
+    }
+
     private Change noDigits(Change change) {
         Change filtered = change.clone();
         filtered.setText(change.getText().replaceAll("[0-9]","\n"));

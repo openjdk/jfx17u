@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,6 +74,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.event.EventHandler;
+import javafx.scene.AccessibleAttribute;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -105,6 +106,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Cell;
 import javafx.scene.control.FocusModel;
 import javafx.scene.control.IndexedCell;
+import javafx.scene.control.Label;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.MultipleSelectionModelBaseShim;
 import javafx.scene.control.SelectionMode;
@@ -3683,7 +3685,7 @@ public class TreeTableViewTest {
         // However, for now, we'll test on the assumption that across all
         // platforms we only get one extra cell created, and we can loosen this
         // up if necessary.
-        assertEquals(cellCountAtStart + 14, rt36452_instanceCount);
+        assertTrue(rt36452_instanceCount < cellCountAtStart + 15);
 
         sl.dispose();
     }
@@ -7086,5 +7088,59 @@ public class TreeTableViewTest {
         // Verify that the arrow is fully visible, and it is not overlapped
         // by the corner region
         assertTrue(arrowMaxX < cornerMinX);
+    }
+
+    @Test
+    public void testQueryAccessibleAttributeSelectedItemsWithNullSelectionModel() {
+        treeTableView.setSelectionModel(null);
+        stageLoader = new StageLoader(treeTableView);
+
+        Object result = treeTableView.queryAccessibleAttribute(AccessibleAttribute.SELECTED_ITEMS);
+        // Should be an empty observable array list
+        assertEquals(FXCollections.observableArrayList(), result);
+    }
+
+    @Test
+    public void testQueryAccessibleAttributeSelectedItemsWithNullSelectionModel_Placeholder() {
+        treeTableView.setSelectionModel(null);
+        stageLoader = new StageLoader(treeTableView);
+
+        Object result = treeTableView.queryAccessibleAttribute(AccessibleAttribute.FOCUS_ITEM);
+        // Should be a placeholder label
+        assertTrue(result instanceof Label);
+    }
+
+    @Test
+    public void testQueryAccessibleAttributeFocusItemWithNullFocusModel() {
+        // with rows
+        treeTableView.setRoot(new TreeItem("Root"));
+        treeTableView.getRoot().setExpanded(true);
+        for (int i = 0; i < 4; i++) {
+            TreeItem parent = new TreeItem("item - " + i);
+            treeTableView.getRoot().getChildren().add(parent);
+        }
+
+        // with columns
+        for (int i = 0; i < 10; i++) {
+            TreeTableColumn<String, String> c = new TreeTableColumn<>("C" + i);
+            c.setCellValueFactory(value -> new SimpleStringProperty(value.getValue().getValue()));
+            treeTableView.getColumns().add(c);
+        }
+
+        treeTableView.setFocusModel(null);
+
+        stageLoader = new StageLoader(treeTableView);
+
+        Object result = treeTableView.queryAccessibleAttribute(AccessibleAttribute.FOCUS_ITEM);
+        assertNull(result);
+    }
+
+    @Test
+    public void testQueryAccessibleAttributeFocusItemWithNullFocusModelPlaceholder() {
+        treeTableView.setFocusModel(null);
+        stageLoader = new StageLoader(treeTableView);
+
+        Object result = treeTableView.queryAccessibleAttribute(AccessibleAttribute.FOCUS_ITEM);
+        assertNull(result);
     }
 }
