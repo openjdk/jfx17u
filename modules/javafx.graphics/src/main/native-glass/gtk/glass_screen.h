@@ -31,6 +31,7 @@
 #include <gtk/gtk.h>
 
 extern jfloat OverrideUIScale;
+extern jboolean gtk_no_frame_extents;
 jfloat getUIScale(GdkScreen* screen);
 jobject createJavaScreen(JNIEnv* env, gint monitor_idx);
 glong getScreenPtrForLocation(gint x, gint y);

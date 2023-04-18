@@ -98,13 +98,14 @@ jboolean gtk_verbose = JNI_FALSE;
  * Signature: (IZ)I
  */
 JNIEXPORT jint JNICALL Java_com_sun_glass_ui_gtk_GtkApplication__1initGTK
-  (JNIEnv *env, jclass clazz, jint version, jboolean verbose, jfloat uiScale)
+  (JNIEnv *env, jclass clazz, jint version, jboolean verbose, jfloat uiScale, jboolean noFrameExtents)
 {
     (void) clazz;
     (void) version;
 
     OverrideUIScale = uiScale;
     gtk_verbose = verbose;
+    gtk_no_frame_extents = noFrameExtents;
 
     env->ExceptionClear();
     init_threads();
