@@ -32,6 +32,7 @@
 #include <gdk/gdkx.h>
 
 jfloat OverrideUIScale = -1.0f;
+jboolean gtk_no_frame_extents = JNI_FALSE;
 int DEFAULT_DPI = 96;
 
 static guint get_current_desktop(GdkScreen *screen) {

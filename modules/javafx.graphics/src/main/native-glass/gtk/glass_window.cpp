@@ -846,11 +846,17 @@ void WindowContextTop::set_cached_extents(WindowFrameExtents ex) {
 }
 
 WindowFrameExtents WindowContextTop::get_cached_extents() {
+    if (gtk_no_frame_extents) {
+        return {0, 0, 0, 0};
+    }
     return window_type == NORMAL ? normal_extents : utility_extents;
 }
 
 
 bool WindowContextTop::update_frame_extents() {
+    if (gtk_no_frame_extents) {
+        return false;
+    }
     bool changed = false;
     int top, left, bottom, right;
     if (get_frame_extents_property(&top, &left, &bottom, &right)) {

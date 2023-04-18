@@ -198,8 +198,12 @@ final class GtkApplication extends Application implements
             }
             return null;
         });
+        boolean gtkNoFrameExtents =
+            AccessController.doPrivileged((PrivilegedAction<Boolean>) () -> {
+                return Boolean.getBoolean("jdk.gtk.noFrameExtents");
+            });
 
-        int version = _initGTK(gtkVersion, gtkVersionVerbose, overrideUIScale);
+        int version = _initGTK(gtkVersion, gtkVersionVerbose, overrideUIScale, gtkNoFrameExtents);
 
         if (version == -1) {
             throw new RuntimeException("Error loading GTK libraries");
@@ -228,7 +232,8 @@ final class GtkApplication extends Application implements
      */
     private static native int _queryLibrary(int version, boolean verbose);
 
-    private static native int _initGTK(int version, boolean verbose, float overrideUIScale);
+    private static native int _initGTK(int version, boolean verbose, float overrideUIScale,
+        boolean noFrameExtentds);
 
     private void initDisplay() {
         Map ds = getDeviceDetails();
