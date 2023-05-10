@@ -325,51 +325,6 @@ public class NativeLibLoader {
         return new byte[0];
     }
 
-    private static File libDirForJRT() {
-        String javaHome = System.getProperty("java.home");
-
-        if (javaHome == null || javaHome.isEmpty()) {
-            throw new UnsatisfiedLinkError("Cannot find java.home");
-        }
-
-        // Set the native directory based on the OS
-        String osName = System.getProperty("os.name");
-        String relativeDir = null;
-        if (osName.startsWith("Windows")) {
-            relativeDir = "bin/javafx";
-        } else if (osName.startsWith("Mac")) {
-            relativeDir = "lib";
-        } else if (osName.startsWith("Linux")) {
-            relativeDir = "lib";
-        }
-
-        // Location of native libraries relative to java.home
-        return new File(javaHome + "/" + relativeDir);
-    }
-
-    private static File libDirForJarFile(String classUrlString) throws Exception {
-        // Strip out the "jar:" and everything after and including the "!"
-        String tmpStr = classUrlString.substring(4, classUrlString.lastIndexOf('!'));
-        // Strip everything after the last "/" or "\" to get rid of the jar filename
-        int lastIndexOfSlash = Math.max(tmpStr.lastIndexOf('/'), tmpStr.lastIndexOf('\\'));
-
-        // Set the native directory based on the OS
-        String osName = System.getProperty("os.name");
-        String relativeDir = null;
-        if (osName.startsWith("Windows")) {
-            relativeDir = "../bin";
-        } else if (osName.startsWith("Mac")) {
-            relativeDir = ".";
-        } else if (osName.startsWith("Linux")) {
-            relativeDir = ".";
-        }
-
-        // Location of native libraries relative to jar file
-        String libDirUrlString = tmpStr.substring(0, lastIndexOfSlash)
-                + "/" + relativeDir;
-        return new File(new URI(libDirUrlString).getPath());
-    }
-
 
     private static File libDirForJRT() {
         String javaHome = System.getProperty("java.home");
