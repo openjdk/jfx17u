@@ -212,6 +212,7 @@ gperf_command = sys.argv[2]
 if 'GPERF' in os.environ:
     gperf_command = os.environ['GPERF']
 
-if subprocess.call([gperf_command, '--key-positions=*', '-m', '10', '-s', '2', 'SelectorPseudoClassAndCompatibilityElementMap.gperf', '--output-file=SelectorPseudoClassAndCompatibilityElementMap.cpp']) != 0:
+gperf_return = subprocess.call([gperf_command, '--key-positions=*', '-m', '10', '-s', '2', 'SelectorPseudoClassAndCompatibilityElementMap.gperf', '--output-file=SelectorPseudoClassAndCompatibilityElementMap.cpp'])
+if gperf_return != 0:
     print("Error when generating SelectorPseudoClassAndCompatibilityElementMap.cpp from SelectorPseudoClassAndCompatibilityElementMap.gperf :(")
     sys.exit(gperf_return)
