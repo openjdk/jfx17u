@@ -318,7 +318,7 @@ public abstract class MapExpressionHelper<K, V> extends ExpressionHelperBase {
         private int invalidationSize;
         private int changeSize;
         private int mapChangeSize;
-        private boolean locked;
+        private int locked = 0;
         private ObservableMap<K, V> currentValue;
 
         private Generic(ObservableMapValue<K, V> observable, InvalidationListener listener0, InvalidationListener listener1) {
@@ -375,7 +375,7 @@ public abstract class MapExpressionHelper<K, V> extends ExpressionHelperBase {
                 invalidationSize = 1;
             } else {
                 final int oldCapacity = invalidationListeners.length;
-                if (locked) {
+                if (locked > 0) {
                     final int newCapacity = (invalidationSize < oldCapacity)? oldCapacity : (oldCapacity * 3)/2 + 1;
                     invalidationListeners = Arrays.copyOf(invalidationListeners, newCapacity);
                 } else if (invalidationSize == oldCapacity) {
@@ -408,7 +408,7 @@ public abstract class MapExpressionHelper<K, V> extends ExpressionHelperBase {
                         } else {
                             final int numMoved = invalidationSize - index - 1;
                             final InvalidationListener[] oldListeners = invalidationListeners;
-                            if (locked) {
+                            if (locked > 0) {
                                 invalidationListeners = new InvalidationListener[invalidationListeners.length];
                                 System.arraycopy(oldListeners, 0, invalidationListeners, 0, index+1);
                             }
@@ -416,7 +416,7 @@ public abstract class MapExpressionHelper<K, V> extends ExpressionHelperBase {
                                 System.arraycopy(oldListeners, index+1, invalidationListeners, index, numMoved);
                             }
                             invalidationSize--;
-                            if (!locked) {
+                            if (locked == 0) {
                                 invalidationListeners[invalidationSize] = null; // Let gc do its work
                             }
                         }
@@ -434,7 +434,7 @@ public abstract class MapExpressionHelper<K, V> extends ExpressionHelperBase {
                 changeSize = 1;
             } else {
                 final int oldCapacity = changeListeners.length;
-                if (locked) {
+                if (locked > 0) {
                     final int newCapacity = (changeSize < oldCapacity)? oldCapacity : (oldCapacity * 3)/2 + 1;
                     changeListeners = Arrays.copyOf(changeListeners, newCapacity);
                 } else if (changeSize == oldCapacity) {
@@ -470,7 +470,7 @@ public abstract class MapExpressionHelper<K, V> extends ExpressionHelperBase {
                         } else {
                             final int numMoved = changeSize - index - 1;
                             final ChangeListener<? super ObservableMap<K, V>>[] oldListeners = changeListeners;
-                            if (locked) {
+                            if (locked > 0) {
                                 changeListeners = new ChangeListener[changeListeners.length];
                                 System.arraycopy(oldListeners, 0, changeListeners, 0, index+1);
                             }
@@ -478,7 +478,7 @@ public abstract class MapExpressionHelper<K, V> extends ExpressionHelperBase {
                                 System.arraycopy(oldListeners, index+1, changeListeners, index, numMoved);
                             }
                             changeSize--;
-                            if (!locked) {
+                            if (locked == 0) {
                                 changeListeners[changeSize] = null; // Let gc do its work
                             }
                         }
@@ -496,7 +496,7 @@ public abstract class MapExpressionHelper<K, V> extends ExpressionHelperBase {
                 mapChangeSize = 1;
             } else {
                 final int oldCapacity = mapChangeListeners.length;
-                if (locked) {
+                if (locked > 0) {
                     final int newCapacity = (mapChangeSize < oldCapacity)? oldCapacity : (oldCapacity * 3)/2 + 1;
                     mapChangeListeners = Arrays.copyOf(mapChangeListeners, newCapacity);
                 } else if (mapChangeSize == oldCapacity) {
@@ -532,7 +532,7 @@ public abstract class MapExpressionHelper<K, V> extends ExpressionHelperBase {
                         } else {
                             final int numMoved = mapChangeSize - index - 1;
                             final MapChangeListener<? super K, ? super V>[] oldListeners = mapChangeListeners;
-                            if (locked) {
+                            if (locked > 0) {
                                 mapChangeListeners = new MapChangeListener[mapChangeListeners.length];
                                 System.arraycopy(oldListeners, 0, mapChangeListeners, 0, index+1);
                             }
@@ -540,7 +540,7 @@ public abstract class MapExpressionHelper<K, V> extends ExpressionHelperBase {
                                 System.arraycopy(oldListeners, index+1, mapChangeListeners, index, numMoved);
                             }
                             mapChangeSize--;
-                            if (!locked) {
+                            if (locked == 0) {
                                 mapChangeListeners[mapChangeSize] = null; // Let gc do its work
                             }
                         }
@@ -576,7 +576,7 @@ public abstract class MapExpressionHelper<K, V> extends ExpressionHelperBase {
             final MapChangeListener<? super K, ? super V>[] curListChangeList = mapChangeListeners;
             final int curListChangeSize = mapChangeSize;
             try {
-                locked = true;
+                locked++;
                 for (int i = 0; i < curInvalidationSize; i++) {
                     curInvalidationList[i].invalidated(observable);
                 }
@@ -638,7 +638,11 @@ public abstract class MapExpressionHelper<K, V> extends ExpressionHelperBase {
                     }
                 }
             } finally {
-                locked = false;
+                locked--;
+                if( locked <= 0 )
+                {
+                    locked = 0;
+                }
             }
         }
 

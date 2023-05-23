@@ -384,7 +384,7 @@ public abstract class SetListenerHelper< E > extends ExpressionHelperBase
         private int invalidationSize;
         private int changeSize;
         private int complexChangeSize;
-        private boolean locked;
+        private int locked = 0;
 
         private Generic( InvalidationListener listener0, InvalidationListener listener1 )
         {
@@ -443,7 +443,7 @@ public abstract class SetListenerHelper< E > extends ExpressionHelperBase
             else
             {
                 final int oldCapacity = invalidationListeners.length;
-                if( locked )
+                if (locked > 0)
                 {
                     final int newCapacity =
                         ( invalidationSize < oldCapacity ) ? oldCapacity : ( oldCapacity * 3 ) / 2 + 1;
@@ -494,7 +494,7 @@ public abstract class SetListenerHelper< E > extends ExpressionHelperBase
                         {
                             final int numMoved = invalidationSize - index - 1;
                             final InvalidationListener[] oldListeners = invalidationListeners;
-                            if( locked )
+                            if( locked > 0 )
                             {
                                 invalidationListeners =
                                     new InvalidationListener[ invalidationListeners.length ];
@@ -506,7 +506,7 @@ public abstract class SetListenerHelper< E > extends ExpressionHelperBase
                                     numMoved );
                             }
                             invalidationSize--;
-                            if( !locked )
+                            if( locked == 0 )
                             {
                                 invalidationListeners[ invalidationSize ] = null; // Let gc do its work
                             }
@@ -529,7 +529,7 @@ public abstract class SetListenerHelper< E > extends ExpressionHelperBase
             else
             {
                 final int oldCapacity = changeListeners.length;
-                if( locked )
+                if( locked > 0 )
                 {
                     final int newCapacity =
                         ( changeSize < oldCapacity ) ? oldCapacity : ( oldCapacity * 3 ) / 2 + 1;
@@ -580,7 +580,7 @@ public abstract class SetListenerHelper< E > extends ExpressionHelperBase
                         {
                             final int numMoved = changeSize - index - 1;
                             final SetChangeListener< ? super E >[] oldListeners = changeListeners;
-                            if( locked )
+                            if( locked > 0 )
                             {
                                 changeListeners = new SetChangeListener[ changeListeners.length ];
                                 System.arraycopy( oldListeners, 0, changeListeners, 0, index );
@@ -590,7 +590,7 @@ public abstract class SetListenerHelper< E > extends ExpressionHelperBase
                                 System.arraycopy( oldListeners, index + 1, changeListeners, index, numMoved );
                             }
                             changeSize--;
-                            if( !locked )
+                            if( locked == 0 )
                             {
                                 changeListeners[ changeSize ] = null; // Let gc do its work
                             }
@@ -614,7 +614,7 @@ public abstract class SetListenerHelper< E > extends ExpressionHelperBase
 
             try
             {
-                locked = true;
+                locked++;
                 for( int i = 0; i < curInvalidationSize; i++ )
                 {
                     try
@@ -654,7 +654,11 @@ public abstract class SetListenerHelper< E > extends ExpressionHelperBase
             }
             finally
             {
-                locked = false;
+                locked--;
+                if( locked <= 0 )
+                {
+                    locked = 0;
+                }
             }
         }
 
@@ -669,7 +673,7 @@ public abstract class SetListenerHelper< E > extends ExpressionHelperBase
             else
             {
                 final int oldCapacity = complexChangeListeners.length;
-                if( locked )
+                if( locked > 0 )
                 {
                     final int newCapacity =
                         ( complexChangeSize < oldCapacity ) ? oldCapacity : ( oldCapacity * 3 ) / 2 + 1;
@@ -722,7 +726,7 @@ public abstract class SetListenerHelper< E > extends ExpressionHelperBase
                             final int numMoved = complexChangeSize - index - 1;
                             final SetComplexChangeListener< ? super E >[] oldListeners =
                                 complexChangeListeners;
-                            if( locked )
+                            if (locked > 0)
                             {
                                 complexChangeListeners =
                                     new SetComplexChangeListener[ complexChangeListeners.length ];
@@ -734,7 +738,7 @@ public abstract class SetListenerHelper< E > extends ExpressionHelperBase
                                     numMoved );
                             }
                             complexChangeSize--;
-                            if( !locked )
+                            if (locked == 0)
                             {
                                 complexChangeListeners[ complexChangeSize ] = null; // Let gc do its work
                             }
@@ -758,7 +762,7 @@ public abstract class SetListenerHelper< E > extends ExpressionHelperBase
 
             try
             {
-                locked = true;
+                locked++;
                 for( int i = 0; i < curInvalidationSize; i++ )
                 {
                     try
@@ -798,7 +802,11 @@ public abstract class SetListenerHelper< E > extends ExpressionHelperBase
             }
             finally
             {
-                locked = false;
+                locked--;
+                if( locked <= 0 )
+                {
+                    locked = 0;
+                }
             }
         }
     }

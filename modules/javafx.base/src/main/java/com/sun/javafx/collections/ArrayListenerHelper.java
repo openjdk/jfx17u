@@ -180,7 +180,7 @@ public abstract class ArrayListenerHelper<T extends ObservableArray<T>> extends 
         private ArrayChangeListener[] changeListeners;
         private int invalidationSize;
         private int changeSize;
-        private boolean locked;
+        private int locked = 0;
 
         private Generic(T observable, InvalidationListener listener0, InvalidationListener listener1) {
             super(observable);
@@ -209,7 +209,7 @@ public abstract class ArrayListenerHelper<T extends ObservableArray<T>> extends 
                 invalidationSize = 1;
             } else {
                 final int oldCapacity = invalidationListeners.length;
-                if (locked) {
+                if (locked > 0) {
                     final int newCapacity = (invalidationSize < oldCapacity)? oldCapacity : (oldCapacity * 3)/2 + 1;
                     invalidationListeners = Arrays.copyOf(invalidationListeners, newCapacity);
                 } else if (invalidationSize == oldCapacity) {
@@ -240,7 +240,7 @@ public abstract class ArrayListenerHelper<T extends ObservableArray<T>> extends 
                         } else {
                             final int numMoved = invalidationSize - index - 1;
                             final InvalidationListener[] oldListeners = invalidationListeners;
-                            if (locked) {
+                            if (locked > 0) {
                                 invalidationListeners = new InvalidationListener[invalidationListeners.length];
                                 System.arraycopy(oldListeners, 0, invalidationListeners, 0, index+1);
                             }
@@ -248,7 +248,7 @@ public abstract class ArrayListenerHelper<T extends ObservableArray<T>> extends 
                                 System.arraycopy(oldListeners, index+1, invalidationListeners, index, numMoved);
                             }
                             invalidationSize--;
-                            if (!locked) {
+                            if (locked == 0) {
                                 invalidationListeners[invalidationSize] = null; // Let gc do its work
                             }
                         }
@@ -266,7 +266,7 @@ public abstract class ArrayListenerHelper<T extends ObservableArray<T>> extends 
                 changeSize = 1;
             } else {
                 final int oldCapacity = changeListeners.length;
-                if (locked) {
+                if (locked > 0) {
                     final int newCapacity = (changeSize < oldCapacity)? oldCapacity : (oldCapacity * 3)/2 + 1;
                     changeListeners = Arrays.copyOf(changeListeners, newCapacity);
                 } else if (changeSize == oldCapacity) {
@@ -297,7 +297,7 @@ public abstract class ArrayListenerHelper<T extends ObservableArray<T>> extends 
                         } else {
                             final int numMoved = changeSize - index - 1;
                             final ArrayChangeListener[] oldListeners = changeListeners;
-                            if (locked) {
+                            if (locked > 0) {
                                 changeListeners = new ArrayChangeListener[changeListeners.length];
                                 System.arraycopy(oldListeners, 0, changeListeners, 0, index+1);
                             }
@@ -305,7 +305,7 @@ public abstract class ArrayListenerHelper<T extends ObservableArray<T>> extends 
                                 System.arraycopy(oldListeners, index+1, changeListeners, index, numMoved);
                             }
                             changeSize--;
-                            if (!locked) {
+                            if (locked == 0) {
                                 changeListeners[changeSize] = null; // Let gc do its work
                             }
                         }
@@ -324,7 +324,7 @@ public abstract class ArrayListenerHelper<T extends ObservableArray<T>> extends 
             final int curChangeSize = changeSize;
 
             try {
-                locked = true;
+                locked++;
                 for (int i = 0; i < curInvalidationSize; i++) {
                     try {
                         curInvalidationList[i].invalidated(observable);
@@ -340,7 +340,11 @@ public abstract class ArrayListenerHelper<T extends ObservableArray<T>> extends 
                     }
                 }
             } finally {
-                locked = false;
+                locked--;
+                if( locked <= 0 )
+                {
+                    locked = 0;
+                }
             }
         }
     }

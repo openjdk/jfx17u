@@ -25,10 +25,22 @@
 
 package test.com.sun.javafx.binding;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import com.sun.javafx.binding.SetExpressionHelper;
+import com.sun.javafx.binding.SetExpressionHelper;
+import javafx.beans.InvalidationListener;
+import javafx.beans.Observable;
 import javafx.beans.property.SetProperty;
 import javafx.beans.property.SimpleSetProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.SetChangeListener;
 import javafx.collections.ObservableSet;
 import org.junit.Before;
 import org.junit.Test;
@@ -231,4 +243,113 @@ public class SetExpressionHelperTest {
         setChangeListener[1].assertRemoved(MockSetObserver.Tuple.tup(value));
         setChangeListener[1].clear();
     }
+
+    @Test
+    public void testFireValueChangeForSetChangeListenerAndRemoveListener()
+    {
+        AtomicBoolean exceptionThrown = new AtomicBoolean( false );
+        Thread.currentThread().setUncaughtExceptionHandler( ( t, e ) -> exceptionThrown.set( true ) );
+        AtomicInteger calledCounter = new AtomicInteger( 0 );
+        helper = SetExpressionHelper.addListener( helper, observable, new SetChangeListener<>()
+        {
+
+            @Override
+            public void onChanged( final Change< ? > c )
+            {
+                final var counter = calledCounter.getAndIncrement();
+                if( counter == 0 )
+                {
+                    observable.set( FXCollections.observableSet() );
+                    SetExpressionHelper.fireValueChangedEvent( helper );
+                    helper = SetExpressionHelper.removeListener( helper, this );
+                }
+            }
+        } );
+        helper = SetExpressionHelper.addListener( helper, observable,
+            ( SetChangeListener.Change< ? extends Object > c ) -> {
+                calledCounter.incrementAndGet();
+            } );
+        helper = SetExpressionHelper.addListener( helper, observable,
+            ( SetChangeListener.Change< ? extends Object > c ) -> {
+                calledCounter.incrementAndGet();
+            } );
+        helper = SetExpressionHelper.addListener( helper, observable,
+            ( SetChangeListener.Change< ? extends Object > c ) -> {
+                calledCounter.incrementAndGet();
+            } );
+        observable.set( data2 );
+        SetExpressionHelper.fireValueChangedEvent( helper );
+        assertFalse( exceptionThrown.get() );
+        assertEquals( 8, calledCounter.get() );
+    }
+
+    @Test
+    public void testFireValueChangeForChangeListenerAndRemoveListener()
+    {
+        AtomicBoolean exceptionThrown = new AtomicBoolean( false );
+        Thread.currentThread().setUncaughtExceptionHandler( ( t, e ) -> exceptionThrown.set( true ) );
+        AtomicInteger calledCounter = new AtomicInteger( 0 );
+        helper = SetExpressionHelper.addListener( helper, observable, new ChangeListener<>()
+        {
+            @Override
+            public void changed( final ObservableValue< ? extends ObservableSet< Object > > o,
+                final ObservableSet< Object > oldValue, final ObservableSet< Object > newValue )
+            {
+                final var counter = calledCounter.getAndIncrement();
+                if( counter == 0 )
+                {
+                    observable.set( FXCollections.observableSet() );
+                    SetExpressionHelper.fireValueChangedEvent( helper );
+                    helper = SetExpressionHelper.removeListener( helper, this );
+                }
+            }
+        } );
+        helper = SetExpressionHelper.addListener( helper, observable,
+            ( observable1, oldValue, newValue ) -> calledCounter.incrementAndGet() );
+        helper = SetExpressionHelper.addListener( helper, observable,
+            ( observable1, oldValue, newValue ) -> calledCounter.incrementAndGet() );
+        helper = SetExpressionHelper.addListener( helper, observable,
+            ( observable1, oldValue, newValue ) -> calledCounter.incrementAndGet() );
+        observable.set( data2 );
+        SetExpressionHelper.fireValueChangedEvent( helper );
+        assertFalse( exceptionThrown.get() );
+        assertEquals( 8, calledCounter.get() );
+    }
+
+    @Test
+    public void testFireValueChangeForInvalidationListenerAndRemoveListener()
+    {
+        AtomicBoolean exceptionThrown = new AtomicBoolean( false );
+        Thread.currentThread().setUncaughtExceptionHandler( ( t, e ) -> exceptionThrown.set( true ) );
+        AtomicInteger calledCounter = new AtomicInteger( 0 );
+        helper = SetExpressionHelper.addListener( helper, observable, new InvalidationListener()
+        {
+
+            @Override
+            public void invalidated( final Observable o )
+            {
+                final var counter = calledCounter.getAndIncrement();
+                if( counter == 0 )
+                {
+                    observable.set( FXCollections.observableSet() );
+                    SetExpressionHelper.fireValueChangedEvent( helper );
+                    helper = SetExpressionHelper.removeListener( helper, this );
+                }
+            }
+        } );
+        helper = SetExpressionHelper.addListener( helper, observable, (InvalidationListener)c -> {
+            calledCounter.incrementAndGet();
+        } );
+        helper = SetExpressionHelper.addListener( helper, observable, (InvalidationListener)c -> {
+            calledCounter.incrementAndGet();
+        } );
+        helper = SetExpressionHelper.addListener( helper, observable, (InvalidationListener)c -> {
+            calledCounter.incrementAndGet();
+        } );
+        observable.set( data2 );
+        SetExpressionHelper.fireValueChangedEvent( helper );
+        assertFalse( exceptionThrown.get() );
+        assertEquals( 8, calledCounter.get() );
+    }
+
 }

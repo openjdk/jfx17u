@@ -309,7 +309,7 @@ public abstract class ListExpressionHelper<E> extends ExpressionHelperBase {
         private int invalidationSize;
         private int changeSize;
         private int listChangeSize;
-        private boolean locked;
+        private int locked = 0;
         private ObservableList<E> currentValue;
 
         private Generic(ObservableListValue<E> observable, InvalidationListener listener0, InvalidationListener listener1) {
@@ -366,7 +366,7 @@ public abstract class ListExpressionHelper<E> extends ExpressionHelperBase {
                 invalidationSize = 1;
             } else {
                 final int oldCapacity = invalidationListeners.length;
-                if (locked) {
+                if (locked > 0) {
                     final int newCapacity = (invalidationSize < oldCapacity)? oldCapacity : (oldCapacity * 3)/2 + 1;
                     invalidationListeners = Arrays.copyOf(invalidationListeners, newCapacity);
                 } else if (invalidationSize == oldCapacity) {
@@ -399,7 +399,7 @@ public abstract class ListExpressionHelper<E> extends ExpressionHelperBase {
                         } else {
                             final int numMoved = invalidationSize - index - 1;
                             final InvalidationListener[] oldListeners = invalidationListeners;
-                            if (locked) {
+                            if (locked > 0) {
                                 invalidationListeners = new InvalidationListener[invalidationListeners.length];
                                 System.arraycopy(oldListeners, 0, invalidationListeners, 0, index+1);
                             }
@@ -407,7 +407,7 @@ public abstract class ListExpressionHelper<E> extends ExpressionHelperBase {
                                 System.arraycopy(oldListeners, index+1, invalidationListeners, index, numMoved);
                             }
                             invalidationSize--;
-                            if (!locked) {
+                            if (locked == 0) {
                                 invalidationListeners[invalidationSize] = null; // Let gc do its work
                             }
                         }
@@ -425,7 +425,7 @@ public abstract class ListExpressionHelper<E> extends ExpressionHelperBase {
                 changeSize = 1;
             } else {
                 final int oldCapacity = changeListeners.length;
-                if (locked) {
+                if (locked > 0) {
                     final int newCapacity = (changeSize < oldCapacity)? oldCapacity : (oldCapacity * 3)/2 + 1;
                     changeListeners = Arrays.copyOf(changeListeners, newCapacity);
                 } else if (changeSize == oldCapacity) {
@@ -461,7 +461,7 @@ public abstract class ListExpressionHelper<E> extends ExpressionHelperBase {
                         } else {
                             final int numMoved = changeSize - index - 1;
                             final ChangeListener<? super ObservableList<E>>[] oldListeners = changeListeners;
-                            if (locked) {
+                            if (locked > 0) {
                                 changeListeners = new ChangeListener[changeListeners.length];
                                 System.arraycopy(oldListeners, 0, changeListeners, 0, index+1);
                             }
@@ -469,7 +469,7 @@ public abstract class ListExpressionHelper<E> extends ExpressionHelperBase {
                                 System.arraycopy(oldListeners, index+1, changeListeners, index, numMoved);
                             }
                             changeSize--;
-                            if (!locked) {
+                            if (locked == 0) {
                                 changeListeners[changeSize] = null; // Let gc do its work
                             }
                         }
@@ -487,7 +487,7 @@ public abstract class ListExpressionHelper<E> extends ExpressionHelperBase {
                 listChangeSize = 1;
             } else {
                 final int oldCapacity = listChangeListeners.length;
-                if (locked) {
+                if (locked > 0) {
                     final int newCapacity = (listChangeSize < oldCapacity)? oldCapacity : (oldCapacity * 3)/2 + 1;
                     listChangeListeners = Arrays.copyOf(listChangeListeners, newCapacity);
                 } else if (listChangeSize == oldCapacity) {
@@ -523,7 +523,7 @@ public abstract class ListExpressionHelper<E> extends ExpressionHelperBase {
                         } else {
                             final int numMoved = listChangeSize - index - 1;
                             final ListChangeListener<? super E>[] oldListeners = listChangeListeners;
-                            if (locked) {
+                            if (locked > 0) {
                                 listChangeListeners = new ListChangeListener[listChangeListeners.length];
                                 System.arraycopy(oldListeners, 0, listChangeListeners, 0, index+1);
                             }
@@ -531,7 +531,7 @@ public abstract class ListExpressionHelper<E> extends ExpressionHelperBase {
                                 System.arraycopy(oldListeners, index+1, listChangeListeners, index, numMoved);
                             }
                             listChangeSize--;
-                            if (!locked) {
+                            if (locked == 0) {
                                 listChangeListeners[listChangeSize] = null; // Let gc do its work
                             }
                         }
@@ -579,7 +579,7 @@ public abstract class ListExpressionHelper<E> extends ExpressionHelperBase {
             final ListChangeListener<? super E>[] curListChangeList = listChangeListeners;
             final int curListChangeSize = listChangeSize;
             try {
-                locked = true;
+                locked++;
                 for (int i = 0; i < curInvalidationSize; i++) {
                     curInvalidationList[i].invalidated(observable);
                 }
@@ -595,7 +595,11 @@ public abstract class ListExpressionHelper<E> extends ExpressionHelperBase {
                     }
                 }
             } finally {
-                locked = false;
+                locked--;
+                if( locked <= 0 )
+                {
+                    locked = 0;
+                }
             }
         }
 

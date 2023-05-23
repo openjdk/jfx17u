@@ -25,9 +25,13 @@
 
 package test.com.sun.javafx.binding;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+
 import com.sun.javafx.binding.ListExpressionHelper;
 import com.sun.javafx.collections.NonIterableChange;
 import javafx.beans.InvalidationListener;
+import javafx.collections.ObservableMap;
 import test.javafx.beans.InvalidationListenerMock;
 import javafx.beans.Observable;
 import test.javafx.beans.WeakInvalidationListenerMock;
@@ -47,6 +51,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ListExpressionHelperTest {
 
@@ -955,4 +962,113 @@ public class ListExpressionHelperTest {
 
 
     }
+
+    @Test
+    public void testFireValueChangeFoListChangeListenerAndRemoveListener()
+    {
+        AtomicBoolean exceptionThrown = new AtomicBoolean( false );
+        Thread.currentThread().setUncaughtExceptionHandler( ( t, e ) -> exceptionThrown.set( true ) );
+        AtomicInteger calledCounter = new AtomicInteger( 0 );
+        helper = ListExpressionHelper.addListener( helper, observable, new ListChangeListener<>()
+        {
+
+            @Override
+            public void onChanged( final Change< ? > c )
+            {
+                final var counter = calledCounter.getAndIncrement();
+                if( counter == 0 )
+                {
+                    observable.set( data3 );
+                    ListExpressionHelper.fireValueChangedEvent( helper );
+                    helper = ListExpressionHelper.removeListener( helper, this );
+                }
+            }
+        } );
+        helper = ListExpressionHelper.addListener( helper, observable,
+            ( ListChangeListener.Change< ? extends Object > c ) -> {
+                calledCounter.incrementAndGet();
+            } );
+        helper = ListExpressionHelper.addListener( helper, observable,
+            ( ListChangeListener.Change< ? extends Object > c ) -> {
+                calledCounter.incrementAndGet();
+            } );
+        helper = ListExpressionHelper.addListener( helper, observable,
+            ( ListChangeListener.Change< ? extends Object > c ) -> {
+                calledCounter.incrementAndGet();
+            } );
+        observable.set( data2 );
+        ListExpressionHelper.fireValueChangedEvent( helper );
+        assertFalse( exceptionThrown.get() );
+        assertEquals( 8, calledCounter.get() );
+    }
+
+    @Test
+    public void testFireValueChangeForChangeListenerAndRemoveListener()
+    {
+        AtomicBoolean exceptionThrown = new AtomicBoolean( false );
+        Thread.currentThread().setUncaughtExceptionHandler( ( t, e ) -> exceptionThrown.set( true ) );
+        AtomicInteger calledCounter = new AtomicInteger( 0 );
+        helper = ListExpressionHelper.addListener( helper, observable, new ChangeListener<>()
+        {
+            @Override
+            public void changed( final ObservableValue< ? extends ObservableList< Object > > o,
+                final ObservableList< Object > oldValue, final ObservableList< Object > newValue )
+            {
+                final var counter = calledCounter.getAndIncrement();
+                if( counter == 0 )
+                {
+                    observable.set( data3 );
+                    ListExpressionHelper.fireValueChangedEvent( helper );
+                    helper = ListExpressionHelper.removeListener( helper, this );
+                }
+            }
+        } );
+        helper = ListExpressionHelper.addListener( helper, observable,
+            ( observable1, oldValue, newValue ) -> calledCounter.incrementAndGet() );
+        helper = ListExpressionHelper.addListener( helper, observable,
+            ( observable1, oldValue, newValue ) -> calledCounter.incrementAndGet() );
+        helper = ListExpressionHelper.addListener( helper, observable,
+            ( observable1, oldValue, newValue ) -> calledCounter.incrementAndGet() );
+        observable.set( data2 );
+        ListExpressionHelper.fireValueChangedEvent( helper );
+        assertFalse( exceptionThrown.get() );
+        assertEquals( 8, calledCounter.get() );
+    }
+
+    @Test
+    public void testFireValueChangeForInvalidationListenerAndRemoveListener()
+    {
+        AtomicBoolean exceptionThrown = new AtomicBoolean( false );
+        Thread.currentThread().setUncaughtExceptionHandler( ( t, e ) -> exceptionThrown.set( true ) );
+        AtomicInteger calledCounter = new AtomicInteger( 0 );
+        helper = ListExpressionHelper.addListener( helper, observable, new InvalidationListener()
+        {
+
+            @Override
+            public void invalidated( final Observable o )
+            {
+                final var counter = calledCounter.getAndIncrement();
+                if( counter == 0 )
+                {
+                    observable.set( data3 );
+                    ListExpressionHelper.fireValueChangedEvent( helper );
+                    helper = ListExpressionHelper.removeListener( helper, this );
+                }
+            }
+        } );
+        helper = ListExpressionHelper.addListener( helper, observable, (InvalidationListener)c -> {
+            calledCounter.incrementAndGet();
+        } );
+        helper = ListExpressionHelper.addListener( helper, observable, (InvalidationListener)c -> {
+            calledCounter.incrementAndGet();
+        } );
+        helper = ListExpressionHelper.addListener( helper, observable, (InvalidationListener)c -> {
+            calledCounter.incrementAndGet();
+        } );
+        observable.set( data2 );
+        ListExpressionHelper.fireValueChangedEvent( helper );
+        assertFalse( exceptionThrown.get() );
+        assertEquals( 8, calledCounter.get() );
+    }
+
 }

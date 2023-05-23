@@ -28,6 +28,7 @@ package test.com.sun.javafx.binding;
 import com.sun.javafx.binding.ExpressionHelper;
 import com.sun.javafx.binding.ExpressionHelperShim;
 import javafx.beans.InvalidationListener;
+import javafx.collections.ObservableList;
 import test.javafx.beans.InvalidationListenerMock;
 import javafx.beans.Observable;
 import test.javafx.beans.WeakInvalidationListenerMock;
@@ -44,6 +45,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class ExpressionHelperTest {
@@ -631,9 +633,6 @@ public class ExpressionHelperTest {
 
     @Test
     public void testExceptionHandledByThreadUncaughtHandlerInMultipleChangeAndInvalidation() {
-        AtomicInteger called = new AtomicInteger(0);
-
-        Thread.currentThread().setUncaughtExceptionHandler((t, e) -> called.incrementAndGet());
 
         helper = ExpressionHelper.addListener(helper, observable, (value, o1, o2) -> { throw new RuntimeException();});
         helper = ExpressionHelper.addListener(helper, observable, (value, o1, o2) -> { throw new RuntimeException();});
@@ -642,7 +641,75 @@ public class ExpressionHelperTest {
         observable.set(null);
         ExpressionHelperShim.fireValueChangedEvent(helper);
 
-        assertEquals(4, called.get());
+    }
+
+    @Test
+    public void testFireValueChangeForChangeListenerAndRemoveListener()
+    {
+        AtomicBoolean exceptionThrown = new AtomicBoolean( false );
+        Thread.currentThread().setUncaughtExceptionHandler( ( t, e ) -> exceptionThrown.set( true ) );
+        AtomicInteger calledCounter = new AtomicInteger( 0 );
+        helper = ExpressionHelper.addListener( helper, observable, new ChangeListener<>()
+        {
+            @Override
+            public void changed( final ObservableValue< ? > o, final Object oldValue,
+                final Object newValue )
+            {
+                final var counter = calledCounter.getAndIncrement();
+                if( counter == 0 )
+                {
+                    observable.set( new Object() );
+                    ExpressionHelper.fireValueChangedEvent( helper );
+                    helper = ExpressionHelper.removeListener( helper, this );
+                }
+            }
+        } );
+        helper = ExpressionHelper.addListener( helper, observable,
+            ( observable1, oldValue, newValue ) -> calledCounter.incrementAndGet() );
+        helper = ExpressionHelper.addListener( helper, observable,
+            ( observable1, oldValue, newValue ) -> calledCounter.incrementAndGet() );
+        helper = ExpressionHelper.addListener( helper, observable,
+            ( observable1, oldValue, newValue ) -> calledCounter.incrementAndGet() );
+        observable.set( DATA_2 );
+        ExpressionHelper.fireValueChangedEvent( helper );
+        assertFalse( exceptionThrown.get() );
+        assertEquals( 8, calledCounter.get() );
+    }
+
+    @Test
+    public void testFireValueChangeForInvalidationListenerAndRemoveListener()
+    {
+        AtomicBoolean exceptionThrown = new AtomicBoolean( false );
+        Thread.currentThread().setUncaughtExceptionHandler( ( t, e ) -> exceptionThrown.set( true ) );
+        AtomicInteger calledCounter = new AtomicInteger( 0 );
+        helper = ExpressionHelper.addListener( helper, observable, new InvalidationListener()
+        {
+
+            @Override
+            public void invalidated( final Observable o )
+            {
+                final var counter = calledCounter.getAndIncrement();
+                if( counter == 0 )
+                {
+                    observable.set( new Object() );
+                    ExpressionHelper.fireValueChangedEvent( helper );
+                    helper = ExpressionHelper.removeListener( helper, this );
+                }
+            }
+        } );
+        helper = ExpressionHelper.addListener( helper, observable, (InvalidationListener)c -> {
+            calledCounter.incrementAndGet();
+        } );
+        helper = ExpressionHelper.addListener( helper, observable, (InvalidationListener)c -> {
+            calledCounter.incrementAndGet();
+        } );
+        helper = ExpressionHelper.addListener( helper, observable, (InvalidationListener)c -> {
+            calledCounter.incrementAndGet();
+        } );
+        observable.set( DATA_2 );
+        ExpressionHelper.fireValueChangedEvent( helper );
+        assertFalse( exceptionThrown.get() );
+        assertEquals( 8, calledCounter.get() );
     }
 
 }

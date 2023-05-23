@@ -842,4 +842,109 @@ public class SetListenerHelperTest {
         assertEquals(2, invocations2.get());
     }
 
+    @Test
+    public void testFireValueChangeForSetChangeListenerAndRemoveListener() {
+        AtomicBoolean exceptionThrown = new AtomicBoolean(false );
+        Thread.currentThread().setUncaughtExceptionHandler((t, e) -> exceptionThrown.set(true));
+        AtomicInteger calledCounter = new AtomicInteger(0);
+        helper = SetListenerHelper.addListener(helper, new SetChangeListener<>()
+        {
+
+            @Override
+            public void onChanged( final Change< ? > c )
+            {
+                final var counter = calledCounter.getAndIncrement();
+                if( counter == 0 )
+                {
+                    SetListenerHelper.fireValueChangedEvent(helper, change);
+                    helper = SetListenerHelper.removeListener( helper, this );
+                }
+            }
+        } );
+        helper =
+            SetListenerHelper.addListener( helper, ( SetChangeListener.Change< ? extends Object > c ) -> {
+                calledCounter.incrementAndGet();
+            } );
+        helper =
+            SetListenerHelper.addListener( helper, ( SetChangeListener.Change< ? extends Object > c ) -> {
+                calledCounter.incrementAndGet();
+            } );
+        helper =
+            SetListenerHelper.addListener( helper, ( SetChangeListener.Change< ? extends Object > c ) -> {
+                calledCounter.incrementAndGet();
+            } );
+        SetListenerHelper.fireValueChangedEvent( helper, change );
+        assertFalse( exceptionThrown.get() );
+        assertEquals( 8, calledCounter.get() );
+    }
+
+    @Test
+    public void testFireValueChangeForComplexChangeListenerAndRemoveListener() {
+        AtomicBoolean exceptionThrown = new AtomicBoolean(false );
+        Thread.currentThread().setUncaughtExceptionHandler((t, e) -> exceptionThrown.set(true));
+        AtomicInteger calledCounter = new AtomicInteger(0);
+        helper = SetListenerHelper.addListener(helper, new SetComplexChangeListener<>()
+        {
+
+            @Override
+            public void onChanged( final Change< ? > c )
+            {
+                final var counter = calledCounter.getAndIncrement();
+                if( counter == 0 )
+                {
+                    SetListenerHelper.fireValueChangedEvent(helper, new SingleComplexChangeAdapter<>( change ));
+                    helper = SetListenerHelper.removeListener( helper, this );
+                }
+            }
+        } );
+        helper =
+            SetListenerHelper.addListener( helper, ( SetComplexChangeListener.Change< ? extends Object > c ) -> {
+                calledCounter.incrementAndGet();
+            } );
+        helper =
+            SetListenerHelper.addListener( helper, ( SetComplexChangeListener.Change< ? extends Object > c ) -> {
+                calledCounter.incrementAndGet();
+            } );
+        helper =
+            SetListenerHelper.addListener( helper, ( SetComplexChangeListener.Change< ? extends Object > c ) -> {
+                calledCounter.incrementAndGet();
+            } );
+        SetListenerHelper.fireValueChangedEvent( helper, new SingleComplexChangeAdapter<>( change ) );
+        assertFalse( exceptionThrown.get() );
+        assertEquals( 8, calledCounter.get() );
+    }
+
+    @Test
+    public void testFireValueChangeForInvalidationListenerAndRemoveListener() {
+        AtomicBoolean exceptionThrown = new AtomicBoolean(false );
+        Thread.currentThread().setUncaughtExceptionHandler((t, e) -> exceptionThrown.set(true));
+        AtomicInteger calledCounter = new AtomicInteger(0);
+        helper = SetListenerHelper.addListener(helper, new InvalidationListener()
+        {
+
+            @Override
+            public void invalidated( final Observable observable )
+            {
+                final var counter = calledCounter.getAndIncrement();
+                if( counter == 0 )
+                {
+                    SetListenerHelper.fireValueChangedEvent(helper, change);
+                    helper = SetListenerHelper.removeListener( helper, this );
+                }
+            }
+        } );
+        helper = SetListenerHelper.addListener( helper, (InvalidationListener)c -> {
+            calledCounter.incrementAndGet();
+        } );
+        helper = SetListenerHelper.addListener( helper, (InvalidationListener)c -> {
+            calledCounter.incrementAndGet();
+        } );
+        helper = SetListenerHelper.addListener( helper, (InvalidationListener)c -> {
+            calledCounter.incrementAndGet();
+        } );
+        SetListenerHelper.fireValueChangedEvent( helper, change );
+        assertFalse( exceptionThrown.get() );
+        assertEquals( 8, calledCounter.get() );
+    }
+
 }

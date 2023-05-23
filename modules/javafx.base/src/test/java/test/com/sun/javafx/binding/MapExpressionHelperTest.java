@@ -25,10 +25,22 @@
 
 package test.com.sun.javafx.binding;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+
+import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import com.sun.javafx.binding.MapExpressionHelper;
+import javafx.beans.InvalidationListener;
+import javafx.beans.Observable;
 import javafx.beans.property.MapProperty;
 import javafx.beans.property.SimpleMapProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableMap;
 import org.junit.Before;
 import org.junit.Test;
@@ -234,4 +246,115 @@ public class MapExpressionHelperTest {
         mapChangeListener[1].assertRemoved(MockMapObserver.Tuple.tup(key, value));
         mapChangeListener[1].clear();
     }
+
+    @Test
+    public void testFireValueChangeForMapChangeListenerAndRemoveListener()
+    {
+        AtomicBoolean exceptionThrown = new AtomicBoolean( false );
+        Thread.currentThread().setUncaughtExceptionHandler( ( t, e ) -> exceptionThrown.set( true ) );
+        AtomicInteger calledCounter = new AtomicInteger( 0 );
+        helper = MapExpressionHelper.addListener( helper, observable, new MapChangeListener<>()
+        {
+
+            @Override
+            public void onChanged( final Change< ?, ? > change )
+            {
+                final var counter = calledCounter.getAndIncrement();
+                if( counter == 0 )
+                {
+                    observable.set( FXCollections.observableMap( new HashMap<>() ) );
+                    MapExpressionHelper.fireValueChangedEvent( helper );
+                    helper = MapExpressionHelper.removeListener( helper, this );
+                }
+            }
+        } );
+        helper = MapExpressionHelper.addListener( helper, observable,
+            ( MapChangeListener.Change< ? extends Object, ? extends Object > c ) -> {
+                calledCounter.incrementAndGet();
+            } );
+        helper = MapExpressionHelper.addListener( helper, observable,
+            ( MapChangeListener.Change< ? extends Object, ? extends Object > c ) -> {
+                calledCounter.incrementAndGet();
+            } );
+        helper = MapExpressionHelper.addListener( helper, observable,
+            ( MapChangeListener.Change< ? extends Object, ? extends Object > c ) -> {
+                calledCounter.incrementAndGet();
+            } );
+        observable.set( data2 );
+        MapExpressionHelper.fireValueChangedEvent( helper );
+        assertFalse( exceptionThrown.get() );
+        assertEquals( 8, calledCounter.get() );
+    }
+
+    @Test
+    public void testFireValueChangeForChangeListenerAndRemoveListener()
+    {
+        AtomicBoolean exceptionThrown = new AtomicBoolean( false );
+        Thread.currentThread().setUncaughtExceptionHandler( ( t, e ) -> exceptionThrown.set( true ) );
+        AtomicInteger calledCounter = new AtomicInteger( 0 );
+        helper = MapExpressionHelper.addListener( helper, observable, new ChangeListener<>()
+        {
+            @Override
+            public void changed(
+                final ObservableValue< ? extends ObservableMap< Object, Object > > o,
+                final ObservableMap< Object, Object > oldValue,
+                final ObservableMap< Object, Object > newValue )
+            {
+                final var counter = calledCounter.getAndIncrement();
+                if( counter == 0 )
+                {
+                    observable.set( FXCollections.observableMap( new HashMap<>() ) );
+                    MapExpressionHelper.fireValueChangedEvent( helper );
+                    helper = MapExpressionHelper.removeListener( helper, this );
+                }
+            }
+        } );
+        helper = MapExpressionHelper.addListener( helper, observable,
+            ( observable1, oldValue, newValue ) -> calledCounter.incrementAndGet() );
+        helper = MapExpressionHelper.addListener( helper, observable,
+            ( observable1, oldValue, newValue ) -> calledCounter.incrementAndGet() );
+        helper = MapExpressionHelper.addListener( helper, observable,
+            ( observable1, oldValue, newValue ) -> calledCounter.incrementAndGet() );
+        observable.set( data2 );
+        MapExpressionHelper.fireValueChangedEvent( helper );
+        assertFalse( exceptionThrown.get() );
+        assertEquals( 8, calledCounter.get() );
+    }
+
+    @Test
+    public void testFireValueChangeForInvalidationListenerAndRemoveListener()
+    {
+        AtomicBoolean exceptionThrown = new AtomicBoolean( false );
+        Thread.currentThread().setUncaughtExceptionHandler( ( t, e ) -> exceptionThrown.set( true ) );
+        AtomicInteger calledCounter = new AtomicInteger( 0 );
+        helper = MapExpressionHelper.addListener( helper, observable, new InvalidationListener()
+        {
+
+            @Override
+            public void invalidated( final Observable o )
+            {
+                final var counter = calledCounter.getAndIncrement();
+                if( counter == 0 )
+                {
+                    observable.set( FXCollections.observableMap( new HashMap<>() ) );
+                    MapExpressionHelper.fireValueChangedEvent( helper );
+                    helper = MapExpressionHelper.removeListener( helper, this );
+                }
+            }
+        } );
+        helper = MapExpressionHelper.addListener( helper, observable, (InvalidationListener)c -> {
+            calledCounter.incrementAndGet();
+        } );
+        helper = MapExpressionHelper.addListener( helper, observable, (InvalidationListener)c -> {
+            calledCounter.incrementAndGet();
+        } );
+        helper = MapExpressionHelper.addListener( helper, observable, (InvalidationListener)c -> {
+            calledCounter.incrementAndGet();
+        } );
+        observable.set( data2 );
+        MapExpressionHelper.fireValueChangedEvent( helper );
+        assertFalse( exceptionThrown.get() );
+        assertEquals( 8, calledCounter.get() );
+    }
+
 }

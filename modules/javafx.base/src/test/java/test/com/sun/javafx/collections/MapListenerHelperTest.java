@@ -25,9 +25,9 @@
 
 package test.com.sun.javafx.collections;
 
+import com.sun.javafx.collections.MapListenerHelper;
 import test.javafx.collections.MockMapObserver;
 import com.sun.javafx.binding.MapExpressionHelper;
-import com.sun.javafx.collections.MapListenerHelper;
 
 import javafx.beans.InvalidationListener;
 import test.javafx.beans.InvalidationListenerMock;
@@ -737,6 +737,75 @@ public class MapListenerHelperTest {
         MapListenerHelper.fireValueChangedEvent(helper, change);
 
         assertEquals(4, called.get());
+    }
+
+    @Test
+    public void testFireValueChangeForMapChangeListenerAndRemoveListener() {
+        AtomicBoolean exceptionThrown = new AtomicBoolean(false );
+        Thread.currentThread().setUncaughtExceptionHandler((t, e) -> exceptionThrown.set(true));
+        AtomicInteger calledCounter = new AtomicInteger(0);
+        helper = MapListenerHelper.addListener(helper, new MapChangeListener<>()
+        {
+
+            @Override
+            public void onChanged( final Change<? extends Object, ? extends Object> c )
+            {
+                final var counter = calledCounter.getAndIncrement();
+                if( counter == 0 )
+                {
+                    MapListenerHelper.fireValueChangedEvent(helper, change);
+                    helper = MapListenerHelper.removeListener( helper, this );
+                }
+            }
+        } );
+        helper =
+            MapListenerHelper.addListener( helper, ( MapChangeListener.Change<? extends Object, ? extends Object> c ) -> {
+                calledCounter.incrementAndGet();
+            } );
+        helper =
+            MapListenerHelper.addListener( helper, ( MapChangeListener.Change<? extends Object, ? extends Object> c ) -> {
+                calledCounter.incrementAndGet();
+            } );
+        helper =
+            MapListenerHelper.addListener( helper, ( MapChangeListener.Change<? extends Object, ? extends Object> c ) -> {
+                calledCounter.incrementAndGet();
+            } );
+        MapListenerHelper.fireValueChangedEvent( helper, change );
+        assertFalse( exceptionThrown.get() );
+        assertEquals( 8, calledCounter.get() );
+    }
+
+    @Test
+    public void testFireValueChangeForInvalidationListenerAndRemoveListener() {
+        AtomicBoolean exceptionThrown = new AtomicBoolean(false );
+        Thread.currentThread().setUncaughtExceptionHandler((t, e) -> exceptionThrown.set(true));
+        AtomicInteger calledCounter = new AtomicInteger(0);
+        helper = MapListenerHelper.addListener(helper, new InvalidationListener()
+        {
+
+            @Override
+            public void invalidated( final Observable observable )
+            {
+                final var counter = calledCounter.getAndIncrement();
+                if( counter == 0 )
+                {
+                    MapListenerHelper.fireValueChangedEvent(helper, change);
+                    helper = MapListenerHelper.removeListener( helper, this );
+                }
+            }
+        } );
+        helper = MapListenerHelper.addListener( helper, (InvalidationListener)c -> {
+            calledCounter.incrementAndGet();
+        } );
+        helper = MapListenerHelper.addListener( helper, (InvalidationListener)c -> {
+            calledCounter.incrementAndGet();
+        } );
+        helper = MapListenerHelper.addListener( helper, (InvalidationListener)c -> {
+            calledCounter.incrementAndGet();
+        } );
+        MapListenerHelper.fireValueChangedEvent( helper, change );
+        assertFalse( exceptionThrown.get() );
+        assertEquals( 8, calledCounter.get() );
     }
 
 }
