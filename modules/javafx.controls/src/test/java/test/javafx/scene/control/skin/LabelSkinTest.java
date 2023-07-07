@@ -655,8 +655,7 @@ public class LabelSkinTest {
         label.setGraphicTextGap(2);
         label.setGraphic(r);
         label.setContentDisplay(ContentDisplay.TOP);
-        final double lineHeight = Utils.computeTextHeight(label.getFont(), " ", 0, text.getBoundsType());
-        assertEquals(23 + lineHeight + 2 + 14, label.minHeight(-1), 0);
+        assertEquals(37.0, label.minHeight(-1), 0);
     }
 
     @Test public void whenTextIsEmptyAndGraphicIsSetWithTOPContentDisplay_computeMinHeight_ReturnsRightAnswer() {
@@ -666,8 +665,7 @@ public class LabelSkinTest {
         label.setGraphicTextGap(2);
         label.setGraphic(r);
         label.setContentDisplay(ContentDisplay.TOP);
-        final double lineHeight = Utils.computeTextHeight(label.getFont(), " ", 0, text.getBoundsType());
-        assertEquals(23 + lineHeight + 2 + 14, label.minHeight(-1), 0);
+        assertEquals(37.0, label.minHeight(-1), 0);
     }
 
     @Test public void whenTextIsSetAndGraphicIsSetWithTOPContentDisplay_computeMinHeight_ReturnsRightAnswer() {
@@ -718,8 +716,7 @@ public class LabelSkinTest {
         label.setGraphicTextGap(2);
         label.setGraphic(r);
         label.setContentDisplay(ContentDisplay.BOTTOM);
-        final double lineHeight = Utils.computeTextHeight(label.getFont(), " ", 0, text.getBoundsType());
-        assertEquals(23 + lineHeight + 2 + 14, label.minHeight(-1), 0);
+        assertEquals(37.0, label.minHeight(-1), 0);
     }
 
     @Test public void whenTextIsEmptyAndGraphicIsSetWithBOTTOMContentDisplay_computeMinHeight_ReturnsRightAnswer() {
@@ -729,8 +726,7 @@ public class LabelSkinTest {
         label.setGraphicTextGap(2);
         label.setGraphic(r);
         label.setContentDisplay(ContentDisplay.BOTTOM);
-        final double lineHeight = Utils.computeTextHeight(label.getFont(), " ", 0, text.getBoundsType());
-        assertEquals(23 + lineHeight + 2 + 14, label.minHeight(-1), 0);
+        assertEquals(37.0, label.minHeight(-1), 0);
     }
 
     @Test public void whenTextIsSetAndGraphicIsSetWithBOTTOMContentDisplay_computeMinHeight_ReturnsRightAnswer() {
@@ -976,7 +972,7 @@ public class LabelSkinTest {
         label.setContentDisplay(ContentDisplay.RIGHT);
         label.setPadding(new Insets(7, 7, 7, 7));
         final double textWidth = Utils.computeTextWidth(label.getFont(), "Howdy", 0);
-        assertEquals(14 + textWidth + 6.5 + 20, label.prefWidth(-1), 0);
+        assertEquals(14 + textWidth + label.snapSpaceX(6.5) + 20, label.prefWidth(-1), 0);
     }
 
     @Test public void whenTextIsNullAndGraphicIsSetWithBOTTOMContentDisplay_computePrefWidth_ReturnsGraphicWidthPlusPadding() {
@@ -1041,7 +1037,7 @@ public class LabelSkinTest {
         label.setContentDisplay(ContentDisplay.LEFT);
         label.setPadding(new Insets(7, 7, 7, 7));
         final double textWidth = Utils.computeTextWidth(label.getFont(), "Howdy", 0);
-        assertEquals(14 + textWidth + 6.5 + 20, label.prefWidth(-1), 0);
+        assertEquals(14 + textWidth + label.snapSpaceX(6.5) + 20, label.prefWidth(-1), 0);
     }
 
     @Test public void whenTextIsNullAndGraphicIsSetWithCENTERContentDisplay_computePrefWidth_ReturnsGraphicWidthPlusPadding() {
@@ -1249,7 +1245,7 @@ public class LabelSkinTest {
         label.setGraphicTextGap(2);
         label.setGraphic(r);
         label.setContentDisplay(ContentDisplay.TOP);
-        assertEquals(14 + 23, label.prefHeight(-1), 0);
+        assertEquals(37.0, label.prefHeight(-1), 0);
     }
 
     @Test public void whenTextIsEmptyAndGraphicIsSetWithTOPContentDisplay_computePrefHeight_ReturnsRightAnswer() {
@@ -1259,7 +1255,7 @@ public class LabelSkinTest {
         label.setGraphicTextGap(2);
         label.setGraphic(r);
         label.setContentDisplay(ContentDisplay.TOP);
-        assertEquals(14 + 23, label.prefHeight(-1), 0);
+        assertEquals(37.0, label.prefHeight(-1), 0);
     }
 
     @Test public void whenTextIsSetAndGraphicIsSetWithTOPContentDisplay_computePrefHeight_ReturnsRightAnswer() {
@@ -1310,7 +1306,8 @@ public class LabelSkinTest {
         label.setGraphicTextGap(2);
         label.setGraphic(r);
         label.setContentDisplay(ContentDisplay.BOTTOM);
-        assertEquals(14 + 23, label.prefHeight(-1), 0);
+        final double lineHeight = Utils.computeTextHeight(label.getFont(), " ", 0, text.getBoundsType());
+        assertEquals(37.0, label.prefHeight(-1), 0);
     }
 
     @Test public void whenTextIsEmptyAndGraphicIsSetWithBOTTOMContentDisplay_computePrefHeight_ReturnsRightAnswer() {
@@ -1320,7 +1317,7 @@ public class LabelSkinTest {
         label.setGraphicTextGap(2);
         label.setGraphic(r);
         label.setContentDisplay(ContentDisplay.BOTTOM);
-        assertEquals(14 + 23, label.prefHeight(-1), 0);
+        assertEquals(37.0, label.prefHeight(-1), 0);
     }
 
     @Test public void whenTextIsSetAndGraphicIsSetWithBOTTOMContentDisplay_computePrefHeight_ReturnsRightAnswer() {
@@ -1566,7 +1563,7 @@ public class LabelSkinTest {
         label.setContentDisplay(ContentDisplay.RIGHT);
         label.setPadding(new Insets(7, 7, 7, 7));
         final double textWidth = Utils.computeTextWidth(label.getFont(), "Howdy", 0);
-        assertEquals(14 + textWidth + 6.5 + 20, label.maxWidth(-1), 0);
+        assertEquals(14 + textWidth + label.snapSpaceX(6.5) + 20, label.maxWidth(-1), 0);
     }
 
     @Test public void whenTextIsNullAndGraphicIsSetWithBOTTOMContentDisplay_computeMaxWidth_ReturnsGraphicWidthPlusPadding() {
@@ -1631,7 +1628,7 @@ public class LabelSkinTest {
         label.setContentDisplay(ContentDisplay.LEFT);
         label.setPadding(new Insets(7, 7, 7, 7));
         final double textWidth = Utils.computeTextWidth(label.getFont(), "Howdy", 0);
-        assertEquals(14 + textWidth + 6.5 + 20, label.maxWidth(-1), 0);
+        assertEquals(14 + textWidth + label.snapSpaceX(6.5) + 20, label.maxWidth(-1), 0);
     }
 
     @Test public void whenTextIsNullAndGraphicIsSetWithCENTERContentDisplay_computeMaxWidth_ReturnsGraphicWidthPlusPadding() {
@@ -1803,7 +1800,7 @@ public class LabelSkinTest {
         label.setGraphicTextGap(2);
         label.setGraphic(r);
         label.setContentDisplay(ContentDisplay.TOP);
-        assertEquals(14 + 23, label.maxHeight(-1), 0);
+        assertEquals(37.0, label.maxHeight(-1), 0);
     }
 
     @Test public void whenTextIsEmptyAndGraphicIsSetWithTOPContentDisplay_computeMaxHeight_ReturnsRightAnswer() {
@@ -1813,7 +1810,7 @@ public class LabelSkinTest {
         label.setGraphicTextGap(2);
         label.setGraphic(r);
         label.setContentDisplay(ContentDisplay.TOP);
-        assertEquals(14 + 23, label.maxHeight(-1), 0);
+        assertEquals(37.0, label.maxHeight(-1), 0);
     }
 
     @Test public void whenTextIsSetAndGraphicIsSetWithTOPContentDisplay_computeMaxHeight_ReturnsRightAnswer() {
@@ -1864,7 +1861,7 @@ public class LabelSkinTest {
         label.setGraphicTextGap(2);
         label.setGraphic(r);
         label.setContentDisplay(ContentDisplay.BOTTOM);
-        assertEquals(14 + 23, label.maxHeight(-1), 0);
+        assertEquals(37.0, label.maxHeight(-1), 0);
     }
 
     @Test public void whenTextIsEmptyAndGraphicIsSetWithBOTTOMContentDisplay_computeMaxHeight_ReturnsRightAnswer() {
@@ -1874,7 +1871,7 @@ public class LabelSkinTest {
         label.setGraphicTextGap(2);
         label.setGraphic(r);
         label.setContentDisplay(ContentDisplay.BOTTOM);
-        assertEquals(14 + 23, label.maxHeight(-1), 0);
+        assertEquals(37.0, label.maxHeight(-1), 0);
     }
 
     @Test public void whenTextIsSetAndGraphicIsSetWithBOTTOMContentDisplay_computeMaxHeight_ReturnsRightAnswer() {
