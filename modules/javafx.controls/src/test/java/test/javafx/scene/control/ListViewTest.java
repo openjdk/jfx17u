@@ -1127,7 +1127,7 @@ public class ListViewTest {
                     items.remove(12);
                     Platform.runLater(() -> {
                         Toolkit.getToolkit().firePulse();
-                        assertEquals(useFixedCellSize ? 6 : 7, rt_35395_counter);
+                        assertEquals(useFixedCellSize ? 5 : 7, rt_35395_counter);
                         rt_35395_counter = 0;
                         items.add(12, "yellow");
                         Platform.runLater(() -> {
