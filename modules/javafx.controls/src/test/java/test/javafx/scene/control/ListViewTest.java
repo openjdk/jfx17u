@@ -769,14 +769,14 @@ public class ListViewTest {
 
         StageLoader sl = new StageLoader(listView);
 
-        assertEquals(24, rt_31200_count);
+        assertEquals(58, rt_31200_count);
 
         // resize the stage
         sl.getStage().setHeight(250);
         Toolkit.getToolkit().firePulse();
         sl.getStage().setHeight(50);
         Toolkit.getToolkit().firePulse();
-        assertEquals(24, rt_31200_count);
+        assertEquals(58, rt_31200_count);
 
         sl.dispose();
     }

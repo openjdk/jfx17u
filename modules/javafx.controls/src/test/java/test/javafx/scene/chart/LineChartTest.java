@@ -39,6 +39,8 @@ import javafx.scene.shape.PathElement;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -696,10 +698,18 @@ public class LineChartTest extends XYChartTestBase {
                 .filter(pathElement -> pathElement instanceof LineTo)
                 .map(pathElement -> (LineTo) pathElement)
                 .map(lineTo -> new Point2D(
-                        xAxis.getValueForDisplay(lineTo.getX()).doubleValue(),
-                        yAxis.getValueForDisplay(lineTo.getY()).doubleValue())
+                        round(xAxis.getValueForDisplay(lineTo.getX()).doubleValue(), 6),
+                        round(yAxis.getValueForDisplay(lineTo.getY()).doubleValue(), 6))
                 )
                 .collect(Collectors.toList());
         return data.subList(0, data.size());
+    }
+
+    public static double round(double value, int places) {
+        if (places < 0) throw new IllegalArgumentException();
+
+        BigDecimal bd = BigDecimal.valueOf(value);
+        bd = bd.setScale(places, RoundingMode.HALF_UP);
+        return bd.doubleValue();
     }
 }
