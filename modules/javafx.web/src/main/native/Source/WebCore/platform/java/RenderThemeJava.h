@@ -26,6 +26,7 @@
 #pragma once
 
 #include "RenderTheme.h"
+#include "ModernMediaControlResource.h"
 #include "GraphicsContext.h"
 #include "StyleResolver.h"
 #include "RenderStyleSetters.h"
@@ -110,7 +111,8 @@ protected:
 
     void adjustSliderTrackStyle(RenderStyle&, const Element*) const override;
     bool paintSliderTrack(const RenderObject&, const PaintInfo&, const IntRect&) override;
-
+    String mediaControlsBase64StringForIconNameAndType(const String&, const String&);
+    String mediaControlsStyleSheet();
 
 private:
     int createWidgetState(const RenderObject& o);
@@ -119,6 +121,7 @@ private:
     bool paintWidget(int widgetIndex, const RenderObject& o,
                      const PaintInfo& i, const FloatRect& rect);
     Color getSelectionColor(int index) const;
+    std::unique_ptr<MediaControlResource> mediaResource;
 #if ENABLE(VIDEO)
     bool paintMediaControl(jint type, const RenderObject&, const PaintInfo&, const IntRect&);
 #endif
