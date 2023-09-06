@@ -78,6 +78,10 @@ public class VirtualFlowShim<T extends IndexedCell> extends VirtualFlow<T> {
         return super.getVbar();
     }
 
+    public int shim_computeCurrentIndex() {
+        return super.computeCurrentIndex();
+    }
+
     public ClippedContainer get_clipView() {
         return super.clipView;
     }

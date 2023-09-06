@@ -71,6 +71,7 @@ public class VirtualFlowTest {
     private CellStub a;
     private CellStub b;
     private CellStub c;
+    private int prefSizeCounter;
 
     // The VirtualFlow we are going to test. By default, there are 100 cells
     // and each cell is 100 wide and 25 tall, except for the 30th cell, which
@@ -79,7 +80,8 @@ public class VirtualFlowTest {
 
 
     @Before public void setUp() {
-        list = new ArrayLinkedListShim<CellStub>();
+        prefSizeCounter = 0;
+        list = new ArrayLinkedListShim<>();
         a = new CellStub(flow, "A");
         b = new CellStub(flow, "B");
         c = new CellStub(flow, "C");
@@ -100,6 +102,7 @@ public class VirtualFlowTest {
 
             @Override
             protected double computePrefWidth(double height) {
+                prefSizeCounter++;
                 return flow.isVertical() ? (getIndex() == 29 ? 200 : 100) : (getIndex() == 29 ? 100 : 25);
             }
 
@@ -115,6 +118,7 @@ public class VirtualFlowTest {
 
             @Override
             protected double computePrefHeight(double width) {
+                prefSizeCounter++;
                 return flow.isVertical() ? (getIndex() == 29 ? 100 : 25) : (getIndex() == 29 ? 200 : 100);
             }
         });
@@ -1713,6 +1717,38 @@ assertEquals(0, firstCell.getIndex());
         // Trigger layout and see if the computeXXX method are called above.
         pulse();
         pulse();
+    }
+
+    @Test
+    public void testLowerCellCount() {
+        flow.setCellCount(10000);
+        int idx = flow.shim_computeCurrentIndex();
+        assertEquals(0, idx);
+
+        assertTrue(prefSizeCounter < 500);
+        int cntr = prefSizeCounter;
+        flow.scrollTo(9999);
+        pulse();
+        idx = flow.shim_computeCurrentIndex();
+        assertTrue(idx < 10000);
+        int newCounter = prefSizeCounter - cntr;
+        assertTrue(newCounter < 100);
+        cntr = prefSizeCounter;
+
+        flow.setCellCount(5000);
+        idx = flow.shim_computeCurrentIndex();
+        assertTrue(idx < 5000);
+        newCounter = prefSizeCounter - cntr;
+        assertTrue(newCounter < 100);
+        cntr = prefSizeCounter;
+
+        pulse();
+        idx = flow.shim_computeCurrentIndex();
+        assertTrue(idx < 5000);
+        newCounter = prefSizeCounter - cntr;
+
+        assertTrue(newCounter < 100);
+
     }
 }
 
