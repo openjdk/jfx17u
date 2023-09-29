@@ -28,6 +28,7 @@ package javafx.stage;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.sun.javafx.stage.CheckFxThreadOnListenerModificationObservableList;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Rectangle2D;
@@ -67,8 +68,9 @@ public final class Screen {
     private static Screen primary;
     private static final ObservableList<Screen> screens =
             FXCollections.<Screen>observableArrayList();
-    private static final ObservableList<Screen> unmodifiableScreens =
-            FXCollections.unmodifiableObservableList(screens);
+    private static final ObservableList< Screen > unmodifiableScreens =
+        new CheckFxThreadOnListenerModificationObservableList<>(
+            FXCollections.unmodifiableObservableList( screens ) );
 
     static {
         accessor = Toolkit.getToolkit().setScreenConfigurationListener(() -> updateConfiguration());

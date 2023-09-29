@@ -29,6 +29,7 @@ import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.util.HashMap;
 
+import com.sun.javafx.stage.CheckFxThreadOnListenerModificationObservableList;
 import javafx.application.Platform;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.DoublePropertyBase;
@@ -104,7 +105,9 @@ public class Window implements EventTarget {
      * A list of all the currently _showing_ windows. This is publicly accessible via the unmodifiableWindows wrapper.
      */
     private static ObservableList<Window> windows = FXCollections.observableArrayList();
-    private static ObservableList<Window> unmodifiableWindows = FXCollections.unmodifiableObservableList(windows);
+    private static ObservableList< Window > unmodifiableWindows =
+        new CheckFxThreadOnListenerModificationObservableList<>(
+            FXCollections.unmodifiableObservableList( windows ) );
 
     /*
      * Store the singleton instance of the WindowHelper subclass corresponding
