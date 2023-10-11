@@ -974,6 +974,12 @@ public class TabPaneSkin extends SkinBase<TabPane> {
                         setScrollOffset(scrollOffset - e.getDeltaY());
                         break;
                 }
+                if( !tabsFit() )
+                {
+                    // If it is not possible to display all the tabs, we use scrolling to scroll the
+                    // TabHeaderArea. In such a case, we consume event to prevent from any other scrolling.
+                    e.consume();
+                }
 
             });
         }
