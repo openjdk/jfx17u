@@ -71,8 +71,8 @@ JNIEXPORT jobject JNICALL Java_com_sun_media_jfxmediaimpl_NativeVideoBuffer_nati
 {
     CVideoFrame *frame = (CVideoFrame*)jlong_to_ptr(nativeHandle);
     if (frame) {
-        void *dataPtr = frame->GetDataForPlane((int)plane);
-        jlong capacity = (jlong)frame->GetSizeForPlane((int)plane);
+        void *dataPtr = frame->GetDataForPlane((unsigned int)plane);
+        jlong capacity = (jlong)frame->GetSizeForPlane((unsigned int)plane);
         return env->NewDirectByteBuffer(dataPtr, capacity);
     }
     return NULL;
@@ -203,7 +203,7 @@ JNIEXPORT jintArray JNICALL Java_com_sun_media_jfxmediaimpl_NativeVideoBuffer_na
         jintArray strides = env->NewIntArray(count);
         jint *strideArray = new jint[count];
 
-        for (int ii=0; ii < count; ii++) {
+        for (unsigned int ii=0; ii < count; ii++) {
             strideArray[ii] = frame->GetStrideForPlane(ii);
         }
 
