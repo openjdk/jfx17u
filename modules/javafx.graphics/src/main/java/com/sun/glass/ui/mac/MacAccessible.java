@@ -46,6 +46,7 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.text.Font;
 import com.sun.glass.ui.Accessible;
+import com.sun.glass.ui.Application;
 import com.sun.glass.ui.Screen;
 import com.sun.glass.ui.View;
 import static javafx.scene.AccessibleAttribute.*;
@@ -662,6 +663,7 @@ final class MacAccessible extends Accessible {
 
     @Override
     public void dispose() {
+        Application.checkEventThread();
         if (peer != 0L) {
             if (getView() == null) {
                 NSAccessibilityPostNotification(peer, MacNotification.NSAccessibilityUIElementDestroyedNotification.ptr);
@@ -674,6 +676,7 @@ final class MacAccessible extends Accessible {
 
     @Override
     public void sendNotification(AccessibleAttribute notification) {
+        Application.checkEventThread();
         if (isDisposed()) return;
 
         MacNotification macNotification = null;
@@ -808,6 +811,7 @@ final class MacAccessible extends Accessible {
 
     @Override
     protected long getNativeAccessible() {
+        Application.checkEventThread();
         if (this.peer == 0L) {
             AccessibleRole role = (AccessibleRole) getAttribute(ROLE);
             if (role == null) role = AccessibleRole.NODE;
@@ -821,6 +825,7 @@ final class MacAccessible extends Accessible {
     }
 
     private View getRootView(Scene scene) {
+        Application.checkEventThread();
         if (scene == null) return null;
         Accessible acc = getAccessible(scene);
         if (acc == null || acc.isDisposed()) return null;
@@ -830,6 +835,7 @@ final class MacAccessible extends Accessible {
     }
 
     private long[] getUnignoredChildren(ObservableList<Node> children) {
+        Application.checkEventThread();
         if (children == null) return new long[0];
         long[] ids = children.stream()
                              .filter(Node::isVisible)
@@ -976,6 +982,7 @@ final class MacAccessible extends Accessible {
 
     /* NSAccessibility Protocol - JNI entry points */
     private long[] accessibilityAttributeNames() {
+        Application.checkEventThread();
         if (getView() != null) return null; /* Let NSView answer for the Scene */
         AccessibleRole role = (AccessibleRole)getAttribute(ROLE);
         if (role != null) {
@@ -1022,6 +1029,7 @@ final class MacAccessible extends Accessible {
     }
 
     private int accessibilityArrayAttributeCount(long attribute) {
+        Application.checkEventThread();
         MacAttribute attr = MacAttribute.getAttribute(attribute);
         if (attr == null) {
             return -1;
@@ -1077,6 +1085,7 @@ final class MacAccessible extends Accessible {
     }
 
     private long[] accessibilityArrayAttributeValues(long attribute, int index, int maxCount) {
+        Application.checkEventThread();
         MacAttribute attr = MacAttribute.getAttribute(attribute);
         if (attr == null) {
             return null;
@@ -1136,6 +1145,7 @@ final class MacAccessible extends Accessible {
     }
 
     private boolean accessibilityIsAttributeSettable(long attribute) {
+        Application.checkEventThread();
         MacAttribute attr = MacAttribute.getAttribute(attribute);
         if (attr == null) return false;
         switch (attr) {
@@ -1163,6 +1173,7 @@ final class MacAccessible extends Accessible {
     }
 
     private MacVariant accessibilityAttributeValue(long attribute) {
+        Application.checkEventThread();
         MacAttribute attr = MacAttribute.getAttribute(attribute);
         if (attr == null) {
             return null;
@@ -1606,6 +1617,7 @@ final class MacAccessible extends Accessible {
     }
 
     private void accessibilitySetValue(long value, long attribute) {
+        Application.checkEventThread();
         MacAttribute attr = MacAttribute.getAttribute(attribute);
         if (attr != null) {
             switch (attr) {
@@ -1697,6 +1709,7 @@ final class MacAccessible extends Accessible {
     }
 
     private long[] accessibilityParameterizedAttributeNames() {
+        Application.checkEventThread();
         if (getView() != null) return null; /* Let NSView answer for the Scene */
         AccessibleRole role = (AccessibleRole)getAttribute(ROLE);
         if (role != null) {
@@ -1726,6 +1739,7 @@ final class MacAccessible extends Accessible {
     }
 
     private MacVariant accessibilityAttributeValueForParameter(long attribute, long parameter) {
+        Application.checkEventThread();
         MacAttribute attr = MacAttribute.getAttribute(attribute);
         if (attr == null || attr.inputType == 0 || attr.jfxAttr == null) {
             return null;
@@ -1846,6 +1860,7 @@ final class MacAccessible extends Accessible {
     }
 
     private long[] accessibilityActionNames() {
+        Application.checkEventThread();
         if (getView() != null) return null; /* Let NSView answer for the Scene */
         AccessibleRole role = (AccessibleRole)getAttribute(ROLE);
         List<MacAction> actions = new ArrayList<>();
@@ -1898,6 +1913,7 @@ final class MacAccessible extends Accessible {
     }
 
     private long accessibilityFocusedUIElement() {
+        Application.checkEventThread();
         Node node = (Node)getAttribute(FOCUS_NODE);
         if (node == null) return 0L;
 
@@ -1907,6 +1923,7 @@ final class MacAccessible extends Accessible {
     }
 
     private boolean accessibilityIsIgnored() {
+        Application.checkEventThread();
         if (isIgnored()) return true;
         if (isInSlider()) {
             /*
@@ -1927,6 +1944,7 @@ final class MacAccessible extends Accessible {
     }
 
     private long accessibilityHitTest(float x, float y) {
+        Application.checkEventThread();
         View view = getView();
         if (view == null || view.getWindow() == null) {
             return 0L;
