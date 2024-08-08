@@ -112,9 +112,11 @@ public abstract class BaseContext {
             maskTex.lock();
             // assert !maskTex.isSurfaceLost();
             // since it was bound and unflushed...
-            maskTex.update(maskBuffer, maskTex.getPixelFormat(),
-                                       0, 0, 0, 0, highMaskCol, nextMaskRow,
-                                       maskTex.getContentWidth(), true);
+            if( !maskTex.isSurfaceLost() )
+            {
+                maskTex.update( maskBuffer, maskTex.getPixelFormat(), 0, 0, 0, 0, highMaskCol, nextMaskRow,
+                    maskTex.getContentWidth(), true );
+            }
             maskTex.unlock();
             curMaskRow = curMaskCol = nextMaskRow = highMaskCol = 0;
         }
