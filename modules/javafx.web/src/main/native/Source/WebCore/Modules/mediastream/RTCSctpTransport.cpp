@@ -27,7 +27,6 @@
 
 #if ENABLE(WEB_RTC)
 
-#include "ContextDestructionObserverInlines.h"
 #include "EventNames.h"
 #include "Logging.h"
 #include "RTCDtlsTransport.h"

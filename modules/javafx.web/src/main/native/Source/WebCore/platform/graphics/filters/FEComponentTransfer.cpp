@@ -35,9 +35,9 @@
 
 namespace WebCore {
 
-Ref<FEComponentTransfer> FEComponentTransfer::create(const ComponentTransferFunction& redFunction, const ComponentTransferFunction& greenFunction, const ComponentTransferFunction& blueFunction, const ComponentTransferFunction& alphaFunction, DestinationColorSpace colorSpace)
+Ref<FEComponentTransfer> FEComponentTransfer::create(const ComponentTransferFunction& redFunction, const ComponentTransferFunction& greenFunction, const ComponentTransferFunction& blueFunction, const ComponentTransferFunction& alphaFunction)
 {
-    return adoptRef(*new FEComponentTransfer(redFunction, greenFunction, blueFunction, alphaFunction, colorSpace));
+    return adoptRef(*new FEComponentTransfer(redFunction, greenFunction, blueFunction, alphaFunction));
 }
 
 Ref<FEComponentTransfer> FEComponentTransfer::create(ComponentTransferFunctions&& functions)
@@ -45,8 +45,8 @@ Ref<FEComponentTransfer> FEComponentTransfer::create(ComponentTransferFunctions&
     return adoptRef(*new FEComponentTransfer(WTFMove(functions)));
 }
 
-FEComponentTransfer::FEComponentTransfer(const ComponentTransferFunction& redFunction, const ComponentTransferFunction& greenFunction, const ComponentTransferFunction& blueFunction, const ComponentTransferFunction& alphaFunction, DestinationColorSpace colorSpace)
-    : FilterEffect(FilterEffect::Type::FEComponentTransfer, colorSpace)
+FEComponentTransfer::FEComponentTransfer(const ComponentTransferFunction& redFunction, const ComponentTransferFunction& greenFunction, const ComponentTransferFunction& blueFunction, const ComponentTransferFunction& alphaFunction)
+    : FilterEffect(FilterEffect::Type::FEComponentTransfer)
     , m_functions(std::array { redFunction, greenFunction, blueFunction, alphaFunction })
 {
 }
@@ -152,22 +152,22 @@ bool FEComponentTransfer::setTableValues(ComponentTransferChannel channel, Vecto
 static TextStream& operator<<(TextStream& ts, ComponentTransferType type)
 {
     switch (type) {
-    case ComponentTransferType::FECOMPONENTTRANSFER_TYPE_UNKNOWN:
+    case FECOMPONENTTRANSFER_TYPE_UNKNOWN:
         ts << "UNKNOWN";
         break;
-    case ComponentTransferType::FECOMPONENTTRANSFER_TYPE_IDENTITY:
+    case FECOMPONENTTRANSFER_TYPE_IDENTITY:
         ts << "IDENTITY";
         break;
-    case ComponentTransferType::FECOMPONENTTRANSFER_TYPE_TABLE:
+    case FECOMPONENTTRANSFER_TYPE_TABLE:
         ts << "TABLE";
         break;
-    case ComponentTransferType::FECOMPONENTTRANSFER_TYPE_DISCRETE:
+    case FECOMPONENTTRANSFER_TYPE_DISCRETE:
         ts << "DISCRETE";
         break;
-    case ComponentTransferType::FECOMPONENTTRANSFER_TYPE_LINEAR:
+    case FECOMPONENTTRANSFER_TYPE_LINEAR:
         ts << "LINEAR";
         break;
-    case ComponentTransferType::FECOMPONENTTRANSFER_TYPE_GAMMA:
+    case FECOMPONENTTRANSFER_TYPE_GAMMA:
         ts << "GAMMA";
         break;
     }
@@ -179,20 +179,20 @@ static TextStream& operator<<(TextStream& ts, const ComponentTransferFunction& f
     ts << "type=\"" << function.type;
 
     switch (function.type) {
-    case ComponentTransferType::FECOMPONENTTRANSFER_TYPE_UNKNOWN:
+    case FECOMPONENTTRANSFER_TYPE_UNKNOWN:
         break;
-    case ComponentTransferType::FECOMPONENTTRANSFER_TYPE_IDENTITY:
+    case FECOMPONENTTRANSFER_TYPE_IDENTITY:
         break;
-    case ComponentTransferType::FECOMPONENTTRANSFER_TYPE_TABLE:
+    case FECOMPONENTTRANSFER_TYPE_TABLE:
         ts << " " << function.tableValues;
         break;
-    case ComponentTransferType::FECOMPONENTTRANSFER_TYPE_DISCRETE:
+    case FECOMPONENTTRANSFER_TYPE_DISCRETE:
         ts << " " << function.tableValues;
         break;
-    case ComponentTransferType::FECOMPONENTTRANSFER_TYPE_LINEAR:
+    case FECOMPONENTTRANSFER_TYPE_LINEAR:
         ts << "\" slope=\"" << function.slope << "\" intercept=\"" << function.intercept << "\"";
         break;
-    case ComponentTransferType::FECOMPONENTTRANSFER_TYPE_GAMMA:
+    case FECOMPONENTTRANSFER_TYPE_GAMMA:
         ts << "\" amplitude=\"" << function.amplitude << "\" exponent=\"" << function.exponent << "\" offset=\"" << function.offset << "\"";
         break;
     }

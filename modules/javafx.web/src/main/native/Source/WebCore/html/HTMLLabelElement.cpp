@@ -123,16 +123,15 @@ void HTMLLabelElement::setHovered(bool over, Style::InvalidationScope invalidati
 
 bool HTMLLabelElement::isEventTargetedAtInteractiveDescendants(Event& event) const
 {
-    auto* node = dynamicDowncast<Node>(*event.target());
-    if (!node)
+    if (!is<Node>(event.target()))
         return false;
 
-    if (!containsIncludingShadowDOM(node))
+    auto& node = downcast<Node>(*event.target());
+    if (!containsIncludingShadowDOM(&node))
         return false;
 
-    for (const auto* it = node; it && it != this; it = it->parentElementInComposedTree()) {
-        auto* element = dynamicDowncast<HTMLElement>(*it);
-        if (element && element->isInteractiveContent())
+    for (const auto* it = &node; it && it != this; it = it->parentElementInComposedTree()) {
+        if (is<HTMLElement>(it) && downcast<HTMLElement>(*it).isInteractiveContent())
             return true;
     }
 
@@ -145,8 +144,7 @@ void HTMLLabelElement::defaultEventHandler(Event& event)
 
         // If we can't find a control or if the control received the click
         // event, then there's no need for us to do anything.
-        auto* eventTarget = dynamicDowncast<Node>(event.target());
-        if (!control || (eventTarget && control->containsIncludingShadowDOM(eventTarget))) {
+        if (!control || (is<Node>(event.target()) && control->containsIncludingShadowDOM(&downcast<Node>(*event.target())))) {
             HTMLElement::defaultEventHandler(event);
             return;
         }
@@ -216,20 +214,6 @@ auto HTMLLabelElement::insertedIntoAncestor(InsertionType insertionType, Contain
     }
 
     return result;
-}
-
-void HTMLLabelElement::updateLabel(TreeScope& scope, const AtomString& oldForAttributeValue, const AtomString& newForAttributeValue)
-{
-    if (!isConnected())
-        return;
-
-    if (oldForAttributeValue == newForAttributeValue)
-        return;
-
-    if (!oldForAttributeValue.isEmpty())
-        scope.removeLabel(oldForAttributeValue, *this);
-    if (!newForAttributeValue.isEmpty())
-        scope.addLabel(newForAttributeValue, *this);
 }
 
 void HTMLLabelElement::removedFromAncestor(RemovalType removalType, ContainerNode& oldParentOfRemovedTree)

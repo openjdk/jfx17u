@@ -26,7 +26,7 @@
 #include "config.h"
 #include "ManagedSourceBuffer.h"
 
-#if ENABLE(MEDIA_SOURCE)
+#if ENABLE(MANAGED_MEDIA_SOURCE)
 
 #include "ManagedMediaSource.h"
 #include <wtf/IsoMallocInlines.h>
@@ -51,4 +51,4 @@ ManagedSourceBuffer::~ManagedSourceBuffer() = default;
 
 }
 
-#endif // ENABLE(MEDIA_SOURCE)
+#endif

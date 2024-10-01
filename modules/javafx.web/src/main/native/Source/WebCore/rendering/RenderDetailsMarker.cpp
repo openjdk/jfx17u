@@ -38,9 +38,8 @@ using namespace HTMLNames;
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderDetailsMarker);
 
 RenderDetailsMarker::RenderDetailsMarker(DetailsMarkerControl& element, RenderStyle&& style)
-    : RenderBlockFlow(Type::DetailsMarker, element, WTFMove(style))
+    : RenderBlockFlow(element, WTFMove(style))
 {
-    ASSERT(isRenderDetailsMarker());
 }
 
 static Path createPath(const FloatPoint* path)
@@ -78,20 +77,20 @@ static Path createRightArrowPath()
 
 RenderDetailsMarker::Orientation RenderDetailsMarker::orientation() const
 {
-    switch (style().blockFlowDirection()) {
-    case BlockFlowDirection::TopToBottom:
+    switch (style().writingMode()) {
+    case WritingMode::TopToBottom:
         if (style().isLeftToRightDirection())
             return isOpen() ? Down : Right;
         return isOpen() ? Down : Left;
-    case BlockFlowDirection::RightToLeft:
+    case WritingMode::RightToLeft:
         if (style().isLeftToRightDirection())
             return isOpen() ? Left : Down;
         return isOpen() ? Left : Up;
-    case BlockFlowDirection::LeftToRight:
+    case WritingMode::LeftToRight:
         if (style().isLeftToRightDirection())
             return isOpen() ? Right : Down;
         return isOpen() ? Right : Up;
-    case BlockFlowDirection::BottomToTop:
+    case WritingMode::BottomToTop:
         if (style().isLeftToRightDirection())
             return isOpen() ? Up : Right;
         return isOpen() ? Up : Left;
@@ -148,8 +147,8 @@ bool RenderDetailsMarker::isOpen() const
     for (RenderObject* renderer = parent(); renderer; renderer = renderer->parent()) {
         if (!renderer->node())
             continue;
-        if (auto* details = dynamicDowncast<HTMLDetailsElement>(*renderer->node()))
-            return !details->attributeWithoutSynchronization(openAttr).isNull();
+        if (is<HTMLDetailsElement>(*renderer->node()))
+            return !downcast<HTMLDetailsElement>(*renderer->node()).attributeWithoutSynchronization(openAttr).isNull();
         if (is<HTMLInputElement>(*renderer->node()))
             return true;
     }

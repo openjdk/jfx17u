@@ -33,14 +33,14 @@
 namespace WebCore {
 
 class HTMLMediaElement;
-class NativeImage;
+class Image;
 class IntRect;
 
 class TextTrackRepresentationClient {
 public:
     virtual ~TextTrackRepresentationClient() = default;
 
-    virtual RefPtr<NativeImage> createTextTrackRepresentationImage() = 0;
+    virtual RefPtr<Image> createTextTrackRepresentationImage() = 0;
     virtual void textTrackRepresentationBoundsChanged(const IntRect&) = 0;
 };
 

@@ -77,29 +77,29 @@ static bool isValidColumnSpanner(const RenderMultiColumnFlow& fragmentedFlow, co
     // We assume that we're inside the flow thread. This function is not to be called otherwise.
     ASSERT(descendant.isDescendantOf(&fragmentedFlow));
     // First make sure that the renderer itself has the right properties for becoming a spanner.
-    auto* descendantBox = dynamicDowncast<RenderBox>(descendant);
-    if (!descendantBox)
+    if (!is<RenderBox>(descendant))
         return false;
 
-    if (descendantBox->isFloatingOrOutOfFlowPositioned())
+    auto& descendantBox = downcast<RenderBox>(descendant);
+    if (descendantBox.isFloatingOrOutOfFlowPositioned())
         return false;
 
-    if (descendantBox->style().columnSpan() != ColumnSpan::All)
+    if (descendantBox.style().columnSpan() != ColumnSpan::All)
         return false;
 
-    auto* parent = descendantBox->parent();
+    auto* parent = descendantBox.parent();
     if (!is<RenderBlockFlow>(*parent) || parent->childrenInline()) {
         // Needs to be block-level.
         return false;
     }
 
     // We need to have the flow thread as the containing block. A spanner cannot break out of the flow thread.
-    auto* enclosingFragmentedFlow = descendantBox->enclosingFragmentedFlow();
+    auto* enclosingFragmentedFlow = descendantBox.enclosingFragmentedFlow();
     if (enclosingFragmentedFlow != &fragmentedFlow)
         return false;
 
     // This looks like a spanner, but if we're inside something unbreakable, it's not to be treated as one.
-    for (auto* ancestor = descendantBox->containingBlock(); ancestor; ancestor = ancestor->containingBlock()) {
+    for (auto* ancestor = descendantBox.containingBlock(); ancestor; ancestor = ancestor->containingBlock()) {
         if (is<RenderView>(*ancestor))
             return false;
         if (ancestor->isLegend())
@@ -112,12 +112,13 @@ static bool isValidColumnSpanner(const RenderMultiColumnFlow& fragmentedFlow, co
             // implement (not to mention specify behavior).
             return ancestor == &fragmentedFlow;
         }
-        if (auto* blockFlowAncestor = dynamicDowncast<RenderBlockFlow>(*ancestor)) {
-            if (blockFlowAncestor->willCreateColumns()) {
+        if (is<RenderBlockFlow>(*ancestor)) {
+            auto& blockFlowAncestor = downcast<RenderBlockFlow>(*ancestor);
+            if (blockFlowAncestor.willCreateColumns()) {
                 // This ancestor (descendent of the fragmentedFlow) will create columns later. The spanner belongs to it.
                 return false;
             }
-            if (blockFlowAncestor->multiColumnFlow()) {
+            if (blockFlowAncestor.multiColumnFlow()) {
                 // While this ancestor (descendent of the fragmentedFlow) has a fragmented flow context, this context is being destroyed.
                 // However the spanner still belongs to it (will most likely be moved to the parent fragmented context as the next step).
                 return false;
@@ -157,8 +158,8 @@ void RenderTreeBuilder::MultiColumn::createFragmentedFlow(RenderBlockFlow& flow)
     flow.deleteLines();
     // If this soon-to-be multicolumn flow is already part of a multicolumn context, we need to move back the descendant spanners
     // to their original position before moving subtrees around.
-    if (auto* enclosingflow = dynamicDowncast<RenderMultiColumnFlow>(flow.enclosingFragmentedFlow()))
-        restoreColumnSpannersForContainer(flow, *enclosingflow);
+    if (auto* enclosingflow = flow.enclosingFragmentedFlow(); is<RenderMultiColumnFlow>(enclosingflow))
+        restoreColumnSpannersForContainer(flow, downcast<RenderMultiColumnFlow>(*enclosingflow));
 
     auto newFragmentedFlow = WebCore::createRenderer<RenderMultiColumnFlow>(flow.document(), RenderStyle::createAnonymousStyleWithDisplay(flow.style(), DisplayType::Block));
     newFragmentedFlow->initializeStyle();
@@ -229,7 +230,7 @@ void RenderTreeBuilder::MultiColumn::destroyFragmentedFlow(RenderBlockFlow& flow
             spannerOriginalParent = &flow;
         // Detaching the spanner takes care of removing the placeholder (and merges the RenderMultiColumnSets).
         auto* spanner = placeholder->spanner();
-        parentAndSpannerList.append(std::make_pair(spannerOriginalParent, m_builder.detach(*spanner->parent(), *spanner, CanCollapseAnonymousBlock::No, WillBeDestroyed::No)));
+        parentAndSpannerList.append(std::make_pair(spannerOriginalParent, m_builder.detach(*spanner->parent(), *spanner, CanCollapseAnonymousBlock::No)));
     }
     while (auto* columnSet = multiColumnFlow.firstMultiColumnSet())
         m_builder.destroy(*columnSet);
@@ -259,12 +260,10 @@ RenderObject* RenderTreeBuilder::MultiColumn::resolveMovedChild(RenderFragmented
     if (!beforeChild)
         return nullptr;
 
-    auto* beforeChildRenderBox = dynamicDowncast<RenderBox>(*beforeChild);
-    if (!beforeChildRenderBox)
+    if (!is<RenderBox>(*beforeChild))
         return beforeChild;
 
-    auto* renderMultiColumnFlow = dynamicDowncast<RenderMultiColumnFlow>(enclosingFragmentedFlow);
-    if (!renderMultiColumnFlow)
+    if (!is<RenderMultiColumnFlow>(enclosingFragmentedFlow))
         return beforeChild;
 
     // We only need to resolve for column spanners.
@@ -277,7 +276,7 @@ RenderObject* RenderTreeBuilder::MultiColumn::resolveMovedChild(RenderFragmented
     // create and insert a renderer for the sibling node immediately preceding the spanner, we need
     // to map that spanner renderer to the spanner's placeholder, which is where the new inserted
     // renderer belongs.
-    if (auto* placeholder = renderMultiColumnFlow->findColumnSpannerPlaceholder(beforeChildRenderBox))
+    if (auto* placeholder = downcast<RenderMultiColumnFlow>(enclosingFragmentedFlow).findColumnSpannerPlaceholder(downcast<RenderBox>(beforeChild)))
         return placeholder;
 
     // This is an invalid spanner, or its placeholder hasn't been created yet. This happens when
@@ -302,13 +301,14 @@ void RenderTreeBuilder::MultiColumn::multiColumnDescendantInserted(RenderMultiCo
             descendant = descendant->nextSibling();
             continue;
         }
-        if (auto* placeholder = dynamicDowncast<RenderMultiColumnSpannerPlaceholder>(*descendant)) {
+        if (is<RenderMultiColumnSpannerPlaceholder>(*descendant)) {
             // A spanner's placeholder has been inserted. The actual spanner renderer is moved from
             // where it would otherwise occur (if it weren't a spanner) to becoming a sibling of the
             // column sets.
-            ASSERT(!flow.spannerMap().get(placeholder->spanner()));
-            flow.spannerMap().add(*placeholder->spanner(), placeholder);
-            ASSERT(!placeholder->firstChild()); // There should be no children here, but if there are, we ought to skip them.
+            RenderMultiColumnSpannerPlaceholder& placeholder = downcast<RenderMultiColumnSpannerPlaceholder>(*descendant);
+            ASSERT(!flow.spannerMap().get(placeholder.spanner()));
+            flow.spannerMap().add(placeholder.spanner(), downcast<RenderMultiColumnSpannerPlaceholder>(descendant));
+            ASSERT(!placeholder.firstChild()); // There should be no children here, but if there are, we ought to skip them.
         } else
             descendant = processPossibleSpannerDescendant(flow, subtreeRoot, *descendant);
         if (descendant)
@@ -365,13 +365,14 @@ RenderObject* RenderTreeBuilder::MultiColumn::processPossibleSpannerDescendant(R
         nextDescendant = &placeholder;
     } else {
         // This is regular multicol content, i.e. not part of a spanner.
-        if (auto* placeholder = dynamicDowncast<RenderMultiColumnSpannerPlaceholder>(nextRendererInFragmentedFlow)) {
+        if (is<RenderMultiColumnSpannerPlaceholder>(nextRendererInFragmentedFlow)) {
             // Inserted right before a spanner. Is there a set for us there?
-            if (RenderObject* previous = placeholder->spanner()->previousSibling()) {
+            RenderMultiColumnSpannerPlaceholder& placeholder = downcast<RenderMultiColumnSpannerPlaceholder>(*nextRendererInFragmentedFlow);
+            if (RenderObject* previous = placeholder.spanner()->previousSibling()) {
                 if (is<RenderMultiColumnSet>(*previous))
                     return nextDescendant; // There's already a set there. Nothing to do.
             }
-            insertBeforeMulticolChild = placeholder->spanner();
+            insertBeforeMulticolChild = placeholder.spanner();
         } else if (RenderMultiColumnSet* lastSet = flow.lastMultiColumnSet()) {
             // This child is not an immediate predecessor of a spanner, which means that if this
             // child precedes a spanner at all, there has to be a column set created for us there
@@ -425,12 +426,12 @@ void RenderTreeBuilder::MultiColumn::handleSpannerRemoval(RenderMultiColumnFlow&
 void RenderTreeBuilder::MultiColumn::multiColumnRelativeWillBeRemoved(RenderMultiColumnFlow& flow, RenderObject& relative, RenderTreeBuilder::CanCollapseAnonymousBlock canCollapseAnonymousBlock)
 {
     flow.invalidateFragments();
-    if (auto* placeholder = dynamicDowncast<RenderMultiColumnSpannerPlaceholder>(relative)) {
+    if (is<RenderMultiColumnSpannerPlaceholder>(relative)) {
         // Remove the map entry for this spanner, but leave the actual spanner renderer alone. Also
         // keep the reference to the spanner, since the placeholder may be about to be re-inserted
         // in the tree.
         ASSERT(relative.isDescendantOf(&flow));
-        flow.spannerMap().remove(placeholder->spanner());
+        flow.spannerMap().remove(downcast<RenderMultiColumnSpannerPlaceholder>(relative).spanner());
         return;
     }
     if (relative.style().columnSpan() == ColumnSpan::All) {
@@ -446,23 +447,21 @@ void RenderTreeBuilder::MultiColumn::multiColumnRelativeWillBeRemoved(RenderMult
 
 RenderObject* RenderTreeBuilder::MultiColumn::adjustBeforeChildForMultiColumnSpannerIfNeeded(RenderObject& beforeChild)
 {
-    auto* beforeChildBox = dynamicDowncast<RenderBox>(beforeChild);
-    if (!beforeChildBox)
+    if (!is<RenderBox>(beforeChild))
         return &beforeChild;
 
-    auto* nextSibling = beforeChildBox->nextSibling();
+    auto* nextSibling = beforeChild.nextSibling();
     if (!nextSibling)
         return &beforeChild;
 
-    auto* renderMultiColumnSet = dynamicDowncast<RenderMultiColumnSet>(*nextSibling);
-    if (!renderMultiColumnSet)
+    if (!is<RenderMultiColumnSet>(*nextSibling))
         return &beforeChild;
 
-    auto* multiColumnFlow = renderMultiColumnSet->multiColumnFlow();
+    auto* multiColumnFlow = downcast<RenderMultiColumnSet>(*nextSibling).multiColumnFlow();
     if (!multiColumnFlow)
         return &beforeChild;
 
-    return multiColumnFlow->findColumnSpannerPlaceholder(beforeChildBox);
+    return multiColumnFlow->findColumnSpannerPlaceholder(downcast<RenderBox>(&beforeChild));
 }
 
 }

@@ -59,7 +59,7 @@ public:
     GCGLint width() const { return m_framebufferSize.width(); }
     GCGLint height() const { return m_framebufferSize.height(); }
 
-    void startFrame(const PlatformXR::FrameData::LayerData&);
+    void startFrame(const PlatformXR::Device::FrameData::LayerData&);
     void endFrame();
 
 private:
@@ -81,13 +81,15 @@ private:
     GCGLOwnedRenderbuffer m_multisampleColorBuffer;
     GCGLOwnedRenderbuffer m_multisampleDepthStencilBuffer;
     GCGLOwnedFramebuffer m_resolvedFBO;
-#if PLATFORM(COCOA)
+#if USE(IOSURFACE_FOR_XR_LAYER_DATA) || USE(MTLTEXTURE_FOR_XR_LAYER_DATA)
     GCGLOwnedTexture m_colorTexture;
     GCEGLImage m_colorImage { };
     GCEGLImage m_depthStencilImage { };
-    GraphicsContextGL::ExternalEGLSyncEvent m_completionSyncEvent;
 #else
     PlatformGLObject m_colorTexture;
+#endif
+#if USE(MTLSHAREDEVENT_FOR_XR_FRAME_COMPLETION)
+    GraphicsContextGL::ExternalEGLSyncEvent m_completionSyncEvent;
 #endif
 };
 

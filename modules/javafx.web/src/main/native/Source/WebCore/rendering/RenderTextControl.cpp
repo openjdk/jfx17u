@@ -43,10 +43,9 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderTextControl);
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderTextControlInnerContainer);
 
-RenderTextControl::RenderTextControl(Type type, HTMLTextFormControlElement& element, RenderStyle&& style)
-    : RenderBlockFlow(type, element, WTFMove(style), BlockFlowFlag::IsTextControl)
+RenderTextControl::RenderTextControl(HTMLTextFormControlElement& element, RenderStyle&& style)
+    : RenderBlockFlow(element, WTFMove(style))
 {
-    ASSERT(isRenderTextControl());
 }
 
 RenderTextControl::~RenderTextControl() = default;
@@ -97,7 +96,7 @@ RenderBox::LogicalExtentComputedValues RenderTextControl::computeLogicalHeight(L
         return RenderBox::computeLogicalHeight(LayoutUnit(), LayoutUnit());
 
     if (RenderBox* innerTextBox = innerText->renderBox()) {
-        LayoutUnit nonContentHeight = innerTextBox->borderAndPaddingLogicalHeight() + innerTextBox->marginLogicalHeight();
+        LayoutUnit nonContentHeight = innerTextBox->verticalBorderAndPaddingExtent() + innerTextBox->verticalMarginExtent();
         logicalHeight = computeControlLogicalHeight(innerTextBox->lineHeight(true, HorizontalLine, PositionOfInteriorLineBoxes), nonContentHeight);
 
         // We are able to have a horizontal scrollbar if the overflow style is scroll, or if its auto and there's no word wrap.
@@ -113,7 +112,7 @@ RenderBox::LogicalExtentComputedValues RenderTextControl::computeLogicalHeight(L
         // before calling computeLogicalHeight to avoid this hack.
         cacheIntrinsicContentLogicalHeightForFlexItem(logicalHeight);
 
-        logicalHeight += borderAndPaddingLogicalHeight();
+        logicalHeight += verticalBorderAndPaddingExtent();
     }
 
     return RenderBox::computeLogicalHeight(logicalHeight, logicalTop);
@@ -227,7 +226,7 @@ int RenderTextControl::innerLineHeight() const
 #endif
 
 RenderTextControlInnerContainer::RenderTextControlInnerContainer(Element& element, RenderStyle&& style)
-    : RenderFlexibleBox(Type::TextControlInnerContainer, element, WTFMove(style))
+    : RenderFlexibleBox(element, WTFMove(style))
 {
 
 }

@@ -29,6 +29,7 @@
 #if ASSERT_ENABLED
 
 #include "BlockFormattingState.h"
+#include "InlineFormattingState.h"
 #include "LayoutBox.h"
 #include "LayoutBoxGeometry.h"
 #include "LayoutContext.h"
@@ -105,12 +106,13 @@ static void collectInlineBoxes(const RenderBlockFlow& root, Vector<WebCore::Lega
 {
     for (auto* rootLine = root.firstRootBox(); rootLine; rootLine = rootLine->nextRootBox()) {
         for (auto* inlineBox = rootLine->firstChild(); inlineBox; inlineBox = inlineBox->nextOnLine()) {
-            if (auto* legacyInlineFlowBox = dynamicDowncast<LegacyInlineFlowBox>(inlineBox))
-                collectFlowBoxSubtree(*legacyInlineFlowBox, inlineBoxes);
-            else
+            if (!is<LegacyInlineFlowBox>(inlineBox)) {
                 inlineBoxes.append(inlineBox);
+                continue;
             }
+            collectFlowBoxSubtree(downcast<LegacyInlineFlowBox>(*inlineBox), inlineBoxes);
         }
+    }
 }
 
 static bool outputMismatchingComplexLineInformationIfNeeded(TextStream& stream, const LayoutState& layoutState, const RenderBlockFlow& blockFlow, const ElementBox& inlineFormattingRoot)
@@ -141,6 +143,7 @@ static bool outputMismatchingComplexLineInformationIfNeeded(TextStream& stream, 
 
             if (is<RenderLineBreak>(inlineBox->renderer())) {
                 // <br> positioning is weird at this point. It needs proper baseline.
+                matchingRuns = true;
                 ++boxIndex;
                 continue;
             }
@@ -227,14 +230,12 @@ static bool outputMismatchingBlockBoxInformationIfNeeded(TextStream& stream, con
         boxGeometry.setVerticalMargin(tableWrapperBoxGeometry.verticalMargin());
     }
 
-    auto* renderTableRow = dynamicDowncast<RenderTableRow>(renderer);
-    auto* renderTableSection = dynamicDowncast<RenderTableSection>(renderer);
-    if (renderTableRow || renderTableSection) {
+    if (is<RenderTableRow>(renderer) || is<RenderTableSection>(renderer)) {
         // Table rows and tbody have 0 width for some reason when border collapsing is on.
-        if (renderTableRow && renderTableRow->table()->collapseBorders())
+        if (is<RenderTableRow>(renderer) && downcast<RenderTableRow>(renderer).table()->collapseBorders())
             return false;
         // Section borders are either collapsed or ignored. However they may produce negative padding boxes.
-        if (renderTableSection && (renderTableSection->table()->collapseBorders() || renderer.style().hasBorder()))
+        if (is<RenderTableSection>(renderer) && (downcast<RenderTableSection>(renderer).table()->collapseBorders() || renderer.style().hasBorder()))
             return false;
     }
     if (!areEssentiallyEqual(frameRect, BoxGeometry::borderBoxRect(boxGeometry))) {
@@ -261,8 +262,7 @@ static bool outputMismatchingBlockBoxInformationIfNeeded(TextStream& stream, con
         if (is<RenderTableCell>(renderer) || is<RenderTableSection>(renderer))
             return false;
         // Tables have 0 content box size for some reason when border collapsing is on.
-        auto* renderTable = dynamicDowncast<RenderTable>(renderer);
-        return !renderTable || !renderTable->collapseBorders();
+        return !is<RenderTable>(renderer) || !downcast<RenderTable>(renderer).collapseBorders();
     }();
     if (shouldCheckContentBox && !areEssentiallyEqual(renderer.contentBoxRect(), boxGeometry.contentBox())) {
         outputRect("contentBox"_s, renderer.contentBoxRect(), boxGeometry.contentBox());
@@ -292,18 +292,17 @@ static bool verifyAndOutputSubtree(TextStream& stream, const LayoutState& contex
     if (layoutBox.isTableWrapperBox())
         return verifyAndOutputSubtree(stream, context, renderer, *downcast<ElementBox>(layoutBox).firstChild());
 
-    auto mismatchingGeometry = outputMismatchingBlockBoxInformationIfNeeded(stream, context, renderer, layoutBox);
+    auto mismtachingGeometry = outputMismatchingBlockBoxInformationIfNeeded(stream, context, renderer, layoutBox);
 
-    auto* elementBox = dynamicDowncast<ElementBox>(layoutBox);
-    if (!elementBox)
-        return mismatchingGeometry;
+    if (!is<ElementBox>(layoutBox))
+        return mismtachingGeometry;
 
-    auto* childLayoutBox = elementBox->firstChild();
+    auto& elementBox = downcast<ElementBox>(layoutBox);
+    auto* childLayoutBox = elementBox.firstChild();
     auto* childRenderer = renderer.firstChild();
 
     while (childRenderer) {
-        auto* childRenderBox = dynamicDowncast<RenderBox>(*childRenderer);
-        if (!childRenderBox) {
+        if (!is<RenderBox>(*childRenderer)) {
             childRenderer = childRenderer->nextSibling();
             continue;
         }
@@ -314,24 +313,25 @@ static bool verifyAndOutputSubtree(TextStream& stream, const LayoutState& contex
             return true;
         }
 
-        if (auto* blockFlow = dynamicDowncast<RenderBlockFlow>(*childRenderBox); blockFlow && childLayoutBox->establishesInlineFormattingContext()) {
-            ASSERT(blockFlow->childrenInline());
-            auto mismatchingGeometry = outputMismatchingBlockBoxInformationIfNeeded(stream, context, *blockFlow, *childLayoutBox);
-            if (mismatchingGeometry)
+        if (is<RenderBlockFlow>(*childRenderer) && childLayoutBox->establishesInlineFormattingContext()) {
+            ASSERT(childRenderer->childrenInline());
+            auto mismtachingGeometry = outputMismatchingBlockBoxInformationIfNeeded(stream, context, downcast<RenderBox>(*childRenderer), *childLayoutBox);
+            if (mismtachingGeometry)
                 return true;
 
+            auto& blockFlow = downcast<RenderBlockFlow>(*childRenderer);
             auto& formattingRoot = downcast<ElementBox>(*childLayoutBox);
-            mismatchingGeometry |= outputMismatchingComplexLineInformationIfNeeded(stream, context, *blockFlow, formattingRoot);
+            mismtachingGeometry |= outputMismatchingComplexLineInformationIfNeeded(stream, context, blockFlow, formattingRoot);
         } else {
-            auto mismatchingSubtreeGeometry = verifyAndOutputSubtree(stream, context, *childRenderBox, *childLayoutBox);
-            mismatchingGeometry |= mismatchingSubtreeGeometry;
+            auto mismatchingSubtreeGeometry = verifyAndOutputSubtree(stream, context, downcast<RenderBox>(*childRenderer), *childLayoutBox);
+            mismtachingGeometry |= mismatchingSubtreeGeometry;
         }
 
         childLayoutBox = childLayoutBox->nextSibling();
         childRenderer = childRenderer->nextSibling();
     }
 
-    return mismatchingGeometry;
+    return mismtachingGeometry;
 }
 
 void LayoutContext::verifyAndOutputMismatchingLayoutTree(const LayoutState& layoutState, const RenderView& rootRenderer)

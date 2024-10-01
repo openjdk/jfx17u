@@ -175,14 +175,6 @@ void AudioNodeOutput::removeInput(AudioNodeInput* input)
     m_inputs.remove(input);
 }
 
-void AudioNodeOutput::forEachInputNode(Function<void(AudioNode&)>&& callback) const
-{
-    for (auto& node : m_inputs.values()) {
-        if (node)
-            callback(*node);
-    }
-}
-
 void AudioNodeOutput::disconnectAllInputs()
 {
     ASSERT(context().isGraphOwner());

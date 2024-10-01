@@ -47,11 +47,16 @@ public:
 
     DECLARE_INFO;
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        return Structure::create(vm, globalObject, prototype, TypeInfo(ObjectType, StructureFlags), info());
+    }
 
 private:
     DatePrototype(VM&, Structure*);
     void finishCreation(VM&, JSGlobalObject*);
 };
+
+JSC_DECLARE_HOST_FUNCTION(dateProtoFuncGetTime);
 
 } // namespace JSC

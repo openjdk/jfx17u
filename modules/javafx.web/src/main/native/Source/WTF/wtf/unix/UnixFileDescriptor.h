@@ -34,6 +34,7 @@
 namespace WTF {
 
 class UnixFileDescriptor {
+    WTF_MAKE_NONCOPYABLE(UnixFileDescriptor);
 public:
     UnixFileDescriptor() = default;
 
@@ -52,12 +53,6 @@ public:
     UnixFileDescriptor(UnixFileDescriptor&& o)
     {
         m_value = o.release();
-    }
-
-    explicit UnixFileDescriptor(const UnixFileDescriptor& o)
-    {
-        if (o.m_value >= 0)
-            m_value = dupCloseOnExec(o.m_value);
     }
 
     UnixFileDescriptor& operator=(UnixFileDescriptor&& o)

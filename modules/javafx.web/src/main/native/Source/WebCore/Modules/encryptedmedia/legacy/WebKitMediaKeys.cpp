@@ -41,11 +41,11 @@ ExceptionOr<Ref<WebKitMediaKeys>> WebKitMediaKeys::create(const String& keySyste
 
     // 1. If keySystem is null or an empty string, throw an InvalidAccessError exception and abort these steps.
     if (keySystem.isEmpty())
-        return Exception { ExceptionCode::InvalidAccessError };
+        return Exception { InvalidAccessError };
 
     // 2. If keySystem is not one of the user agent's supported Key Systems, throw a NotSupportedError and abort these steps.
     if (!LegacyCDM::supportsKeySystem(keySystem))
-        return Exception { ExceptionCode::NotSupportedError };
+        return Exception { NotSupportedError };
 
     // 3. Let cdm be the content decryption module corresponding to keySystem.
     // 4. Load cdm if necessary.
@@ -82,16 +82,16 @@ ExceptionOr<Ref<WebKitMediaKeySession>> WebKitMediaKeys::createSession(Document&
 
     // 1. If contentType is null or an empty string, throw an InvalidAccessError exception and abort these steps.
     if (type.isEmpty())
-        return Exception { ExceptionCode::InvalidAccessError };
+        return Exception { InvalidAccessError };
 
     // 2. If initData is an empty array, throw an InvalidAccessError exception and abort these steps.
     if (!initData->length())
-        return Exception { ExceptionCode::InvalidAccessError };
+        return Exception { InvalidAccessError };
 
     // 3. If type contains a MIME type that is not supported or is not supported by the keySystem, throw
     // a NotSupportedError exception and abort these steps.
     if (!m_cdm->supportsMIMEType(type))
-        return Exception { ExceptionCode::NotSupportedError };
+        return Exception { NotSupportedError };
 
     // 4. Create a new MediaKeySession object.
     // 4.1 Let the keySystem attribute be keySystem.

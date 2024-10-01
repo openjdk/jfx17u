@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "NavigationPreloadState.h"
 #include "SWServer.h"
 #include "ScriptExecutionContextIdentifier.h"
@@ -47,11 +49,11 @@ struct ServiceWorkerContextData;
 
 enum class IsAppInitiated : bool { No, Yes };
 
-class SWServerRegistration : public RefCounted<SWServerRegistration>, public CanMakeWeakPtr<SWServerRegistration> {
+class SWServerRegistration : public CanMakeWeakPtr<SWServerRegistration> {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    static Ref<SWServerRegistration> create(SWServer&, const ServiceWorkerRegistrationKey&, ServiceWorkerUpdateViaCache, const URL& scopeURL, const URL& scriptURL, std::optional<ScriptExecutionContextIdentifier> serviceWorkerPageIdentifier, NavigationPreloadState&&);
-    WEBCORE_EXPORT ~SWServerRegistration();
+    SWServerRegistration(SWServer&, const ServiceWorkerRegistrationKey&, ServiceWorkerUpdateViaCache, const URL& scopeURL, const URL& scriptURL, std::optional<ScriptExecutionContextIdentifier> serviceWorkerPageIdentifier, NavigationPreloadState&&);
+    ~SWServerRegistration();
 
     const ServiceWorkerRegistrationKey& key() const { return m_registrationKey; }
     ServiceWorkerRegistrationIdentifier identifier() const { return m_identifier; }
@@ -114,13 +116,9 @@ public:
     const NavigationPreloadState& navigationPreloadState() const { return m_preloadState; }
 
 private:
-    SWServerRegistration(SWServer&, const ServiceWorkerRegistrationKey&, ServiceWorkerUpdateViaCache, const URL& scopeURL, const URL& scriptURL, std::optional<ScriptExecutionContextIdentifier> serviceWorkerPageIdentifier, NavigationPreloadState&&);
-
     void activate();
     void handleClientUnload();
     void softUpdate();
-
-    RefPtr<SWServer> protectedServer() const { return m_server.get(); }
 
     ServiceWorkerRegistrationIdentifier m_identifier;
     ServiceWorkerRegistrationKey m_registrationKey;
@@ -137,7 +135,7 @@ private:
     WallTime m_lastUpdateTime;
 
     HashCountedSet<SWServerConnectionIdentifier> m_connectionsWithClientRegistrations;
-    WeakPtr<SWServer> m_server;
+    SWServer& m_server;
 
     MonotonicTime m_creationTime;
     HashMap<SWServerConnectionIdentifier, HashSet<ScriptExecutionContextIdentifier>> m_clientsUsingRegistration;
@@ -149,3 +147,5 @@ private:
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

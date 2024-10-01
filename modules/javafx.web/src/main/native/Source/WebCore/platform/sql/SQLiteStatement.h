@@ -28,7 +28,6 @@
 #include "SQLValue.h"
 #include "SQLiteDatabase.h"
 #include <span>
-#include <wtf/WeakRef.h>
 
 struct sqlite3_stmt;
 
@@ -81,7 +80,7 @@ public:
     // The returned Span stays valid until the next step() / reset() or destruction of the statement.
     std::span<const uint8_t> columnBlobAsSpan(int col);
 
-    SQLiteDatabase& database() { return m_database.get(); }
+    SQLiteDatabase& database() { return m_database; }
 
 private:
     friend class SQLiteDatabase;
@@ -93,7 +92,7 @@ private:
     template<typename T, typename... Args> bool bindImpl(int i, T first, Args&&... args);
     template<typename T> bool bindImpl(int, T);
 
-    WeakRef<SQLiteDatabase> m_database;
+    SQLiteDatabase& m_database;
     sqlite3_stmt* m_statement;
 };
 

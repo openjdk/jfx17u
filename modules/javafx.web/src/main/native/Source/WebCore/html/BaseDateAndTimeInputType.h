@@ -118,7 +118,7 @@ private:
 
     void handleDOMActivateEvent(Event&) override;
     void createShadowSubtree() final;
-    void removeShadowSubtree() final;
+    void destroyShadowSubtree() final;
     void updateInnerTextValue() final;
     bool hasCustomFocusLogic() const final;
     void attributeChanged(const QualifiedName&) final;
@@ -145,8 +145,6 @@ private:
 
     bool setupDateTimeChooserParameters(DateTimeChooserParameters&);
     void closeDateTimeChooser();
-
-    void showPicker() override;
 
     std::unique_ptr<DateTimeChooser> m_dateTimeChooser;
     RefPtr<DateTimeEditElement> m_dateTimeEditElement;

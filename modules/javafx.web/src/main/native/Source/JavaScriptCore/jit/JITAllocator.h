@@ -53,7 +53,11 @@ public:
         return result;
     }
 
-    friend bool operator==(const JITAllocator&, const JITAllocator&) = default;
+    bool operator==(const JITAllocator& other) const
+    {
+        return m_kind == other.m_kind
+            && m_allocator == other.m_allocator;
+    }
 
     explicit operator bool() const
     {

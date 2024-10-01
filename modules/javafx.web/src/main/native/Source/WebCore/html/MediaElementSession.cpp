@@ -44,7 +44,6 @@
 #include "LocalFrameView.h"
 #include "Logging.h"
 #include "MediaUsageInfo.h"
-#include "Navigator.h"
 #include "NowPlayingInfo.h"
 #include "Page.h"
 #include "PlatformMediaSessionManager.h"
@@ -79,7 +78,6 @@ static const Seconds elementMainContentCheckInterval { 250_ms };
 static bool isElementRectMostlyInMainFrame(const HTMLMediaElement&);
 static bool isElementLargeEnoughForMainContent(const HTMLMediaElement&, MediaSessionMainContentPurpose);
 static bool isElementMainContentForPurposesOfAutoplay(const HTMLMediaElement&, bool shouldHitTestMainFrame);
-static bool isElementLongEnoughForMainContent(const HTMLMediaElement&);
 
 #if !RELEASE_LOG_DISABLED
 
@@ -276,10 +274,10 @@ void MediaElementSession::visibilityChanged()
     if (!isPlayingAudio) {
         if (elementIsHidden) {
             ALWAYS_LOG(LOGIDENTIFIER, "Suspending silent playback after page visibility: hidden");
-            beginInterruption(PlatformMediaSession::InterruptionType::EnteringBackground);
+            beginInterruption(PlatformMediaSession::EnteringBackground);
         } else {
             ALWAYS_LOG(LOGIDENTIFIER, "Resuming silent playback after page visibility: showing");
-            endInterruption(PlatformMediaSession::EndInterruptionFlags::MayResumePlaying);
+            endInterruption(PlatformMediaSession::MayResumePlaying);
         }
         return;
     }
@@ -287,10 +285,10 @@ void MediaElementSession::visibilityChanged()
     if (hasBehaviorRestriction(RequirePageVisibilityToPlayAudio)) {
         if (elementIsHidden) {
             ALWAYS_LOG(LOGIDENTIFIER, "Suspending audible playback after page visibility: hidden");
-            beginInterruption(PlatformMediaSession::InterruptionType::EnteringBackground);
+            beginInterruption(PlatformMediaSession::EnteringBackground);
         } else {
             ALWAYS_LOG(LOGIDENTIFIER, "Resuming audible playback after page visibility: showing");
-            endInterruption(PlatformMediaSession::EndInterruptionFlags::MayResumePlaying);
+            endInterruption(PlatformMediaSession::MayResumePlaying);
         }
     }
 }
@@ -325,7 +323,7 @@ void MediaElementSession::clientDataBufferingTimerFired()
 
     updateClientDataBuffering();
 
-    if (state() != PlatformMediaSession::State::Playing || !m_element.elementIsHidden())
+    if (state() != Playing || !m_element.elementIsHidden())
         return;
 
     PlatformMediaSessionManager::SessionRestrictions restrictions = PlatformMediaSessionManager::sharedManager().restrictions(mediaType());
@@ -501,7 +499,7 @@ MediaPlayer::BufferingPolicy MediaElementSession::preferredBufferingPolicy() con
     if (bufferingSuspended())
         return MediaPlayer::BufferingPolicy::LimitReadAhead;
 
-    if (state() == PlatformMediaSession::State::Playing)
+    if (state() == PlatformMediaSession::Playing)
         return MediaPlayer::BufferingPolicy::Default;
 
     if (shouldOverrideBackgroundLoadingRestriction())
@@ -572,13 +570,6 @@ bool MediaElementSession::canShowControlsManager(PlaybackControlsPurpose purpose
         return true;
     }
 
-    if (client().presentationType() == MediaType::Audio
-        && purpose == PlaybackControlsPurpose::NowPlaying
-        && !isLongEnoughForMainContent()) {
-        INFO_LOG(LOGIDENTIFIER, "returning FALSE: audio too short for NowPlaying");
-        return false;
-    }
-
     if (client().presentationType() == MediaType::Audio && (purpose == PlaybackControlsPurpose::ControlsManager || purpose == PlaybackControlsPurpose::MediaSession)) {
         if (!hasBehaviorRestriction(RequireUserGestureToControlControlsManager) || m_element.document().processingUserGestureForMedia()) {
             INFO_LOG(LOGIDENTIFIER, "returning TRUE: audio element with user gesture");
@@ -626,12 +617,10 @@ bool MediaElementSession::canShowControlsManager(PlaybackControlsPurpose purpose
 
 #if ENABLE(FULLSCREEN_API)
     // Elements which are not descendants of the current fullscreen element cannot be main content.
-    if (CheckedPtr fullsreenManager = m_element.document().fullscreenManagerIfExists()) {
-        auto* fullscreenElement = fullsreenManager->currentFullscreenElement();
+    auto* fullscreenElement = m_element.document().fullscreenManager().currentFullscreenElement();
     if (fullscreenElement && !m_element.isDescendantOf(*fullscreenElement)) {
         INFO_LOG(LOGIDENTIFIER, "returning FALSE: outside of full screen");
         return false;
-    }
     }
 #endif
 
@@ -665,11 +654,6 @@ bool MediaElementSession::canShowControlsManager(PlaybackControlsPurpose purpose
 bool MediaElementSession::isLargeEnoughForMainContent(MediaSessionMainContentPurpose purpose) const
 {
     return isElementLargeEnoughForMainContent(m_element, purpose);
-}
-
-bool MediaElementSession::isLongEnoughForMainContent() const
-{
-    return isElementLongEnoughForMainContent(m_element);
 }
 
 bool MediaElementSession::isMainContentForPurposesOfAutoplayEvents() const
@@ -869,6 +853,7 @@ bool MediaElementSession::requiresFullscreenForVideoPlayback() const
         return false;
 
     if (m_element.document().isMediaDocument()) {
+        ASSERT(is<HTMLVideoElement>(m_element));
         const HTMLVideoElement& videoElement = *downcast<const HTMLVideoElement>(&m_element);
         if (m_element.readyState() < HTMLVideoElement::HAVE_METADATA || !videoElement.hasEverHadVideo())
             return false;
@@ -1047,7 +1032,11 @@ static bool isElementRectMostlyInMainFrame(const HTMLMediaElement& element)
     if (!documentFrame)
         return false;
 
-    RefPtr mainFrameView = documentFrame->mainFrame().virtualView();
+    auto* localFrame = dynamicDowncast<LocalFrame>(documentFrame->mainFrame());
+    if (!localFrame)
+        return false;
+
+    auto mainFrameView = localFrame->view();
     if (!mainFrameView)
         return false;
 
@@ -1073,14 +1062,18 @@ static bool isElementLargeRelativeToMainFrame(const HTMLMediaElement& element)
     if (!documentFrame)
         return false;
 
-    RefPtr mainFrameView = documentFrame->mainFrame().virtualView();
-    if (!mainFrameView)
+    auto* localFrame = dynamicDowncast<LocalFrame>(documentFrame->mainFrame());
+    if (!localFrame)
         return false;
 
-    auto maxVisibleClientWidth = std::min(renderer->clientWidth().toInt(), mainFrameView->visibleWidth());
-    auto maxVisibleClientHeight = std::min(renderer->clientHeight().toInt(), mainFrameView->visibleHeight());
+    if (!localFrame->view())
+        return false;
 
-    return maxVisibleClientWidth * maxVisibleClientHeight > minimumPercentageOfMainFrameAreaForMainContent * mainFrameView->visibleWidth() * mainFrameView->visibleHeight();
+    auto& mainFrameView = *localFrame->view();
+    auto maxVisibleClientWidth = std::min(renderer->clientWidth().toInt(), mainFrameView.visibleWidth());
+    auto maxVisibleClientHeight = std::min(renderer->clientHeight().toInt(), mainFrameView.visibleHeight());
+
+    return maxVisibleClientWidth * maxVisibleClientHeight > minimumPercentageOfMainFrameAreaForMainContent * mainFrameView.visibleWidth() * mainFrameView.visibleHeight();
 }
 
 static bool isElementLargeEnoughForMainContent(const HTMLMediaElement& element, MediaSessionMainContentPurpose purpose)
@@ -1106,17 +1099,6 @@ static bool isElementLargeEnoughForMainContent(const HTMLMediaElement& element, 
         return true;
 
     return isElementLargeRelativeToMainFrame(element);
-}
-
-static bool isElementLongEnoughForMainContent(const HTMLMediaElement& element)
-{
-    // Derived from the duration of the "You've got mail!" AOL sound:
-    static constexpr MediaTime YouveGotMailDuration = MediaTime(95, 100);
-
-    if (element.readyState() < HTMLMediaElementEnums::ReadyState::HAVE_METADATA)
-        return false;
-
-    return element.durationMediaTime() > YouveGotMailDuration;
 }
 
 void MediaElementSession::mainContentCheckTimerFired()
@@ -1149,7 +1131,7 @@ bool MediaElementSession::allowsPlaybackControlsForAutoplayingAudio() const
 
 #if ENABLE(MEDIA_SESSION)
 #if ENABLE(MEDIA_STREAM)
-static bool isDocumentPlayingSeveralMediaStreamsAndCapturing(Document& document)
+static bool isDocumentPlayingSeveralMediaStreams(Document& document)
 {
     // We restrict to capturing document for now, until we have a good way to state to the UIProcess application that audio rendering is muted from here.
     auto* page = document.page();
@@ -1162,7 +1144,7 @@ static bool processRemoteControlCommandIfPlayingMediaStreams(Document& document,
     if (!page)
         return false;
 
-    if (!isDocumentPlayingSeveralMediaStreamsAndCapturing(document))
+    if (!isDocumentPlayingSeveralMediaStreams(document))
         return false;
 
     WebCore::MediaProducerMutedStateFlags mutedState;
@@ -1171,14 +1153,14 @@ static bool processRemoteControlCommandIfPlayingMediaStreams(Document& document,
     mutedState.add(WebCore::MediaProducerMutedState::ScreenCaptureIsMuted);
 
     switch (commandType) {
-    case PlatformMediaSession::RemoteControlCommandType::PlayCommand:
+    case PlatformMediaSession::PlayCommand:
         page->setMuted({ });
         return true;
-    case PlatformMediaSession::RemoteControlCommandType::StopCommand:
-    case PlatformMediaSession::RemoteControlCommandType::PauseCommand:
+    case PlatformMediaSession::StopCommand:
+    case PlatformMediaSession::PauseCommand:
         page->setMuted(mutedState);
         return true;
-    case PlatformMediaSession::RemoteControlCommandType::TogglePlayPauseCommand:
+    case PlatformMediaSession::TogglePlayPauseCommand:
         if (page->mutedState().containsAny(mutedState))
             page->setMuted({ });
         else
@@ -1205,27 +1187,27 @@ void MediaElementSession::didReceiveRemoteControlCommand(RemoteControlCommandTyp
 
     MediaSessionActionDetails actionDetails;
     switch (commandType) {
-    case RemoteControlCommandType::NoCommand:
+    case NoCommand:
         return;
-    case RemoteControlCommandType::PlayCommand:
+    case PlayCommand:
         actionDetails.action = MediaSessionAction::Play;
         break;
-    case RemoteControlCommandType::PauseCommand:
+    case PauseCommand:
         actionDetails.action = MediaSessionAction::Pause;
         break;
-    case RemoteControlCommandType::StopCommand:
+    case StopCommand:
         actionDetails.action = MediaSessionAction::Stop;
         break;
-    case RemoteControlCommandType::TogglePlayPauseCommand:
+    case TogglePlayPauseCommand:
         actionDetails.action = m_element.paused() ? MediaSessionAction::Play : MediaSessionAction::Pause;
         break;
-    case RemoteControlCommandType::BeginScrubbingCommand:
+    case BeginScrubbingCommand:
         m_isScrubbing = true;
         return;
-    case RemoteControlCommandType::EndScrubbingCommand:
+    case EndScrubbingCommand:
         m_isScrubbing = false;
         return;
-    case RemoteControlCommandType::SeekToPlaybackPositionCommand:
+    case SeekToPlaybackPositionCommand:
         ASSERT(argument.time);
         if (!argument.time)
             return;
@@ -1233,26 +1215,26 @@ void MediaElementSession::didReceiveRemoteControlCommand(RemoteControlCommandTyp
         actionDetails.seekTime = argument.time.value();
         actionDetails.fastSeek = m_isScrubbing;
         break;
-    case RemoteControlCommandType::SkipForwardCommand:
+    case SkipForwardCommand:
         if (argument.time)
             actionDetails.seekOffset = argument.time.value();
         actionDetails.action = MediaSessionAction::Seekforward;
         break;
-    case RemoteControlCommandType::SkipBackwardCommand:
+    case SkipBackwardCommand:
         if (argument.time)
             actionDetails.seekOffset = argument.time.value();
         actionDetails.action = MediaSessionAction::Seekbackward;
         break;
-    case RemoteControlCommandType::NextTrackCommand:
+    case NextTrackCommand:
         actionDetails.action = MediaSessionAction::Nexttrack;
         break;
-    case RemoteControlCommandType::PreviousTrackCommand:
+    case PreviousTrackCommand:
         actionDetails.action = MediaSessionAction::Previoustrack;
         break;
-    case RemoteControlCommandType::BeginSeekingBackwardCommand:
-    case RemoteControlCommandType::EndSeekingBackwardCommand:
-    case RemoteControlCommandType::BeginSeekingForwardCommand:
-    case RemoteControlCommandType::EndSeekingForwardCommand:
+    case BeginSeekingBackwardCommand:
+    case EndSeekingBackwardCommand:
+    case BeginSeekingForwardCommand:
+    case EndSeekingForwardCommand:
         ASSERT_NOT_REACHED();
         return;
     }
@@ -1264,18 +1246,12 @@ void MediaElementSession::didReceiveRemoteControlCommand(RemoteControlCommandTyp
 std::optional<NowPlayingInfo> MediaElementSession::nowPlayingInfo() const
 {
     auto* page = m_element.document().page();
-
-#if ENABLE(MEDIA_SESSION)
-    auto* session = mediaSession();
-#endif
-
-#if ENABLE(MEDIA_SESSION) && ENABLE(MEDIA_STREAM)
-    if (isDocumentPlayingSeveralMediaStreamsAndCapturing(m_element.document()) && (!session || !session->hasActiveActionHandlers()))
-        return { };
-#endif
-
     bool allowsNowPlayingControlsVisibility = page && !page->isVisibleAndActive();
-    bool isPlaying = state() == PlatformMediaSession::State::Playing;
+    bool isPlaying = state() == PlatformMediaSession::Playing;
+#if ENABLE(MEDIA_SESSION) && ENABLE(MEDIA_STREAM)
+    if (isPlaying && isDocumentPlayingSeveralMediaStreams(m_element.document()) && page)
+        isPlaying = !page->mutedState().contains(MediaProducerMutedState::AudioIsMuted);
+#endif
 
     bool supportsSeeking = m_element.supportsSeeking();
     double rate = 1.0;
@@ -1293,6 +1269,7 @@ std::optional<NowPlayingInfo> MediaElementSession::nowPlayingInfo() const
 #endif
 
 #if ENABLE(MEDIA_SESSION)
+    auto* session = mediaSession();
     auto positionState = session ? session->positionState() : std::nullopt;
     auto currentPosition = session ? session->currentPosition() : std::nullopt;
     if (positionState) {
@@ -1330,10 +1307,8 @@ void MediaElementSession::updateMediaUsageIfChanged()
 
     bool isOutsideOfFullscreen = false;
 #if ENABLE(FULLSCREEN_API)
-    if (CheckedPtr fullscreenManager = document.fullscreenManagerIfExists()) {
     if (auto* fullscreenElement = document.fullscreenManager().currentFullscreenElement())
-            isOutsideOfFullscreen = m_element.isDescendantOf(*fullscreenElement);
-    }
+        isOutsideOfFullscreen = !m_element.isDescendantOf(*fullscreenElement);
 #endif
     bool isAudio = client().presentationType() == MediaType::Audio;
     bool isVideo = client().presentationType() == MediaType::Video;
@@ -1343,7 +1318,7 @@ void MediaElementSession::updateMediaUsageIfChanged()
     MediaUsageInfo usage = {
         m_element.currentSrc(),
         m_element.hasSource(),
-        state() == PlatformMediaSession::State::Playing,
+        state() == PlatformMediaSession::Playing,
         canShowControlsManager(PlaybackControlsPurpose::ControlsManager),
         !page->isVisibleAndActive(),
         m_element.isSuspended(),

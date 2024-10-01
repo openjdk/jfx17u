@@ -59,6 +59,14 @@ bool operator==(const FontFamilyName& a, const FontFamilyName& b)
     return (a.string().isNull() || b.string().isNull()) ? a.string() == b.string() : FontCascadeDescription::familyNamesAreEqual(a.string(), b.string());
 }
 
+bool operator==(const FontCascadeCacheKey& a, const FontCascadeCacheKey& b)
+{
+    return a.fontDescriptionKey == b.fontDescriptionKey
+        && a.fontSelectorId == b.fontSelectorId
+        && a.fontSelectorVersion == b.fontSelectorVersion
+        && a.families == b.families;
+}
+
 FontCascadeCache& FontCascadeCache::forCurrentThread()
 {
     return FontCache::forCurrentThread().fontCascadeCache();
@@ -90,13 +98,15 @@ void FontCascadeCache::pruneSystemFallbackFonts()
 
 static FontCascadeCacheKey makeFontCascadeCacheKey(const FontCascadeDescription& description, FontSelector* fontSelector)
 {
+    FontCascadeCacheKey key;
+    key.fontDescriptionKey = FontDescriptionKey(description);
     unsigned familyCount = description.familyCount();
-    return FontCascadeCacheKey {
-        FontDescriptionKey(description),
-        Vector<FontFamilyName, 3>(familyCount, [&](size_t i) { return description.familyAt(i); }),
-        fontSelector ? fontSelector->uniqueId() : 0,
-        fontSelector ? fontSelector->version() : 0
-    };
+    key.families.reserveInitialCapacity(familyCount);
+    for (unsigned i = 0; i < familyCount; ++i)
+        key.families.uncheckedAppend(description.familyAt(i));
+    key.fontSelectorId = fontSelector ? fontSelector->uniqueId() : 0;
+    key.fontSelectorVersion = fontSelector ? fontSelector->version() : 0;
+    return key;
 }
 
 Ref<FontCascadeFonts> FontCascadeCache::retrieveOrAddCachedFonts(const FontCascadeDescription& fontDescription, RefPtr<FontSelector>&& fontSelector)

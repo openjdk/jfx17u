@@ -72,15 +72,25 @@ void StringDumper::visit(ShaderModule& shaderModule)
     if (!shaderModule.directives().isEmpty())
         m_out.print("\n\n");
 
-    for (auto& declaration : shaderModule.declarations()) {
-        AST::Visitor::visit(declaration);
-        m_out.print("\n");
-    }
+    for (auto& structure : shaderModule.structures())
+        visit(structure);
+    if (!shaderModule.structures().isEmpty())
+        m_out.printf("\n\n");
+
+    for (auto& variable : shaderModule.variables())
+        visit(variable);
+    if (!shaderModule.variables().isEmpty())
+        m_out.printf("\n\n");
+
+    for (auto& function : shaderModule.functions())
+        visit(function);
+    if (!shaderModule.functions().isEmpty())
+        m_out.printf("\n\n");
 }
 
-void StringDumper::visit(DiagnosticDirective&)
+void StringDumper::visit(Directive& directive)
 {
-    // FIXME: we still don't do anything with diagnostics
+    m_out.print(m_indent, "enable ", directive.name(), ";");
 }
 
 // Attribute
@@ -93,7 +103,7 @@ void StringDumper::visit(BindingAttribute& binding)
 
 void StringDumper::visit(BuiltinAttribute& builtin)
 {
-    m_out.print("@builtin(", builtin.builtin(), ")");
+    m_out.print("@builtin(", builtin.name(), ")");
 }
 
 void StringDumper::visit(GroupAttribute& group)
@@ -112,7 +122,17 @@ void StringDumper::visit(LocationAttribute& location)
 
 void StringDumper::visit(StageAttribute& stage)
 {
-    m_out.print("@", stage.stage());
+    switch (stage.stage()) {
+    case StageAttribute::Stage::Compute:
+        m_out.print("@compute");
+        break;
+    case StageAttribute::Stage::Fragment:
+        m_out.print("@fragment");
+        break;
+    case StageAttribute::Stage::Vertex:
+        m_out.print("@vertex");
+        break;
+    }
 }
 
 void StringDumper::visit(WorkgroupSizeAttribute& workgroupSize)
@@ -198,14 +218,6 @@ void StringDumper::visit(Variable& variable)
     m_out.print(";");
 }
 
-void StringDumper::visit(TypeAlias& alias)
-{
-    m_out.print(m_indent);
-    m_out.print("alias ", alias.name(), " = ");
-    visit(alias.type());
-    m_out.print(";");
-}
-
 // Expression
 void StringDumper::visit(AbstractFloatLiteral& literal)
 {
@@ -244,11 +256,6 @@ void StringDumper::visit(CallExpression& expression)
 void StringDumper::visit(Float32Literal& literal)
 {
     m_out.print(literal.value(), "f");
-}
-
-void StringDumper::visit(Float16Literal& literal)
-{
-    m_out.print(String::number(literal.value()), "h");
 }
 
 void StringDumper::visit(IdentifierExpression& identifier)
@@ -299,12 +306,6 @@ void StringDumper::visit(AssignmentStatement& statement)
     visit(statement.lhs());
     m_out.print(" = ");
     visit(statement.rhs());
-    m_out.print(";");
-}
-
-void StringDumper::visit(CallStatement& statement)
-{
-    visit(statement.call());
     m_out.print(";");
 }
 
@@ -395,7 +396,7 @@ void StringDumper::visit(ForStatement& statement)
 }
 
 // Types
-void StringDumper::visit(ArrayTypeExpression& type)
+void StringDumper::visit(ArrayTypeName& type)
 {
     m_out.print("array");
     if (type.maybeElementType()) {
@@ -409,20 +410,19 @@ void StringDumper::visit(ArrayTypeExpression& type)
     }
 }
 
-void StringDumper::visit(ElaboratedTypeExpression& type)
+void StringDumper::visit(NamedTypeName& type)
 {
-    m_out.print(type.base(), "<");
-    bool first = true;
-    for (auto& argument : type.arguments()) {
-        if (!first)
-            m_out.print(", ");
-        first = false;
-        visit(argument);
-    }
+    m_out.print(type.name());
+}
+
+void StringDumper::visit(ParameterizedTypeName& type)
+{
+    m_out.print(ParameterizedTypeName::baseToString(type.base()), "<");
+    visit(type.elementType());
     m_out.print(">");
 }
 
-void StringDumper::visit(ReferenceTypeExpression& type)
+void StringDumper::visit(ReferenceTypeName& type)
 {
     visit(type.type());
     m_out.print("&");
@@ -452,7 +452,11 @@ void StringDumper::visit(StructureMember& member)
 
 void StringDumper::visit(VariableQualifier& qualifier)
 {
-    m_out.print("<", qualifier.addressSpace(), ",", qualifier.accessMode(), ">");
+    constexpr ASCIILiteral accessMode[]= { "read"_s, "write"_s, "read_write"_s };
+    constexpr ASCIILiteral storageClass[] = { "function"_s, "private"_s, "workgroup"_s, "uniform"_s, "storage"_s };
+    auto sc = WTF::enumToUnderlyingType(qualifier.storageClass());
+    auto am = WTF::enumToUnderlyingType(qualifier.accessMode());
+    m_out.print("<", storageClass[sc], ",", accessMode[am], ">");
 }
 
 void dumpAST(ShaderModule& shaderModule)

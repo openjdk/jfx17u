@@ -35,7 +35,6 @@
 
 #include "LayoutRect.h"
 #include "RenderBlockFlow.h"
-#include "RenderFragmentedFlow.h"
 #include <wtf/RefCounted.h>
 
 namespace WebCore {
@@ -76,7 +75,7 @@ public:
         void append(Ref<FloatWithRect>&& floatWithRect)
         {
             m_floats.add(floatWithRect.copyRef());
-            m_floatWithRectMap.add(floatWithRect->renderer(), WTFMove(floatWithRect));
+            m_floatWithRectMap.add(&floatWithRect->renderer(), WTFMove(floatWithRect));
         }
         void setLastFloat(FloatingObject* lastFloat) { m_lastFloat = lastFloat; }
         FloatingObject* lastFloat() const { return m_lastFloat; }
@@ -84,7 +83,7 @@ public:
         void setLastCleanFloat(RenderBox& floatBox) { m_lastCleanFloat = &floatBox; }
         RenderBox* lastCleanFloat() const { return m_lastCleanFloat; }
 
-        FloatWithRect* floatWithRect(RenderBox& floatBox) const { return m_floatWithRectMap.get(floatBox); }
+        FloatWithRect* floatWithRect(RenderBox& floatBox) const { return m_floatWithRectMap.get(&floatBox); }
 
         using Iterator = ListHashSet<Ref<FloatWithRect>>::iterator;
         Iterator begin() { return m_floats.begin(); }
@@ -94,7 +93,7 @@ public:
 
     private:
         ListHashSet<Ref<FloatWithRect>> m_floats;
-        HashMap<SingleThreadWeakRef<RenderBox>, Ref<FloatWithRect>> m_floatWithRectMap;
+        HashMap<RenderBox*, Ref<FloatWithRect>> m_floatWithRectMap;
         FloatingObject* m_lastFloat { nullptr };
         RenderBox* m_lastCleanFloat { nullptr };
     };
@@ -117,13 +116,14 @@ public:
     LayoutUnit endLineLogicalTop() const { return m_endLineLogicalTop; }
     void setEndLineLogicalTop(LayoutUnit logicalTop) { m_endLineLogicalTop = logicalTop; }
 
-    LegacyRootInlineBox* endLine() const { return m_endLine.get(); }
+    LegacyRootInlineBox* endLine() const { return m_endLine; }
     void setEndLine(LegacyRootInlineBox* line) { m_endLine = line; }
 
     LayoutUnit adjustedLogicalLineTop() const { return m_adjustedLogicalLineTop; }
     void setAdjustedLogicalLineTop(LayoutUnit value) { m_adjustedLogicalLineTop = value; }
 
-    RenderFragmentedFlow* fragmentedFlow() const { return m_fragmentedFlow.get(); }
+    RenderFragmentedFlow* fragmentedFlow() const { return m_fragmentedFlow; }
+    void setFragmentedFlow(RenderFragmentedFlow* thread) { m_fragmentedFlow = thread; }
 
     bool endLineMatched() const { return m_endLineMatched; }
     void setEndLineMatched(bool endLineMatched) { m_endLineMatched = endLineMatched; }
@@ -156,11 +156,11 @@ public:
 private:
     LineInfo m_lineInfo;
     LayoutUnit m_endLineLogicalTop;
-    WeakPtr<LegacyRootInlineBox> m_endLine;
+    LegacyRootInlineBox* m_endLine { nullptr };
 
     LayoutUnit m_adjustedLogicalLineTop;
 
-    SingleThreadWeakPtr<RenderFragmentedFlow> m_fragmentedFlow;
+    RenderFragmentedFlow* m_fragmentedFlow { nullptr };
 
     FloatList m_floatList;
     // FIXME: Should this be a range object instead of two ints?

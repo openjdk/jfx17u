@@ -25,7 +25,6 @@
 
 #pragma once
 
-#include "ExceptionOr.h"
 #include "GPUBasedCanvasRenderingContext.h"
 #include <variant>
 #include <wtf/IsoMalloc.h>
@@ -56,7 +55,7 @@ public:
     static std::unique_ptr<GPUCanvasContext> create(CanvasBase&, GPU&);
 
     virtual CanvasType canvas() = 0;
-    virtual ExceptionOr<void> configure(GPUCanvasConfiguration&&) = 0;
+    virtual void configure(GPUCanvasConfiguration&&) = 0;
     virtual void unconfigure() = 0;
     virtual RefPtr<GPUTexture> getCurrentTexture() = 0;
 

@@ -41,7 +41,6 @@ enum class GPUFeatureName : uint8_t {
     ShaderF16,
     Rg11b10ufloatRenderable,
     Bgra8unormStorage,
-    Float32Filterable,
 };
 
 inline WebGPU::FeatureName convertToBacking(GPUFeatureName featureName)
@@ -67,8 +66,6 @@ inline WebGPU::FeatureName convertToBacking(GPUFeatureName featureName)
         return WebGPU::FeatureName::ShaderF16;
     case GPUFeatureName::Rg11b10ufloatRenderable:
         return WebGPU::FeatureName::Rg11b10ufloatRenderable;
-    case GPUFeatureName::Float32Filterable:
-        return WebGPU::FeatureName::Float32Filterable;
     }
     RELEASE_ASSERT_NOT_REACHED();
 }

@@ -80,9 +80,9 @@ DOMAudioSession::~DOMAudioSession()
 
 ExceptionOr<void> DOMAudioSession::setType(Type type)
 {
-    RefPtr document = downcast<Document>(scriptExecutionContext());
+    auto* document = downcast<Document>(scriptExecutionContext());
     if (!document)
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
 
     if (!isFeaturePolicyAllowedByDocumentAndAllOwners(FeaturePolicy::Type::Microphone, *document, LogFeaturePolicyFailure::No))
         return { };
@@ -100,7 +100,7 @@ ExceptionOr<void> DOMAudioSession::setType(Type type)
 
 DOMAudioSession::Type DOMAudioSession::type() const
 {
-    RefPtr document = downcast<Document>(scriptExecutionContext());
+    auto* document = downcast<Document>(scriptExecutionContext());
     if (document && !isFeaturePolicyAllowedByDocumentAndAllOwners(FeaturePolicy::Type::Microphone, *document, LogFeaturePolicyFailure::No))
         return DOMAudioSession::Type::Auto;
 
@@ -120,7 +120,7 @@ static DOMAudioSession::State computeAudioSessionState()
 
 DOMAudioSession::State DOMAudioSession::state() const
 {
-    RefPtr document = downcast<Document>(scriptExecutionContext());
+    auto* document = downcast<Document>(scriptExecutionContext());
     if (!document || !isFeaturePolicyAllowedByDocumentAndAllOwners(FeaturePolicy::Type::Microphone, *document, LogFeaturePolicyFailure::No))
         return DOMAudioSession::State::Inactive;
 
@@ -160,7 +160,7 @@ void DOMAudioSession::audioSessionActiveStateChanged()
 
 void DOMAudioSession::scheduleStateChangeEvent()
 {
-    RefPtr document = downcast<Document>(scriptExecutionContext());
+    auto* document = downcast<Document>(scriptExecutionContext());
     if (document && !isFeaturePolicyAllowedByDocumentAndAllOwners(FeaturePolicy::Type::Microphone, *document, LogFeaturePolicyFailure::No))
         return;
 

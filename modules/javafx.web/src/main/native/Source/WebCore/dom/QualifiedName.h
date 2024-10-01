@@ -86,7 +86,7 @@ public:
     explicit QualifiedName(WTF::HashTableDeletedValueType) : m_impl(WTF::HashTableDeletedValue) { }
     bool isHashTableDeletedValue() const { return m_impl.isHashTableDeletedValue(); }
 
-    friend bool operator==(const QualifiedName&, const QualifiedName&) = default;
+    bool operator==(const QualifiedName& other) const { return m_impl == other.m_impl; }
 
     bool matches(const QualifiedName& other) const { return m_impl == other.m_impl || (localName() == other.localName() && namespaceURI() == other.namespaceURI()); }
 
@@ -132,8 +132,7 @@ inline void add(Hasher& hasher, const QualifiedName& name)
 extern LazyNeverDestroyed<const QualifiedName> anyName;
 inline const QualifiedName& anyQName() { return anyName; }
 
-extern LazyNeverDestroyed<const QualifiedName> nullName;
-inline const QualifiedName& nullQName() { return nullName; }
+const QualifiedName& nullQName();
 
 inline bool operator==(const AtomString& a, const QualifiedName& q) { return a == q.localName(); }
 inline bool operator==(const QualifiedName& q, const AtomString& a) { return a == q.localName(); }

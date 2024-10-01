@@ -42,10 +42,6 @@
 #include <unistd.h>
 #endif
 
-#if OS(QNX)
-#include <sys/storage.h>
-#endif
-
 #endif
 
 namespace WTF {
@@ -95,16 +91,6 @@ StackBounds StackBounds::newThreadStackBounds(PlatformThreadHandle thread)
     pthread_stackseg_np(thread, &stack);
     void* origin = stack.ss_sp;
     void* bound = static_cast<char*>(origin) - stack.ss_size;
-    return StackBounds { origin, bound };
-}
-
-#elif OS(QNX)
-
-StackBounds StackBounds::newThreadStackBounds(PlatformThreadHandle thread)
-{
-    struct _thread_local_storage* tls = __tls();
-    void* bound = tls->__stackaddr;
-    void* origin = static_cast<char*>(bound) + tls->__stacksize;
     return StackBounds { origin, bound };
 }
 

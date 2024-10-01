@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "ServiceWorkerIdentifier.h"
 
 namespace WebCore {
@@ -51,3 +53,5 @@ private:
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

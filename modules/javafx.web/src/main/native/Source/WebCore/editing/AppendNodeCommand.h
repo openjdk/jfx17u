@@ -46,9 +46,6 @@ private:
     void getNodesInCommand(HashSet<Ref<Node>>&) override;
 #endif
 
-    Ref<ContainerNode> protectedParent() const { return m_parent; }
-    Ref<Node> protectedNode() const { return m_node; }
-
     Ref<ContainerNode> m_parent;
     Ref<Node> m_node;
 };

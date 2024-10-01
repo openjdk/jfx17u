@@ -36,7 +36,7 @@ namespace WebCore {
 class LocalFrame;
 class SecurityOrigin;
 
-enum class OpaqueOriginIdentifierType { };
+enum OpaqueOriginIdentifierType { };
 using OpaqueOriginIdentifier = AtomicObjectIdentifier<OpaqueOriginIdentifierType>;
 
 class SecurityOriginData {
@@ -46,7 +46,7 @@ public:
         String host;
         std::optional<uint16_t> port;
 
-        friend bool operator==(const Tuple&, const Tuple&) = default;
+        bool operator==(const Tuple& other) const { return protocol == other.protocol && host == other.host && port == other.port; }
         Tuple isolatedCopy() const & { return { protocol.isolatedCopy(), host.isolatedCopy(), port }; }
         Tuple isolatedCopy() && { return { WTFMove(protocol).isolatedCopy(), WTFMove(host).isolatedCopy(), port }; }
     };

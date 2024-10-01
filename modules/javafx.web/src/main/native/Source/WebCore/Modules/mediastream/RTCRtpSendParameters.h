@@ -43,7 +43,7 @@ struct RTCRtpSendParameters : RTCRtpParameters {
 
     String transactionId;
     Vector<RTCRtpEncodingParameters> encodings;
-    std::optional<RTCDegradationPreference> degradationPreference;
+    RTCDegradationPreference degradationPreference { RTCDegradationPreference::Balanced };
 };
 
 

@@ -107,7 +107,6 @@ public:
     void unregisterPerformanceObserver(PerformanceObserver&);
 
     static void allowHighPrecisionTime();
-    static Seconds timeResolution();
     static Seconds reduceTimeResolution(Seconds);
 
     DOMHighResTimeStamp relativeTimeFromTimeOriginInReducedResolution(MonotonicTime) const;

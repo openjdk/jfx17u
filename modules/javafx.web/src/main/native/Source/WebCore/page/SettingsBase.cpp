@@ -36,7 +36,6 @@
 #include "DOMTimer.h"
 #include "Database.h"
 #include "Document.h"
-#include "DocumentInlines.h"
 #include "FontCache.h"
 #include "FrameTree.h"
 #include "HistoryItem.h"

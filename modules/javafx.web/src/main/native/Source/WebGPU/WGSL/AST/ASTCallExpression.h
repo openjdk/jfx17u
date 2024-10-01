@@ -26,12 +26,9 @@
 #pragma once
 
 #include "ASTExpression.h"
+#include "ASTTypeName.h"
 
-namespace WGSL {
-class RewriteGlobalVariables;
-class TypeChecker;
-
-namespace AST {
+namespace WGSL::AST {
 
 // A CallExpression expresses a "function" call, which consists of a target to be called,
 // and a list of arguments. The target does not necesserily have to be a function identifier,
@@ -39,21 +36,13 @@ namespace AST {
 // kind of expression can only be resolved during semantic analysis.
 class CallExpression final : public Expression {
     WGSL_AST_BUILDER_NODE(CallExpression);
-
-    friend RewriteGlobalVariables;
-    friend TypeChecker;
-
 public:
-    using Ref = std::reference_wrapper<CallExpression>;
-
     NodeKind kind() const override;
-    Expression& target() { return m_target.get(); }
+    TypeName& target() { return m_target.get(); }
     Expression::List& arguments() { return m_arguments; }
 
-    bool isConstructor() const { return m_isConstructor; }
-
 private:
-    CallExpression(SourceSpan span, Expression::Ref&& target, Expression::List&& arguments)
+    CallExpression(SourceSpan span, TypeName::Ref&& target, Expression::List&& arguments)
         : Expression(span)
         , m_target(WTFMove(target))
         , m_arguments(WTFMove(arguments))
@@ -63,13 +52,10 @@ private:
     //   * Type that does not accept parameters (bool, i32, u32, ...)
     //   * Identifier that refers to a type alias.
     //   * Identifier that refers to a function.
-    Expression::Ref m_target;
+    TypeName::Ref m_target;
     Expression::List m_arguments;
-
-    bool m_isConstructor { false };
 };
 
-} // namespace AST
-} // namespace WGSL
+} // namespace WGSL::AST
 
 SPECIALIZE_TYPE_TRAITS_WGSL_AST(CallExpression)

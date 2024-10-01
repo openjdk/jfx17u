@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "FetchIdentifier.h"
 #include "ResourceResponse.h"
 #include "ScriptExecutionContextIdentifier.h"
@@ -69,3 +71,5 @@ void dispatchFetchEvent(Ref<Client>&&, ServiceWorkerGlobalScope&, ResourceReques
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

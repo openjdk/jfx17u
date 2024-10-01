@@ -51,7 +51,3 @@ private:
 };
 
 } // namespace WebCore
-
-SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::SliderThumbPart) \
-    static bool isType(const WebCore::ControlPart& part) { return part.type() == WebCore::StyleAppearance::SliderThumbHorizontal || part.type() == WebCore::StyleAppearance::SliderThumbVertical; } \
-SPECIALIZE_TYPE_TRAITS_END()

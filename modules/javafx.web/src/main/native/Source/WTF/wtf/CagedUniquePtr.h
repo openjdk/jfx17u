@@ -29,15 +29,15 @@
 
 namespace WTF {
 
-template<Gigacage::Kind kind, typename T>
-class CagedUniquePtr : public CagedPtr<kind, T> {
+template<Gigacage::Kind kind, typename T, bool shouldTag = false>
+class CagedUniquePtr : public CagedPtr<kind, T, shouldTag> {
     static_assert(std::is_trivially_destructible<T>::value, "We expect the contents of a caged pointer to be trivially destructable.");
 public:
-    using Base = CagedPtr<kind, T>;
+    using Base = CagedPtr<kind, T, shouldTag>;
     CagedUniquePtr() = default;
 
-    CagedUniquePtr(T* ptr)
-        : Base(ptr)
+    CagedUniquePtr(T* ptr, size_t size)
+        : Base(ptr, size)
     { }
 
     CagedUniquePtr(CagedUniquePtr&& ptr)
@@ -52,7 +52,7 @@ public:
         T* result = static_cast<T*>(Gigacage::malloc(kind, sizeof(T) * length));
         while (length--)
             new (result + length) T(arguments...);
-        return CagedUniquePtr(result);
+        return CagedUniquePtr(result, length);
     }
 
     template<typename... Arguments>
@@ -63,7 +63,7 @@ public:
             return { };
         while (length--)
             new (result + length) T(arguments...);
-        return CagedUniquePtr(result);
+        return CagedUniquePtr(result, length);
     }
 
     CagedUniquePtr& operator=(CagedUniquePtr&& ptr)

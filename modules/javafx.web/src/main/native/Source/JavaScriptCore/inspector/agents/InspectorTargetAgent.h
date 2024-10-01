@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2018 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,7 +30,6 @@
 #include "InspectorFrontendChannel.h"
 #include "InspectorFrontendDispatchers.h"
 #include <wtf/Forward.h>
-#include <wtf/TZoneMalloc.h>
 
 namespace Inspector {
 
@@ -38,7 +37,7 @@ class InspectorTarget;
 
 class JS_EXPORT_PRIVATE InspectorTargetAgent final : public InspectorAgentBase, public TargetBackendDispatcherHandler {
     WTF_MAKE_NONCOPYABLE(InspectorTargetAgent);
-    WTF_MAKE_TZONE_ALLOCATED(InspectorTargetAgent);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     InspectorTargetAgent(FrontendRouter&, BackendDispatcher&);
     ~InspectorTargetAgent() final;

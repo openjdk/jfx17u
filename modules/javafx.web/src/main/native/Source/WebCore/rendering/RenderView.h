@@ -24,8 +24,8 @@
 #include "LocalFrameView.h"
 #include "Region.h"
 #include "RenderBlockFlow.h"
-#include "RenderSelection.h"
 #include "RenderWidget.h"
+#include "SelectionRangeData.h"
 #include <memory>
 #include <wtf/HashSet.h>
 #include <wtf/ListHashSet.h>
@@ -74,7 +74,6 @@ public:
     float zoomFactor() const;
 
     LocalFrameView& frameView() const { return m_frameView; }
-    Ref<LocalFrameView> protectedFrameView() const { return m_frameView; }
 
     Layout::InitialContainingBlock& initialContainingBlock() { return m_initialContainingBlock.get(); }
     const Layout::InitialContainingBlock& initialContainingBlock() const { return m_initialContainingBlock.get(); }
@@ -87,7 +86,7 @@ public:
     bool needsEventRegionUpdateForNonCompositedFrame() const { return m_needsEventRegionUpdateForNonCompositedFrame; }
     void setNeedsEventRegionUpdateForNonCompositedFrame(bool value = true) { m_needsEventRegionUpdateForNonCompositedFrame = value; }
 
-    std::optional<RepaintRects> computeVisibleRectsInContainer(const RepaintRects&, const RenderLayerModelObject* container, VisibleRectContext) const override;
+    std::optional<LayoutRect> computeVisibleRectInContainer(const LayoutRect&, const RenderLayerModelObject* container, VisibleRectContext) const override;
     void repaintRootContents();
     void repaintViewRectangle(const LayoutRect&) const;
     void repaintViewAndCompositedLayers();
@@ -97,7 +96,7 @@ public:
     // Return the renderer whose background style is used to paint the root background.
     RenderElement* rendererForRootBackground() const;
 
-    RenderSelection& selection() { return m_selection; }
+    SelectionRangeData& selection() { return m_selection; }
 
     bool printing() const;
 
@@ -149,7 +148,6 @@ public:
     // Renderer that paints the root background has background-images which all have background-attachment: fixed.
     bool rootBackgroundIsEntirelyFixed() const;
 
-    bool rootElementShouldPaintBaseBackground() const;
     bool shouldPaintBaseBackground() const;
 
     FloatSize sizeForCSSSmallViewportUnits() const;
@@ -161,7 +159,7 @@ public:
     void setHasQuotesNeedingUpdate(bool b) { m_hasQuotesNeedingUpdate = b; }
 
     void addCounterNeedingUpdate(RenderCounter&);
-    SingleThreadWeakHashSet<RenderCounter> takeCountersNeedingUpdate();
+    WeakHashSet<RenderCounter> takeCountersNeedingUpdate();
 
     void incrementRendersWithOutline() { ++m_renderersWithOutlineCount; }
     void decrementRendersWithOutline() { ASSERT(m_renderersWithOutlineCount > 0); --m_renderersWithOutlineCount; }
@@ -195,23 +193,23 @@ public:
         ~RepaintRegionAccumulator();
 
     private:
-        SingleThreadWeakPtr<RenderView> m_rootView;
+        WeakPtr<RenderView> m_rootView;
         bool m_wasAccumulatingRepaintRegion { false };
     };
+
+    void scheduleLazyRepaint(RenderBox&);
+    void unscheduleLazyRepaint(RenderBox&);
 
     void layerChildrenChangedDuringStyleChange(RenderLayer&);
     RenderLayer* takeStyleChangeLayerTreeMutationRoot();
 
     void registerBoxWithScrollSnapPositions(const RenderBox&);
     void unregisterBoxWithScrollSnapPositions(const RenderBox&);
-    const SingleThreadWeakHashSet<const RenderBox>& boxesWithScrollSnapPositions() { return m_boxesWithScrollSnapPositions; }
+    const HashSet<const RenderBox*>& boxesWithScrollSnapPositions() { return m_boxesWithScrollSnapPositions; }
 
     void registerContainerQueryBox(const RenderBox&);
     void unregisterContainerQueryBox(const RenderBox&);
-    const SingleThreadWeakHashSet<const RenderBox>& containerQueryBoxes() const { return m_containerQueryBoxes; }
-
-    SingleThreadWeakPtr<RenderElement> viewTransitionRoot() const;
-    void setViewTransitionRoot(RenderElement& renderer);
+    const WeakHashSet<const RenderBox>& containerQueryBoxes() const { return m_containerQueryBoxes; }
 
 private:
     void styleDidChange(StyleDifference, const RenderStyle* oldStyle) override;
@@ -239,14 +237,13 @@ private:
     // Include this RenderView.
     uint64_t m_rendererCount { 1 };
 
-    // Note that currently RenderView::layoutBox(), if it exists, is a child of m_initialContainingBlock.
     UniqueRef<Layout::InitialContainingBlock> m_initialContainingBlock;
     UniqueRef<Layout::LayoutState> m_layoutState;
 
     mutable std::unique_ptr<Region> m_accumulatedRepaintRegion;
-    RenderSelection m_selection;
+    SelectionRangeData m_selection;
 
-    SingleThreadWeakPtr<RenderLayer> m_styleChangeLayerMutationRoot;
+    WeakPtr<RenderLayer> m_styleChangeLayerMutationRoot;
 
     // FIXME: Only used by embedded WebViews inside AppKit NSViews.  Find a way to remove.
     struct LegacyPrinting {
@@ -261,6 +258,11 @@ private:
 
     bool shouldUsePrintingLayout() const;
 
+    void lazyRepaintTimerFired();
+
+    Timer m_lazyRepaintTimer;
+    HashSet<RenderBox*> m_renderersNeedingLazyRepaint;
+
     std::unique_ptr<ImageQualityController> m_imageQualityController;
     std::optional<LayoutSize> m_pageLogicalSize;
     bool m_pageLogicalHeightChanged { false };
@@ -268,7 +270,7 @@ private:
 
     bool m_hasQuotesNeedingUpdate { false };
 
-    SingleThreadWeakHashSet<RenderCounter> m_countersNeedingUpdate;
+    WeakHashSet<RenderCounter> m_countersNeedingUpdate;
     unsigned m_renderCounterCount { 0 };
     unsigned m_renderersWithOutlineCount { 0 };
 
@@ -276,14 +278,12 @@ private:
     bool m_needsRepaintHackAfterCompositingLayerUpdateForDebugOverlaysOnly { false };
     bool m_needsEventRegionUpdateForNonCompositedFrame { false };
 
-    SingleThreadWeakHashMap<RenderElement, Vector<WeakPtr<CachedImage>>> m_renderersWithPausedImageAnimation;
+    HashMap<RenderElement*, Vector<CachedImage*>> m_renderersWithPausedImageAnimation;
     WeakHashSet<SVGSVGElement, WeakPtrImplWithEventTargetData> m_SVGSVGElementsWithPausedImageAnimation;
-    SingleThreadWeakHashSet<RenderElement> m_visibleInViewportRenderers;
+    HashSet<RenderElement*> m_visibleInViewportRenderers;
 
-    SingleThreadWeakHashSet<const RenderBox> m_boxesWithScrollSnapPositions;
-    SingleThreadWeakHashSet<const RenderBox> m_containerQueryBoxes;
-
-    SingleThreadWeakPtr<RenderElement> m_viewTransitionRoot;
+    HashSet<const RenderBox*> m_boxesWithScrollSnapPositions;
+    WeakHashSet<const RenderBox> m_containerQueryBoxes;
 };
 
 } // namespace WebCore

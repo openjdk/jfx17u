@@ -40,21 +40,21 @@ ExceptionOr<Vector<uint8_t>> CryptoAlgorithmECDSA::platformSign(const CryptoAlgo
 
     const EVP_MD* md = digestAlgorithm(parameters.hashIdentifier);
     if (!md)
-        return Exception { ExceptionCode::NotSupportedError };
+        return Exception { NotSupportedError };
 
     std::optional<Vector<uint8_t>> digest = calculateDigest(md, data);
     if (!digest)
-        return Exception { ExceptionCode::OperationError };
+        return Exception { OperationError };
 
     EC_KEY* ecKey = EVP_PKEY_get0_EC_KEY(key.platformKey());
     if (!ecKey)
-        return Exception { ExceptionCode::OperationError };
+        return Exception { OperationError };
 
     // We use ECDSA_do_sign rather than EVP API because the latter handles ECDSA signature in DER format
     // while this function is supposed to return simply concatinated "r" and "s".
     auto sig = ECDSASigPtr(ECDSA_do_sign(digest->data(), digest->size(), ecKey));
     if (!sig)
-        return Exception { ExceptionCode::OperationError };
+        return Exception { OperationError };
 
     const BIGNUM* r;
     const BIGNUM* s;
@@ -80,19 +80,19 @@ ExceptionOr<bool> CryptoAlgorithmECDSA::platformVerify(const CryptoAlgorithmEcds
     auto s = BN_bin2bn(signature.data() + keySizeInBytes, keySizeInBytes, nullptr);
 
     if (!ECDSA_SIG_set0(sig.get(), r, s))
-        return Exception { ExceptionCode::OperationError };
+        return Exception { OperationError };
 
     const EVP_MD* md = digestAlgorithm(parameters.hashIdentifier);
     if (!md)
-        return Exception { ExceptionCode::NotSupportedError };
+        return Exception { NotSupportedError };
 
     std::optional<Vector<uint8_t>> digest = calculateDigest(md, data);
     if (!digest)
-        return Exception { ExceptionCode::OperationError };
+        return Exception { OperationError };
 
     EC_KEY* ecKey = EVP_PKEY_get0_EC_KEY(key.platformKey());
     if (!ecKey)
-        return Exception { ExceptionCode::OperationError };
+        return Exception { OperationError };
 
     int ret = ECDSA_do_verify(digest->data(), digest->size(), sig.get(), ecKey);
     return ret == 1;

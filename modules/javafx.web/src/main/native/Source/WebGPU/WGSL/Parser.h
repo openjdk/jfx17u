@@ -25,12 +25,12 @@
 
 #pragma once
 
-#include "WGSL.h"
+#include "CompilationMessage.h"
 
 namespace WGSL {
 
 class ShaderModule;
 
-std::optional<FailedCheck> parse(ShaderModule&);
+std::optional<Error> parse(ShaderModule&);
 
 } // namespace WGSL

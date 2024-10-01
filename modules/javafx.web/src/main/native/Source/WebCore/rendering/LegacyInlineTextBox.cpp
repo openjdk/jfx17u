@@ -32,8 +32,8 @@
 #include "ElementRuleCollector.h"
 #include "EventRegion.h"
 #include "FloatRoundedRect.h"
-#include "GlyphDisplayListCache.h"
 #include "GraphicsContext.h"
+#include "HighlightData.h"
 #include "HitTestResult.h"
 #include "ImageBuffer.h"
 #include "InlineIteratorBoxInlines.h"
@@ -47,7 +47,6 @@
 #include "RenderBlock.h"
 #include "RenderCombineText.h"
 #include "RenderElementInlines.h"
-#include "RenderHighlight.h"
 #include "RenderLineBreak.h"
 #include "RenderRubyRun.h"
 #include "RenderRubyText.h"
@@ -62,6 +61,7 @@
 #include "TextBoxSelectableRange.h"
 #include "TextDecorationPainter.h"
 #include "TextPaintStyle.h"
+#include "TextPainter.h"
 #include <stdio.h>
 #include <wtf/IsoMallocInlines.h>
 #include <wtf/text/CString.h>
@@ -86,8 +86,7 @@ LegacyInlineTextBox::~LegacyInlineTextBox()
 {
     if (!knownToHaveNoOverflow() && gTextBoxesWithOverflow)
         gTextBoxesWithOverflow->remove(this);
-    if (isInGlyphDisplayListCache())
-        removeBoxFromGlyphDisplayListCache(*this);
+    TextPainter::removeGlyphDisplayList(*this);
 }
 
 bool LegacyInlineTextBox::hasTextContent() const
@@ -447,11 +446,7 @@ String LegacyInlineTextBox::text(bool ignoreCombinedText, bool ignoreHyphen) con
 
 const RenderCombineText* LegacyInlineTextBox::combinedText() const
 {
-    if (!lineStyle().hasTextCombine())
-        return nullptr;
-
-    auto* renderCombineText = dynamicDowncast<RenderCombineText>(renderer());
-    return renderCombineText && renderCombineText->isCombined() ? renderCombineText : nullptr;
+    return lineStyle().hasTextCombine() && is<RenderCombineText>(renderer()) && downcast<RenderCombineText>(renderer()).isCombined() ? &downcast<RenderCombineText>(renderer()) : nullptr;
 }
 
 ExpansionBehavior LegacyInlineTextBox::expansionBehavior() const

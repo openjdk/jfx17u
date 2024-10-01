@@ -26,6 +26,8 @@
 #include "config.h"
 #include "NavigationPreloadManager.h"
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "ServiceWorkerContainer.h"
 #include "ServiceWorkerRegistration.h"
 
@@ -52,3 +54,5 @@ void NavigationPreloadManager::getState(StatePromise&& promise)
 }
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

@@ -158,7 +158,12 @@ private:
             return WTF::bitCount(m_characters[0]) + WTF::bitCount(m_characters[1]);
         }
 
-        friend bool operator==(const CharacterSet&, const CharacterSet&) = default;
+        bool operator==(const CharacterSet& other) const
+        {
+            return other.m_inverted == m_inverted
+                && other.m_characters[0] == m_characters[0]
+                && other.m_characters[1] == m_characters[1];
+        }
 
     private:
         friend void add(Hasher&, const CharacterSet&);
@@ -171,7 +176,10 @@ private:
     struct Group {
         Vector<Term> terms;
 
-        friend bool operator==(const Group&, const Group&) = default;
+        bool operator==(const Group& other) const
+        {
+            return other.terms == terms;
+        }
     };
     friend void add(Hasher&, const Term::Group&);
 

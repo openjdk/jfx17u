@@ -27,20 +27,22 @@
 #include "LayoutRepainter.h"
 
 #include "RenderElement.h"
-#include "RenderLayerModelObject.h"
 
 namespace WebCore {
 
 LayoutRepainter::LayoutRepainter(RenderElement& renderer, bool checkForRepaint, RepaintOutlineBounds repaintOutlineBounds)
     : m_renderer(renderer)
     , m_checkForRepaint(checkForRepaint)
-    , m_repaintOutlineBounds(repaintOutlineBounds)
+    , m_repaintOutlineBounds(repaintOutlineBounds == RepaintOutlineBounds::Yes)
 {
     if (!m_checkForRepaint)
         return;
 
-    m_repaintContainer = m_renderer.containerForRepaint().renderer.get();
-    m_oldRects = m_renderer.rectsForRepaintingAfterLayout(m_repaintContainer, m_repaintOutlineBounds);
+    m_repaintContainer = m_renderer.containerForRepaint().renderer;
+    m_oldBounds = m_renderer.clippedOverflowRectForRepaint(m_repaintContainer);
+
+    if (m_repaintOutlineBounds)
+        m_oldOutlineBounds = m_renderer.outlineBoundsForRepaint(m_repaintContainer);
 }
 
 bool LayoutRepainter::repaintAfterLayout()
@@ -48,10 +50,10 @@ bool LayoutRepainter::repaintAfterLayout()
     if (!m_checkForRepaint)
         return false;
 
-    auto requiresFullRepaint = m_renderer.selfNeedsLayout() ? RequiresFullRepaint::Yes : RequiresFullRepaint::No;
-    // Outline bounds are not used if we're doing a full repaint.
-    auto newRects = m_renderer.rectsForRepaintingAfterLayout(m_repaintContainer, (requiresFullRepaint == RequiresFullRepaint::Yes) ? RepaintOutlineBounds::No : m_repaintOutlineBounds);
-    return m_renderer.repaintAfterLayoutIfNeeded(m_repaintContainer, requiresFullRepaint, m_oldRects, newRects);
+    auto newBounds = m_renderer.clippedOverflowRectForRepaint(m_repaintContainer);
+    auto newOutlineBounds = m_repaintOutlineBounds ? nullptr : &m_oldOutlineBounds;
+
+    return m_renderer.repaintAfterLayoutIfNeeded(m_repaintContainer, m_oldBounds, m_oldOutlineBounds, &newBounds, newOutlineBounds);
 }
 
 } // namespace WebCore

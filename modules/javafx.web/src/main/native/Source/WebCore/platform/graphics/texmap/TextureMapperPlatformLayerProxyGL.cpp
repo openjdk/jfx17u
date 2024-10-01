@@ -28,7 +28,8 @@
 
 #if USE(COORDINATED_GRAPHICS)
 
-#include "BitmapTexture.h"
+#include "BitmapTextureGL.h"
+#include "TextureMapperGL.h"
 #include "TextureMapperLayer.h"
 #include "TextureMapperPlatformLayerBuffer.h"
 
@@ -42,10 +43,7 @@ static const Seconds releaseUnusedBuffersTimerInterval = { 500_ms };
 
 namespace WebCore {
 
-TextureMapperPlatformLayerProxyGL::TextureMapperPlatformLayerProxyGL(bool disableBufferInvalidation)
-    : m_disableBufferInvalidation(disableBufferInvalidation)
-{
-}
+TextureMapperPlatformLayerProxyGL::TextureMapperPlatformLayerProxyGL() = default;
 
 TextureMapperPlatformLayerProxyGL::~TextureMapperPlatformLayerProxyGL()
 {
@@ -104,12 +102,10 @@ void TextureMapperPlatformLayerProxyGL::invalidate()
             m_targetLayer = nullptr;
         }
 
-        if (!m_disableBufferInvalidation) {
         m_currentBuffer = nullptr;
         m_pendingBuffer = nullptr;
         m_releaseUnusedBuffersTimer = nullptr;
         m_usedBuffers.clear();
-        }
 
         // Clear the timer and dispatch the update function manually now.
         m_compositorThreadUpdateTimer = nullptr;
@@ -140,7 +136,7 @@ void TextureMapperPlatformLayerProxyGL::pushNextBuffer(std::unique_ptr<TextureMa
 std::unique_ptr<TextureMapperPlatformLayerBuffer> TextureMapperPlatformLayerProxyGL::getAvailableBuffer(const IntSize& size, GLint internalFormat)
 {
     ASSERT(m_lock.isHeld());
-
+    ASSERT(m_compositorThread == &Thread::current());
     std::unique_ptr<TextureMapperPlatformLayerBuffer> availableBuffer;
 
     auto buffers = WTFMove(m_usedBuffers);

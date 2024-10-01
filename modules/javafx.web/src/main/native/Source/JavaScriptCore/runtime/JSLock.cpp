@@ -198,9 +198,8 @@ void JSLock::unlock(intptr_t unlockCount) WTF_IGNORES_THREAD_SAFETY_ANALYSIS
 
 void JSLock::willReleaseLock()
 {
-    {
-        RefPtr protectedVM { m_vm };
-        if (protectedVM) {
+    RefPtr<VM> vm = m_vm;
+    if (vm) {
         static bool useLegacyDrain = false;
 #if PLATFORM(COCOA)
         static std::once_flag once;
@@ -210,17 +209,16 @@ void JSLock::willReleaseLock()
 #endif
 
         if (!m_lockDropDepth || useLegacyDrain)
-                protectedVM->drainMicrotasks();
+            vm->drainMicrotasks();
 
-            if (!protectedVM->topCallFrame)
-                protectedVM->clearLastException();
+        if (!vm->topCallFrame)
+            vm->clearLastException();
 
-            protectedVM->heap.releaseDelayedReleasedObjects();
-            protectedVM->setStackPointerAtVMEntry(nullptr);
+        vm->heap.releaseDelayedReleasedObjects();
+        vm->setStackPointerAtVMEntry(nullptr);
 
         if (m_shouldReleaseHeapAccess)
-                protectedVM->heap.releaseAccess();
-        }
+            vm->heap.releaseAccess();
     }
 
     if (m_entryAtomStringTable) {

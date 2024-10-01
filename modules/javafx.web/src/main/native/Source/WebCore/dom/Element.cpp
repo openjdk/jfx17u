@@ -30,7 +30,6 @@
 #include "Attr.h"
 #include "AttributeChangeInvalidation.h"
 #include "CSSParser.h"
-#include "CheckVisibilityOptions.h"
 #include "ChildChangeInvalidation.h"
 #include "ChildListMutationScope.h"
 #include "Chrome.h"
@@ -43,7 +42,6 @@
 #include "ContentVisibilityDocumentState.h"
 #include "CustomElementReactionQueue.h"
 #include "CustomElementRegistry.h"
-#include "CustomStateSet.h"
 #include "DOMRect.h"
 #include "DOMRectList.h"
 #include "DOMTokenList.h"
@@ -115,7 +113,6 @@
 #include "RenderLayerScrollableArea.h"
 #include "RenderListBox.h"
 #include "RenderSVGModelObject.h"
-#include "RenderStyleSetters.h"
 #include "RenderTheme.h"
 #include "RenderTreeUpdater.h"
 #include "RenderView.h"
@@ -171,9 +168,9 @@ static_assert(sizeof(Element) == sizeof(SameSizeAsElement), "Element should stay
 using namespace HTMLNames;
 using namespace XMLNames;
 
-static HashMap<WeakRef<Element, WeakPtrImplWithEventTargetData>, Vector<RefPtr<Attr>>>& attrNodeListMap()
+static HashMap<Element*, Vector<RefPtr<Attr>>>& attrNodeListMap()
 {
-    static NeverDestroyed<HashMap<WeakRef<Element, WeakPtrImplWithEventTargetData>, Vector<RefPtr<Attr>>>> map;
+    static NeverDestroyed<HashMap<Element*, Vector<RefPtr<Attr>>>> map;
     return map;
 }
 
@@ -181,26 +178,26 @@ static Vector<RefPtr<Attr>>* attrNodeListForElement(Element& element)
 {
     if (!element.hasSyntheticAttrChildNodes())
         return nullptr;
-    ASSERT(attrNodeListMap().contains(element));
-    return &attrNodeListMap().find(element)->value;
+    ASSERT(attrNodeListMap().contains(&element));
+    return &attrNodeListMap().find(&element)->value;
 }
 
 static Vector<RefPtr<Attr>>& ensureAttrNodeListForElement(Element& element)
 {
     if (element.hasSyntheticAttrChildNodes()) {
-        ASSERT(attrNodeListMap().contains(element));
-        return attrNodeListMap().find(element)->value;
+        ASSERT(attrNodeListMap().contains(&element));
+        return attrNodeListMap().find(&element)->value;
     }
-    ASSERT(!attrNodeListMap().contains(element));
+    ASSERT(!attrNodeListMap().contains(&element));
     element.setHasSyntheticAttrChildNodes(true);
-    return attrNodeListMap().add(element, Vector<RefPtr<Attr>>()).iterator->value;
+    return attrNodeListMap().add(&element, Vector<RefPtr<Attr>>()).iterator->value;
 }
 
 static void removeAttrNodeListForElement(Element& element)
 {
     ASSERT(element.hasSyntheticAttrChildNodes());
-    ASSERT(attrNodeListMap().contains(element));
-    attrNodeListMap().remove(element);
+    ASSERT(attrNodeListMap().contains(&element));
+    attrNodeListMap().remove(&element);
     element.setHasSyntheticAttrChildNodes(false);
 }
 
@@ -213,44 +210,48 @@ static Attr* findAttrNodeInList(Vector<RefPtr<Attr>>& attrNodeList, const Qualif
     return nullptr;
 }
 
+static Attr* findAttrNodeInList(Vector<RefPtr<Attr>>& attrNodeList, const AtomString& localName, bool shouldIgnoreAttributeCase)
+{
+    const AtomString& caseAdjustedName = shouldIgnoreAttributeCase ? localName.convertToASCIILowercase() : localName;
+    for (auto& node : attrNodeList) {
+        if (node->qualifiedName().localName() == caseAdjustedName)
+            return node.get();
+    }
+    return nullptr;
+}
+
 static bool shouldAutofocus(const Element& element)
 {
     if (!element.hasAttributeWithoutSynchronization(HTMLNames::autofocusAttr))
         return false;
 
-    Ref document = element.document();
-    if (!element.isInDocumentTree() || !document->hasBrowsingContext())
+    auto& document = element.document();
+    if (!element.isInDocumentTree() || !document.hasBrowsingContext())
         return false;
 
-    if (document->isSandboxed(SandboxAutomaticFeatures)) {
+    if (document.isSandboxed(SandboxAutomaticFeatures)) {
         // FIXME: This message should be moved off the console once a solution to https://bugs.webkit.org/show_bug.cgi?id=103274 exists.
-        document->addConsoleMessage(MessageSource::Security, MessageLevel::Error, "Blocked autofocusing on a form control because the form's frame is sandboxed and the 'allow-scripts' permission is not set."_s);
+        document.addConsoleMessage(MessageSource::Security, MessageLevel::Error, "Blocked autofocusing on a form control because the form's frame is sandboxed and the 'allow-scripts' permission is not set."_s);
         return false;
     }
-    if (!document->frame()->isMainFrame() && !document->topOrigin().isSameOriginDomain(document->securityOrigin())) {
-        document->addConsoleMessage(MessageSource::Security, MessageLevel::Error, "Blocked autofocusing on a form control in a cross-origin subframe."_s);
+    if (!document.frame()->isMainFrame() && !document.topOrigin().isSameOriginDomain(document.securityOrigin())) {
+        document.addConsoleMessage(MessageSource::Security, MessageLevel::Error, "Blocked autofocusing on a form control in a cross-origin subframe."_s);
         return false;
     }
 
-    if (document->topDocument().isAutofocusProcessed())
+    if (document.topDocument().isAutofocusProcessed())
         return false;
 
     return true;
 }
 
-static HashMap<WeakRef<Element, WeakPtrImplWithEventTargetData>, ElementIdentifier>& elementIdentifiersMap()
-{
-    static MainThreadNeverDestroyed<HashMap<WeakRef<Element, WeakPtrImplWithEventTargetData>, ElementIdentifier>> map;
-    return map;
-}
-
 Ref<Element> Element::create(const QualifiedName& tagName, Document& document)
 {
-    return adoptRef(*new Element(tagName, document, { }));
+    return adoptRef(*new Element(tagName, document, CreateElement));
 }
 
-Element::Element(const QualifiedName& tagName, Document& document, OptionSet<TypeFlag> typeFlags)
-    : ContainerNode(document, ELEMENT_NODE, typeFlags | TypeFlag::IsElement)
+Element::Element(const QualifiedName& tagName, Document& document, ConstructionType type)
+    : ContainerNode(document, type)
     , m_tagName(tagName)
 {
 }
@@ -260,7 +261,6 @@ Element::~Element()
     ASSERT(!beforePseudoElement());
     ASSERT(!afterPseudoElement());
 
-    elementIdentifiersMap().remove(*this);
     disconnectFromIntersectionObservers();
 
     disconnectFromResizeObservers();
@@ -279,7 +279,7 @@ inline ElementRareData& Element::ensureElementRareData()
 inline void Node::setTabIndexState(TabIndexState state)
 {
     auto bitfields = rareDataBitfields();
-    bitfields.tabIndexState = enumToUnderlyingType(state);
+    bitfields.tabIndexState = static_cast<uint16_t>(state);
     setRareDataBitfields(bitfields);
 }
 
@@ -374,7 +374,8 @@ void Element::hideNonceSlow()
     ASSERT(isConnected());
     ASSERT(hasAttributeWithoutSynchronization(nonceAttr));
 
-    if (!protectedDocument()->checkedContentSecurityPolicy()->isHeaderDelivered())
+    const auto& csp = document().contentSecurityPolicy();
+    if (!csp->isHeaderDelivered())
         return;
 
     // Retain previous IDL nonce.
@@ -402,7 +403,7 @@ bool Element::isKeyboardFocusable(KeyboardEvent*) const
 {
     if (!(isFocusable() && !shouldBeIgnoredInSequentialFocusNavigation() && tabIndexSetExplicitly().value_or(0) >= 0))
         return false;
-    if (RefPtr root = shadowRoot()) {
+    if (auto* root = shadowRoot()) {
         if (root->delegatesFocus())
             return false;
     }
@@ -435,7 +436,7 @@ static bool isCompatibilityMouseEvent(const MouseEvent& mouseEvent)
 enum class ShouldIgnoreMouseEvent : bool { No, Yes };
 static ShouldIgnoreMouseEvent dispatchPointerEventIfNeeded(Element& element, const MouseEvent& mouseEvent, const PlatformMouseEvent& platformEvent, bool& didNotSwallowEvent)
 {
-    if (RefPtr page = element.document().page()) {
+    if (auto* page = element.document().page()) {
         auto& pointerCaptureController = page->pointerCaptureController();
 #if ENABLE(TOUCH_EVENTS)
         if (platformEvent.pointerId() != mousePointerID && mouseEvent.type() != eventNames().clickEvent && pointerCaptureController.preventsCompatibilityMouseEventsForIdentifier(platformEvent.pointerId()))
@@ -446,7 +447,7 @@ static ShouldIgnoreMouseEvent dispatchPointerEventIfNeeded(Element& element, con
         if (platformEvent.syntheticClickType() != SyntheticClickType::NoTap)
             return ShouldIgnoreMouseEvent::No;
 
-        if (RefPtr pointerEvent = pointerCaptureController.pointerEventForMouseEvent(mouseEvent, platformEvent.pointerId(), platformEvent.pointerType())) {
+        if (auto pointerEvent = pointerCaptureController.pointerEventForMouseEvent(mouseEvent, platformEvent.pointerId(), platformEvent.pointerType())) {
             pointerCaptureController.dispatchEvent(*pointerEvent, &element);
             if (isCompatibilityMouseEvent(mouseEvent) && pointerCaptureController.preventsCompatibilityMouseEventsForIdentifier(pointerEvent->pointerId()))
                 return ShouldIgnoreMouseEvent::Yes;
@@ -461,40 +462,37 @@ static ShouldIgnoreMouseEvent dispatchPointerEventIfNeeded(Element& element, con
     return ShouldIgnoreMouseEvent::No;
 }
 
-Element::DispatchMouseEventResult Element::dispatchMouseEvent(const PlatformMouseEvent& platformEvent, const AtomString& eventType, int detail, Element* relatedTarget, IsSyntheticClick isSyntheticClick)
+bool Element::dispatchMouseEvent(const PlatformMouseEvent& platformEvent, const AtomString& eventType, int detail, Element* relatedTarget, IsSyntheticClick isSyntheticClick)
 {
-    auto eventIsDefaultPrevented = Element::EventIsDefaultPrevented::No;
     if (isDisabledFormControl() && !document().settings().sendMouseEventsToDisabledFormControlsEnabled())
-        return { Element::EventIsDispatched::No, eventIsDefaultPrevented };
+        return false;
 
     if (isForceEvent(platformEvent) && !document().hasListenerTypeForEventType(platformEvent.type()))
-        return { Element::EventIsDispatched::No, eventIsDefaultPrevented };
+        return false;
 
-    Ref mouseEvent = MouseEvent::create(eventType, document().windowProxy(), platformEvent, detail, relatedTarget);
+    Ref<MouseEvent> mouseEvent = MouseEvent::create(eventType, document().windowProxy(), platformEvent, detail, relatedTarget);
 
     if (mouseEvent->type().isEmpty())
-        return { Element::EventIsDispatched::Yes, eventIsDefaultPrevented }; // Shouldn't happen.
+        return true; // Shouldn't happen.
 
     Ref protectedThis { *this };
     bool didNotSwallowEvent = true;
 
     if (dispatchPointerEventIfNeeded(*this, mouseEvent.get(), platformEvent, didNotSwallowEvent) == ShouldIgnoreMouseEvent::Yes)
-        return { Element::EventIsDispatched::No, eventIsDefaultPrevented };
+        return false;
 
     auto isParentProcessAFullWebBrowser = false;
 #if PLATFORM(IOS_FAMILY)
-    if (RefPtr frame = document().frame())
+    if (auto* frame = document().frame())
         isParentProcessAFullWebBrowser = frame->loader().client().isParentProcessAFullWebBrowser();
 #elif PLATFORM(MAC)
     isParentProcessAFullWebBrowser = MacApplication::isSafari();
 #endif
-    if (Quirks::StorageAccessResult::ShouldCancelEvent == protectedDocument()->quirks().triggerOptionalStorageAccessQuirk(*this, platformEvent, eventType, detail, relatedTarget, isParentProcessAFullWebBrowser, isSyntheticClick))
-        return { Element::EventIsDispatched::No, eventIsDefaultPrevented };
+    if (Quirks::StorageAccessResult::ShouldCancelEvent == document().quirks().triggerOptionalStorageAccessQuirk(*this, platformEvent, eventType, detail, relatedTarget, isParentProcessAFullWebBrowser, isSyntheticClick))
+        return false;
 
     ASSERT(!mouseEvent->target() || mouseEvent->target() != relatedTarget);
     dispatchEvent(mouseEvent);
-    if (mouseEvent->defaultPrevented())
-        eventIsDefaultPrevented = Element::EventIsDefaultPrevented::Yes;
     if (mouseEvent->defaultPrevented() || mouseEvent->defaultHandled())
         didNotSwallowEvent = false;
 
@@ -503,7 +501,7 @@ Element::DispatchMouseEventResult Element::dispatchMouseEvent(const PlatformMous
         // of the DOM specs, but is used for compatibility with the ondblclick="" attribute. This is treated
         // as a separate event in other DOM-compliant browsers like Firefox, and so we do the same.
         // FIXME: Is it okay that mouseEvent may have been mutated by scripts via initMouseEvent in dispatchEvent above?
-        Ref doubleClickEvent = MouseEvent::create(eventNames().dblclickEvent,
+        Ref<MouseEvent> doubleClickEvent = MouseEvent::create(eventNames().dblclickEvent,
             mouseEvent->bubbles() ? Event::CanBubble::Yes : Event::CanBubble::No,
             mouseEvent->cancelable() ? Event::IsCancelable::Yes : Event::IsCancelable::No,
             Event::IsComposed::Yes,
@@ -516,14 +514,14 @@ Element::DispatchMouseEventResult Element::dispatchMouseEvent(const PlatformMous
 
         dispatchEvent(doubleClickEvent);
         if (doubleClickEvent->defaultHandled() || doubleClickEvent->defaultPrevented())
-            return { Element::EventIsDispatched::No, eventIsDefaultPrevented };
+            return false;
     }
-    return { didNotSwallowEvent ? Element::EventIsDispatched::Yes : Element::EventIsDispatched::No, eventIsDefaultPrevented };
+    return didNotSwallowEvent;
 }
 
 bool Element::dispatchWheelEvent(const PlatformWheelEvent& platformEvent, OptionSet<EventHandling>& processing, Event::IsCancelable isCancelable)
 {
-    Ref event = WheelEvent::create(platformEvent, document().windowProxy(), isCancelable);
+    auto event = WheelEvent::create(platformEvent, document().windowProxy(), isCancelable);
 
     // Events with no deltas are important because they convey platform information about scroll gestures
     // and momentum beginning or ending. However, those events should not be sent to the DOM since some
@@ -551,9 +549,9 @@ bool Element::dispatchWheelEvent(const PlatformWheelEvent& platformEvent, Option
 
 bool Element::dispatchKeyEvent(const PlatformKeyboardEvent& platformEvent)
 {
-    Ref event = KeyboardEvent::create(platformEvent, document().windowProxy());
+    auto event = KeyboardEvent::create(platformEvent, document().windowProxy());
 
-    if (RefPtr frame = document().frame()) {
+    if (auto* frame = document().frame()) {
         if (frame->eventHandler().accessibilityPreventsEventPropagation(event))
             event->stopPropagation();
     }
@@ -587,20 +585,19 @@ Ref<Node> Element::cloneNodeInternal(Document& targetDocument, CloningOperation 
 void Element::cloneShadowTreeIfPossible(Element& newHost)
 {
     RefPtr oldShadowRoot = this->shadowRoot();
-    if (!oldShadowRoot || !oldShadowRoot->isClonable())
+    if (!oldShadowRoot || !oldShadowRoot->isCloneable())
         return;
 
-    Ref clonedShadowRoot = [&] {
     Ref clone = oldShadowRoot->cloneNodeInternal(newHost.document(), Node::CloningOperation::SelfWithTemplateContent);
-        return checkedDowncast<ShadowRoot>(WTFMove(clone));
-    }();
-    newHost.addShadowRoot(clonedShadowRoot.copyRef());
+    RELEASE_ASSERT(is<ShadowRoot>(clone));
+    auto& clonedShadowRoot = downcast<ShadowRoot>(clone.get());
+    newHost.addShadowRoot(clonedShadowRoot);
     oldShadowRoot->cloneChildNodes(clonedShadowRoot);
 }
 
 Ref<Element> Element::cloneElementWithChildren(Document& targetDocument)
 {
-    Ref clone = cloneElementWithoutChildren(targetDocument);
+    Ref<Element> clone = cloneElementWithoutChildren(targetDocument);
     ScriptDisallowedScope::EventAllowedScope eventAllowedScope { clone };
     cloneShadowTreeIfPossible(clone);
     cloneChildNodes(clone);
@@ -609,7 +606,7 @@ Ref<Element> Element::cloneElementWithChildren(Document& targetDocument)
 
 Ref<Element> Element::cloneElementWithoutChildren(Document& targetDocument)
 {
-    Ref clone = cloneElementWithoutAttributesAndChildren(targetDocument);
+    Ref<Element> clone = cloneElementWithoutAttributesAndChildren(targetDocument);
 
     // This will catch HTML elements in the wrong namespace that are not correctly copied.
     // This is a sanity check as HTML overloads some of the DOM methods.
@@ -630,11 +627,11 @@ Ref<Attr> Element::detachAttribute(unsigned index)
 
     const Attribute& attribute = elementData()->attributeAt(index);
 
-    RefPtr attrNode = attrIfExists(attribute.name());
+    RefPtr<Attr> attrNode = attrIfExists(attribute.name());
     if (attrNode)
         detachAttrNodeFromElementWithValue(attrNode.get(), attribute.value());
     else
-        attrNode = Attr::create(protectedDocument(), attribute.name(), attribute.value());
+        attrNode = Attr::create(document(), attribute.name(), attribute.value());
 
     removeAttributeInternal(index, InSynchronizationOfLazyAttribute::No);
     return attrNode.releaseNonNull();
@@ -671,6 +668,11 @@ NamedNodeMap& Element::attributes() const
     return *rareData.attributeMap();
 }
 
+Node::NodeType Element::nodeType() const
+{
+    return ELEMENT_NODE;
+}
+
 bool Element::hasAttribute(const QualifiedName& name) const
 {
     return hasAttributeNS(name.namespaceURI(), name.localName());
@@ -685,8 +687,8 @@ void Element::synchronizeAllAttributes() const
         static_cast<const StyledElement*>(this)->synchronizeStyleAttributeInternal();
     }
 
-    if (auto* svgElement = dynamicDowncast<SVGElement>(*this))
-        const_cast<SVGElement&>(*svgElement).synchronizeAllAttributes();
+    if (isSVGElement())
+        downcast<SVGElement>(const_cast<Element&>(*this)).synchronizeAllAttributes();
 }
 
 ALWAYS_INLINE void Element::synchronizeAttribute(const QualifiedName& name) const
@@ -699,8 +701,8 @@ ALWAYS_INLINE void Element::synchronizeAttribute(const QualifiedName& name) cons
         return;
     }
 
-    if (auto* svgElement = dynamicDowncast<SVGElement>(*this))
-        const_cast<SVGElement&>(*svgElement).synchronizeAttribute(name);
+    if (isSVGElement())
+        downcast<SVGElement>(const_cast<Element&>(*this)).synchronizeAttribute(name);
 }
 
 static ALWAYS_INLINE bool isStyleAttribute(const Element& element, const AtomString& attributeLocalName)
@@ -722,8 +724,8 @@ ALWAYS_INLINE void Element::synchronizeAttribute(const AtomString& localName) co
         return;
     }
 
-    if (auto* svgElement = dynamicDowncast<SVGElement>(*this))
-        const_cast<SVGElement&>(*svgElement).synchronizeAttribute(QualifiedName(nullAtom(), localName, nullAtom()));
+    if (isSVGElement())
+        downcast<SVGElement>(const_cast<Element&>(*this)).synchronizeAttribute(QualifiedName(nullAtom(), localName, nullAtom()));
 }
 
 const AtomString& Element::getAttribute(const QualifiedName& name) const
@@ -757,21 +759,30 @@ AtomString Element::getAttributeForBindings(const QualifiedName& name, ResolveUR
 
 Vector<String> Element::getAttributeNames() const
 {
+    Vector<String> attributesVector;
     if (!hasAttributes())
-        return { };
+        return attributesVector;
 
     auto attributes = attributesIterator();
-    return WTF::map(attributes, [](auto& attribute) {
-        return attribute.name().toString();
-    });
+    attributesVector.reserveInitialCapacity(attributes.attributeCount());
+    for (auto& attribute : attributes)
+        attributesVector.uncheckedAppend(attribute.name().toString());
+    return attributesVector;
 }
 
 bool Element::hasFocusableStyle() const
 {
+    if (renderer() && renderer()->isSkippedContent()) {
+        auto* candidate = this;
+        while ((candidate = candidate->parentElementInComposedTree())) {
+            if (candidate->renderer() && candidate->renderStyle()->contentVisibility() == ContentVisibility::Hidden)
+        return false;
+        }
+    }
+
     auto isFocusableStyle = [](const RenderStyle* style) {
         return style && style->display() != DisplayType::None && style->display() != DisplayType::Contents
-            && style->visibility() == Visibility::Visible && !style->effectiveInert()
-            && (style->effectiveContentVisibility() != ContentVisibility::Hidden || style->contentVisibility() != ContentVisibility::Visible);
+            && style->visibility() == Visibility::Visible && !style->effectiveInert();
     };
 
     if (renderStyle())
@@ -801,37 +812,37 @@ bool Element::isFocusable() const
 bool Element::isUserActionElementInActiveChain() const
 {
     ASSERT(isUserActionElement());
-    return protectedDocument()->userActionElements().isInActiveChain(*this);
+    return document().userActionElements().isInActiveChain(*this);
 }
 
 bool Element::isUserActionElementActive() const
 {
     ASSERT(isUserActionElement());
-    return protectedDocument()->userActionElements().isActive(*this);
+    return document().userActionElements().isActive(*this);
 }
 
 bool Element::isUserActionElementFocused() const
 {
     ASSERT(isUserActionElement());
-    return protectedDocument()->userActionElements().isFocused(*this);
+    return document().userActionElements().isFocused(*this);
 }
 
 bool Element::isUserActionElementHovered() const
 {
     ASSERT(isUserActionElement());
-    return protectedDocument()->userActionElements().isHovered(*this);
+    return document().userActionElements().isHovered(*this);
 }
 
 bool Element::isUserActionElementDragged() const
 {
     ASSERT(isUserActionElement());
-    return protectedDocument()->userActionElements().isBeingDragged(*this);
+    return document().userActionElements().isBeingDragged(*this);
 }
 
 bool Element::isUserActionElementHasFocusVisible() const
 {
     ASSERT(isUserActionElement());
-    return protectedDocument()->userActionElements().hasFocusVisible(*this);
+    return document().userActionElements().hasFocusVisible(*this);
 }
 
 FormListedElement* Element::asFormListedElement()
@@ -844,17 +855,10 @@ ValidatedFormListedElement* Element::asValidatedFormListedElement()
     return nullptr;
 }
 
-#if ENABLE(ATTACHMENT_ELEMENT)
-AttachmentAssociatedElement* Element::asAttachmentAssociatedElement()
-{
-    return nullptr;
-}
-#endif
-
 bool Element::isUserActionElementHasFocusWithin() const
 {
     ASSERT(isUserActionElement());
-    return protectedDocument()->userActionElements().hasFocusWithin(*this);
+    return document().userActionElements().hasFocusWithin(*this);
 }
 
 void Element::setActive(bool value, Style::InvalidationScope invalidationScope)
@@ -862,16 +866,15 @@ void Element::setActive(bool value, Style::InvalidationScope invalidationScope)
     if (value == active())
         return;
     {
-        Style::PseudoClassChangeInvalidation styleInvalidation(*this, CSSSelector::PseudoClass::Active, value, invalidationScope);
+        Style::PseudoClassChangeInvalidation styleInvalidation(*this, CSSSelector::PseudoClassType::Active, value, invalidationScope);
         document().userActionElements().setActive(*this, value);
     }
 
-    CheckedPtr renderer = this->renderer();
-    if (!renderer)
+    if (!renderer())
         return;
 
-    if (renderer->style().hasEffectiveAppearance())
-        renderer->theme().stateChanged(*renderer, ControlStyle::State::Pressed);
+    if (renderer()->style().hasEffectiveAppearance())
+        renderer()->theme().stateChanged(*renderer(), ControlStates::States::Pressed);
 }
 
 static bool shouldAlwaysHaveFocusVisibleWhenFocused(const Element& element)
@@ -884,16 +887,16 @@ void Element::setFocus(bool value, FocusVisibility visibility)
     if (value == focused())
         return;
 
-    Style::PseudoClassChangeInvalidation focusStyleInvalidation(*this, { { CSSSelector::PseudoClass::Focus, value }, { CSSSelector::PseudoClass::FocusVisible, value } });
-    protectedDocument()->userActionElements().setFocused(*this, value);
+    Style::PseudoClassChangeInvalidation focusStyleInvalidation(*this, { { CSSSelector::PseudoClassType::Focus, value }, { CSSSelector::PseudoClassType::FocusVisible, value } });
+    document().userActionElements().setFocused(*this, value);
 
     // Shadow host with a slot that contain focused element is not considered focused.
-    for (RefPtr root = containingShadowRoot(); root; root = root->host()->containingShadowRoot()) {
+    for (auto* root = containingShadowRoot(); root; root = root->host()->containingShadowRoot()) {
         root->setContainsFocusedElement(value);
         root->host()->invalidateStyle();
     }
 
-    for (RefPtr element = this; element; element = element->parentElementInComposedTree())
+    for (auto* element = this; element; element = element->parentElementInComposedTree())
         element->setHasFocusWithin(value);
 
     setHasFocusVisible(value && (visibility == FocusVisibility::Visible || shouldAlwaysHaveFocusVisibleWhenFocused(*this)));
@@ -901,8 +904,7 @@ void Element::setFocus(bool value, FocusVisibility visibility)
 
 void Element::setHasFocusVisible(bool value)
 {
-    Ref document = this->document();
-    if (!document->settings().focusVisibleEnabled())
+    if (!document().settings().focusVisibleEnabled())
         return;
 
 #if ASSERT_ENABLED
@@ -913,7 +915,7 @@ void Element::setHasFocusVisible(bool value)
     if (hasFocusVisible() == value)
         return;
 
-    document->userActionElements().setHasFocusVisible(*this, value);
+    document().userActionElements().setHasFocusVisible(*this, value);
 }
 
 void Element::setHasFocusWithin(bool value)
@@ -921,17 +923,17 @@ void Element::setHasFocusWithin(bool value)
     if (hasFocusWithin() == value)
         return;
     {
-        Style::PseudoClassChangeInvalidation styleInvalidation(*this, CSSSelector::PseudoClass::FocusWithin, value);
-        protectedDocument()->userActionElements().setHasFocusWithin(*this, value);
+        Style::PseudoClassChangeInvalidation styleInvalidation(*this, CSSSelector::PseudoClassType::FocusWithin, value);
+        document().userActionElements().setHasFocusWithin(*this, value);
     }
 }
 
 void Element::setHasTentativeFocus(bool value)
 {
     // Tentative focus is used when trying to set the focus on a new element.
-    for (Ref ancestor : composedTreeAncestors(*this)) {
-        ASSERT(ancestor->hasFocusWithin() != value);
-        protectedDocument()->userActionElements().setHasFocusWithin(ancestor, value);
+    for (auto& ancestor : composedTreeAncestors(*this)) {
+        ASSERT(ancestor.hasFocusWithin() != value);
+        document().userActionElements().setHasFocusWithin(ancestor, value);
     }
 }
 
@@ -940,14 +942,12 @@ void Element::setHovered(bool value, Style::InvalidationScope invalidationScope,
     if (value == hovered())
         return;
     {
-        Style::PseudoClassChangeInvalidation styleInvalidation(*this, CSSSelector::PseudoClass::Hover, value, invalidationScope);
-        protectedDocument()->userActionElements().setHovered(*this, value);
+        Style::PseudoClassChangeInvalidation styleInvalidation(*this, CSSSelector::PseudoClassType::Hover, value, invalidationScope);
+        document().userActionElements().setHovered(*this, value);
     }
 
-    if (auto* style = renderStyle(); style && style->hasEffectiveAppearance()) {
-        CheckedPtr renderer = this->renderer();
-        renderer->theme().stateChanged(*renderer, ControlStyle::State::Hovered);
-    }
+    if (auto* style = renderStyle(); style && style->hasEffectiveAppearance())
+        renderer()->theme().stateChanged(*renderer(), ControlStates::States::Hovered);
 }
 
 void Element::setBeingDragged(bool value)
@@ -955,22 +955,21 @@ void Element::setBeingDragged(bool value)
     if (value == isBeingDragged())
         return;
 
-    Style::PseudoClassChangeInvalidation styleInvalidation(*this, CSSSelector::PseudoClass::WebKitDrag, value);
-    protectedDocument()->userActionElements().setBeingDragged(*this, value);
+    Style::PseudoClassChangeInvalidation styleInvalidation(*this, CSSSelector::PseudoClassType::Drag, value);
+    document().userActionElements().setBeingDragged(*this, value);
 }
 
 inline ScrollAlignment toScrollAlignmentForInlineDirection(std::optional<ScrollLogicalPosition> position, WritingMode writingMode, bool isLTR)
 {
-    auto blockFlowDirection = writingModeToBlockFlowDirection(writingMode);
     switch (position.value_or(ScrollLogicalPosition::Nearest)) {
     case ScrollLogicalPosition::Start: {
-        switch (blockFlowDirection) {
-        case BlockFlowDirection::TopToBottom:
-        case BlockFlowDirection::BottomToTop: {
+        switch (writingMode) {
+        case WritingMode::TopToBottom:
+        case WritingMode::BottomToTop: {
             return isLTR ? ScrollAlignment::alignLeftAlways : ScrollAlignment::alignRightAlways;
         }
-        case BlockFlowDirection::LeftToRight:
-        case BlockFlowDirection::RightToLeft: {
+        case WritingMode::LeftToRight:
+        case WritingMode::RightToLeft: {
             return isLTR ? ScrollAlignment::alignTopAlways : ScrollAlignment::alignBottomAlways;
         }
         default:
@@ -981,13 +980,13 @@ inline ScrollAlignment toScrollAlignmentForInlineDirection(std::optional<ScrollL
     case ScrollLogicalPosition::Center:
         return ScrollAlignment::alignCenterAlways;
     case ScrollLogicalPosition::End: {
-        switch (blockFlowDirection) {
-        case BlockFlowDirection::TopToBottom:
-        case BlockFlowDirection::BottomToTop: {
+        switch (writingMode) {
+        case WritingMode::TopToBottom:
+        case WritingMode::BottomToTop: {
             return isLTR ? ScrollAlignment::alignRightAlways : ScrollAlignment::alignLeftAlways;
         }
-        case BlockFlowDirection::LeftToRight:
-        case BlockFlowDirection::RightToLeft: {
+        case WritingMode::LeftToRight:
+        case WritingMode::RightToLeft: {
             return isLTR ? ScrollAlignment::alignBottomAlways : ScrollAlignment::alignTopAlways;
         }
         default:
@@ -1005,17 +1004,16 @@ inline ScrollAlignment toScrollAlignmentForInlineDirection(std::optional<ScrollL
 
 inline ScrollAlignment toScrollAlignmentForBlockDirection(std::optional<ScrollLogicalPosition> position, WritingMode writingMode)
 {
-    auto blockFlowDirection = writingModeToBlockFlowDirection(writingMode);
     switch (position.value_or(ScrollLogicalPosition::Start)) {
     case ScrollLogicalPosition::Start: {
-        switch (blockFlowDirection) {
-        case BlockFlowDirection::TopToBottom:
+        switch (writingMode) {
+        case WritingMode::TopToBottom:
             return ScrollAlignment::alignTopAlways;
-        case BlockFlowDirection::BottomToTop:
+        case WritingMode::BottomToTop:
             return ScrollAlignment::alignBottomAlways;
-        case BlockFlowDirection::LeftToRight:
+        case WritingMode::LeftToRight:
             return ScrollAlignment::alignLeftAlways;
-        case BlockFlowDirection::RightToLeft:
+        case WritingMode::RightToLeft:
             return ScrollAlignment::alignRightAlways;
         default:
             ASSERT_NOT_REACHED();
@@ -1025,14 +1023,14 @@ inline ScrollAlignment toScrollAlignmentForBlockDirection(std::optional<ScrollLo
     case ScrollLogicalPosition::Center:
         return ScrollAlignment::alignCenterAlways;
     case ScrollLogicalPosition::End: {
-        switch (blockFlowDirection) {
-        case BlockFlowDirection::TopToBottom:
+        switch (writingMode) {
+        case WritingMode::TopToBottom:
             return ScrollAlignment::alignBottomAlways;
-        case BlockFlowDirection::BottomToTop:
+        case WritingMode::BottomToTop:
             return ScrollAlignment::alignTopAlways;
-        case BlockFlowDirection::LeftToRight:
+        case WritingMode::LeftToRight:
             return ScrollAlignment::alignRightAlways;
-        case BlockFlowDirection::RightToLeft:
+        case WritingMode::RightToLeft:
             return ScrollAlignment::alignLeftAlways;
         default:
             ASSERT_NOT_REACHED();
@@ -1047,49 +1045,46 @@ inline ScrollAlignment toScrollAlignmentForBlockDirection(std::optional<ScrollLo
     }
 }
 
-static std::optional<std::pair<CheckedRef<RenderElement>, LayoutRect>> listBoxElementScrollIntoView(const Element& element)
+static std::optional<std::pair<RenderElement*, LayoutRect>> listBoxElementScrollIntoView(const Element& element)
 {
     auto owningSelectElement = [](const Element& element) -> HTMLSelectElement* {
-        if (auto* optionElement = dynamicDowncast<HTMLOptionElement>(element))
-            return optionElement->ownerSelectElement();
+        if (is<HTMLOptionElement>(element))
+            return downcast<HTMLOptionElement>(element).ownerSelectElement();
 
-        if (auto* optGroupElement = dynamicDowncast<HTMLOptGroupElement>(element))
-            return optGroupElement->ownerSelectElement();
+        if (is<HTMLOptGroupElement>(element))
+            return downcast<HTMLOptGroupElement>(element).ownerSelectElement();
 
         return nullptr;
     };
 
-    RefPtr selectElement = owningSelectElement(element);
-    if (!selectElement)
-        return std::nullopt;
+    auto* selectElement = owningSelectElement(element);
+    if (!selectElement || !selectElement->renderer() || !is<RenderListBox>(selectElement->renderer()))
+        return { };
 
-    CheckedPtr renderListBox = dynamicDowncast<RenderListBox>(selectElement->renderer());
-    if (!renderListBox)
-        return std::nullopt;
+    auto& renderListBox = downcast<RenderListBox>(*selectElement->renderer());
 
     auto itemIndex = selectElement->listItems().find(&element);
     if (itemIndex != notFound)
-        renderListBox->scrollToRevealElementAtListIndex(itemIndex);
+        renderListBox.scrollToRevealElementAtListIndex(itemIndex);
     else
         itemIndex = 0;
 
-    auto itemLocalRect = renderListBox->itemBoundingBoxRect({ }, itemIndex);
-    return std::pair<CheckedRef<RenderElement>, LayoutRect> { renderListBox.releaseNonNull(), itemLocalRect };
+    auto itemLocalRect = renderListBox.itemBoundingBoxRect({ }, itemIndex);
+    return std::pair<RenderElement*, LayoutRect> { &renderListBox, itemLocalRect };
 }
 
 void Element::scrollIntoView(std::optional<std::variant<bool, ScrollIntoViewOptions>>&& arg)
 {
-    Ref document = this->document();
-    document->updateContentRelevancyForScrollIfNeeded(*this);
+    document().contentVisibilityDocumentState().updateContentRelevancyStatusForScrollIfNeeded(*this);
 
-    document->updateLayoutIgnorePendingStylesheets(LayoutOptions::UpdateCompositingLayers);
+    document().updateLayoutIgnorePendingStylesheets();
 
-    CheckedPtr<RenderElement> renderer;
+    RenderElement* renderer = nullptr;
     bool insideFixed = false;
     LayoutRect absoluteBounds;
 
     if (auto listBoxScrollResult = listBoxElementScrollIntoView(*this)) {
-        renderer = WTFMove(listBoxScrollResult->first);
+        renderer = listBoxScrollResult->first;
         absoluteBounds = listBoxScrollResult->second;
 
         auto listBoxAbsoluteBounds = renderer->absoluteAnchorRectWithScrollMargin(&insideFixed).marginRect;
@@ -1129,56 +1124,52 @@ void Element::scrollIntoView(std::optional<std::variant<bool, ScrollIntoViewOpti
 
 void Element::scrollIntoView(bool alignToTop)
 {
-    protectedDocument()->updateLayoutIgnorePendingStylesheets(LayoutOptions::UpdateCompositingLayers);
+    document().updateLayoutIgnorePendingStylesheets();
 
-    CheckedPtr renderer = this->renderer();
-    if (!renderer)
+    if (!renderer())
         return;
 
     bool insideFixed;
-    LayoutRect absoluteBounds = renderer->absoluteAnchorRectWithScrollMargin(&insideFixed).marginRect;
+    LayoutRect absoluteBounds = renderer()->absoluteAnchorRectWithScrollMargin(&insideFixed).marginRect;
 
     // Align to the top / bottom and to the closest edge.
     auto alignY = alignToTop ? ScrollAlignment::alignTopAlways : ScrollAlignment::alignBottomAlways;
     auto alignX = ScrollAlignment::alignToEdgeIfNeeded;
     alignX.disableLegacyHorizontalVisibilityThreshold();
 
-    LocalFrameView::scrollRectToVisible(absoluteBounds, *renderer, insideFixed, { SelectionRevealMode::Reveal, alignX, alignY, ShouldAllowCrossOriginScrolling::No });
+    LocalFrameView::scrollRectToVisible(absoluteBounds, *renderer(), insideFixed, { SelectionRevealMode::Reveal, alignX, alignY, ShouldAllowCrossOriginScrolling::No });
 }
 
 void Element::scrollIntoViewIfNeeded(bool centerIfNeeded)
 {
-    Ref document = this->document();
-    document->updateContentRelevancyForScrollIfNeeded(*this);
+    document().contentVisibilityDocumentState().updateContentRelevancyStatusForScrollIfNeeded(*this);
 
-    document->updateLayoutIgnorePendingStylesheets(LayoutOptions::UpdateCompositingLayers);
+    document().updateLayoutIgnorePendingStylesheets();
 
-    CheckedPtr renderer = this->renderer();
-    if (!renderer)
+    if (!renderer())
         return;
 
     bool insideFixed;
-    LayoutRect absoluteBounds = renderer->absoluteAnchorRectWithScrollMargin(&insideFixed).marginRect;
+    LayoutRect absoluteBounds = renderer()->absoluteAnchorRectWithScrollMargin(&insideFixed).marginRect;
 
     auto alignY = centerIfNeeded ? ScrollAlignment::alignCenterIfNeeded : ScrollAlignment::alignToEdgeIfNeeded;
     auto alignX = centerIfNeeded ? ScrollAlignment::alignCenterIfNeeded : ScrollAlignment::alignToEdgeIfNeeded;
     alignX.disableLegacyHorizontalVisibilityThreshold();
 
-    LocalFrameView::scrollRectToVisible(absoluteBounds, *renderer, insideFixed, { SelectionRevealMode::Reveal, alignX, alignY, ShouldAllowCrossOriginScrolling::No });
+    LocalFrameView::scrollRectToVisible(absoluteBounds, *renderer(), insideFixed, { SelectionRevealMode::Reveal, alignX, alignY, ShouldAllowCrossOriginScrolling::No });
 }
 
 void Element::scrollIntoViewIfNotVisible(bool centerIfNotVisible)
 {
-    protectedDocument()->updateLayoutIgnorePendingStylesheets(LayoutOptions::UpdateCompositingLayers);
+    document().updateLayoutIgnorePendingStylesheets();
 
-    CheckedPtr renderer = this->renderer();
-    if (!renderer)
+    if (!renderer())
         return;
 
     bool insideFixed;
-    LayoutRect absoluteBounds = renderer->absoluteAnchorRectWithScrollMargin(&insideFixed).marginRect;
+    LayoutRect absoluteBounds = renderer()->absoluteAnchorRectWithScrollMargin(&insideFixed).marginRect;
     auto align = centerIfNotVisible ? ScrollAlignment::alignCenterIfNotVisible : ScrollAlignment::alignToEdgeIfNotVisible;
-    LocalFrameView::scrollRectToVisible(absoluteBounds, *renderer, insideFixed, { SelectionRevealMode::Reveal, align, align, ShouldAllowCrossOriginScrolling::No });
+    LocalFrameView::scrollRectToVisible(absoluteBounds, *renderer(), insideFixed, { SelectionRevealMode::Reveal, align, align, ShouldAllowCrossOriginScrolling::No });
 }
 
 void Element::scrollBy(const ScrollToOptions& options)
@@ -1197,48 +1188,25 @@ void Element::scrollBy(double x, double y)
 
 void Element::scrollTo(const ScrollToOptions& options, ScrollClamping clamping, ScrollSnapPointSelectionMethod snapPointSelectionMethod, std::optional<FloatSize> originalScrollDelta)
 {
-    LOG_WITH_STREAM(Scrolling, stream << "Element " << *this << " scrollTo " << options.left << ", " << options.top << " behavior " << options.behavior);
+    LOG_WITH_STREAM(Scrolling, stream << "Element " << *this << " scrollTo " << options.left << ", " << options.top);
 
-    Ref document = this->document();
-    if (!document->settings().CSSOMViewScrollingAPIEnabled()) {
+    if (!document().settings().CSSOMViewScrollingAPIEnabled()) {
         // If the element is the root element and document is in quirks mode, terminate these steps.
         // Note that WebKit always uses quirks mode document scrolling behavior. See Document::scrollingElement().
-        if (this == document->documentElement())
+        if (this == document().documentElement())
             return;
     }
 
-    if (RefPtr view = document->view())
+    if (auto* view = document().view())
         view->cancelScheduledScrolls();
 
-    // We can avoid triggering layout if this is a scrollTo(0,0) on a element that cannot be the scrollingElement,
-    // and was last scrolled to 0,0.
-    auto canShortCircuitScroll = [&]() {
-        if (!options.left || !options.top)
-            return false;
+    document().updateLayoutIgnorePendingStylesheets();
 
-        if (*options.left || *options.top)
-            return false;
-
-        // document().scrollingElement() requires up-to-date style, so bail if this element could be the scrollingElement().
-        if (document->documentElement() == this || document->body() == this)
-            return false;
-
-        if (hasEverHadSmoothScroll())
-            return false;
-
-        return savedLayerScrollPosition().isZero();
-    };
-
-    if (canShortCircuitScroll())
-        return;
-
-    document->updateLayoutIgnorePendingStylesheets(LayoutOptions::UpdateCompositingLayers);
-
-    if (document->scrollingElement() == this) {
+    if (document().scrollingElement() == this) {
         // If the element is the scrolling element and is not potentially scrollable,
         // invoke scroll() on window with options as the only argument, and terminate these steps.
         // FIXME: Scrolling an independently scrollable body is broken: webkit.org/b/161612.
-        RefPtr window = document->domWindow();
+        RefPtr window = document().domWindow();
         if (!window)
             return;
 
@@ -1248,7 +1216,7 @@ void Element::scrollTo(const ScrollToOptions& options, ScrollClamping clamping, 
 
     // If the element does not have any associated CSS layout box, the element has no associated scrolling box,
     // or the element has no overflow, terminate these steps.
-    CheckedPtr renderer = renderBox();
+    RenderBox* renderer = renderBox();
     if (!renderer || !renderer->hasNonVisibleOverflow())
         return;
 
@@ -1262,9 +1230,6 @@ void Element::scrollTo(const ScrollToOptions& options, ScrollClamping clamping, 
     );
 
     auto animated = useSmoothScrolling(scrollToOptions.behavior.value_or(ScrollBehavior::Auto), this) ? ScrollIsAnimated::Yes : ScrollIsAnimated::No;
-    if (animated == ScrollIsAnimated::Yes)
-        setHasEverHadSmoothScroll(true);
-
     auto scrollPositionChangeOptions = ScrollPositionChangeOptions::createProgrammaticWithOptions(clamping, animated, snapPointSelectionMethod, originalScrollDelta);
     renderer->setScrollPosition(scrollPosition, scrollPositionChangeOptions);
 }
@@ -1272,6 +1237,32 @@ void Element::scrollTo(const ScrollToOptions& options, ScrollClamping clamping, 
 void Element::scrollTo(double x, double y)
 {
     scrollTo(ScrollToOptions(x, y));
+}
+
+void Element::scrollByUnits(int units, ScrollGranularity granularity)
+{
+    document().updateLayoutIgnorePendingStylesheets();
+
+    auto* renderer = this->renderer();
+    if (!renderer)
+        return;
+
+    if (!renderer->hasNonVisibleOverflow())
+        return;
+
+    auto direction = units < 0 ? ScrollUp : ScrollDown;
+    auto* stopElement = this;
+    downcast<RenderBox>(*renderer).scroll(direction, granularity, std::abs(units), &stopElement);
+}
+
+void Element::scrollByLines(int lines)
+{
+    scrollByUnits(lines, ScrollGranularity::Line);
+}
+
+void Element::scrollByPages(int pages)
+{
+    scrollByUnits(pages, ScrollGranularity::Page);
 }
 
 static double localZoomForRenderer(const RenderElement& renderer)
@@ -1283,8 +1274,8 @@ static double localZoomForRenderer(const RenderElement& renderer)
     if (renderer.style().effectiveZoom() != 1) {
         // Need to find the nearest enclosing RenderElement that set up
         // a differing zoom, and then we divide our result by it to eliminate the zoom.
-        CheckedPtr prev = &renderer;
-        for (CheckedPtr curr = prev->parent(); curr; curr = curr->parent()) {
+        const RenderElement* prev = &renderer;
+        for (RenderElement* curr = prev->parent(); curr; curr = curr->parent()) {
             if (curr->style().effectiveZoom() != prev->style().effectiveZoom()) {
                 zoomFactor = prev->style().zoom();
                 break;
@@ -1356,8 +1347,8 @@ int Element::offsetLeftForBindings()
 
 int Element::offsetLeft()
 {
-    protectedDocument()->updateLayoutIgnorePendingStylesheets({ LayoutOptions::ContentVisibilityForceLayout }, this);
-    if (CheckedPtr renderer = renderBoxModelObject())
+    document().updateLayoutIgnorePendingStylesheets();
+    if (RenderBoxModelObject* renderer = renderBoxModelObject())
         return adjustOffsetForZoomAndSubpixelLayout(*renderer, renderer->offsetLeft());
     return 0;
 }
@@ -1385,16 +1376,16 @@ int Element::offsetTopForBindings()
 
 int Element::offsetTop()
 {
-    protectedDocument()->updateLayoutIgnorePendingStylesheets({ LayoutOptions::ContentVisibilityForceLayout }, this);
-    if (CheckedPtr renderer = renderBoxModelObject())
+    document().updateLayoutIgnorePendingStylesheets();
+    if (RenderBoxModelObject* renderer = renderBoxModelObject())
         return adjustOffsetForZoomAndSubpixelLayout(*renderer, renderer->offsetTop());
     return 0;
 }
 
 int Element::offsetWidth()
 {
-    protectedDocument()->updateLayoutIfDimensionsOutOfDate(*this, DimensionsCheck::Width);
-    if (CheckedPtr renderer = renderBoxModelObject()) {
+    document().updateLayoutIfDimensionsOutOfDate(*this, DimensionsCheck::Width);
+    if (RenderBoxModelObject* renderer = renderBoxModelObject()) {
         auto offsetWidth = LayoutUnit { roundToInt(renderer->offsetWidth()) };
         return convertToNonSubpixelValue(adjustLayoutUnitForAbsoluteZoom(offsetWidth, *renderer).toDouble());
     }
@@ -1403,17 +1394,17 @@ int Element::offsetWidth()
 
 int Element::offsetHeight()
 {
-    protectedDocument()->updateLayoutIfDimensionsOutOfDate(*this, DimensionsCheck::Height);
-    if (CheckedPtr renderer = renderBoxModelObject()) {
+    document().updateLayoutIfDimensionsOutOfDate(*this, DimensionsCheck::Height);
+    if (RenderBoxModelObject* renderer = renderBoxModelObject()) {
         auto offsetHeight = LayoutUnit { roundToInt(renderer->offsetHeight()) };
         return convertToNonSubpixelValue(adjustLayoutUnitForAbsoluteZoom(offsetHeight, *renderer).toDouble());
     }
     return 0;
 }
 
-RefPtr<Element> Element::offsetParentForBindings()
+Element* Element::offsetParentForBindings()
 {
-    RefPtr element = offsetParent();
+    Element* element = offsetParent();
     if (!element || !element->isInShadowTree())
         return element;
     while (element && !isDescendantOrShadowDescendantOf(&element->rootNode()))
@@ -1423,19 +1414,21 @@ RefPtr<Element> Element::offsetParentForBindings()
 
 Element* Element::offsetParent()
 {
-    protectedDocument()->updateLayoutIgnorePendingStylesheets({ LayoutOptions::ContentVisibilityForceLayout }, this);
-    CheckedPtr renderer = this->renderer();
+    document().updateLayoutIgnorePendingStylesheets();
+    auto renderer = this->renderer();
     if (!renderer)
         return nullptr;
-    CheckedPtr offsetParent = renderer->offsetParent();
-    return offsetParent ? offsetParent->element() : nullptr;
+    auto offsetParent = renderer->offsetParent();
+    if (!offsetParent)
+        return nullptr;
+    return offsetParent->element();
 }
 
 int Element::clientLeft()
 {
-    protectedDocument()->updateLayoutIgnorePendingStylesheets({ LayoutOptions::ContentVisibilityForceLayout }, this);
+    document().updateLayoutIgnorePendingStylesheets();
 
-    if (CheckedPtr renderer = renderBox()) {
+    if (auto* renderer = renderBox()) {
         auto clientLeft = LayoutUnit { roundToInt(renderer->clientLeft()) };
         return convertToNonSubpixelValue(adjustLayoutUnitForAbsoluteZoom(clientLeft, *renderer).toDouble());
     }
@@ -1444,9 +1437,9 @@ int Element::clientLeft()
 
 int Element::clientTop()
 {
-    protectedDocument()->updateLayoutIgnorePendingStylesheets({ LayoutOptions::ContentVisibilityForceLayout }, this);
+    document().updateLayoutIgnorePendingStylesheets();
 
-    if (CheckedPtr renderer = renderBox()) {
+    if (auto* renderer = renderBox()) {
         auto clientTop = LayoutUnit { roundToInt(renderer->clientTop()) };
         return convertToNonSubpixelValue(adjustLayoutUnitForAbsoluteZoom(clientTop, *renderer).toDouble());
     }
@@ -1455,21 +1448,20 @@ int Element::clientTop()
 
 int Element::clientWidth()
 {
-    Ref document = this->document();
-    document->updateLayoutIfDimensionsOutOfDate(*this, DimensionsCheck::Width);
+    document().updateLayoutIfDimensionsOutOfDate(*this, DimensionsCheck::Width);
 
-    if (!document->hasLivingRenderTree())
+    if (!document().hasLivingRenderTree())
         return 0;
 
-    CheckedRef renderView = *document->renderView();
+    RenderView& renderView = *document().renderView();
 
     // When in strict mode, clientWidth for the document element should return the width of the containing frame.
     // When in quirks mode, clientWidth for the body element should return the width of the containing frame.
-    bool inQuirksMode = document->inQuirksMode();
-    if ((!inQuirksMode && document->documentElement() == this) || (inQuirksMode && isHTMLElement() && document->bodyOrFrameset() == this))
-        return adjustForAbsoluteZoom(renderView->frameView().layoutWidth(), renderView);
+    bool inQuirksMode = document().inQuirksMode();
+    if ((!inQuirksMode && document().documentElement() == this) || (inQuirksMode && isHTMLElement() && document().bodyOrFrameset() == this))
+        return adjustForAbsoluteZoom(renderView.frameView().layoutWidth(), renderView);
 
-    if (CheckedPtr renderer = renderBox()) {
+    if (RenderBox* renderer = renderBox()) {
         auto clientWidth = LayoutUnit { roundToInt(renderer->clientWidth()) };
         // clientWidth/Height is the visual portion of the box content, not including
         // borders or scroll bars, but includes padding. And per
@@ -1481,7 +1473,7 @@ int Element::clientWidth()
         // Currently, WebKit doesn't have table wrapper box, and we are supposed to
         // retrieve clientWidth/Height from table wrapper box, not table grid box. So
         // when we retrieve clientWidth/Height, it includes table's border size.
-        if (renderer->isRenderTable())
+        if (renderer->isTable())
             clientWidth += renderer->borderLeft() + renderer->borderRight();
         return convertToNonSubpixelValue(adjustLayoutUnitForAbsoluteZoom(clientWidth, *renderer).toDouble());
     }
@@ -1490,20 +1482,19 @@ int Element::clientWidth()
 
 int Element::clientHeight()
 {
-    Ref document = this->document();
-    document->updateLayoutIfDimensionsOutOfDate(*this, DimensionsCheck::Height);
-    if (!document->hasLivingRenderTree())
+    document().updateLayoutIfDimensionsOutOfDate(*this, DimensionsCheck::Height);
+    if (!document().hasLivingRenderTree())
         return 0;
 
-    CheckedRef renderView = *document->renderView();
+    RenderView& renderView = *document().renderView();
 
     // When in strict mode, clientHeight for the document element should return the height of the containing frame.
     // When in quirks mode, clientHeight for the body element should return the height of the containing frame.
-    bool inQuirksMode = document->inQuirksMode();
-    if ((!inQuirksMode && document->documentElement() == this) || (inQuirksMode && isHTMLElement() && document->bodyOrFrameset() == this))
-        return adjustForAbsoluteZoom(renderView->frameView().layoutHeight(), renderView);
+    bool inQuirksMode = document().inQuirksMode();
+    if ((!inQuirksMode && document().documentElement() == this) || (inQuirksMode && isHTMLElement() && document().bodyOrFrameset() == this))
+        return adjustForAbsoluteZoom(renderView.frameView().layoutHeight(), renderView);
 
-    if (CheckedPtr renderer = renderBox()) {
+    if (RenderBox* renderer = renderBox()) {
         auto clientHeight = LayoutUnit { roundToInt(renderer->clientHeight()) };
         // clientWidth/Height is the visual portion of the box content, not including
         // borders or scroll bars, but includes padding. And per
@@ -1515,7 +1506,7 @@ int Element::clientHeight()
         // Currently, WebKit doesn't have table wrapper box, and we are supposed to
         // retrieve clientWidth/Height from table wrapper box, not table grid box. So
         // when we retrieve clientWidth/Height, it includes table's border size.
-        if (renderer->isRenderTable())
+        if (renderer->isTable())
             clientHeight += renderer->borderTop() + renderer->borderBottom();
         return convertToNonSubpixelValue(adjustLayoutUnitForAbsoluteZoom(clientHeight, *renderer).toDouble());
     }
@@ -1530,128 +1521,121 @@ ALWAYS_INLINE LocalFrame* Element::documentFrameWithNonNullView() const
 
 int Element::scrollLeft()
 {
-    Ref document = this->document();
-    document->updateLayoutIgnorePendingStylesheets({ LayoutOptions::ContentVisibilityForceLayout }, this);
+    document().updateLayoutIgnorePendingStylesheets();
 
-    if (document->scrollingElement() == this) {
-        if (RefPtr frame = documentFrameWithNonNullView())
+    if (document().scrollingElement() == this) {
+        if (auto* frame = documentFrameWithNonNullView())
             return adjustContentsScrollPositionOrSizeForZoom(frame->view()->contentsScrollPosition().x(), *frame);
         return 0;
     }
 
-    if (CheckedPtr renderer = renderBox())
+    if (auto* renderer = renderBox())
         return adjustForAbsoluteZoom(renderer->scrollLeft(), *renderer);
     return 0;
 }
 
 int Element::scrollTop()
 {
-    Ref document = this->document();
-    document->updateLayoutIgnorePendingStylesheets({ LayoutOptions::ContentVisibilityForceLayout }, this);
+    document().updateLayoutIgnorePendingStylesheets();
 
-    if (document->scrollingElement() == this) {
-        if (RefPtr frame = documentFrameWithNonNullView())
+    if (document().scrollingElement() == this) {
+        if (auto* frame = documentFrameWithNonNullView())
             return adjustContentsScrollPositionOrSizeForZoom(frame->view()->contentsScrollPosition().y(), *frame);
         return 0;
     }
 
-    if (CheckedPtr renderer = renderBox())
+    if (RenderBox* renderer = renderBox())
         return adjustForAbsoluteZoom(renderer->scrollTop(), *renderer);
     return 0;
 }
 
 void Element::setScrollLeft(int newLeft)
 {
-    Ref document = this->document();
-    document->updateLayoutIgnorePendingStylesheets({ LayoutOptions::ContentVisibilityForceLayout }, this);
+    document().updateLayoutIgnorePendingStylesheets();
 
     auto options = ScrollPositionChangeOptions::createProgrammatic();
     options.animated = useSmoothScrolling(ScrollBehavior::Auto, this) ? ScrollIsAnimated::Yes : ScrollIsAnimated::No;
-    if (options.animated == ScrollIsAnimated::Yes)
-        setHasEverHadSmoothScroll(true);
 
-    if (document->scrollingElement() == this) {
+    if (document().scrollingElement() == this) {
         if (RefPtr frame = documentFrameWithNonNullView()) {
             IntPoint position(static_cast<int>(newLeft * frame->pageZoomFactor() * frame->frameScaleFactor()), frame->view()->scrollY());
-            frame->protectedView()->setScrollPosition(position, options);
+            frame->view()->setScrollPosition(position, options);
         }
         return;
     }
 
-    if (CheckedPtr renderer = renderBox()) {
+    if (WeakPtr renderer = renderBox()) {
         int clampedLeft = clampToInteger(newLeft * renderer->style().effectiveZoom());
         renderer->setScrollLeft(clampedLeft, options);
-        if (CheckedPtr scrollableArea = renderer && renderer->layer() ? renderer->layer()->scrollableArea() : nullptr)
+        if (auto* scrollableArea = renderer && renderer->layer() ? renderer->layer()->scrollableArea() : nullptr)
             scrollableArea->setScrollShouldClearLatchedState(true);
     }
 }
 
 void Element::setScrollTop(int newTop)
 {
-    Ref document = this->document();
-    document->updateLayoutIgnorePendingStylesheets({ LayoutOptions::ContentVisibilityForceLayout }, this);
+    document().updateLayoutIgnorePendingStylesheets();
 
     auto options = ScrollPositionChangeOptions::createProgrammatic();
     options.animated = useSmoothScrolling(ScrollBehavior::Auto, this) ? ScrollIsAnimated::Yes : ScrollIsAnimated::No;
-    if (options.animated == ScrollIsAnimated::Yes)
-        setHasEverHadSmoothScroll(true);
 
-    if (document->scrollingElement() == this) {
+    if (document().scrollingElement() == this) {
         if (RefPtr frame = documentFrameWithNonNullView()) {
             IntPoint position(frame->view()->scrollX(), static_cast<int>(newTop * frame->pageZoomFactor() * frame->frameScaleFactor()));
-            frame->protectedView()->setScrollPosition(position, options);
+            frame->view()->setScrollPosition(position, options);
         }
         return;
     }
 
-    if (CheckedPtr renderer = renderBox()) {
+    if (WeakPtr renderer = renderBox()) {
         int clampedTop = clampToInteger(newTop * renderer->style().effectiveZoom());
         renderer->setScrollTop(clampedTop, options);
-        if (CheckedPtr scrollableArea = renderer && renderer->layer() ? renderer->layer()->scrollableArea() : nullptr)
+        if (auto* scrollableArea = renderer && renderer->layer() ? renderer->layer()->scrollableArea() : nullptr)
             scrollableArea->setScrollShouldClearLatchedState(true);
     }
 }
 
 int Element::scrollWidth()
 {
-    Ref document = this->document();
-    document->updateLayoutIfDimensionsOutOfDate(*this, DimensionsCheck::Width);
+    document().updateLayoutIfDimensionsOutOfDate(*this, DimensionsCheck::Width);
 
-    if (document->scrollingElement() == this) {
+    if (document().scrollingElement() == this) {
         // FIXME (webkit.org/b/182289): updateLayoutIfDimensionsOutOfDate seems to ignore zoom level change.
-        document->updateLayoutIgnorePendingStylesheets();
-        if (RefPtr frame = documentFrameWithNonNullView())
+        document().updateLayoutIgnorePendingStylesheets();
+        if (auto* frame = documentFrameWithNonNullView())
             return adjustContentsScrollPositionOrSizeForZoom(frame->view()->contentsWidth(), *frame);
         return 0;
     }
 
-    if (CheckedPtr renderer = renderBox())
+    if (auto* renderer = renderBox())
         return adjustForAbsoluteZoom(renderer->scrollWidth(), *renderer);
     return 0;
 }
 
 int Element::scrollHeight()
 {
-    Ref document = this->document();
-    document->updateLayoutIfDimensionsOutOfDate(*this, DimensionsCheck::Height);
+    document().updateLayoutIfDimensionsOutOfDate(*this, DimensionsCheck::Height);
 
-    if (document->scrollingElement() == this) {
+    if (document().scrollingElement() == this) {
         // FIXME (webkit.org/b/182289): updateLayoutIfDimensionsOutOfDate seems to ignore zoom level change.
-        document->updateLayoutIgnorePendingStylesheets();
-        if (RefPtr frame = documentFrameWithNonNullView())
+        document().updateLayoutIgnorePendingStylesheets();
+        if (auto* frame = documentFrameWithNonNullView())
             return adjustContentsScrollPositionOrSizeForZoom(frame->view()->contentsHeight(), *frame);
         return 0;
     }
 
-    if (CheckedPtr renderer = renderBox())
+    if (auto* renderer = renderBox())
         return adjustForAbsoluteZoom(renderer->scrollHeight(), *renderer);
     return 0;
 }
 
-inline RefPtr<const SVGElement> elementWithSVGLayoutBox(const Element& element)
+inline bool shouldObtainBoundsFromSVGModel(const Element* element)
 {
-    RefPtr svg = dynamicDowncast<SVGElement>(element);
-    return svg && svg->hasAssociatedSVGLayoutBox() ? svg : nullptr;
+    ASSERT(element);
+    if (auto* svg = dynamicDowncast<SVGElement>(element))
+        return svg->hasAssociatedSVGLayoutBox();
+
+        return false;
 }
 
 inline bool shouldObtainBoundsFromBoxModel(const Element* element)
@@ -1673,21 +1657,22 @@ inline bool shouldObtainBoundsFromBoxModel(const Element* element)
 
 IntRect Element::boundsInRootViewSpace()
 {
-    Ref document = this->document();
-    document->updateLayoutIgnorePendingStylesheets();
+    document().updateLayoutIgnorePendingStylesheets();
 
-    RefPtr view = document->view();
+    auto* view = document().view();
     if (!view)
         return IntRect();
 
     Vector<FloatQuad> quads;
 
-    if (RefPtr svgElement = elementWithSVGLayoutBox(*this)) {
-        if (auto localRect = svgElement->getBoundingBox())
-            quads.append(checkedRenderer()->localToAbsoluteQuad(*localRect));
+    if (shouldObtainBoundsFromSVGModel(this)) {
+        // Get the bounding rectangle from the SVG model.
+        SVGElement& svgElement = downcast<SVGElement>(*this);
+        if (auto localRect = svgElement.getBoundingBox())
+            quads.append(renderer()->localToAbsoluteQuad(*localRect));
     } else if (shouldObtainBoundsFromBoxModel(this)) {
         // Get the bounding rectangle from the box model.
-        checkedRenderer()->absoluteQuads(quads);
+        renderer()->absoluteQuads(quads);
     }
 
     return view->contentsToRootView(enclosingIntRect(unitedBoundingBoxes(quads)));
@@ -1695,8 +1680,8 @@ IntRect Element::boundsInRootViewSpace()
 
 IntRect Element::boundingBoxInRootViewCoordinates() const
 {
-    if (CheckedPtr renderer = this->renderer())
-        return protectedDocument()->view()->contentsToRootView(renderer->absoluteBoundingBoxRect());
+    if (RenderObject* renderer = this->renderer())
+        return document().view()->contentsToRootView(renderer->absoluteBoundingBoxRect());
     return IntRect();
 }
 
@@ -1710,10 +1695,10 @@ static bool layoutOverflowRectContainsAllDescendants(const RenderBox& renderBox)
 
     // If there are any position:fixed inside of us, game over.
     if (auto* viewPositionedObjects = renderBox.view().positionedObjects()) {
-        for (CheckedRef positionedBox : *viewPositionedObjects) {
-            if (positionedBox.ptr() == &renderBox)
+        for (auto* positionedBox : *viewPositionedObjects) {
+            if (positionedBox == &renderBox)
                 continue;
-            if (positionedBox->isFixedPositioned() && renderBox.element()->contains(positionedBox->protectedElement().get()))
+            if (positionedBox->isFixedPositioned() && renderBox.element()->contains(positionedBox->element()))
                 return false;
         }
     }
@@ -1724,12 +1709,12 @@ static bool layoutOverflowRectContainsAllDescendants(const RenderBox& renderBox)
     }
 
     // This renderer may have positioned descendants whose containing block is some ancestor.
-    if (CheckedPtr containingBlock = RenderObject::containingBlockForPositionType(PositionType::Absolute, renderBox)) {
+    if (auto* containingBlock = RenderObject::containingBlockForPositionType(PositionType::Absolute, renderBox)) {
         if (auto* positionedObjects = containingBlock->positionedObjects()) {
-            for (CheckedRef positionedBox : *positionedObjects) {
-                if (positionedBox.ptr() == &renderBox)
+            for (auto* positionedBox : *positionedObjects) {
+                if (positionedBox == &renderBox)
                     continue;
-                if (renderBox.protectedElement()->contains(positionedBox->protectedElement().get()))
+                if (renderBox.element()->contains(positionedBox->element()))
                     return false;
             }
         }
@@ -1746,25 +1731,30 @@ LayoutRect Element::absoluteEventBounds(bool& boundsIncludeAllDescendantElements
         return LayoutRect();
 
     LayoutRect result;
-    if (RefPtr svgElement = elementWithSVGLayoutBox(*this)) {
-        if (auto localRect = svgElement->getBoundingBox())
-            result = LayoutRect(checkedRenderer()->localToAbsoluteQuad(*localRect, UseTransforms, &includesFixedPositionElements).boundingBox());
+    if (shouldObtainBoundsFromSVGModel(this)) {
+        // Get the bounding rectangle from the SVG model.
+        SVGElement& svgElement = downcast<SVGElement>(*this);
+        if (auto localRect = svgElement.getBoundingBox())
+            result = LayoutRect(renderer()->localToAbsoluteQuad(*localRect, UseTransforms, &includesFixedPositionElements).boundingBox());
     } else {
-        CheckedPtr renderer = this->renderer();
-        if (auto* box = dynamicDowncast<RenderBox>(renderer.get())) {
+        auto* renderer = this->renderer();
+        if (is<RenderBox>(renderer)) {
+            auto& box = downcast<RenderBox>(*renderer);
+
             bool computedBounds = false;
 
-            if (CheckedPtr fragmentedFlow = box->enclosingFragmentedFlow()) {
+            if (RenderFragmentedFlow* fragmentedFlow = box.enclosingFragmentedFlow()) {
                 bool wasFixed = false;
                 Vector<FloatQuad> quads;
-                if (fragmentedFlow->absoluteQuadsForBox(quads, &wasFixed, *box)) {
+                if (fragmentedFlow->absoluteQuadsForBox(quads, &wasFixed, &box)) {
                     result = LayoutRect(unitedBoundingBoxes(quads));
                     computedBounds = true;
                 } else {
                     // Probably columns. Just return the bounds of the multicol block for now.
                     // FIXME: this doesn't handle nested columns.
-                    if (CheckedPtr multicolContainer = dynamicDowncast<RenderBox>(fragmentedFlow->parent())) {
-                        auto overflowRect = multicolContainer->layoutOverflowRect();
+                    RenderElement* multicolContainer = fragmentedFlow->parent();
+                    if (multicolContainer && is<RenderBox>(multicolContainer)) {
+                        auto overflowRect = downcast<RenderBox>(*multicolContainer).layoutOverflowRect();
                         result = LayoutRect(multicolContainer->localToAbsoluteQuad(FloatRect(overflowRect), UseTransforms, &includesFixedPositionElements).boundingBox());
                         computedBounds = true;
                     }
@@ -1772,9 +1762,9 @@ LayoutRect Element::absoluteEventBounds(bool& boundsIncludeAllDescendantElements
             }
 
             if (!computedBounds) {
-                LayoutRect overflowRect = box->layoutOverflowRect();
-                result = LayoutRect(box->localToAbsoluteQuad(FloatRect(overflowRect), UseTransforms, &includesFixedPositionElements).boundingBox());
-                boundsIncludeAllDescendantElements = layoutOverflowRectContainsAllDescendants(*box);
+                LayoutRect overflowRect = box.layoutOverflowRect();
+                result = LayoutRect(box.localToAbsoluteQuad(FloatRect(overflowRect), UseTransforms, &includesFixedPositionElements).boundingBox());
+                boundsIncludeAllDescendantElements = layoutOverflowRectContainsAllDescendants(box);
             }
         } else
             result = LayoutRect(renderer->absoluteBoundingBoxRect(true /* useTransforms */, &includesFixedPositionElements));
@@ -1790,9 +1780,9 @@ LayoutRect Element::absoluteEventBoundsOfElementAndDescendants(bool& includesFix
     if (boundsIncludeDescendants)
         return result;
 
-    for (Ref child : childrenOfType<Element>(*this)) {
+    for (auto& child : childrenOfType<Element>(*this)) {
         bool includesFixedPosition = false;
-        LayoutRect childBounds = child->absoluteEventBoundsOfElementAndDescendants(includesFixedPosition);
+        LayoutRect childBounds = child.absoluteEventBoundsOfElementAndDescendants(includesFixedPosition);
         includesFixedPositionElements |= includesFixedPosition;
         result.unite(childBounds);
     }
@@ -1803,57 +1793,54 @@ LayoutRect Element::absoluteEventBoundsOfElementAndDescendants(bool& includesFix
 LayoutRect Element::absoluteEventHandlerBounds(bool& includesFixedPositionElements)
 {
     // This is not web-exposed, so don't call the FOUC-inducing updateLayoutIgnorePendingStylesheets().
-    if (!document().view())
+    auto* frameView = document().view();
+    if (!frameView)
         return LayoutRect();
 
     return absoluteEventBoundsOfElementAndDescendants(includesFixedPositionElements);
 }
 
-static std::optional<std::pair<CheckedRef<RenderObject>, LayoutRect>> listBoxElementBoundingBox(const Element& element)
+static std::optional<std::pair<RenderObject*, LayoutRect>> listBoxElementBoundingBox(const Element& element)
 {
     auto owningSelectElement = [](const Element& element) -> HTMLSelectElement* {
-        if (auto* optionElement = dynamicDowncast<HTMLOptionElement>(element))
-            return optionElement->ownerSelectElement();
+        if (is<HTMLOptionElement>(element))
+            return downcast<HTMLOptionElement>(element).ownerSelectElement();
 
-        if (auto* optGroupElement = dynamicDowncast<HTMLOptGroupElement>(element))
-            return optGroupElement->ownerSelectElement();
+        if (is<HTMLOptGroupElement>(element))
+            return downcast<HTMLOptGroupElement>(element).ownerSelectElement();
 
         return nullptr;
     };
 
-    RefPtr selectElement = owningSelectElement(element);
-    if (!selectElement)
+    auto* selectElement = owningSelectElement(element);
+    if (!selectElement || !selectElement->renderer() || !is<RenderListBox>(selectElement->renderer()))
         return std::nullopt;
 
-    CheckedPtr listBoxRenderer = dynamicDowncast<RenderListBox>(selectElement->renderer());
-    if (!listBoxRenderer)
-        return std::nullopt;
-
+    auto& listBoxRenderer = downcast<RenderListBox>(*selectElement->renderer());
     std::optional<LayoutRect> boundingBox;
-    if (RefPtr optionElement = dynamicDowncast<HTMLOptionElement>(element))
-        boundingBox = listBoxRenderer->localBoundsOfOption(*optionElement);
-    else if (RefPtr optGroupElement = dynamicDowncast<HTMLOptGroupElement>(element))
-        boundingBox = listBoxRenderer->localBoundsOfOptGroup(*optGroupElement);
+    if (is<HTMLOptionElement>(element))
+        boundingBox = listBoxRenderer.localBoundsOfOption(downcast<HTMLOptionElement>(element));
+    else if (is<HTMLOptGroupElement>(element))
+        boundingBox = listBoxRenderer.localBoundsOfOptGroup(downcast<HTMLOptGroupElement>(element));
 
     if (!boundingBox)
         return { };
 
-    return std::pair<CheckedRef<RenderObject>, LayoutRect> { listBoxRenderer.releaseNonNull(), boundingBox.value() };
+    return std::pair<RenderObject*, LayoutRect> { &listBoxRenderer, boundingBox.value() };
 }
 
 Ref<DOMRectList> Element::getClientRects()
 {
-    document().updateLayoutIgnorePendingStylesheets({ LayoutOptions::ContentVisibilityForceLayout }, this);
+    document().updateLayoutIgnorePendingStylesheets();
 
-    CheckedPtr<RenderObject> renderer = this->renderer();
-
+    RenderObject* renderer = this->renderer();
     Vector<FloatQuad> quads;
 
-    if (RefPtr svgElement = elementWithSVGLayoutBox(*this)) {
-        if (auto localRect = svgElement->getBoundingBox())
+    if (shouldObtainBoundsFromSVGModel(this)) {
+        if (auto localRect = downcast<SVGElement>(*this).getBoundingBox())
             quads.append(renderer->localToAbsoluteQuad(*localRect));
     } else if (auto pair = listBoxElementBoundingBox(*this)) {
-        renderer = WTFMove(pair.value().first);
+        renderer = pair.value().first;
         quads.append(renderer->localToAbsoluteQuad(FloatQuad { pair.value().second }));
     } else if (shouldObtainBoundsFromBoxModel(this))
         renderer->absoluteQuads(quads);
@@ -1863,19 +1850,19 @@ Ref<DOMRectList> Element::getClientRects()
     if (quads.isEmpty())
         return DOMRectList::create();
 
-    protectedDocument()->convertAbsoluteToClientQuads(quads, renderer->style());
+    document().convertAbsoluteToClientQuads(quads, renderer->style());
     return DOMRectList::create(quads);
 }
 
-std::optional<std::pair<CheckedPtr<RenderObject>, FloatRect>> Element::boundingAbsoluteRectWithoutLayout() const
+std::optional<std::pair<RenderObject*, FloatRect>> Element::boundingAbsoluteRectWithoutLayout() const
 {
-    CheckedPtr<RenderObject> renderer = this->renderer();
+    RenderObject* renderer = this->renderer();
     Vector<FloatQuad> quads;
-    if (RefPtr svgElement = elementWithSVGLayoutBox(*this)) {
-        if (auto localRect = svgElement->getBoundingBox())
+    if (shouldObtainBoundsFromSVGModel(this)) {
+        if (auto localRect = downcast<SVGElement>(*this).getBoundingBox())
             quads.append(renderer->localToAbsoluteQuad(*localRect));
     } else if (auto pair = listBoxElementBoundingBox(*this)) {
-        renderer = WTFMove(pair.value().first);
+        renderer = pair.value().first;
         quads.append(renderer->localToAbsoluteQuad(FloatQuad { pair.value().second }));
     } else if (shouldObtainBoundsFromBoxModel(this))
         renderer->absoluteQuads(quads);
@@ -1883,19 +1870,18 @@ std::optional<std::pair<CheckedPtr<RenderObject>, FloatRect>> Element::boundingA
     if (quads.isEmpty())
         return std::nullopt;
 
-    return std::make_pair(WTFMove(renderer), unitedBoundingBoxes(quads));
+    return std::make_pair(renderer, unitedBoundingBoxes(quads));
 }
 
 FloatRect Element::boundingClientRect()
 {
-    Ref document = this->document();
-    document->updateLayoutIgnorePendingStylesheets({ LayoutOptions::ContentVisibilityForceLayout }, this);
+    document().updateLayoutIgnorePendingStylesheets();
     auto pair = boundingAbsoluteRectWithoutLayout();
     if (!pair)
         return { };
-    CheckedPtr renderer = WTFMove(pair->first);
+    RenderObject* renderer = pair->first;
     FloatRect result = pair->second;
-    document->convertAbsoluteToClientRect(result, renderer->style());
+    document().convertAbsoluteToClientRect(result, renderer->style());
     return result;
 }
 
@@ -1906,7 +1892,7 @@ Ref<DOMRect> Element::getBoundingClientRect()
 
 IntRect Element::screenRect() const
 {
-    if (CheckedPtr renderer = this->renderer())
+    if (RenderObject* renderer = this->renderer())
         return document().view()->contentsToScreen(renderer->absoluteBoundingBoxRect());
     return IntRect();
 }
@@ -1949,7 +1935,7 @@ const AtomString& Element::getAttributeNS(const AtomString& namespaceURI, const 
 ExceptionOr<bool> Element::toggleAttribute(const AtomString& qualifiedName, std::optional<bool> force)
 {
     if (!Document::isValidName(qualifiedName))
-        return Exception { ExceptionCode::InvalidCharacterError, makeString("Invalid qualified name: '", qualifiedName, "'") };
+        return Exception { InvalidCharacterError, makeString("Invalid qualified name: '", qualifiedName, "'") };
 
     synchronizeAttribute(qualifiedName);
 
@@ -1973,7 +1959,7 @@ ExceptionOr<bool> Element::toggleAttribute(const AtomString& qualifiedName, std:
 ExceptionOr<void> Element::setAttribute(const AtomString& qualifiedName, const AtomString& value)
 {
     if (!Document::isValidName(qualifiedName))
-        return Exception { ExceptionCode::InvalidCharacterError, makeString("Invalid qualified name: '", qualifiedName, "'") };
+        return Exception { InvalidCharacterError, makeString("Invalid qualified name: '", qualifiedName, "'") };
 
     synchronizeAttribute(qualifiedName);
     auto caseAdjustedQualifiedName = shouldIgnoreAttributeCase(*this) ? qualifiedName.convertToASCIILowercase() : qualifiedName;
@@ -2054,8 +2040,7 @@ static inline AtomString makeIdForStyleResolution(const AtomString& value, bool 
 bool Element::isElementReflectionAttribute(const Settings& settings, const QualifiedName& name)
 {
     return (settings.ariaReflectionForElementReferencesEnabled() && name == HTMLNames::aria_activedescendantAttr)
-        || (settings.popoverAttributeEnabled() && name == HTMLNames::popovertargetAttr)
-        || (settings.invokerAttributesEnabled() && name == HTMLNames::invoketargetAttr);
+        || (settings.popoverAttributeEnabled() && name == HTMLNames::popovertargetAttr);
 }
 
 bool Element::isElementsArrayReflectionAttribute(const Settings& settings, const QualifiedName& name)
@@ -2090,7 +2075,7 @@ void Element::notifyAttributeChanged(const QualifiedName& name, const AtomString
     if (oldValue != newValue) {
         invalidateNodeListAndCollectionCachesInAncestorsForAttribute(name);
 
-        if (CheckedPtr cache = document().existingAXObjectCache())
+        if (auto* cache = document().existingAXObjectCache())
             cache->deferAttributeChangeIfNeeded(this, name, oldValue, newValue);
     }
 }
@@ -2112,12 +2097,10 @@ void Element::attributeChanged(const QualifiedName& name, const AtomString& oldV
                 elementData()->setIdForStyleResolution(newId);
             }
 
-        if (CheckedPtr observerRegistry = treeScope().idTargetObserverRegistryIfExists()) {
             if (!oldValue.isEmpty())
-                observerRegistry->notifyObservers(oldValue);
+                treeScope().idTargetObserverRegistry().notifyObservers(*oldValue.impl());
             if (!newValue.isEmpty())
-                observerRegistry->notifyObservers(newValue);
-        }
+                treeScope().idTargetObserverRegistry().notifyObservers(*newValue.impl());
         break;
     }
     case AttributeNames::nameAttr:
@@ -2127,13 +2110,13 @@ void Element::attributeChanged(const QualifiedName& name, const AtomString& oldV
             if (is<HTMLElement>(*this) || is<SVGElement>(*this))
                 setNonce(newValue.isNull() ? emptyAtom() : newValue);
         break;
-    case AttributeNames::useragentpartAttr:
-        if (needsStyleInvalidation() && isInUserAgentShadowTree())
+    case AttributeNames::pseudoAttr:
+            if (needsStyleInvalidation() && isInShadowTree())
                 invalidateStyleForSubtree();
         break;
     case AttributeNames::slotAttr:
-        if (RefPtr parent = parentElement()) {
-            if (RefPtr shadowRoot = parent->shadowRoot())
+            if (auto* parent = parentElement()) {
+                if (auto* shadowRoot = parent->shadowRoot())
                     shadowRoot->hostChildElementDidChangeSlotAttribute(*this, oldValue, newValue);
             }
         break;
@@ -2141,51 +2124,47 @@ void Element::attributeChanged(const QualifiedName& name, const AtomString& oldV
             partAttributeChanged(newValue);
         break;
     case AttributeNames::exportpartsAttr:
-        if (RefPtr shadowRoot = this->shadowRoot()) {
+            if (auto* shadowRoot = this->shadowRoot()) {
                 shadowRoot->invalidatePartMappings();
                 Style::Invalidator::invalidateShadowParts(*shadowRoot);
             }
         break;
     case AttributeNames::accesskeyAttr:
-        protectedDocument()->invalidateAccessKeyCache();
+        document().invalidateAccessKeyCache();
         break;
     case AttributeNames::XML::langAttr:
-    case AttributeNames::langAttr: {
+    case AttributeNames::langAttr:
             if (name == HTMLNames::langAttr)
-            setHasLangAttr(!newValue.isNull() && (isHTMLElement() || isSVGElement()));
+                setHasLangAttr(!newValue.isNull());
             else
                 setHasXMLLangAttr(!newValue.isNull());
-        Ref document = this->document();
-        if (document->documentElement() == this)
-            document->setDocumentElementLanguage(langFromAttribute());
+            if (document().documentElement() == this)
+                document().setDocumentElementLanguage(langFromAttribute());
             else
                 updateEffectiveLangStateAndPropagateToDescendants();
         break;
-    }
-    default: {
-        Ref document = this->document();
-        if (isElementReflectionAttribute(document->settings(), name) || isElementsArrayReflectionAttribute(document->settings(), name)) {
+    default:
+        if (isElementReflectionAttribute(document().settings(), name) || isElementsArrayReflectionAttribute(document().settings(), name)) {
             if (auto* map = explicitlySetAttrElementsMapIfExists())
                 map->remove(name);
         }
         break;
     }
-    }
 }
 
 void Element::updateEffectiveLangStateAndPropagateToDescendants()
 {
-    Style::PseudoClassChangeInvalidation styleInvalidation(*this, CSSSelector::PseudoClass::Lang, Style::PseudoClassChangeInvalidation::AnyValue);
+    Style::PseudoClassChangeInvalidation styleInvalidation(*this, CSSSelector::PseudoClassType::Lang, Style::PseudoClassChangeInvalidation::AnyValue);
     updateEffectiveLangState();
 
     for (auto it = descendantsOfType<Element>(*this).begin(); it;) {
-        Ref element = *it;
-        if (element->hasLanguageAttribute()) {
+        auto& element = *it;
+        if (element.hasLanguageAttribute()) {
             it.traverseNextSkippingChildren();
             continue;
         }
-        Style::PseudoClassChangeInvalidation styleInvalidation(element, CSSSelector::PseudoClass::Lang, Style::PseudoClassChangeInvalidation::AnyValue);
-        element->updateEffectiveLangStateFromParent();
+        Style::PseudoClassChangeInvalidation styleInvalidation(element, CSSSelector::PseudoClassType::Lang, Style::PseudoClassChangeInvalidation::AnyValue);
+        element.updateEffectiveLangStateFromParent();
         it.traverseNext();
     }
 }
@@ -2200,7 +2179,7 @@ ExplicitlySetAttrElementsMap* Element::explicitlySetAttrElementsMapIfExists() co
     return hasRareData() ? &elementRareData()->explicitlySetAttrElementsMap() : nullptr;
 }
 
-RefPtr<Element> Element::getElementAttribute(const QualifiedName& attributeName) const
+Element* Element::getElementAttribute(const QualifiedName& attributeName) const
 {
     ASSERT(isElementReflectionAttribute(document().settings(), attributeName));
 
@@ -2208,7 +2187,7 @@ RefPtr<Element> Element::getElementAttribute(const QualifiedName& attributeName)
         auto it = map->find(attributeName);
         if (it != map->end()) {
             ASSERT(it->value.size() == 1);
-            RefPtr element = it->value[0].get();
+            auto* element = it->value[0].get();
             if (element && isDescendantOrShadowDescendantOf(element->rootNode()))
                 return element;
             return nullptr;
@@ -2237,7 +2216,7 @@ void Element::setElementAttribute(const QualifiedName& attributeName, Element* e
 
     explicitlySetAttrElementsMap().set(attributeName, Vector<WeakPtr<Element, WeakPtrImplWithEventTargetData>> { element });
 
-    if (CheckedPtr cache = document().existingAXObjectCache())
+    if (auto* cache = document().existingAXObjectCache())
         cache->updateRelations(*this, attributeName);
 }
 
@@ -2265,8 +2244,8 @@ std::optional<Vector<RefPtr<Element>>> Element::getElementsArrayAttribute(const 
     SpaceSplitString ids(getAttribute(attr), SpaceSplitString::ShouldFoldCase::No);
     Vector<RefPtr<Element>> elements;
     for (unsigned i = 0; i < ids.size(); ++i) {
-        if (RefPtr element = treeScope().getElementById(ids[i]))
-            elements.append(WTFMove(element));
+        if (auto* element = treeScope().getElementById(ids[i]))
+            elements.append(element);
     }
     return elements;
 }
@@ -2284,14 +2263,16 @@ void Element::setElementsArrayAttribute(const QualifiedName& attributeName, std:
 
     setAttribute(attributeName, emptyAtom());
 
-    auto newElements = copyToVectorOf<WeakPtr<Element, WeakPtrImplWithEventTargetData>>(*elements);
+    Vector<WeakPtr<Element, WeakPtrImplWithEventTargetData>> newElements;
+    newElements.reserveInitialCapacity(elements->size());
+    for (auto element : elements.value()) {
+        newElements.uncheckedAppend(element);
+    }
     explicitlySetAttrElementsMap().set(attributeName, WTFMove(newElements));
 
-    if (CheckedPtr cache = document().existingAXObjectCache()) {
-        for (auto element : elements.value()) {
-            // FIXME: Should this pass `element` instead of `*this`?
+    if (auto* cache = document().existingAXObjectCache()) {
+        for (auto element : elements.value())
             cache->updateRelations(*this, attributeName);
-    }
     }
 }
 
@@ -2305,7 +2286,6 @@ void Element::classAttributeChanged(const AtomString& newClassString)
         auto shouldFoldCase = document().inQuirksMode() ? SpaceSplitString::ShouldFoldCase::Yes : SpaceSplitString::ShouldFoldCase::No;
         SpaceSplitString newClassNames(newClassString, shouldFoldCase);
         Style::ClassChangeInvalidation styleInvalidation(*this, elementData()->classNames(), newClassNames);
-        document().invalidateQuerySelectorAllResultsForClassAttributeChange(*this, elementData()->classNames(), newClassNames);
         elementData()->setClassNames(WTFMove(newClassNames));
     }
 
@@ -2346,17 +2326,6 @@ URL Element::absoluteLinkURL() const
     return document().completeURL(linkAttribute);
 }
 
-void Element::setIsLink(bool flag)
-{
-    if (isLink() == flag)
-        return;
-    Style::PseudoClassChangeInvalidation styleInvalidation(*this, {
-        { CSSSelector::PseudoClass::AnyLink, flag },
-        { CSSSelector::PseudoClass::Link, flag }
-    });
-    setStateFlag(StateFlag::IsLink, flag);
-}
-
 #if ENABLE(TOUCH_EVENTS)
 
 bool Element::allowsDoubleTapGesture() const
@@ -2364,7 +2333,7 @@ bool Element::allowsDoubleTapGesture() const
     if (renderStyle() && renderStyle()->touchActions() != TouchAction::Auto)
         return false;
 
-    RefPtr parent = parentElement();
+    Element* parent = parentElement();
     return !parent || parent->allowsDoubleTapGesture();
 }
 
@@ -2389,7 +2358,7 @@ void invalidateForSiblingCombinators(Element* sibling)
         if (sibling->styleIsAffectedByPreviousSibling())
             sibling->invalidateStyleInternal();
         if (sibling->descendantsAffectedByPreviousSibling()) {
-            for (RefPtr siblingChild = sibling->firstElementChild(); siblingChild; siblingChild = siblingChild->nextElementSibling())
+            for (auto* siblingChild = sibling->firstElementChild(); siblingChild; siblingChild = siblingChild->nextElementSibling())
                 siblingChild->invalidateStyleForSubtreeInternal();
         }
         if (!sibling->affectsNextSiblingElementStyle())
@@ -2428,22 +2397,13 @@ void Element::invalidateStyleForSubtree()
 
 void Element::invalidateStyleAndRenderersForSubtree()
 {
-    Node::invalidateStyle(Style::Validity::SubtreeInvalid, Style::InvalidationMode::RebuildRenderer);
-}
-
-void Element::invalidateRenderer()
-{
-    Node::invalidateStyle(Style::Validity::Valid, Style::InvalidationMode::RebuildRenderer);
+    Node::invalidateStyle(Style::Validity::SubtreeAndRenderersInvalid);
+    invalidateSiblingsIfNeeded(*this);
 }
 
 void Element::invalidateStyleInternal()
 {
     Node::invalidateStyle(Style::Validity::ElementInvalid);
-}
-
-void Element::invalidateStyleForAnimation()
-{
-    Node::invalidateStyle(Style::Validity::AnimationInvalid);
 }
 
 void Element::invalidateStyleForSubtreeInternal()
@@ -2455,7 +2415,7 @@ void Element::invalidateForQueryContainerSizeChange()
 {
     // FIXME: Ideally we would just recompute things that are actually affected by containers queries within the subtree.
     Node::invalidateStyle(Style::Validity::SubtreeInvalid);
-    setStateFlag(StateFlag::NeedsUpdateQueryContainerDependentStyle);
+    setNodeFlag(NodeFlag::NeedsUpdateQueryContainerDependentStyle);
 }
 
 void Element::invalidateForResumingQueryContainerResolution()
@@ -2465,12 +2425,12 @@ void Element::invalidateForResumingQueryContainerResolution()
 
 bool Element::needsUpdateQueryContainerDependentStyle() const
 {
-    return hasStateFlag(StateFlag::NeedsUpdateQueryContainerDependentStyle);
+    return hasNodeFlag(NodeFlag::NeedsUpdateQueryContainerDependentStyle);
 }
 
 void Element::clearNeedsUpdateQueryContainerDependentStyle()
 {
-    clearStateFlag(StateFlag::NeedsUpdateQueryContainerDependentStyle);
+    clearNodeFlag(NodeFlag::NeedsUpdateQueryContainerDependentStyle);
 }
 
 void Element::invalidateEventListenerRegions()
@@ -2483,34 +2443,28 @@ bool Element::hasDisplayContents() const
 {
     if (!hasRareData())
         return false;
-    auto* style = elementRareData()->displayContentsOrNoneStyle();
-    return style && style->display() == DisplayType::Contents;
+
+    auto* style = elementRareData()->displayContentsStyle();
+    ASSERT(!style || style->display() == DisplayType::Contents);
+    return !!style;
 }
 
-bool Element::hasDisplayNone() const
+void Element::storeDisplayContentsStyle(std::unique_ptr<RenderStyle> style)
 {
-    if (!hasRareData())
-        return false;
-    auto* style = elementRareData()->displayContentsOrNoneStyle();
-    return style && style->display() == DisplayType::None;
-}
-
-void Element::storeDisplayContentsOrNoneStyle(std::unique_ptr<RenderStyle> style)
-{
-    // This is used by RenderTreeBuilder to store the style for Elements with display:{contents|none}.
+    // This is used by RenderTreeBuilder to store the style for Elements with display:contents.
     // Normally style is held in renderers but display:contents doesn't generate one.
     // This is kept distinct from ElementRareData::computedStyle() which can update outside style resolution.
     // This way renderOrDisplayContentsStyle() always returns consistent styles matching the rendering state.
-    ASSERT(style && (style->display() == DisplayType::Contents || style->display() == DisplayType::None));
+    ASSERT(style && style->display() == DisplayType::Contents);
     ASSERT(!renderer() || isPseudoElement());
-    ensureElementRareData().setDisplayContentsOrNoneStyle(WTFMove(style));
+    ensureElementRareData().setDisplayContentsStyle(WTFMove(style));
 }
 
-void Element::clearDisplayContentsOrNoneStyle()
+void Element::clearDisplayContentsStyle()
 {
     if (!hasRareData())
         return;
-    elementRareData()->setDisplayContentsOrNoneStyle(nullptr);
+    elementRareData()->setDisplayContentsStyle(nullptr);
 }
 
 // Returns true is the given attribute is an event handler.
@@ -2544,8 +2498,8 @@ void Element::parserSetAttributes(std::span<const Attribute> attributes)
     ASSERT(!m_elementData);
 
     if (attributes.size()) {
-        if (auto* sharedObjectPool = document().sharedObjectPool())
-            m_elementData = sharedObjectPool->cachedShareableElementDataWithAttributes(attributes);
+        if (document().sharedObjectPool())
+            m_elementData = document().sharedObjectPool()->cachedShareableElementDataWithAttributes(attributes);
         else
             m_elementData = ShareableElementData::createWithAttributes(attributes);
 
@@ -2600,10 +2554,10 @@ void Element::updateEffectiveLangStateFromParent()
     ASSERT(!hasLanguageAttribute());
     ASSERT(parentNode() != &document());
 
-    RefPtr parent = parentOrShadowHostElement();
+    auto* parent = parentOrShadowHostElement();
 
     if (!parent || parent == document().documentElement()) {
-        setEffectiveLangKnownToMatchDocumentElement(parent.get());
+        setEffectiveLangKnownToMatchDocumentElement(parent);
         if (hasRareData())
             elementRareData()->setEffectiveLang(nullAtom());
         return;
@@ -2632,10 +2586,8 @@ void Element::updateEffectiveLangState()
         return;
     }
 
-    if (hasLangAttrKnownToMatchDocumentElement()) {
-        // Unable to protect the document as it may have started destruction.
+    if (hasLangAttrKnownToMatchDocumentElement())
         document().removeElementWithLangAttrMatchingDocumentElement(*this);
-    }
 
     setEffectiveLangKnownToMatchDocumentElement(false);
     ensureElementRareData().setEffectiveLang(lang);
@@ -2661,6 +2613,11 @@ bool Element::hasEquivalentAttributes(const Element& other) const
 }
 
 String Element::nodeName() const
+{
+    return m_tagName.toString();
+}
+
+String Element::nodeNamePreservingCase() const
 {
     return m_tagName.toString();
 }
@@ -2697,20 +2654,20 @@ Node::InsertedIntoAncestorResult Element::insertedIntoAncestor(InsertionType ins
     if (parentOfInsertedTree.isInTreeScope()) {
     bool becomeConnected = insertionType.connectedToDocument;
         auto* newScope = &parentOfInsertedTree.treeScope();
-        RefPtr newDocument = becomeConnected ? dynamicDowncast<HTMLDocument>(newScope->documentScope()) : nullptr;
+    auto* newDocument = becomeConnected ? dynamicDowncast<HTMLDocument>(newScope->documentScope()) : nullptr;
     if (!insertionType.treeScopeChanged)
         newScope = nullptr;
 
         if (auto& idValue = getIdAttribute(); !idValue.isEmpty()) {
         if (newScope)
-                newScope->addElementById(idValue, *this);
+                newScope->addElementById(*idValue.impl(), *this);
         if (newDocument)
                 updateIdForDocument(*newDocument, nullAtom(), idValue, HTMLDocumentNamedItemMapsUpdatingCondition::Always);
     }
 
         if (auto& nameValue = getNameAttribute(); !nameValue.isEmpty()) {
         if (newScope)
-                newScope->addElementByName(nameValue, *this);
+                newScope->addElementByName(*nameValue.impl(), *this);
         if (newDocument)
             updateNameForDocument(*newDocument, nullAtom(), nameValue);
     }
@@ -2725,17 +2682,17 @@ Node::InsertedIntoAncestorResult Element::insertedIntoAncestor(InsertionType ins
     }
 
     if (shouldAutofocus(*this))
-            Ref { document().topDocument() }->appendAutofocusCandidate(*this);
+        document().topDocument().appendAutofocusCandidate(*this);
     }
 
     if (parentNode() == &parentOfInsertedTree) {
-        if (RefPtr shadowRoot = parentNode()->shadowRoot())
+        if (auto* shadowRoot = parentNode()->shadowRoot())
             shadowRoot->hostChildElementDidChange(*this);
     }
 
     if (parentNode() == &parentOfInsertedTree && is<Document>(*parentNode())) {
         clearEffectiveLangStateOnNewDocumentElement();
-        protectedDocument()->setDocumentElementLanguage(langFromAttribute());
+        document().setDocumentElementLanguage(langFromAttribute());
     } else if (!hasLanguageAttribute())
         updateEffectiveLangStateFromParent();
 
@@ -2747,7 +2704,7 @@ void Element::clearEffectiveLangStateOnNewDocumentElement()
     ASSERT(parentNode() == &document());
 
     if (hasLangAttrKnownToMatchDocumentElement()) {
-        protectedDocument()->removeElementWithLangAttrMatchingDocumentElement(*this);
+        document().removeElementWithLangAttrMatchingDocumentElement(*this);
         setEffectiveLangKnownToMatchDocumentElement(false);
     }
 
@@ -2768,7 +2725,7 @@ bool Element::hasEffectiveLangState() const
 
 void Element::removedFromAncestor(RemovalType removalType, ContainerNode& oldParentOfRemovedTree)
 {
-    if (RefPtr page = document().page()) {
+    if (auto* page = document().page()) {
 #if ENABLE(POINTER_LOCK)
         page->pointerLockController().elementWasRemoved(*this);
 #endif
@@ -2779,7 +2736,7 @@ void Element::removedFromAncestor(RemovalType removalType, ContainerNode& oldPar
 #endif
     }
 
-    setSavedLayerScrollPosition({ });
+    setSavedLayerScrollPosition(ScrollPosition());
 
     if (oldParentOfRemovedTree.isInTreeScope()) {
         TreeScope* oldScope = &oldParentOfRemovedTree.treeScope();
@@ -2790,14 +2747,14 @@ void Element::removedFromAncestor(RemovalType removalType, ContainerNode& oldPar
 
         if (auto& idValue = getIdAttribute(); !idValue.isEmpty()) {
             if (oldScope)
-                oldScope->removeElementById(idValue, *this);
+                oldScope->removeElementById(*idValue.impl(), *this);
             if (oldHTMLDocument)
                 updateIdForDocument(*oldHTMLDocument, idValue, nullAtom(), HTMLDocumentNamedItemMapsUpdatingCondition::Always);
         }
 
         if (auto& nameValue = getNameAttribute(); !nameValue.isEmpty()) {
             if (oldScope)
-                oldScope->removeElementByName(nameValue, *this);
+                oldScope->removeElementByName(*nameValue.impl(), *this);
             if (oldHTMLDocument)
                 updateNameForDocument(*oldHTMLDocument, nameValue, nullAtom());
         }
@@ -2810,7 +2767,7 @@ void Element::removedFromAncestor(RemovalType removalType, ContainerNode& oldPar
     }
 
     if (!parentNode()) {
-        if (RefPtr shadowRoot = oldParentOfRemovedTree.shadowRoot())
+        if (auto* shadowRoot = oldParentOfRemovedTree.shadowRoot())
             shadowRoot->hostChildElementDidChange(*this);
     }
 
@@ -2862,7 +2819,7 @@ void Element::addShadowRoot(Ref<ShadowRoot>&& newShadowRoot)
     ASSERT(!newShadowRoot->hasChildNodes());
     ASSERT(!shadowRoot());
 
-    Ref shadowRoot = newShadowRoot;
+    ShadowRoot& shadowRoot = newShadowRoot;
     {
         WidgetHierarchyUpdatesSuspensionScope suspendWidgetHierarchyUpdates;
         ScriptDisallowedScope::InMainThread scriptDisallowedScope;
@@ -2871,8 +2828,8 @@ void Element::addShadowRoot(Ref<ShadowRoot>&& newShadowRoot)
 
         ensureElementRareData().setShadowRoot(WTFMove(newShadowRoot));
 
-        shadowRoot->setHost(*this);
-        shadowRoot->setParentTreeScope(treeScope());
+        shadowRoot.setHost(*this);
+        shadowRoot.setParentTreeScope(treeScope());
 
         NodeVector postInsertionNotificationTargets;
         notifyChildNodeInserted(*this, shadowRoot, postInsertionNotificationTargets);
@@ -2883,7 +2840,7 @@ void Element::addShadowRoot(Ref<ShadowRoot>&& newShadowRoot)
         invalidateStyleAndRenderersForSubtree();
     }
 
-    if (shadowRoot->mode() == ShadowRootMode::UserAgent)
+    if (shadowRoot.mode() == ShadowRootMode::UserAgent)
         didAddUserAgentShadowRoot(shadowRoot);
 }
 
@@ -2934,8 +2891,8 @@ static bool canAttachAuthorShadowRoot(const Element& element)
     }
 
     if (auto localName = element.localName(); Document::validateCustomElementName(localName) == CustomElementNameValidationStatus::Valid) {
-        if (RefPtr window = element.document().domWindow()) {
-            RefPtr registry = window->customElementRegistry();
+        if (auto* window = element.document().domWindow()) {
+            auto* registry = window->customElementRegistry();
             if (registry && registry->isShadowDisabled(localName))
                 return false;
         }
@@ -2949,7 +2906,7 @@ static bool canAttachAuthorShadowRoot(const Element& element)
 ExceptionOr<ShadowRoot&> Element::attachShadow(const ShadowRootInit& init)
 {
     if (!canAttachAuthorShadowRoot(*this))
-        return Exception { ExceptionCode::NotSupportedError };
+        return Exception { NotSupportedError };
     if (RefPtr shadowRoot = this->shadowRoot()) {
         if (shadowRoot->isDeclarativeShadowRoot()) {
             ChildListMutationScope mutation(*shadowRoot);
@@ -2957,32 +2914,33 @@ ExceptionOr<ShadowRoot&> Element::attachShadow(const ShadowRootInit& init)
             shadowRoot->setIsDeclarativeShadowRoot(false);
             return *shadowRoot;
         }
-        return Exception { ExceptionCode::NotSupportedError };
+        return Exception { NotSupportedError };
     }
     if (init.mode == ShadowRootMode::UserAgent)
-        return Exception { ExceptionCode::TypeError };
-    Ref shadow = ShadowRoot::create(document(), init.mode, init.slotAssignment,
+        return Exception { TypeError };
+    auto shadow = ShadowRoot::create(document(), init.mode, init.slotAssignment,
         init.delegatesFocus ? ShadowRoot::DelegatesFocus::Yes : ShadowRoot::DelegatesFocus::No,
-        init.clonable ? ShadowRoot::Clonable::Yes : ShadowRoot::Clonable::No,
+        init.cloneable ? ShadowRoot::Cloneable::Yes : ShadowRoot::Cloneable::No,
         isPrecustomizedOrDefinedCustomElement() ? ShadowRoot::AvailableToElementInternals::Yes : ShadowRoot::AvailableToElementInternals::No);
-    addShadowRoot(shadow.copyRef());
-    return shadow.get();
+    auto& result = shadow.get();
+    addShadowRoot(WTFMove(shadow));
+    return result;
 }
 
 ExceptionOr<ShadowRoot&> Element::attachDeclarativeShadow(ShadowRootMode mode, bool delegatesFocus)
 {
-    auto exceptionOrShadowRoot = attachShadow({ mode, delegatesFocus, /* clonable */ true });
+    auto exceptionOrShadowRoot = attachShadow({ mode, delegatesFocus, /* cloneable */ true });
     if (exceptionOrShadowRoot.hasException())
         return exceptionOrShadowRoot.releaseException();
-    Ref shadowRoot = exceptionOrShadowRoot.releaseReturnValue();
-    shadowRoot->setIsDeclarativeShadowRoot(true);
-    shadowRoot->setIsAvailableToElementInternals(true);
-    return shadowRoot.get();
+    auto& shadowRoot = exceptionOrShadowRoot.releaseReturnValue();
+    shadowRoot.setIsDeclarativeShadowRoot(true);
+    shadowRoot.setIsAvailableToElementInternals(true);
+    return shadowRoot;
 }
 
-RefPtr<ShadowRoot> Element::shadowRootForBindings(JSC::JSGlobalObject& lexicalGlobalObject) const
+ShadowRoot* Element::shadowRootForBindings(JSC::JSGlobalObject& lexicalGlobalObject) const
 {
-    RefPtr shadow = shadowRoot();
+    auto* shadow = shadowRoot();
     if (!shadow)
         return nullptr;
     if (shadow->mode() == ShadowRootMode::Open)
@@ -3000,7 +2958,7 @@ RefPtr<ShadowRoot> Element::userAgentShadowRoot() const
 
 ShadowRoot& Element::ensureUserAgentShadowRoot()
 {
-    if (RefPtr shadow = userAgentShadowRoot())
+    if (auto shadow = userAgentShadowRoot())
         return *shadow;
     return createUserAgentShadowRoot();
 }
@@ -3008,7 +2966,7 @@ ShadowRoot& Element::ensureUserAgentShadowRoot()
 ShadowRoot& Element::createUserAgentShadowRoot()
 {
     ASSERT(!userAgentShadowRoot());
-    Ref newShadow = ShadowRoot::create(document(), ShadowRootMode::UserAgent);
+    auto newShadow = ShadowRoot::create(document(), ShadowRootMode::UserAgent);
     ShadowRoot& shadow = newShadow;
     addShadowRoot(WTFMove(newShadow));
     return shadow;
@@ -3016,12 +2974,13 @@ ShadowRoot& Element::createUserAgentShadowRoot()
 
 inline void Node::setCustomElementState(CustomElementState state)
 {
-    Style::PseudoClassChangeInvalidation styleInvalidation(checkedDowncast<Element>(*this),
-        CSSSelector::PseudoClass::Defined,
+    RELEASE_ASSERT(is<Element>(this));
+    Style::PseudoClassChangeInvalidation styleInvalidation(downcast<Element>(*this),
+        CSSSelector::PseudoClassType::Defined,
         state == CustomElementState::Custom || state == CustomElementState::Uncustomized
     );
     auto bitfields = rareDataBitfields();
-    bitfields.customElementState = enumToUnderlyingType(state);
+    bitfields.customElementState = static_cast<uint16_t>(state);
     setRareDataBitfields(bitfields);
 }
 
@@ -3100,14 +3059,14 @@ CustomElementDefaultARIA& Element::customElementDefaultARIA()
     return *deafultARIA;
 }
 
-CheckedRef<CustomElementDefaultARIA> Element::checkedCustomElementDefaultARIA()
-{
-    return customElementDefaultARIA();
-}
-
 CustomElementDefaultARIA* Element::customElementDefaultARIAIfExists()
 {
     return isPrecustomizedOrDefinedCustomElement() && hasRareData() ? elementRareData()->customElementDefaultARIA() : nullptr;
+}
+
+const AtomString& Element::shadowPseudoId() const
+{
+    return pseudo();
 }
 
 bool Element::childTypeAllowed(NodeType type) const
@@ -3128,7 +3087,7 @@ void Element::childrenChanged(const ChildChange& change)
 {
     ContainerNode::childrenChanged(change);
 
-    if (RefPtr shadowRoot = this->shadowRoot()) {
+    if (auto* shadowRoot = this->shadowRoot()) {
         switch (change.type) {
         case ChildChange::Type::ElementInserted:
         case ChildChange::Type::ElementRemoved:
@@ -3158,15 +3117,18 @@ void Element::setAttributeEventListener(const AtomString& eventType, const Quali
 void Element::removeAllEventListeners()
 {
     ContainerNode::removeAllEventListeners();
-    if (RefPtr shadowRoot = this->shadowRoot())
+    if (ShadowRoot* shadowRoot = this->shadowRoot())
         shadowRoot->removeAllEventListeners();
+}
+
+void Element::beginParsingChildren()
+{
+    clearIsParsingChildrenFinished();
 }
 
 void Element::finishParsingChildren()
 {
-    if (hasHeldBackChildrenChanged())
-        parserNotifyChildrenChanged();
-
+    ContainerNode::finishParsingChildren();
     setIsParsingChildrenFinished();
 
     Style::ChildChangeInvalidation::invalidateAfterFinishedParsingChildren(*this);
@@ -3238,14 +3200,14 @@ void Element::attachAttributeNodeIfNeeded(Attr& attrNode)
 
 ExceptionOr<RefPtr<Attr>> Element::setAttributeNode(Attr& attrNode)
 {
-    RefPtr oldAttrNode = attrIfExists(attrNode.qualifiedName());
+    RefPtr<Attr> oldAttrNode = attrIfExists(attrNode.localName(), shouldIgnoreAttributeCase(*this));
     if (oldAttrNode.get() == &attrNode)
         return oldAttrNode;
 
     // InUseAttributeError: Raised if node is an Attr that is already an attribute of another Element object.
     // The DOM user must explicitly clone Attr nodes to re-use them in other elements.
     if (attrNode.ownerElement() && attrNode.ownerElement() != this)
-        return Exception { ExceptionCode::InUseAttributeError };
+        return Exception { InUseAttributeError };
 
     {
         ScriptDisallowedScope::InMainThread scriptDisallowedScope;
@@ -3254,7 +3216,7 @@ ExceptionOr<RefPtr<Attr>> Element::setAttributeNode(Attr& attrNode)
 
     auto& elementData = ensureUniqueElementData();
 
-    auto existingAttributeIndex = elementData.findAttributeIndexByName(attrNode.qualifiedName());
+    auto existingAttributeIndex = elementData.findAttributeIndexByName(attrNode.localName(), shouldIgnoreAttributeCase(*this));
 
     // Attr::value() will return its 'm_standaloneValue' member any time its Element is set to nullptr. We need to cache this value
     // before making changes to attrNode's Element connections.
@@ -3268,7 +3230,7 @@ ExceptionOr<RefPtr<Attr>> Element::setAttributeNode(Attr& attrNode)
         if (oldAttrNode)
             detachAttrNodeFromElementWithValue(oldAttrNode.get(), attribute.value());
         else
-            oldAttrNode = Attr::create(protectedDocument(), attrNode.qualifiedName(), attribute.value());
+            oldAttrNode = Attr::create(document(), attrNode.qualifiedName(), attribute.value());
 
         attachAttributeNodeIfNeeded(attrNode);
 
@@ -3285,14 +3247,14 @@ ExceptionOr<RefPtr<Attr>> Element::setAttributeNode(Attr& attrNode)
 
 ExceptionOr<RefPtr<Attr>> Element::setAttributeNodeNS(Attr& attrNode)
 {
-    RefPtr oldAttrNode = attrIfExists(attrNode.qualifiedName());
-    if (oldAttrNode == &attrNode)
+    RefPtr<Attr> oldAttrNode = attrIfExists(attrNode.qualifiedName());
+    if (oldAttrNode.get() == &attrNode)
         return oldAttrNode;
 
     // InUseAttributeError: Raised if node is an Attr that is already an attribute of another Element object.
     // The DOM user must explicitly clone Attr nodes to re-use them in other elements.
     if (attrNode.ownerElement() && attrNode.ownerElement() != this)
-        return Exception { ExceptionCode::InUseAttributeError };
+        return Exception { InUseAttributeError };
 
     // Attr::value() will return its 'm_standaloneValue' member any time its Element is set to nullptr. We need to cache this value
     // before making changes to attrNode's Element connections.
@@ -3309,7 +3271,7 @@ ExceptionOr<RefPtr<Attr>> Element::setAttributeNodeNS(Attr& attrNode)
             if (oldAttrNode)
                 detachAttrNodeFromElementWithValue(oldAttrNode.get(), elementData.attributeAt(index).value());
             else
-                oldAttrNode = Attr::create(protectedDocument(), attrNode.qualifiedName(), elementData.attributeAt(index).value());
+                oldAttrNode = Attr::create(document(), attrNode.qualifiedName(), elementData.attributeAt(index).value());
         }
     }
 
@@ -3322,22 +3284,22 @@ ExceptionOr<RefPtr<Attr>> Element::setAttributeNodeNS(Attr& attrNode)
 ExceptionOr<Ref<Attr>> Element::removeAttributeNode(Attr& attr)
 {
     if (attr.ownerElement() != this)
-        return Exception { ExceptionCode::NotFoundError };
+        return Exception { NotFoundError };
 
     ASSERT(&document() == &attr.document());
 
     synchronizeAllAttributes();
 
     if (!m_elementData)
-        return Exception { ExceptionCode::NotFoundError };
+        return Exception { NotFoundError };
 
     auto existingAttributeIndex = m_elementData->findAttributeIndexByName(attr.qualifiedName());
     if (existingAttributeIndex == ElementData::attributeNotFound)
-        return Exception { ExceptionCode::NotFoundError };
+        return Exception { NotFoundError };
 
-    Ref oldAttrNode { attr };
+    Ref<Attr> oldAttrNode { attr };
 
-    detachAttrNodeFromElementWithValue(oldAttrNode.ptr(), m_elementData->attributeAt(existingAttributeIndex).value());
+    detachAttrNodeFromElementWithValue(&attr, m_elementData->attributeAt(existingAttributeIndex).value());
     removeAttributeInternal(existingAttributeIndex, InSynchronizationOfLazyAttribute::No);
 
     return oldAttrNode;
@@ -3350,7 +3312,7 @@ ExceptionOr<QualifiedName> Element::parseAttributeName(const AtomString& namespa
         return parseResult.releaseException();
     QualifiedName parsedAttributeName { parseResult.releaseReturnValue() };
     if (!Document::hasValidNamespaceForAttributes(parsedAttributeName))
-        return Exception { ExceptionCode::NamespaceError };
+        return Exception { NamespaceError };
     return parsedAttributeName;
 }
 
@@ -3372,7 +3334,7 @@ void Element::removeAttributeInternal(unsigned index, InSynchronizationOfLazyAtt
     QualifiedName name = elementData.attributeAt(index).name();
     AtomString valueBeingRemoved = elementData.attributeAt(index).value();
 
-    if (RefPtr attrNode = attrIfExists(name))
+    if (RefPtr<Attr> attrNode = attrIfExists(name))
         detachAttrNodeFromElementWithValue(attrNode.get(), elementData.attributeAt(index).value());
 
     if (inSynchronizationOfLazyAttribute == InSynchronizationOfLazyAttribute::Yes) {
@@ -3413,10 +3375,8 @@ bool Element::removeAttribute(const AtomString& qualifiedName)
     AtomString caseAdjustedQualifiedName = shouldIgnoreAttributeCase(*this) ? qualifiedName.convertToASCIILowercase() : qualifiedName;
     unsigned index = elementData()->findAttributeIndexByName(caseAdjustedQualifiedName, false);
     if (index == ElementData::attributeNotFound) {
-        if (UNLIKELY(caseAdjustedQualifiedName == styleAttr) && elementData()->styleAttributeIsDirty()) {
-            if (auto* styledElement = dynamicDowncast<StyledElement>(*this))
-                styledElement->removeAllInlineStyleProperties();
-        }
+        if (UNLIKELY(caseAdjustedQualifiedName == styleAttr) && elementData()->styleAttributeIsDirty() && is<StyledElement>(*this))
+            downcast<StyledElement>(*this).removeAllInlineStyleProperties();
         return false;
     }
 
@@ -3471,7 +3431,7 @@ bool Element::hasAttributeNS(const AtomString& namespaceURI, const AtomString& l
 
 static RefPtr<ShadowRoot> shadowRootWithDelegatesFocus(const Element& element)
 {
-    if (RefPtr root = element.shadowRoot()) {
+    if (auto* root = element.shadowRoot()) {
         if (root->delegatesFocus())
             return root;
     }
@@ -3497,25 +3457,25 @@ static bool isProgramaticallyFocusable(Element& element)
 // https://html.spec.whatwg.org/multipage/interaction.html#autofocus-delegate
 static RefPtr<Element> autoFocusDelegate(ContainerNode& target, FocusTrigger trigger)
 {
-    if (RefPtr root = target.shadowRoot(); root && !root->delegatesFocus())
+    if (auto* root = target.shadowRoot(); root && !root->delegatesFocus())
         return nullptr;
 
-    for (Ref element : descendantsOfType<Element>(target)) {
-        if (!element->hasAttributeWithoutSynchronization(HTMLNames::autofocusAttr))
+    for (auto& element : descendantsOfType<Element>(target)) {
+        if (!element.hasAttributeWithoutSynchronization(HTMLNames::autofocusAttr))
             continue;
         if (auto root = shadowRootWithDelegatesFocus(element)) {
-            if (RefPtr target = Element::findFocusDelegateForTarget(*root, trigger))
+            if (auto target = Element::findFocusDelegateForTarget(*root, trigger))
                 return target;
         }
         switch (trigger) {
         case FocusTrigger::Click:
-            if (element->isMouseFocusable())
-                return element;
+            if (element.isMouseFocusable())
+                return &element;
             break;
         case FocusTrigger::Other:
         case FocusTrigger::Bindings:
         if (isProgramaticallyFocusable(element))
-                return element;
+            return &element;
             break;
         }
     }
@@ -3525,24 +3485,24 @@ static RefPtr<Element> autoFocusDelegate(ContainerNode& target, FocusTrigger tri
 // https://html.spec.whatwg.org/multipage/interaction.html#focus-delegate
 RefPtr<Element> Element::findFocusDelegateForTarget(ContainerNode& target, FocusTrigger trigger)
 {
-    if (RefPtr root = target.shadowRoot(); root && !root->delegatesFocus())
+    if (auto* root = target.shadowRoot(); root && !root->delegatesFocus())
         return nullptr;
-    if (RefPtr element = autoFocusDelegate(target, trigger))
+    if (auto element = autoFocusDelegate(target, trigger))
         return element;
-    for (Ref element : descendantsOfType<Element>(target)) {
+    for (auto& element : descendantsOfType<Element>(target)) {
         switch (trigger) {
         case FocusTrigger::Click:
-            if (element->isMouseFocusable())
-                return element;
+            if (element.isMouseFocusable())
+                return &element;
             break;
         case FocusTrigger::Other:
         case FocusTrigger::Bindings:
         if (isProgramaticallyFocusable(element))
-                return element;
+            return &element;
             break;
         }
-        if (RefPtr root = shadowRootWithDelegatesFocus(element)) {
-            if (RefPtr target = findFocusDelegateForTarget(*root, trigger))
+        if (auto root = shadowRootWithDelegatesFocus(element)) {
+            if (auto target = findFocusDelegateForTarget(*root, trigger))
                 return target;
         }
     }
@@ -3568,12 +3528,14 @@ void Element::focus(const FocusOptions& options)
 
     Ref document { this->document() };
     if (document->focusedElement() == this) {
-        if (RefPtr page = document->page())
-            page->chrome().client().elementDidRefocus(*this, options);
+        if (document->page())
+            document->page()->chrome().client().elementDidRefocus(*this, options);
         return;
     }
 
-    RefPtr newTarget { this };
+    document->contentVisibilityDocumentState().updateContentRelevancyStatusForScrollIfNeeded(*this);
+
+    RefPtr<Element> newTarget = this;
 
     // If we don't have renderer yet, isFocusable will compute it without style update.
     // FIXME: Expand it to avoid style update in all cases.
@@ -3587,11 +3549,11 @@ void Element::focus(const FocusOptions& options)
     if (&newTarget->document() != document.ptr())
         return;
 
-    if (RefPtr root = shadowRootWithDelegatesFocus(*this)) {
+    if (auto root = shadowRootWithDelegatesFocus(*this)) {
         RefPtr currentlyFocusedElement = document->focusedElement();
         if (root->containsIncludingShadowDOM(currentlyFocusedElement.get())) {
-            if (RefPtr page = document->page())
-                page->chrome().client().elementDidRefocus(*currentlyFocusedElement, options);
+            if (document->page())
+                document->page()->chrome().client().elementDidRefocus(*currentlyFocusedElement, options);
             return;
         }
 
@@ -3601,9 +3563,9 @@ void Element::focus(const FocusOptions& options)
     } else if (!isProgramaticallyFocusable(*newTarget))
         return;
 
-    if (RefPtr page = document->page()) {
-        Ref frame = *document->frame();
-        if (!frame->hasHadUserInteraction() && !frame->isMainFrame() && !document->topOrigin().isSameOriginDomain(document->securityOrigin()))
+    if (Page* page = document->page()) {
+        auto& frame = *document->frame();
+        if (!frame.hasHadUserInteraction() && !frame.isMainFrame() && !document->topOrigin().isSameOriginDomain(document->securityOrigin()))
             return;
 
         FocusOptions optionsWithVisibility = options;
@@ -3615,7 +3577,7 @@ void Element::focus(const FocusOptions& options)
         // Focus and change event handlers can cause us to lose our last ref.
         // If a focus event handler changes the focus to a different node it
         // does not make sense to continue and update appearence.
-        if (!CheckedRef(page->focusController())->setFocusedElement(newTarget.get(), frame, optionsWithVisibility))
+        if (!CheckedRef(page->focusController())->setFocusedElement(newTarget.get(), *document->frame(), optionsWithVisibility))
             return;
     }
 
@@ -3638,7 +3600,7 @@ void Element::findTargetAndUpdateFocusAppearance(SelectionRestorationMode select
         revealMode = SelectionRevealMode::RevealUpToMainFrame;
 #endif
 
-    RefPtr target = focusAppearanceUpdateTarget();
+    auto target = focusAppearanceUpdateTarget();
     if (!target)
         return;
 
@@ -3683,7 +3645,7 @@ void Element::blur()
         if (RefPtr frame = document().frame())
             CheckedRef(frame->page()->focusController())->setFocusedElement(nullptr, *frame);
         else
-            protectedDocument()->setFocusedElement(nullptr);
+            document().setFocusedElement(nullptr);
     }
 }
 
@@ -3694,32 +3656,30 @@ void Element::runFocusingStepsForAutofocus()
 
 void Element::dispatchFocusInEventIfNeeded(RefPtr<Element>&& oldFocusedElement)
 {
-    Ref document = this->document();
-    if (!document->hasListenerType(Document::ListenerType::FocusIn))
+    if (!document().hasListenerType(Document::ListenerType::FocusIn))
         return;
-    RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(ScriptDisallowedScope::InMainThread::isScriptAllowed());
-    dispatchScopedEvent(FocusEvent::create(eventNames().focusinEvent, Event::CanBubble::Yes, Event::IsCancelable::No, document->windowProxy(), 0, WTFMove(oldFocusedElement)));
+    RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(ScriptDisallowedScope::InMainThread::isScriptAllowed() || !isInWebProcess());
+    dispatchScopedEvent(FocusEvent::create(eventNames().focusinEvent, Event::CanBubble::Yes, Event::IsCancelable::No, document().windowProxy(), 0, WTFMove(oldFocusedElement)));
 }
 
 void Element::dispatchFocusOutEventIfNeeded(RefPtr<Element>&& newFocusedElement)
 {
-    Ref document = this->document();
-    if (!document->hasListenerType(Document::ListenerType::FocusOut))
+    if (!document().hasListenerType(Document::ListenerType::FocusOut))
         return;
-    RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(ScriptDisallowedScope::InMainThread::isScriptAllowed());
-    dispatchScopedEvent(FocusEvent::create(eventNames().focusoutEvent, Event::CanBubble::Yes, Event::IsCancelable::No, document->windowProxy(), 0, WTFMove(newFocusedElement)));
+    RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(ScriptDisallowedScope::InMainThread::isScriptAllowed() || !isInWebProcess());
+    dispatchScopedEvent(FocusEvent::create(eventNames().focusoutEvent, Event::CanBubble::Yes, Event::IsCancelable::No, document().windowProxy(), 0, WTFMove(newFocusedElement)));
 }
 
 void Element::dispatchFocusEvent(RefPtr<Element>&& oldFocusedElement, const FocusOptions& options)
 {
-    if (RefPtr page = document().page())
+    if (auto* page = document().page())
         page->chrome().client().elementDidFocus(*this, options);
     dispatchEvent(FocusEvent::create(eventNames().focusEvent, Event::CanBubble::No, Event::IsCancelable::No, document().windowProxy(), 0, WTFMove(oldFocusedElement)));
 }
 
 void Element::dispatchBlurEvent(RefPtr<Element>&& newFocusedElement)
 {
-    if (RefPtr page = document().page())
+    if (auto* page = document().page())
         page->chrome().client().elementDidBlur(*this);
     dispatchEvent(FocusEvent::create(eventNames().blurEvent, Event::CanBubble::No, Event::IsCancelable::No, document().windowProxy(), 0, WTFMove(newFocusedElement)));
 }
@@ -3732,20 +3692,22 @@ void Element::dispatchWebKitImageReadyEventForTesting()
 
 bool Element::dispatchMouseForceWillBegin()
 {
+#if ENABLE(MOUSE_FORCE_EVENTS)
     if (!document().hasListenerType(Document::ListenerType::ForceWillBegin))
         return false;
 
-    RefPtr frame = document().frame();
+    auto* frame = document().frame();
     if (!frame)
         return false;
 
-    PlatformMouseEvent platformMouseEvent { frame->eventHandler().lastKnownMousePosition(), frame->eventHandler().lastKnownMouseGlobalPosition(), MouseButton::None, PlatformEvent::Type::NoType, 1, { }, WallTime::now(), ForceAtClick, SyntheticClickType::NoTap };
+    PlatformMouseEvent platformMouseEvent { frame->eventHandler().lastKnownMousePosition(), frame->eventHandler().lastKnownMouseGlobalPosition(), NoButton, PlatformEvent::Type::NoType, 1, { }, WallTime::now(), ForceAtClick, SyntheticClickType::NoTap };
     auto mouseForceWillBeginEvent = MouseEvent::create(eventNames().webkitmouseforcewillbeginEvent, document().windowProxy(), platformMouseEvent, 0, nullptr);
     mouseForceWillBeginEvent->setTarget(Ref { *this });
     dispatchEvent(mouseForceWillBeginEvent);
 
     if (mouseForceWillBeginEvent->defaultHandled() || mouseForceWillBeginEvent->defaultPrevented())
         return true;
+#endif
 
     return false;
 }
@@ -3754,47 +3716,18 @@ void Element::enqueueSecurityPolicyViolationEvent(SecurityPolicyViolationEventIn
 {
     document().eventLoop().queueTask(TaskSource::DOMManipulation, [this, protectedThis = Ref { *this }, event = SecurityPolicyViolationEvent::create(eventNames().securitypolicyviolationEvent, WTFMove(eventInit), Event::IsTrusted::Yes)] {
         if (!isConnected())
-            protectedDocument()->dispatchEvent(event);
+            document().dispatchEvent(event);
         else
         dispatchEvent(event);
     });
 }
 
-ExceptionOr<void> Element::replaceChildrenWithMarkup(const String& markup, OptionSet<ParserContentPolicy> parserContentPolicy)
-{
-    auto policy = OptionSet<ParserContentPolicy> { ParserContentPolicy::AllowScriptingContent } | parserContentPolicy;
-
-    Ref container = [this]() -> Ref<ContainerNode> {
-        if (auto* templateElement = dynamicDowncast<HTMLTemplateElement>(*this))
-            return templateElement->content();
-        return *this;
-    }();
-
-    // Parsing empty string creates additional elements only inside <html> container
-    // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inhtml
-    if (markup.isEmpty() && !is<HTMLHtmlElement>(container)) {
-        ChildListMutationScope mutation(container);
-        container->removeChildren();
-        return { };
-    }
-
-    auto fragment = createFragmentForInnerOuterHTML(*this, markup, policy);
-    if (fragment.hasException())
-        return fragment.releaseException();
-
-    return replaceChildrenWithFragment(container, fragment.releaseReturnValue());
-}
-
-ExceptionOr<void> Element::setHTMLUnsafe(const String& html)
-{
-    return replaceChildrenWithMarkup(html, { ParserContentPolicy::AllowDeclarativeShadowRoots, ParserContentPolicy::AlwaysParseAsHTML });
-}
-
 ExceptionOr<void> Element::mergeWithNextTextNode(Text& node)
 {
-    RefPtr textNext = dynamicDowncast<Text>(node.nextSibling());
-    if (!textNext)
+    auto* next = node.nextSibling();
+    if (!is<Text>(next))
         return { };
+    Ref<Text> textNext { downcast<Text>(*next) };
     node.appendData(textNext->data());
     return textNext->remove();
 }
@@ -3817,13 +3750,13 @@ ExceptionOr<void> Element::setOuterHTML(const String& html)
     if (UNLIKELY(!parent)) {
         if (!parentNode())
             return { };
-        return Exception { ExceptionCode::NoModificationAllowedError, "Cannot set outerHTML on element because its parent is not an Element"_s };
+        return Exception { NoModificationAllowedError, "Cannot set outerHTML on element because its parent is not an Element"_s };
     }
 
-    RefPtr previous = previousSibling();
-    RefPtr next = nextSibling();
+    RefPtr<Node> prev = previousSibling();
+    RefPtr<Node> next = nextSibling();
 
-    auto fragment = createFragmentForInnerOuterHTML(*parent, html, { ParserContentPolicy::AllowScriptingContent });
+    auto fragment = createFragmentForInnerOuterHTML(*parent, html, { ParserContentPolicy::AllowScriptingContent, ParserContentPolicy::AllowPluginContent });
     if (fragment.hasException())
         return fragment.releaseException();
 
@@ -3832,28 +3765,47 @@ ExceptionOr<void> Element::setOuterHTML(const String& html)
         return replaceResult.releaseException();
 
     // The following is not part of the specification but matches Blink's behavior as of June 2021.
-    if (RefPtr nodeText = next ? dynamicDowncast<Text>(next->previousSibling()) : nullptr) {
-        auto result = mergeWithNextTextNode(*nodeText);
+    RefPtr<Node> node = next ? next->previousSibling() : nullptr;
+    if (is<Text>(node)) {
+        auto result = mergeWithNextTextNode(downcast<Text>(*node));
         if (result.hasException())
             return result.releaseException();
     }
-    if (RefPtr previousText = dynamicDowncast<Text>(WTFMove(previous))) {
-        auto result = mergeWithNextTextNode(*previousText);
+    if (is<Text>(prev)) {
+        auto result = mergeWithNextTextNode(downcast<Text>(*prev));
         if (result.hasException())
             return result.releaseException();
     }
     return { };
 }
 
-ExceptionOr<void> Element::setInnerHTML(const String& markup)
+ExceptionOr<void> Element::setInnerHTML(const String& html)
 {
-    return replaceChildrenWithMarkup(markup, { });
+    ContainerNode* container;
+    if (!is<HTMLTemplateElement>(*this))
+        container = this;
+    else
+        container = &downcast<HTMLTemplateElement>(*this).content();
+
+    // Parsing empty string creates additional elements only inside <html> container
+    // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inhtml
+    if (html.isEmpty() && !is<HTMLHtmlElement>(*container)) {
+        ChildListMutationScope mutation(*container);
+        container->removeChildren();
+        return { };
+    }
+
+    auto fragment = createFragmentForInnerOuterHTML(*this, html, { ParserContentPolicy::AllowScriptingContent, ParserContentPolicy::AllowPluginContent });
+    if (fragment.hasException())
+        return fragment.releaseException();
+
+    return replaceChildrenWithFragment(*container, fragment.releaseReturnValue());
 }
 
 String Element::innerText()
 {
     // We need to update layout, since plainText uses line boxes in the render tree.
-    protectedDocument()->updateLayoutIgnorePendingStylesheets();
+    document().updateLayoutIgnorePendingStylesheets();
 
     if (!renderer())
         return textContent(true);
@@ -3879,40 +3831,37 @@ String Element::title() const
     return String();
 }
 
-const AtomString& Element::userAgentPart() const
+const AtomString& Element::pseudo() const
 {
-    ASSERT(isInUserAgentShadowTree());
-    return attributeWithoutSynchronization(useragentpartAttr);
+    return attributeWithoutSynchronization(pseudoAttr);
 }
 
-void Element::setUserAgentPart(const AtomString& value)
+void Element::setPseudo(const AtomString& value)
 {
-    // We may set the useragentpart attribute on elements before appending them to the shadow tree.
-    ASSERT(!isConnected() || isInUserAgentShadowTree());
-    setAttributeWithoutSynchronization(useragentpartAttr, value);
+    setAttributeWithoutSynchronization(pseudoAttr, value);
 }
 
 void Element::willBecomeFullscreenElement()
 {
-    for (Ref child : descendantsOfType<Element>(*this))
-        child->ancestorWillEnterFullscreen();
+    for (auto& child : descendantsOfType<Element>(*this))
+        child.ancestorWillEnterFullscreen();
 }
 
 static void forEachRenderLayer(Element& element, const std::function<void(RenderLayer&)>& function)
 {
-    CheckedPtr layerModelObject = dynamicDowncast<RenderLayerModelObject>(element.renderer());
-    if (!layerModelObject)
+    auto* renderer = element.renderer();
+    if (!renderer || !is<RenderLayerModelObject>(renderer))
         return;
 
+    auto& layerModelObject = downcast<RenderLayerModelObject>(*renderer);
 
-    CheckedPtr renderBoxModelObject = dynamicDowncast<RenderBoxModelObject>(*layerModelObject);
-    if (!renderBoxModelObject) {
-        if (layerModelObject->hasLayer())
-            function(*layerModelObject->layer());
+    if (!is<RenderBoxModelObject>(layerModelObject)) {
+        if (layerModelObject.hasLayer())
+            function(*layerModelObject.layer());
         return;
     }
 
-    RenderBoxModelObject::forRendererAndContinuations(*renderBoxModelObject, [function](RenderBoxModelObject& renderer) {
+    RenderBoxModelObject::forRendererAndContinuations(downcast<RenderBoxModelObject>(*renderer), [function](RenderBoxModelObject& renderer) {
         if (renderer.hasLayer())
             function(*renderer.layer());
     });
@@ -3927,16 +3876,15 @@ void Element::addToTopLayer()
         layer.establishesTopLayerWillChange();
     });
 
-    Ref document = this->document();
-    document->addTopLayerElement(*this);
-    setEventTargetFlag(EventTargetFlag::IsInTopLayer);
+    document().addTopLayerElement(*this);
+    setNodeFlag(NodeFlag::IsInTopLayer);
 
-    document->scheduleContentRelevancyUpdate(ContentRelevancy::IsInTopLayer);
+    document().scheduleContentRelevancyUpdate(ContentRelevancyStatus::IsInTopLayer);
 
     // Invalidate inert state
     invalidateStyleInternal();
-    if (RefPtr documentElement = document->documentElement())
-        documentElement->invalidateStyleInternal();
+    if (document().documentElement())
+        document().documentElement()->invalidateStyleInternal();
 
     forEachRenderLayer(*this, [](RenderLayer& layer) {
         layer.establishesTopLayerDidChange();
@@ -3955,24 +3903,23 @@ void Element::removeFromTopLayer()
     // We need to call Styleable::fromRenderer() while this element is still contained in
     // Document::topLayerElements(), since Styleable::fromRenderer() relies on this to
     // find the backdrop's associated element.
-    if (CheckedPtr renderer = this->renderer()) {
-        if (CheckedPtr backdrop = renderer->backdropRenderer().get()) {
+    if (auto* renderer = this->renderer()) {
+        if (auto backdrop = renderer->backdropRenderer()) {
             if (auto styleable = Styleable::fromRenderer(*backdrop))
-                styleable->cancelStyleOriginatedAnimations();
+                styleable->cancelDeclarativeAnimations();
         }
     }
 
-    // Unable to protect the document as it may have started destruction.
     document().removeTopLayerElement(*this);
-    clearEventTargetFlag(EventTargetFlag::IsInTopLayer);
+    clearNodeFlag(NodeFlag::IsInTopLayer);
 
-    document().scheduleContentRelevancyUpdate(ContentRelevancy::IsInTopLayer);
+    document().scheduleContentRelevancyUpdate(ContentRelevancyStatus::IsInTopLayer);
 
     // Invalidate inert state
     invalidateStyleInternal();
-    if (RefPtr documentElement = document().documentElement())
-        documentElement->invalidateStyleInternal();
-    if (RefPtr modalElement = document().activeModalDialog())
+    if (document().documentElement())
+        document().documentElement()->invalidateStyleInternal();
+    if (auto* modalElement = document().activeModalDialog())
         modalElement->invalidateStyleInternal();
 
     forEachRenderLayer(*this, [](RenderLayer& layer) {
@@ -3999,9 +3946,6 @@ const RenderStyle* Element::existingComputedStyle() const
             return style;
     }
 
-    if (hasDisplayNone())
-        return elementRareData()->displayContentsOrNoneStyle();
-
     return renderOrDisplayContentsStyle();
 }
 
@@ -4018,8 +3962,12 @@ const RenderStyle* Element::renderOrDisplayContentsStyle(PseudoId pseudoId) cons
         return nullptr;
     }
 
-    if (hasDisplayContents())
-        return elementRareData()->displayContentsOrNoneStyle();
+    if (hasRareData()) {
+        if (auto* style = elementRareData()->displayContentsStyle()) {
+            ASSERT(style->display() == DisplayType::Contents);
+        return style;
+        }
+    }
 
     return renderStyle();
 }
@@ -4028,27 +3976,25 @@ const RenderStyle* Element::resolveComputedStyle(ResolveComputedStyleMode mode)
 {
     ASSERT(isConnected());
 
-    Ref document = this->document();
-    document->styleScope().flushPendingUpdate();
-
+    document().styleScope().flushPendingUpdate();
     bool isInDisplayNoneTree = false;
 
     // Traverse the ancestor chain to find the rootmost element that has invalid computed style.
-    RefPtr rootmostInvalidElement = [&]() -> RefPtr<const Element> {
+    auto* rootmostInvalidElement = [&]() -> const Element* {
         // In ResolveComputedStyleMode::RenderedOnly case we check for display:none ancestors.
-        if (mode != ResolveComputedStyleMode::RenderedOnly && !document->hasPendingStyleRecalc() && existingComputedStyle())
+        if (mode != ResolveComputedStyleMode::RenderedOnly && !document().hasPendingStyleRecalc() && existingComputedStyle())
             return nullptr;
 
-        if (document->hasPendingFullStyleRebuild())
-            return document->documentElement();
+        if (document().hasPendingFullStyleRebuild())
+            return document().documentElement();
 
-        if (!document->documentElement() || document->documentElement()->hasStateFlag(StateFlag::IsComputedStyleInvalidFlag))
-            return document->documentElement();
+        if (!document().documentElement() || document().documentElement()->hasNodeFlag(NodeFlag::IsComputedStyleInvalidFlag))
+            return document().documentElement();
 
-        RefPtr<const Element> rootmost;
+        const Element* rootmost = nullptr;
 
-        for (RefPtr element = this; element; element = element->parentElementInComposedTree()) {
-            if (element->hasStateFlag(StateFlag::IsComputedStyleInvalidFlag)) {
+        for (auto* element = this; element; element = element->parentElementInComposedTree()) {
+            if (element->hasNodeFlag(NodeFlag::IsComputedStyleInvalidFlag)) {
                 rootmost = element;
                 continue;
         }
@@ -4059,7 +4005,6 @@ const RenderStyle* Element::resolveComputedStyle(ResolveComputedStyleMode mode)
             }
             if (mode == ResolveComputedStyleMode::RenderedOnly && existing->display() == DisplayType::None) {
                 isInDisplayNoneTree = true;
-                // Invalid ancestor style may still affect this display:none style.
                 rootmost = nullptr;
     }
         }
@@ -4072,16 +4017,16 @@ const RenderStyle* Element::resolveComputedStyle(ResolveComputedStyleMode mode)
         return existingComputedStyle();
     }
 
-    RefPtr ancestorWithValidStyle = rootmostInvalidElement->parentElementInComposedTree();
+    auto* ancestorWithValidStyle = rootmostInvalidElement->parentElementInComposedTree();
 
     Vector<RefPtr<Element>, 32> elementsRequiringComputedStyle;
-    for (RefPtr toResolve = this; toResolve != ancestorWithValidStyle; toResolve = toResolve->parentElementInComposedTree())
+    for (auto* toResolve = this; toResolve != ancestorWithValidStyle; toResolve = toResolve->parentElementInComposedTree())
         elementsRequiringComputedStyle.append(toResolve);
 
     auto* computedStyle = ancestorWithValidStyle ? ancestorWithValidStyle->existingComputedStyle() : nullptr;
 
     // On iOS request delegates called during styleForElement may result in re-entering WebKit and killing the style resolver.
-    Style::PostResolutionCallbackDisabler disabler(document, Style::PostResolutionCallbackDisabler::DrainCallbacks::No);
+    Style::PostResolutionCallbackDisabler disabler(document(), Style::PostResolutionCallbackDisabler::DrainCallbacks::No);
 
     // Resolve and cache styles starting from the most distant ancestor.
     // FIXME: This is not as efficient as it could be. For example if an ancestor has a non-inherited style change but
@@ -4089,23 +4034,24 @@ const RenderStyle* Element::resolveComputedStyle(ResolveComputedStyleMode mode)
     for (auto& element : makeReversedRange(elementsRequiringComputedStyle)) {
         if (computedStyle && computedStyle->containerType() != ContainerType::Normal && mode != ResolveComputedStyleMode::Editability) {
             // If we find a query container we need to bail out and do full style update to resolve it.
-            if (document->updateStyleIfNeeded())
+            if (document().updateStyleIfNeeded())
                 return this->computedStyle();
         };
-        auto style = document->styleForElementIgnoringPendingStylesheets(*element, computedStyle);
+        auto style = document().styleForElementIgnoringPendingStylesheets(*element, computedStyle);
         computedStyle = style.get();
         ElementRareData& rareData = element->ensureElementRareData();
         if (auto* existing = rareData.computedStyle()) {
             auto change = Style::determineChange(*existing, *style);
             if (change > Style::Change::NonInherited) {
-                for (Ref child : composedTreeChildren(*element)) {
-                    if (RefPtr childElement = dynamicDowncast<Element>(WTFMove(child)))
-                        childElement->setStateFlag(StateFlag::IsComputedStyleInvalidFlag);
+                for (auto& child : composedTreeChildren(*element)) {
+                    if (!is<Element>(child))
+                        continue;
+                    downcast<Element>(child).setNodeFlag(NodeFlag::IsComputedStyleInvalidFlag);
                 }
             }
         }
         rareData.setComputedStyle(WTFMove(style));
-        element->clearStateFlag(StateFlag::IsComputedStyleInvalidFlag);
+        element->clearNodeFlag(NodeFlag::IsComputedStyleInvalidFlag);
 
         if (mode == ResolveComputedStyleMode::RenderedOnly && computedStyle->display() == DisplayType::None)
             return nullptr;
@@ -4114,54 +4060,45 @@ const RenderStyle* Element::resolveComputedStyle(ResolveComputedStyleMode mode)
     return computedStyle;
 }
 
-const RenderStyle& Element::resolvePseudoElementStyle(const Style::PseudoElementIdentifier& pseudoElementIdentifier)
+const RenderStyle& Element::resolvePseudoElementStyle(PseudoId pseudoElementSpecifier)
 {
     ASSERT(!isPseudoElement());
 
     auto* parentStyle = existingComputedStyle();
     ASSERT(parentStyle);
-    ASSERT(!parentStyle->getCachedPseudoStyle(pseudoElementIdentifier.pseudoId));
+    ASSERT(!parentStyle->getCachedPseudoStyle(pseudoElementSpecifier));
 
-    Ref document = this->document();
-    Style::PostResolutionCallbackDisabler disabler(document, Style::PostResolutionCallbackDisabler::DrainCallbacks::No);
+    Style::PostResolutionCallbackDisabler disabler(document(), Style::PostResolutionCallbackDisabler::DrainCallbacks::No);
 
-    auto style = document->styleForElementIgnoringPendingStylesheets(*this, parentStyle, pseudoElementIdentifier);
+    auto style = document().styleForElementIgnoringPendingStylesheets(*this, parentStyle, pseudoElementSpecifier);
     if (!style) {
         style = RenderStyle::createPtr();
         style->inheritFrom(*parentStyle);
-        // FIXME: RenderStyle should switch to use PseudoElementIdentifier.
-        style->setPseudoElementType(pseudoElementIdentifier.pseudoId);
-        if (!pseudoElementIdentifier.nameArgument.isNull())
-            style->setPseudoElementNameArgument(pseudoElementIdentifier.nameArgument);
+        style->setStyleType(pseudoElementSpecifier);
     }
 
     auto* computedStyle = style.get();
-    if (!pseudoElementIdentifier.nameArgument)
     const_cast<RenderStyle*>(parentStyle)->addCachedPseudoStyle(WTFMove(style));
     return *computedStyle;
 }
 
-const RenderStyle* Element::computedStyle(const std::optional<Style::PseudoElementIdentifier>& pseudoElementIdentifier)
+const RenderStyle* Element::computedStyle(PseudoId pseudoElementSpecifier)
 {
     if (!isConnected())
         return nullptr;
 
-    if (pseudoElementIdentifier) {
-        if (RefPtr pseudoElement = beforeOrAfterPseudoElement(*this, pseudoElementIdentifier->pseudoId))
+    if (PseudoElement* pseudoElement = beforeOrAfterPseudoElement(*this, pseudoElementSpecifier))
         return pseudoElement->computedStyle();
-    }
 
     // FIXME: This should call resolveComputedStyle() unconditionally so we check if the style is valid.
     auto* style = existingComputedStyle();
     if (!style)
         style = resolveComputedStyle();
 
-    if (pseudoElementIdentifier) {
-        if (!pseudoElementIdentifier->nameArgument) {
-            if (auto* cachedPseudoStyle = style->getCachedPseudoStyle(pseudoElementIdentifier->pseudoId))
+    if (pseudoElementSpecifier != PseudoId::None) {
+        if (auto* cachedPseudoStyle = style->getCachedPseudoStyle(pseudoElementSpecifier))
             return cachedPseudoStyle;
-    }
-        return &resolvePseudoElementStyle(*pseudoElementIdentifier);
+        return &resolvePseudoElementStyle(pseudoElementSpecifier);
     }
 
     return style;
@@ -4238,7 +4175,7 @@ const AtomString& Element::langFromAttribute() const
 
 Locale& Element::locale() const
 {
-    return protectedDocument()->getCachedLocale(effectiveLang());
+    return document().getCachedLocale(effectiveLang());
 }
 
 void Element::normalizeAttributes()
@@ -4332,7 +4269,7 @@ bool Element::matchesReadWritePseudoClass() const
 
 bool Element::matchesIndeterminatePseudoClass() const
 {
-    return false;
+    return shouldAppearIndeterminate();
 }
 
 bool Element::matchesDefaultPseudoClass() const
@@ -4354,6 +4291,11 @@ ExceptionOr<Element*> Element::closest(const String& selector)
     if (query.hasException())
         return query.releaseException();
     return query.releaseReturnValue().closest(*this);
+}
+
+bool Element::shouldAppearIndeterminate() const
+{
+    return false;
 }
 
 bool Element::mayCauseRepaintInsideViewport(const IntRect* visibleRect) const
@@ -4438,9 +4380,10 @@ void Element::setUnsignedIntegralAttribute(const QualifiedName& attributeName, u
 bool Element::childShouldCreateRenderer(const Node& child) const
 {
     // Only create renderers for SVG elements whose parents are SVG elements, or for proper <svg xmlns="svgNS"> subdocuments.
-    if (auto* childElement = dynamicDowncast<SVGElement>(child)) {
+    if (child.isSVGElement()) {
         ASSERT(!isSVGElement());
-        return is<SVGSVGElement>(*childElement) && childElement->isValid();
+        const SVGElement& childElement = downcast<SVGElement>(child);
+        return is<SVGSVGElement>(childElement) && childElement.isValid();
     }
     return true;
 }
@@ -4455,38 +4398,48 @@ void Element::webkitRequestFullscreen()
 // FIXME: Options are currently ignored.
 void Element::requestFullscreen(FullscreenOptions&&, RefPtr<DeferredPromise>&& promise)
 {
-    protectedDocument()->fullscreenManager().requestFullscreenForElement(*this, WTFMove(promise), FullscreenManager::EnforceIFrameAllowFullscreenRequirement);
+    document().fullscreenManager().requestFullscreenForElement(*this, WTFMove(promise), FullscreenManager::EnforceIFrameAllowFullscreenRequirement);
 }
 
 void Element::setFullscreenFlag(bool flag)
 {
-    Style::PseudoClassChangeInvalidation styleInvalidation(*this, { { CSSSelector::PseudoClass::Fullscreen, flag }, { CSSSelector::PseudoClass::Modal, flag } });
+    Style::PseudoClassChangeInvalidation styleInvalidation(*this, { { CSSSelector::PseudoClassType::Fullscreen, flag }, { CSSSelector::PseudoClassType::Modal, flag } });
     if (flag)
-        setStateFlag(StateFlag::IsFullscreen);
+        setNodeFlag(NodeFlag::IsFullscreen);
     else
-        clearStateFlag(StateFlag::IsFullscreen);
+        clearNodeFlag(NodeFlag::IsFullscreen);
+
+    clearNodeFlag(NodeFlag::IsIFrameFullscreen);
+}
+
+void Element::setIFrameFullscreenFlag(bool flag)
+{
+    if (flag)
+        setNodeFlag(NodeFlag::IsIFrameFullscreen);
+    else
+        clearNodeFlag(NodeFlag::IsIFrameFullscreen);
 }
 
 #endif
 
 ExceptionOr<void> Element::setPointerCapture(int32_t pointerId)
 {
-    if (RefPtr page = document().page())
-        return page->pointerCaptureController().setPointerCapture(this, pointerId);
+    if (document().page())
+        return document().page()->pointerCaptureController().setPointerCapture(this, pointerId);
     return { };
 }
 
 ExceptionOr<void> Element::releasePointerCapture(int32_t pointerId)
 {
-    if (RefPtr page = document().page())
-        return page->pointerCaptureController().releasePointerCapture(this, pointerId);
+    if (document().page())
+        return document().page()->pointerCaptureController().releasePointerCapture(this, pointerId);
     return { };
 }
 
 bool Element::hasPointerCapture(int32_t pointerId)
 {
-    if (RefPtr page = document().page())
-        return page->pointerCaptureController().hasPointerCapture(this, pointerId);
+    if (document().page())
+        return document().page()->pointerCaptureController().hasPointerCapture(this, pointerId);
     return false;
 }
 
@@ -4494,8 +4447,8 @@ bool Element::hasPointerCapture(int32_t pointerId)
 
 void Element::requestPointerLock()
 {
-    if (RefPtr page = document().page())
-        page->pointerLockController().requestPointerLock(this);
+    if (document().page())
+        document().page()->pointerLockController().requestPointerLock(this);
 }
 
 #endif
@@ -4566,14 +4519,14 @@ const AnimationCollection* Element::animations(PseudoId pseudoId) const
     return nullptr;
 }
 
-bool Element::hasCompletedTransitionForProperty(PseudoId pseudoId, const AnimatableCSSProperty& property) const
+bool Element::hasCompletedTransitionForProperty(PseudoId pseudoId, AnimatableProperty property) const
 {
     if (auto* animationData = animationRareData(pseudoId))
         return animationData->completedTransitionsByProperty().contains(property);
     return false;
 }
 
-bool Element::hasRunningTransitionForProperty(PseudoId pseudoId, const AnimatableCSSProperty& property) const
+bool Element::hasRunningTransitionForProperty(PseudoId pseudoId, AnimatableProperty property) const
 {
     if (auto* animationData = animationRareData(pseudoId))
         return animationData->runningTransitionsByProperty().contains(property);
@@ -4585,20 +4538,6 @@ bool Element::hasRunningTransitions(PseudoId pseudoId) const
     if (auto* animationData = animationRareData(pseudoId))
         return !animationData->runningTransitionsByProperty().isEmpty();
     return false;
-}
-
-const AnimatableCSSPropertyToTransitionMap* Element::completedTransitionsByProperty(PseudoId pseudoId) const
-{
-    if (auto* animationData = animationRareData(pseudoId))
-        return &animationData->completedTransitionsByProperty();
-    return nullptr;
-}
-
-const AnimatableCSSPropertyToTransitionMap* Element::runningTransitionsByProperty(PseudoId pseudoId) const
-{
-    if (auto* animationData = animationRareData(pseudoId))
-        return &animationData->runningTransitionsByProperty();
-    return nullptr;
 }
 
 AnimationCollection& Element::ensureAnimations(PseudoId pseudoId)
@@ -4618,12 +4557,12 @@ void Element::setAnimationsCreatedByMarkup(PseudoId pseudoId, CSSAnimationCollec
     ensureAnimationRareData(pseudoId).setAnimationsCreatedByMarkup(WTFMove(animations));
 }
 
-AnimatableCSSPropertyToTransitionMap& Element::ensureCompletedTransitionsByProperty(PseudoId pseudoId)
+AnimatablePropertyToTransitionMap& Element::ensureCompletedTransitionsByProperty(PseudoId pseudoId)
 {
     return ensureAnimationRareData(pseudoId).completedTransitionsByProperty();
 }
 
-AnimatableCSSPropertyToTransitionMap& Element::ensureRunningTransitionsByProperty(PseudoId pseudoId)
+AnimatablePropertyToTransitionMap& Element::ensureRunningTransitionsByProperty(PseudoId pseudoId)
 {
     return ensureAnimationRareData(pseudoId).runningTransitionsByProperty();
 }
@@ -4641,23 +4580,6 @@ void Element::setLastStyleChangeEventStyle(PseudoId pseudoId, std::unique_ptr<co
         animationData->setLastStyleChangeEventStyle(WTFMove(style));
     else if (style)
         ensureAnimationRareData(pseudoId).setLastStyleChangeEventStyle(WTFMove(style));
-}
-
-bool Element::hasPropertiesOverridenAfterAnimation(PseudoId pseudoId) const
-{
-    if (auto* animationData = animationRareData(pseudoId))
-        return animationData->hasPropertiesOverridenAfterAnimation();
-    return false;
-}
-
-void Element::setHasPropertiesOverridenAfterAnimation(PseudoId pseudoId, bool value)
-{
-    if (auto* animationData = animationRareData(pseudoId)) {
-        animationData->setHasPropertiesOverridenAfterAnimation(value);
-        return;
-    }
-    if (value)
-        ensureAnimationRareData(pseudoId).setHasPropertiesOverridenAfterAnimation(true);
 }
 
 void Element::cssAnimationsDidUpdate(PseudoId pseudoId)
@@ -4752,8 +4674,8 @@ bool Element::fastAttributeLookupAllowed(const QualifiedName& name) const
     if (name == HTMLNames::styleAttr)
         return false;
 
-    if (auto* svgElement = dynamicDowncast<SVGElement>(*this))
-        return !svgElement->isAnimatedPropertyAttribute(name);
+    if (isSVGElement())
+        return !downcast<SVGElement>(*this).isAnimatedPropertyAttribute(name);
 
     return true;
 }
@@ -4778,8 +4700,9 @@ inline void Element::updateName(const AtomString& oldName, const AtomString& new
 
     if (!isConnected())
         return;
-    if (RefPtr htmlDocument = dynamicDowncast<HTMLDocument>(document()))
-        updateNameForDocument(*htmlDocument, oldName, newName);
+    if (!is<HTMLDocument>(document()))
+        return;
+    updateNameForDocument(downcast<HTMLDocument>(document()), oldName, newName);
 }
 
 void Element::updateNameForTreeScope(TreeScope& scope, const AtomString& oldName, const AtomString& newName)
@@ -4787,9 +4710,9 @@ void Element::updateNameForTreeScope(TreeScope& scope, const AtomString& oldName
     ASSERT(oldName != newName);
 
     if (!oldName.isEmpty())
-        scope.removeElementByName(oldName, *this);
+        scope.removeElementByName(*oldName.impl(), *this);
     if (!newName.isEmpty())
-        scope.addElementByName(newName, *this);
+        scope.addElementByName(*newName.impl(), *this);
 }
 
 void Element::updateNameForDocument(HTMLDocument& document, const AtomString& oldName, const AtomString& newName)
@@ -4802,17 +4725,17 @@ void Element::updateNameForDocument(HTMLDocument& document, const AtomString& ol
     if (WindowNameCollection::elementMatchesIfNameAttributeMatch(*this)) {
         const AtomString& id = WindowNameCollection::elementMatchesIfIdAttributeMatch(*this) ? getIdAttribute() : nullAtom();
         if (!oldName.isEmpty() && oldName != id)
-            document.removeWindowNamedItem(oldName, *this);
+            document.removeWindowNamedItem(*oldName.impl(), *this);
         if (!newName.isEmpty() && newName != id)
-            document.addWindowNamedItem(newName, *this);
+            document.addWindowNamedItem(*newName.impl(), *this);
     }
 
     if (DocumentNameCollection::elementMatchesIfNameAttributeMatch(*this)) {
         const AtomString& id = DocumentNameCollection::elementMatchesIfIdAttributeMatch(*this) ? getIdAttribute() : nullAtom();
         if (!oldName.isEmpty() && oldName != id)
-            document.removeDocumentNamedItem(oldName, *this);
+            document.removeDocumentNamedItem(*oldName.impl(), *this);
         if (!newName.isEmpty() && newName != id)
-            document.addDocumentNamedItem(newName, *this);
+            document.addDocumentNamedItem(*newName.impl(), *this);
     }
 }
 
@@ -4828,8 +4751,9 @@ inline void Element::updateId(const AtomString& oldId, const AtomString& newId, 
 
     if (!isConnected())
         return;
-    if (RefPtr htmlDocument = dynamicDowncast<HTMLDocument>(document()))
-        updateIdForDocument(*htmlDocument, oldId, newId, HTMLDocumentNamedItemMapsUpdatingCondition::UpdateOnlyIfDiffersFromNameAttribute);
+    if (!is<HTMLDocument>(document()))
+        return;
+    updateIdForDocument(downcast<HTMLDocument>(document()), oldId, newId, HTMLDocumentNamedItemMapsUpdatingCondition::UpdateOnlyIfDiffersFromNameAttribute);
 }
 
 void Element::updateIdForTreeScope(TreeScope& scope, const AtomString& oldId, const AtomString& newId, NotifyObservers notifyObservers)
@@ -4838,9 +4762,9 @@ void Element::updateIdForTreeScope(TreeScope& scope, const AtomString& oldId, co
     ASSERT(oldId != newId);
 
     if (!oldId.isEmpty())
-        scope.removeElementById(oldId, *this, notifyObservers == NotifyObservers::Yes);
+        scope.removeElementById(*oldId.impl(), *this, notifyObservers == NotifyObservers::Yes);
     if (!newId.isEmpty())
-        scope.addElementById(newId, *this, notifyObservers == NotifyObservers::Yes);
+        scope.addElementById(*newId.impl(), *this, notifyObservers == NotifyObservers::Yes);
 }
 
 void Element::updateIdForDocument(HTMLDocument& document, const AtomString& oldId, const AtomString& newId, HTMLDocumentNamedItemMapsUpdatingCondition condition)
@@ -4854,18 +4778,34 @@ void Element::updateIdForDocument(HTMLDocument& document, const AtomString& oldI
     if (WindowNameCollection::elementMatchesIfIdAttributeMatch(*this)) {
         const AtomString& name = condition == HTMLDocumentNamedItemMapsUpdatingCondition::UpdateOnlyIfDiffersFromNameAttribute && WindowNameCollection::elementMatchesIfNameAttributeMatch(*this) ? getNameAttribute() : nullAtom();
         if (!oldId.isEmpty() && oldId != name)
-            document.removeWindowNamedItem(oldId, *this);
+            document.removeWindowNamedItem(*oldId.impl(), *this);
         if (!newId.isEmpty() && newId != name)
-            document.addWindowNamedItem(newId, *this);
+            document.addWindowNamedItem(*newId.impl(), *this);
     }
 
     if (DocumentNameCollection::elementMatchesIfIdAttributeMatch(*this)) {
         const AtomString& name = condition == HTMLDocumentNamedItemMapsUpdatingCondition::UpdateOnlyIfDiffersFromNameAttribute && DocumentNameCollection::elementMatchesIfNameAttributeMatch(*this) ? getNameAttribute() : nullAtom();
         if (!oldId.isEmpty() && oldId != name)
-            document.removeDocumentNamedItem(oldId, *this);
+            document.removeDocumentNamedItem(*oldId.impl(), *this);
         if (!newId.isEmpty() && newId != name)
-            document.addDocumentNamedItem(newId, *this);
+            document.addDocumentNamedItem(*newId.impl(), *this);
     }
+}
+
+void Element::updateLabel(TreeScope& scope, const AtomString& oldForAttributeValue, const AtomString& newForAttributeValue)
+{
+    ASSERT(hasTagName(labelTag));
+
+    if (!isConnected())
+        return;
+
+    if (oldForAttributeValue == newForAttributeValue)
+        return;
+
+    if (!oldForAttributeValue.isEmpty())
+        scope.removeLabel(*oldForAttributeValue.impl(), downcast<HTMLLabelElement>(*this));
+    if (!newForAttributeValue.isEmpty())
+        scope.addLabel(*newForAttributeValue.impl(), downcast<HTMLLabelElement>(*this));
 }
 
 void Element::willModifyAttribute(const QualifiedName& name, const AtomString& oldValue, const AtomString& newValue)
@@ -4874,37 +4814,35 @@ void Element::willModifyAttribute(const QualifiedName& name, const AtomString& o
         updateId(oldValue, newValue, NotifyObservers::No); // Will notify observers after the attribute is actually changed.
     else if (name == HTMLNames::nameAttr)
         updateName(oldValue, newValue);
-    else if (name == HTMLNames::forAttr) {
-        if (auto* label = dynamicDowncast<HTMLLabelElement>(*this)) {
+    else if (name == HTMLNames::forAttr && hasTagName(labelTag)) {
         if (treeScope().shouldCacheLabelsByForAttribute())
-                label->updateLabel(treeScope(), oldValue, newValue);
-    }
+            updateLabel(treeScope(), oldValue, newValue);
     }
 
     if (auto recipients = MutationObserverInterestGroup::createForAttributesMutation(*this, name))
         recipients->enqueueMutationRecord(MutationRecord::createAttributes(*this, name, oldValue));
 
-    InspectorInstrumentation::willModifyDOMAttr(protectedDocument(), *this, oldValue, newValue);
+    InspectorInstrumentation::willModifyDOMAttr(document(), *this, oldValue, newValue);
 }
 
 void Element::didAddAttribute(const QualifiedName& name, const AtomString& value)
 {
     notifyAttributeChanged(name, nullAtom(), value);
-    InspectorInstrumentation::didModifyDOMAttr(protectedDocument(), *this, name.toAtomString(), value);
+    InspectorInstrumentation::didModifyDOMAttr(document(), *this, name.toAtomString(), value);
     dispatchSubtreeModifiedEvent();
 }
 
 void Element::didModifyAttribute(const QualifiedName& name, const AtomString& oldValue, const AtomString& newValue)
 {
     notifyAttributeChanged(name, oldValue, newValue);
-    InspectorInstrumentation::didModifyDOMAttr(protectedDocument(), *this, name.toAtomString(), newValue);
+    InspectorInstrumentation::didModifyDOMAttr(document(), *this, name.toAtomString(), newValue);
     // Do not dispatch a DOMSubtreeModified event here; see bug 81141.
 }
 
 void Element::didRemoveAttribute(const QualifiedName& name, const AtomString& oldValue)
 {
     notifyAttributeChanged(name, oldValue, nullAtom());
-    InspectorInstrumentation::didRemoveDOMAttr(protectedDocument(), *this, name.toAtomString());
+    InspectorInstrumentation::didRemoveDOMAttr(document(), *this, name.toAtomString());
     dispatchSubtreeModifiedEvent();
 }
 
@@ -4913,10 +4851,17 @@ IntPoint Element::savedLayerScrollPosition() const
     return hasRareData() ? elementRareData()->savedLayerScrollPosition() : IntPoint();
 }
 
-void Element::setSavedLayerScrollPositionSlow(const ScrollPosition& position)
+void Element::setSavedLayerScrollPositionSlow(const IntPoint& position)
 {
     ASSERT(!position.isZero() || hasRareData());
     ensureElementRareData().setSavedLayerScrollPosition(position);
+}
+
+RefPtr<Attr> Element::attrIfExists(const AtomString& localName, bool shouldIgnoreAttributeCase)
+{
+    if (auto* attrNodeList = attrNodeListForElement(*this))
+        return findAttrNodeInList(*attrNodeList, localName, shouldIgnoreAttributeCase);
+    return nullptr;
 }
 
 RefPtr<Attr> Element::attrIfExists(const QualifiedName& name)
@@ -4976,8 +4921,8 @@ void Element::resetComputedStyle()
         element.elementRareData()->setComputedStyle(nullptr);
     };
     reset(*this);
-    for (Ref child : descendantsOfType<Element>(*this)) {
-        if (!child->hasRareData() || !child->elementRareData()->computedStyle() || child->hasDisplayContents() || child->hasDisplayNone())
+    for (auto& child : descendantsOfType<Element>(*this)) {
+        if (!child.hasRareData() || !child.elementRareData()->computedStyle() || child.hasDisplayContents())
             continue;
         reset(child);
     }
@@ -4986,7 +4931,6 @@ void Element::resetComputedStyle()
 void Element::resetStyleRelations()
 {
     clearStyleFlags(NodeStyleFlag::StyleAffectedByEmpty);
-    clearStyleFlags(NodeStyleFlag::AffectedByHasWithPositionalPseudoClass);
     if (!hasRareData())
         return;
     elementRareData()->setChildIndex(0);
@@ -5016,12 +4960,11 @@ void Element::clearHoverAndActiveStatusBeforeDetachingRenderer()
 {
     if (!isUserActionElement())
         return;
-    Ref document = this->document();
     if (hovered())
-        document->hoveredElementDidDetach(*this);
+        document().hoveredElementDidDetach(*this);
     if (isInActiveChain())
-        document->elementInActiveChainDidDetach(*this);
-    document->userActionElements().clearActiveAndHovered(*this);
+        document().elementInActiveChainDidDetach(*this);
+    document().userActionElements().clearActiveAndHovered(*this);
 }
 
 void Element::willRecalcStyle(Style::Change)
@@ -5094,11 +5037,10 @@ void Element::cloneAttributesFromElement(const Element& other)
 
     // If 'other' has a mutable ElementData, convert it to an immutable one so we can share it between both elements.
     // We can only do this if there is no CSSOM wrapper for other's inline style, and there are no presentation attributes.
-    auto* uniqueElementData = dynamicDowncast<UniqueElementData>(*other.m_elementData);
-    if (uniqueElementData
-        && !uniqueElementData->presentationalHintStyle()
-        && (!uniqueElementData->inlineStyle() || !uniqueElementData->inlineStyle()->hasCSSOMWrapper()))
-        const_cast<Element&>(other).m_elementData = uniqueElementData->makeShareableCopy();
+    if (is<UniqueElementData>(*other.m_elementData)
+        && !other.m_elementData->presentationalHintStyle()
+        && (!other.m_elementData->inlineStyle() || !other.m_elementData->inlineStyle()->hasCSSOMWrapper()))
+        const_cast<Element&>(other).m_elementData = downcast<UniqueElementData>(*other.m_elementData).makeShareableCopy();
 
     if (!other.m_elementData->isUnique())
         m_elementData = other.m_elementData;
@@ -5122,7 +5064,7 @@ void Element::createUniqueElementData()
     if (!m_elementData)
         m_elementData = UniqueElementData::create();
     else
-        m_elementData = uncheckedDowncast<ShareableElementData>(*m_elementData).makeUniqueCopy();
+        m_elementData = downcast<ShareableElementData>(*m_elementData).makeUniqueCopy();
 }
 
 bool Element::canContainRangeEndPoint() const
@@ -5168,11 +5110,6 @@ String Element::completeURLsInAttributeValue(const URL& base, const Attribute& a
     return resolveURLStringIfNeeded(attribute.value(), resolveURLs, base);
 }
 
-Attribute Element::replaceURLsInAttributeValue(const Attribute& attribute, const HashMap<String, String>&) const
-{
-    return attribute;
-}
-
 ExceptionOr<Node*> Element::insertAdjacent(const String& where, Ref<Node>&& newChild)
 {
     // In Internet Explorer if the element has no parent and where is "beforeBegin" or "afterEnd",
@@ -5183,7 +5120,7 @@ ExceptionOr<Node*> Element::insertAdjacent(const String& where, Ref<Node>&& newC
     // Opera also appears to disallow such usage.
 
     if (equalLettersIgnoringASCIICase(where, "beforebegin"_s)) {
-        RefPtr parent = this->parentNode();
+        auto* parent = this->parentNode();
         if (!parent)
             return nullptr;
         auto result = parent->insertBefore(newChild, this);
@@ -5193,7 +5130,7 @@ ExceptionOr<Node*> Element::insertAdjacent(const String& where, Ref<Node>&& newC
     }
 
     if (equalLettersIgnoringASCIICase(where, "afterbegin"_s)) {
-        auto result = insertBefore(newChild, protectedFirstChild());
+        auto result = insertBefore(newChild, firstChild());
         if (result.hasException())
             return result.releaseException();
         return newChild.ptr();
@@ -5207,16 +5144,16 @@ ExceptionOr<Node*> Element::insertAdjacent(const String& where, Ref<Node>&& newC
     }
 
     if (equalLettersIgnoringASCIICase(where, "afterend"_s)) {
-        RefPtr parent = this->parentNode();
+        auto* parent = this->parentNode();
         if (!parent)
             return nullptr;
-        auto result = parent->insertBefore(newChild, protectedNextSibling());
+        auto result = parent->insertBefore(newChild, nextSibling());
         if (result.hasException())
             return result.releaseException();
         return newChild.ptr();
     }
 
-    return Exception { ExceptionCode::SyntaxError };
+    return Exception { SyntaxError };
 }
 
 ExceptionOr<Element*> Element::insertAdjacentElement(const String& where, Element& newChild)
@@ -5231,14 +5168,14 @@ ExceptionOr<Element*> Element::insertAdjacentElement(const String& where, Elemen
 static ExceptionOr<ContainerNode&> contextNodeForInsertion(const String& where, Element& element)
 {
     if (equalLettersIgnoringASCIICase(where, "beforebegin"_s) || equalLettersIgnoringASCIICase(where, "afterend"_s)) {
-        RefPtr parent = element.parentNode();
+        auto* parent = element.parentNode();
         if (!parent || is<Document>(*parent))
-            return Exception { ExceptionCode::NoModificationAllowedError };
+            return Exception { NoModificationAllowedError };
         return *parent;
     }
     if (equalLettersIgnoringASCIICase(where, "afterbegin"_s) || equalLettersIgnoringASCIICase(where, "beforeend"_s))
         return element;
-    return Exception { ExceptionCode::SyntaxError };
+    return Exception { SyntaxError };
 }
 
 // Step 2 of https://w3c.github.io/DOM-Parsing/#dom-element-insertadjacenthtml.
@@ -5248,10 +5185,9 @@ static ExceptionOr<Ref<Element>> contextElementForInsertion(const String& where,
     if (contextNodeResult.hasException())
         return contextNodeResult.releaseException();
     auto& contextNode = contextNodeResult.releaseReturnValue();
-    RefPtr contextElement = dynamicDowncast<Element>(contextNode);
-    if (!contextElement || (contextNode.document().isHTMLDocument() && is<HTMLHtmlElement>(contextNode)))
-        return Ref<Element> { HTMLBodyElement::create(contextNode.protectedDocument()) };
-    return contextElement.releaseNonNull();
+    if (!is<Element>(contextNode) || (contextNode.document().isHTMLDocument() && is<HTMLHtmlElement>(contextNode)))
+        return Ref<Element> { HTMLBodyElement::create(contextNode.document()) };
+    return Ref<Element> { downcast<Element>(contextNode) };
 }
 
 // https://w3c.github.io/DOM-Parsing/#dom-element-insertadjacenthtml
@@ -5262,7 +5198,7 @@ ExceptionOr<void> Element::insertAdjacentHTML(const String& where, const String&
     if (contextElement.hasException())
         return contextElement.releaseException();
     // Step 3.
-    auto fragment = createFragmentForInnerOuterHTML(contextElement.releaseReturnValue(), markup, { ParserContentPolicy::AllowScriptingContent });
+    auto fragment = createFragmentForInnerOuterHTML(contextElement.releaseReturnValue(), markup, { ParserContentPolicy::AllowScriptingContent, ParserContentPolicy::AllowPluginContent });
     if (fragment.hasException())
         return fragment.releaseException();
 
@@ -5292,7 +5228,7 @@ ExceptionOr<void> Element::insertAdjacentText(const String& where, String&& text
     return { };
 }
 
-RefPtr<Element> Element::findAnchorElementForLink(String& outAnchorName)
+Element* Element::findAnchorElementForLink(String& outAnchorName)
 {
     if (!isLink())
         return nullptr;
@@ -5301,14 +5237,14 @@ RefPtr<Element> Element::findAnchorElementForLink(String& outAnchorName)
     if (href.isNull())
         return nullptr;
 
-    Ref document = this->document();
-    URL url = document->completeURL(href);
+    Document& document = this->document();
+    URL url = document.completeURL(href);
     if (!url.isValid())
         return nullptr;
 
-    if (url.hasFragmentIdentifier() && equalIgnoringFragmentIdentifier(url, document->baseURL())) {
+    if (url.hasFragmentIdentifier() && equalIgnoringFragmentIdentifier(url, document.baseURL())) {
         outAnchorName = url.fragmentIdentifier().toString();
-        return document->findAnchor(outAnchorName);
+        return document.findAnchor(outAnchorName);
     }
 
     return nullptr;
@@ -5335,12 +5271,11 @@ ExceptionOr<Ref<WebAnimation>> Element::animate(JSC::JSGlobalObject& lexicalGlob
         keyframeEffectOptions = keyframeEffectOptionsVariant;
     }
 
-    Ref document = this->document();
-    auto keyframeEffectResult = KeyframeEffect::create(lexicalGlobalObject, document, this, WTFMove(keyframes), WTFMove(keyframeEffectOptions));
+    auto keyframeEffectResult = KeyframeEffect::create(lexicalGlobalObject, document(), this, WTFMove(keyframes), WTFMove(keyframeEffectOptions));
     if (keyframeEffectResult.hasException())
         return keyframeEffectResult.releaseException();
 
-    Ref animation = WebAnimation::create(document, &keyframeEffectResult.returnValue().get());
+    auto animation = WebAnimation::create(document(), &keyframeEffectResult.returnValue().get());
     animation->setId(WTFMove(id));
     if (timeline)
         animation->setTimeline(timeline->get());
@@ -5358,9 +5293,8 @@ Vector<RefPtr<WebAnimation>> Element::getAnimations(std::optional<GetAnimationsO
     // If we are to return animations in the subtree, we can get all of the document's animations and filter
     // animations targeting that are not registered on this element, one of its pseudo elements or a child's
     // pseudo element.
-    Ref document = this->document();
     if (options && options->subtree) {
-        return document->matchingAnimations([&] (Element& target) -> bool {
+        return document().matchingAnimations([&] (Element& target) -> bool {
             return contains(&target);
         });
     }
@@ -5369,9 +5303,9 @@ Vector<RefPtr<WebAnimation>> Element::getAnimations(std::optional<GetAnimationsO
     // such as updates to CSS Animations and CSS Transitions. This requires updating layout as
     // well since resolving layout-dependent media queries could yield animations.
     // FIXME: We might be able to use ComputedStyleExtractor which is more optimized.
-    if (RefPtr owner = document->ownerElement())
-        owner->protectedDocument()->updateLayout();
-    document->updateStyleIfNeeded();
+    if (RefPtr owner = document().ownerElement())
+        owner->document().updateLayout();
+    document().updateStyleIfNeeded();
 
     Vector<RefPtr<WebAnimation>> animations;
     if (auto* effectStack = keyframeEffectStack(PseudoId::None)) {
@@ -5383,16 +5317,22 @@ Vector<RefPtr<WebAnimation>> Element::getAnimations(std::optional<GetAnimationsO
     return animations;
 }
 
+static WeakHashMap<Element, ElementIdentifier, WeakPtrImplWithEventTargetData>& elementIdentifiersMap()
+{
+    static MainThreadNeverDestroyed<WeakHashMap<Element, ElementIdentifier, WeakPtrImplWithEventTargetData>> map;
+    return map;
+}
+
 ElementIdentifier Element::identifier() const
 {
-    return elementIdentifiersMap().ensure(const_cast<Element&>(*this), [] { return ElementIdentifier::generate(); }).iterator->value;
+    return elementIdentifiersMap().ensure(*this, [] { return ElementIdentifier::generate(); }).iterator->value;
 }
 
 Element* Element::fromIdentifier(ElementIdentifier identifier)
 {
-    for (auto& [element, elementIdentifier] : elementIdentifiersMap()) {
+    for (auto [element, elementIdentifier] : elementIdentifiersMap()) {
         if (elementIdentifier == identifier)
-            return element.ptr();
+            return &element;
     }
     return nullptr;
 }
@@ -5411,10 +5351,10 @@ void Element::setAttributeStyleMap(Ref<StylePropertyMap>&& map)
 
 void Element::ensureFormAssociatedCustomElement()
 {
-    auto& customElement = checkedDowncast<HTMLMaybeFormAssociatedCustomElement>(*this);
+    RELEASE_ASSERT(is<HTMLMaybeFormAssociatedCustomElement>(*this));
     auto& data = ensureElementRareData();
     if (!data.formAssociatedCustomElement())
-        data.setFormAssociatedCustomElement(makeUniqueWithoutRefCountedCheck<FormAssociatedCustomElement>(customElement));
+        data.setFormAssociatedCustomElement(makeUniqueWithoutRefCountedCheck<FormAssociatedCustomElement>(downcast<HTMLMaybeFormAssociatedCustomElement>(*this)));
 }
 
 FormAssociatedCustomElement& Element::formAssociatedCustomElementUnsafe() const
@@ -5455,97 +5395,25 @@ bool Element::isPopoverShowing() const
 // https://drafts.csswg.org/css-contain/#relevant-to-the-user
 bool Element::isRelevantToUser() const
 {
-    if (auto relevancy = contentRelevancy())
-        return !relevancy->isEmpty();
-    return false;
+    return hasRareData() && elementRareData()->contentRelevancyStatus();
 }
 
-std::optional<OptionSet<ContentRelevancy>> Element::contentRelevancy() const
+OptionSet<ContentRelevancyStatus> Element::contentRelevancyStatus() const
 {
     if (!hasRareData())
-        return std::nullopt;
-    return elementRareData()->contentRelevancy();
+        return { };
+    return elementRareData()->contentRelevancyStatus();
 }
 
-void Element::setContentRelevancy(OptionSet<ContentRelevancy> contentRelevancy)
+void Element::setContentRelevancyStatus(OptionSet<ContentRelevancyStatus> contentRelvancyStatus)
 {
-    ensureElementRareData().setContentRelevancy(contentRelevancy);
+    ensureElementRareData().setContentRelevancyStatus(contentRelvancyStatus);
 }
 
-bool Element::checkVisibility(const CheckVisibilityOptions& options)
+void Element::contentVisibilityViewportChange(bool)
 {
-    document().updateStyleIfNeeded();
-
-    auto* style = computedStyle();
-
-    // Disconnected node, not rendered.
-    if (!style)
-        return false;
-
-    // See https://github.com/w3c/csswg-drafts/issues/9478.
-    if (style->display() == DisplayType::Contents)
-        return false;
-
-    if ((options.visibilityProperty || options.checkVisibilityCSS) && style->visibility() != Visibility::Visible)
-        return false;
-
-    RefPtr parent = parentElementInComposedTree();
-    auto isSkippedContentWithReason = [&](ContentVisibility reason) -> bool {
-        ASSERT(!parent || parent->computedStyle());
-        if (style->effectiveContentVisibility() != reason)
-            return false;
-
-        // effectiveContentVisibility() includes the skipped content root, so we query the parent to make sure roots are not considered as skipped.
-        if (!parent || parent->computedStyle()->effectiveContentVisibility() != reason)
-            return false;
-
-        return true;
-    };
-
-    if (isSkippedContentWithReason(ContentVisibility::Hidden))
-        return false;
-
-    if (options.contentVisibilityAuto && isSkippedContentWithReason(ContentVisibility::Auto))
-        return false;
-
-    for (RefPtr ancestor = this; ancestor; ancestor = ancestor->parentElementInComposedTree()) {
-        auto* ancestorStyle = ancestor->computedStyle();
-        if (ancestorStyle->display() == DisplayType::None)
-            return false;
-
-        if ((options.opacityProperty || options.checkOpacity) && ancestorStyle->opacity() == 0.0f)
-            return false;
-    }
-
-    return true;
-}
-
-AtomString Element::makeTargetBlankIfHasDanglingMarkup(const AtomString& target)
-{
-    if ((target.contains('\n') || target.contains('\r') || target.contains('\t')) && target.contains('<'))
-        return "_blank"_s;
-    return target;
-}
-
-bool Element::hasCustomState(const AtomString& state) const
-{
-    if (!document().settings().customStateSetEnabled())
-        return false;
-
-    if (hasRareData()) {
-        RefPtr customStates = elementRareData()->customStateSet();
-        return customStates && customStates->has(state);
-    }
-
-    return false;
-}
-
-CustomStateSet& Element::ensureCustomStateSet()
-{
-    auto& rareData = const_cast<Element*>(this)->ensureElementRareData();
-    if (!rareData.customStateSet())
-        rareData.setCustomStateSet(CustomStateSet::create(*this));
-    return *rareData.customStateSet();
+    ASSERT(renderStyle() && renderStyle()->contentVisibility() == ContentVisibility::Auto);
+    document().scheduleContentRelevancyUpdate(ContentRelevancyStatus::OnScreen);
 }
 
 } // namespace WebCore

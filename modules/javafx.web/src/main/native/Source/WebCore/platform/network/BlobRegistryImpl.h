@@ -33,7 +33,6 @@
 
 #include "BlobData.h"
 #include "BlobRegistry.h"
-#include "SecurityOriginData.h"
 #include <wtf/HashCountedSet.h>
 #include <wtf/RobinHoodHashMap.h>
 #include <wtf/URLHash.h>
@@ -57,7 +56,7 @@ class WEBCORE_EXPORT BlobRegistryImpl {
 public:
     virtual ~BlobRegistryImpl();
 
-    BlobData* getBlobDataFromURL(const URL&, const std::optional<SecurityOriginData>& topOrigin = std::nullopt) const;
+    BlobData* getBlobDataFromURL(const URL&) const;
 
     Ref<ResourceHandle> createResourceHandle(const ResourceRequest&, ResourceHandleClient*);
 
@@ -83,21 +82,20 @@ public:
     };
 
     bool populateBlobsForFileWriting(const Vector<String>& blobURLs, Vector<BlobForFileWriting>&);
-    Vector<RefPtr<BlobDataFileReference>> filesInBlob(const URL&, const std::optional<WebCore::SecurityOriginData>& topOrigin = std::nullopt) const;
+    Vector<RefPtr<BlobDataFileReference>> filesInBlob(const URL&) const;
 
     void setFileDirectory(String&&);
-    void setPartitioningEnabled(bool);
+    void setPartitioningEnabled(bool enabled) { m_isPartitioningEnabled = enabled; }
 
 private:
-    void registerBlobURLOptionallyFileBacked(const URL&, const URL& srcURL, RefPtr<BlobDataFileReference>&&, const String& contentType, const PolicyContainer&, const std::optional<SecurityOriginData>& topOrigin = std::nullopt);
-    void addBlobData(const String& url, RefPtr<BlobData>&&, const std::optional<WebCore::SecurityOriginData>& topOrigin = std::nullopt);
+    void registerBlobURLOptionallyFileBacked(const URL&, const URL& srcURL, RefPtr<BlobDataFileReference>&&, const String& contentType, const PolicyContainer&);
+    void addBlobData(const String& url, RefPtr<BlobData>&&);
     Ref<DataSegment> createDataSegment(Vector<uint8_t>&&, BlobData&);
 
     HashCountedSet<String> m_blobReferences;
     MemoryCompactRobinHoodHashMap<String, RefPtr<BlobData>> m_blobs;
-    using URLToTopOriginHashMap = MemoryCompactRobinHoodHashMap<String, WebCore::SecurityOriginData>;
-    std::optional<URLToTopOriginHashMap> m_allowedBlobURLTopOrigins;
     String m_fileDirectory;
+    bool m_isPartitioningEnabled { false };
 #if PLATFORM(JAVA)
     friend class WebBlobRegistry;
 #endif

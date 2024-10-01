@@ -23,9 +23,7 @@
 
 #include <wtf/CheckedPtr.h>
 #include <wtf/Forward.h>
-#include <wtf/OptionSet.h>
 #include <wtf/RefCounted.h>
-#include <wtf/WeakPtr.h>
 
 // This implements a counter tree that is used for finding parents in counters() lookup,
 // and for propagating count changes when nodes are added or removed.
@@ -41,15 +39,12 @@ namespace WebCore {
 class RenderCounter;
 class RenderElement;
 
-class CounterNode : public RefCounted<CounterNode>, public CanMakeSingleThreadWeakPtr<CounterNode> {
+class CounterNode : public RefCounted<CounterNode>, public CanMakeCheckedPtr {
 public:
-    enum class Type : uint8_t { Increment, Reset, Set };
-
-    static Ref<CounterNode> create(RenderElement&, OptionSet<Type>, int value);
+    static Ref<CounterNode> create(RenderElement&, bool isReset, int value);
     ~CounterNode();
-    bool actsAsReset() const { return hasResetType() || !m_parent; }
-    bool hasResetType() const { return m_type.contains(Type::Reset); }
-    bool hasSetType() const { return m_type.contains(Type::Set); }
+    bool actsAsReset() const { return m_hasResetType || !m_parent; }
+    bool hasResetType() const { return m_hasResetType; }
     int value() const { return m_value; }
     int countInParent() const { return m_countInParent; }
     RenderElement& owner() const { return m_owner; }
@@ -74,24 +69,24 @@ public:
     void removeChild(CounterNode&);
 
 private:
-    CounterNode(RenderElement&, OptionSet<Type>, int value);
+    CounterNode(RenderElement&, bool isReset, int value);
     int computeCountInParent() const;
     // Invalidates the text in the renderer of this counter, if any,
     // and in the renderers of all descendants of this counter, if any.
     void resetThisAndDescendantsRenderers();
     void recount();
 
-    OptionSet<Type> m_type { };
+    bool m_hasResetType;
     int m_value;
     int m_countInParent { 0 };
     RenderElement& m_owner;
     RenderCounter* m_rootRenderer { nullptr };
 
-    SingleThreadWeakPtr<CounterNode> m_parent;
-    SingleThreadWeakPtr<CounterNode> m_previousSibling;
-    SingleThreadWeakPtr<CounterNode> m_nextSibling;
-    SingleThreadWeakPtr<CounterNode> m_firstChild;
-    SingleThreadWeakPtr<CounterNode> m_lastChild;
+    CheckedPtr<CounterNode> m_parent;
+    CheckedPtr<CounterNode> m_previousSibling;
+    CheckedPtr<CounterNode> m_nextSibling;
+    CheckedPtr<CounterNode> m_firstChild;
+    CheckedPtr<CounterNode> m_lastChild;
 };
 
 } // namespace WebCore

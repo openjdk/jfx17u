@@ -37,10 +37,6 @@
 #include "StyleSheetContents.h"
 #include "TextResourceDecoder.h"
 
-#if PLATFORM(COCOA)
-#include <wtf/cocoa/RuntimeApplicationChecksCocoa.h>
-#endif
-
 namespace WebCore {
 
 CachedCSSStyleSheet::CachedCSSStyleSheet(CachedResourceRequest&& request, PAL::SessionID sessionID, const CookieJar* cookieJar)
@@ -51,8 +47,8 @@ CachedCSSStyleSheet::CachedCSSStyleSheet(CachedResourceRequest&& request, PAL::S
 
 CachedCSSStyleSheet::~CachedCSSStyleSheet()
 {
-    if (RefPtr parsedStyleSheetCache = m_parsedStyleSheetCache)
-        parsedStyleSheetCache->removedFromMemoryCache();
+    if (m_parsedStyleSheetCache)
+        m_parsedStyleSheetCache->removedFromMemoryCache();
 }
 
 void CachedCSSStyleSheet::didAddClient(CachedResourceClient& client)
@@ -69,27 +65,24 @@ void CachedCSSStyleSheet::didAddClient(CachedResourceClient& client)
 
 void CachedCSSStyleSheet::setEncoding(const String& chs)
 {
-    protectedDecoder()->setEncoding(chs, TextResourceDecoder::EncodingFromHTTPHeader);
+    m_decoder->setEncoding(chs, TextResourceDecoder::EncodingFromHTTPHeader);
 }
 
 String CachedCSSStyleSheet::encoding() const
 {
-    return String::fromLatin1(protectedDecoder()->encoding().name());
+    return String::fromLatin1(m_decoder->encoding().name());
 }
 
-const String CachedCSSStyleSheet::sheetText(MIMETypeCheckHint mimeTypeCheckHint, bool* hasValidMIMEType, bool* hasHTTPStatusOK) const
+const String CachedCSSStyleSheet::sheetText(MIMETypeCheckHint mimeTypeCheckHint, bool* hasValidMIMEType) const
 {
-    // Ensure hasValidMIMEType and hasHTTPStatusOK always get set (even if m_data is null or empty) — which in turn
-    // ensures that if the MIME type isn't text/css or the HTTP status isn't an OK status, we never load the resource.
-    // https://html.spec.whatwg.org/#link-type-stylesheet:process-the-linked-resource
-    if (!canUseSheet(mimeTypeCheckHint, hasValidMIMEType, hasHTTPStatusOK) || !m_data || m_data->isEmpty())
+    if (!m_data || m_data->isEmpty() || !canUseSheet(mimeTypeCheckHint, hasValidMIMEType))
         return String();
 
     if (!m_decodedSheetText.isNull())
         return m_decodedSheetText;
 
-    // Don't cache the decoded text, regenerating is cheap and it can use quite a bit of memory.
-    return protectedDecoder()->decodeAndFlush(m_data->makeContiguous()->data(), m_data->size());
+    // Don't cache the decoded text, regenerating is cheap and it can use quite a bit of memory
+    return m_decoder->decodeAndFlush(m_data->makeContiguous()->data(), m_data->size());
 }
 
 void CachedCSSStyleSheet::setBodyDataFrom(const CachedResource& resource)
@@ -101,14 +94,14 @@ void CachedCSSStyleSheet::setBodyDataFrom(const CachedResource& resource)
 
     m_decoder = sheet.m_decoder;
     m_decodedSheetText = sheet.m_decodedSheetText;
-    if (RefPtr parsedStyleSheetCache = sheet.m_parsedStyleSheetCache)
-        saveParsedStyleSheet(parsedStyleSheetCache.releaseNonNull());
+    if (sheet.m_parsedStyleSheetCache)
+        saveParsedStyleSheet(*sheet.m_parsedStyleSheetCache);
 }
 
 void CachedCSSStyleSheet::finishLoading(const FragmentedSharedBuffer* data, const NetworkLoadMetrics& metrics)
 {
     if (data) {
-        Ref contiguousData = data->makeContiguous();
+        auto contiguousData = data->makeContiguous();
         setEncodedSize(data->size());
         // Decode the data to find out the encoding and keep the sheet text around during checkNotify()
         m_decodedSheetText = protectedDecoder()->decodeAndFlush(contiguousData->data(), data->size());
@@ -135,7 +128,7 @@ void CachedCSSStyleSheet::checkNotify(const NetworkLoadMetrics&)
 
     CachedResourceClientWalker<CachedStyleSheetClient> walker(*this);
     while (CachedStyleSheetClient* c = walker.next())
-        c->setCSSStyleSheet(m_resourceRequest.url().string(), response().url(), String::fromLatin1(protectedDecoder()->encoding().name()), this);
+        c->setCSSStyleSheet(m_resourceRequest.url().string(), response().url(), String::fromLatin1(m_decoder->encoding().name()), this);
 }
 
 String CachedCSSStyleSheet::responseMIMEType() const
@@ -148,25 +141,10 @@ bool CachedCSSStyleSheet::mimeTypeAllowedByNosniff() const
     return parseContentTypeOptionsHeader(response().httpHeaderField(HTTPHeaderName::XContentTypeOptions)) != ContentTypeOptionsDisposition::Nosniff || equalLettersIgnoringASCIICase(responseMIMEType(), "text/css"_s);
 }
 
-bool CachedCSSStyleSheet::canUseSheet(MIMETypeCheckHint mimeTypeCheckHint, bool* hasValidMIMEType, bool* hasHTTPStatusOK) const
+bool CachedCSSStyleSheet::canUseSheet(MIMETypeCheckHint mimeTypeCheckHint, bool* hasValidMIMEType) const
 {
     if (errorOccurred())
         return false;
-
-    // https://html.spec.whatwg.org/#fetching-and-processing-a-resource-from-a-link-element:processresponseconsumebody
-    auto shouldAvoidUsingStyleSheetDueToUnsuccessfulRequest = [&] {
-#if PLATFORM(COCOA)
-        if (!linkedOnOrAfterSDKWithBehavior(SDKAlignedBehavior::DoNotLoadStyleSheetIfHTTPStatusIsNotOK))
-            return false;
-#endif
-        return response().url().protocolIsInHTTPFamily() && !response().isSuccessful();
-    }();
-
-    if (shouldAvoidUsingStyleSheetDueToUnsuccessfulRequest) {
-        if (hasHTTPStatusOK)
-            *hasHTTPStatusOK = false;
-        return false;
-    }
 
     if (!mimeTypeAllowedByNosniff()) {
         if (hasValidMIMEType)
@@ -196,7 +174,7 @@ void CachedCSSStyleSheet::destroyDecodedData()
     if (!m_parsedStyleSheetCache)
         return;
 
-    Ref { *m_parsedStyleSheetCache }->removedFromMemoryCache();
+    m_parsedStyleSheetCache->removedFromMemoryCache();
     m_parsedStyleSheetCache = nullptr;
 
     setDecodedSize(0);
@@ -204,20 +182,19 @@ void CachedCSSStyleSheet::destroyDecodedData()
 
 RefPtr<StyleSheetContents> CachedCSSStyleSheet::restoreParsedStyleSheet(const CSSParserContext& context, CachePolicy cachePolicy, FrameLoader& loader)
 {
-    RefPtr parsedStyleSheetCache = m_parsedStyleSheetCache;
-    if (!parsedStyleSheetCache)
+    if (!m_parsedStyleSheetCache)
         return nullptr;
-    if (!parsedStyleSheetCache->subresourcesAllowReuse(cachePolicy, loader)) {
-        parsedStyleSheetCache->removedFromMemoryCache();
+    if (!m_parsedStyleSheetCache->subresourcesAllowReuse(cachePolicy, loader)) {
+        m_parsedStyleSheetCache->removedFromMemoryCache();
         m_parsedStyleSheetCache = nullptr;
         return nullptr;
     }
 
-    ASSERT(parsedStyleSheetCache->isCacheable());
-    ASSERT(parsedStyleSheetCache->isInMemoryCache());
+    ASSERT(m_parsedStyleSheetCache->isCacheable());
+    ASSERT(m_parsedStyleSheetCache->isInMemoryCache());
 
     // Contexts must be identical so we know we would get the same exact result if we parsed again.
-    if (parsedStyleSheetCache->parserContext() != context)
+    if (m_parsedStyleSheetCache->parserContext() != context)
         return nullptr;
 
     didAccessDecodedData(MonotonicTime::now());
@@ -229,12 +206,12 @@ void CachedCSSStyleSheet::saveParsedStyleSheet(Ref<StyleSheetContents>&& sheet)
 {
     ASSERT(sheet->isCacheable());
 
-    if (RefPtr parsedStyleSheetCache = m_parsedStyleSheetCache)
-        parsedStyleSheetCache->removedFromMemoryCache();
-    m_parsedStyleSheetCache = sheet.copyRef();
-    sheet->addedToMemoryCache();
+    if (m_parsedStyleSheetCache)
+        m_parsedStyleSheetCache->removedFromMemoryCache();
+    m_parsedStyleSheetCache = WTFMove(sheet);
+    m_parsedStyleSheetCache->addedToMemoryCache();
 
-    setDecodedSize(sheet->estimatedSizeInBytes());
+    setDecodedSize(m_parsedStyleSheetCache->estimatedSizeInBytes());
 }
 
 }

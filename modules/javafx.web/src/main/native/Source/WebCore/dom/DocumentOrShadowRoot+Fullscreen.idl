@@ -27,7 +27,6 @@
 [
     Conditional=FULLSCREEN_API,
     EnabledBySetting=UnprefixedFullscreenAPIEnabled,
-    DisabledByQuirk=shouldDisableElementFullscreen,
     ImplementedBy=DocumentOrShadowRootFullscreen
 ] partial interface mixin DocumentOrShadowRoot {
     [LegacyLenientSetter] readonly attribute Element? fullscreenElement;

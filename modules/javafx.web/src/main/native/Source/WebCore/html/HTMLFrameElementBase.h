@@ -40,6 +40,7 @@ public:
     ScrollbarMode scrollingMode() const final;
 
 protected:
+    constexpr static auto CreateHTMLFrameElementBase = CreateHTMLFrameOwnerElement | NodeFlag::HasCustomStyleResolveCallbacks;
     HTMLFrameElementBase(const QualifiedName&, Document&);
 
     bool canLoad() const;
@@ -77,9 +78,5 @@ private:
 
 SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::HTMLFrameElementBase)
     static bool isType(const WebCore::HTMLElement& element) { return is<WebCore::HTMLFrameElement>(element) || is<WebCore::HTMLIFrameElement>(element); }
-    static bool isType(const WebCore::Node& node)
-    {
-        auto* htmlElement = dynamicDowncast<WebCore::HTMLElement>(node);
-        return htmlElement && isType(*htmlElement);
-    }
+    static bool isType(const WebCore::Node& node) { return is<WebCore::HTMLElement>(node) && isType(downcast<WebCore::HTMLElement>(node)); }
 SPECIALIZE_TYPE_TRAITS_END()

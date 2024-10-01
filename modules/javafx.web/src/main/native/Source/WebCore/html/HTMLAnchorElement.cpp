@@ -160,23 +160,23 @@ bool HTMLAnchorElement::isKeyboardFocusable(KeyboardEvent* event) const
 
 static void appendServerMapMousePosition(StringBuilder& url, Event& event)
 {
-    auto* mouseEvent = dynamicDowncast<MouseEvent>(event);
-    if (!mouseEvent)
+    if (!is<MouseEvent>(event))
+        return;
+    auto& mouseEvent = downcast<MouseEvent>(event);
+
+    if (!is<HTMLImageElement>(mouseEvent.target()))
         return;
 
-    auto* imageElement = dynamicDowncast<HTMLImageElement>(mouseEvent->target());
-    if (!imageElement)
+    auto& imageElement = downcast<HTMLImageElement>(*mouseEvent.target());
+    if (!imageElement.isServerMap())
         return;
 
-    if (!imageElement->isServerMap())
-        return;
-
-    CheckedPtr renderer = dynamicDowncast<RenderImage>(imageElement->renderer());
-    if (!renderer)
+    auto* renderer = imageElement.renderer();
+    if (!is<RenderImage>(renderer))
         return;
 
     // FIXME: This should probably pass UseTransforms in the OptionSet<MapCoordinatesMode>.
-    auto absolutePosition = renderer->absoluteToLocal(FloatPoint(mouseEvent->pageX(), mouseEvent->pageY()));
+    auto absolutePosition = downcast<RenderImage>(*renderer).absoluteToLocal(FloatPoint(mouseEvent.pageX(), mouseEvent.pageY()));
     url.append('?', std::lround(absolutePosition.x()), ',', std::lround(absolutePosition.y()));
 }
 
@@ -198,9 +198,9 @@ void HTMLAnchorElement::defaultEventHandler(Event& event)
             // This keeps track of the editable block that the selection was in (if it was in one) just before the link was clicked
             // for the LiveWhenNotFocused editable link behavior
             auto& eventNames = WebCore::eventNames();
-            if (auto* mouseEvent = dynamicDowncast<MouseEvent>(event); event.type() == eventNames.mousedownEvent && mouseEvent && mouseEvent->button() != MouseButton::Right && document().frame()) {
+            if (event.type() == eventNames.mousedownEvent && is<MouseEvent>(event) && downcast<MouseEvent>(event).button() != RightButton && document().frame()) {
                 setRootEditableElementForSelectionOnMouseDown(document().frame()->selection().selection().rootEditableElement());
-                m_wasShiftKeyDownOnMouseDown = mouseEvent->shiftKey();
+                m_wasShiftKeyDownOnMouseDown = downcast<MouseEvent>(event).shiftKey();
             } else if (event.type() == eventNames.mouseoverEvent) {
                 // These are cleared on mouseover and not mouseout because their values are needed for drag events,
                 // but drag events happen after mouse out events.
@@ -242,7 +242,10 @@ void HTMLAnchorElement::attributeChanged(const QualifiedName& name, const AtomSt
     HTMLElement::attributeChanged(name, oldValue, newValue, attributeModificationReason);
 
     if (name == hrefAttr) {
+        bool wasLink = isLink();
         setIsLink(!newValue.isNull() && !shouldProhibitLinks(this));
+        if (wasLink != isLink())
+            invalidateStyleForSubtree();
         if (isLink()) {
             auto parsedURL = newValue.string().trim(isASCIIWhitespace);
             if (document().isDNSPrefetchEnabled() && document().frame()) {
@@ -337,17 +340,7 @@ AtomString HTMLAnchorElement::target() const
 
 String HTMLAnchorElement::origin() const
 {
-    auto url = href();
-    if (!url.isValid())
-        return emptyString();
-    return SecurityOrigin::create(url)->toString();
-}
-
-void HTMLAnchorElement::setProtocol(StringView value)
-{
-    if (auto url = href(); !url.isValid())
-        return;
-    URLDecomposition::setProtocol(value);
+    return SecurityOrigin::create(href()).get().toString();
 }
 
 String HTMLAnchorElement::text()
@@ -591,7 +584,7 @@ void HTMLAnchorElement::handleClick(Event& event)
     URL completedURL = document().completeURL(url.toString());
 
 #if ENABLE(DATA_DETECTION) && PLATFORM(IOS_FAMILY)
-    if (DataDetection::canPresentDataDetectorsUIForElement(*this)) {
+    if (DataDetection::isDataDetectorLink(*this) && DataDetection::canPresentDataDetectorsUIForElement(*this)) {
         if (auto* page = document().page()) {
             if (page->chrome().client().showDataDetectorsUIForElement(*this, event))
                 return;
@@ -600,6 +593,7 @@ void HTMLAnchorElement::handleClick(Event& event)
 #endif
 
     AtomString downloadAttribute;
+#if ENABLE(DOWNLOAD_ATTRIBUTE)
     if (document().settings().downloadAttributeEnabled()) {
         // Ignore the download attribute completely if the href URL is cross origin.
         bool isSameOrigin = completedURL.protocolIsData() || document().securityOrigin().canRequest(completedURL, OriginAccessPatternsForWebProcess::singleton());
@@ -608,10 +602,11 @@ void HTMLAnchorElement::handleClick(Event& event)
         else if (hasAttributeWithoutSynchronization(downloadAttr))
             document().addConsoleMessage(MessageSource::Security, MessageLevel::Warning, "The download attribute on anchor was ignored because its href URL has a different security origin."_s);
     }
+#endif
 
     SystemPreviewInfo systemPreviewInfo;
 #if USE(SYSTEM_PREVIEW)
-    systemPreviewInfo.isPreview = isSystemPreviewLink() && document().settings().systemPreviewEnabled() && UserGestureIndicator::processingUserGesture();
+    systemPreviewInfo.isPreview = isSystemPreviewLink() && document().settings().systemPreviewEnabled();
 
     if (systemPreviewInfo.isPreview) {
         systemPreviewInfo.element.elementIdentifier = identifier();
@@ -621,7 +616,7 @@ void HTMLAnchorElement::handleClick(Event& event)
             systemPreviewInfo.previewRect = child->boundsInRootViewSpace();
 
         if (auto* page = document().page())
-            page->beginSystemPreview(completedURL, document().topOrigin().data(), WTFMove(systemPreviewInfo), [keepBlobAlive = URLKeepingBlobAlive(completedURL, document().topOrigin().data())] { });
+            page->beginSystemPreview(completedURL, WTFMove(systemPreviewInfo), [keepBlobAlive = URLKeepingBlobAlive(completedURL, document().topOrigin().data())] { });
         return;
     }
 #endif
@@ -655,14 +650,14 @@ AtomString HTMLAnchorElement::effectiveTarget() const
     auto effectiveTarget = target();
     if (effectiveTarget.isEmpty())
         effectiveTarget = document().baseTarget();
-    return makeTargetBlankIfHasDanglingMarkup(effectiveTarget);
+    return effectiveTarget;
 }
 
 HTMLAnchorElement::EventType HTMLAnchorElement::eventType(Event& event)
 {
-    if (auto* mouseEvent = dynamicDowncast<MouseEvent>(event))
-        return mouseEvent->shiftKey() ? MouseEventWithShiftKey : MouseEventWithoutShiftKey;
+    if (!is<MouseEvent>(event))
         return NonMouseEvent;
+    return downcast<MouseEvent>(event).shiftKey() ? MouseEventWithShiftKey : MouseEventWithoutShiftKey;
 }
 
 bool HTMLAnchorElement::treatLinkAsLiveForEventType(EventType eventType) const
@@ -693,10 +688,7 @@ bool HTMLAnchorElement::treatLinkAsLiveForEventType(EventType eventType) const
 
 bool isEnterKeyKeydownEvent(Event& event)
 {
-    if (event.type() != eventNames().keydownEvent)
-        return false;
-    auto* keyboardEvent = dynamicDowncast<KeyboardEvent>(event);
-    return keyboardEvent && keyboardEvent->keyIdentifier() == "Enter"_s;
+    return event.type() == eventNames().keydownEvent && is<KeyboardEvent>(event) && downcast<KeyboardEvent>(event).keyIdentifier() == "Enter"_s;
 }
 
 bool shouldProhibitLinks(Element* element)
@@ -753,7 +745,9 @@ String HTMLAnchorElement::referrerPolicyForBindings() const
 
 ReferrerPolicy HTMLAnchorElement::referrerPolicy() const
 {
+    if (document().settings().referrerPolicyAttributeEnabled())
         return parseReferrerPolicy(attributeWithoutSynchronization(referrerpolicyAttr), ReferrerPolicySource::ReferrerPolicyAttribute).value_or(ReferrerPolicy::EmptyString);
+    return ReferrerPolicy::EmptyString;
 }
 
 }

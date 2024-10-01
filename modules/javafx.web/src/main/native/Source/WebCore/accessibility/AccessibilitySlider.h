@@ -45,10 +45,9 @@ protected:
 
 private:
     HTMLInputElement* inputElement() const;
-    AccessibilityObject* elementAccessibilityHitTest(const IntPoint&) const final;
+    AXCoreObject* elementAccessibilityHitTest(const IntPoint&) const override;
 
-    AccessibilityRole determineAccessibilityRole() final { return AccessibilityRole::Slider; }
-
+    AccessibilityRole roleValue() const override { return AccessibilityRole::Slider; }
     bool isControl() const override { return true; }
 
     void addChildren() override;
@@ -68,7 +67,7 @@ public:
     static Ref<AccessibilitySliderThumb> create();
     virtual ~AccessibilitySliderThumb() = default;
 
-    AccessibilityRole determineAccessibilityRole() final { return AccessibilityRole::SliderThumb; }
+    AccessibilityRole roleValue() const override { return AccessibilityRole::SliderThumb; }
     LayoutRect elementRect() const override;
 
 private:

@@ -111,13 +111,6 @@ inline bool WeakHashCountedSet<Value, WeakPtrImpl>::remove(iterator it)
     return true;
 }
 
-template<typename Value, typename WeakMapImpl>
-size_t containerSize(const WeakHashCountedSet<Value, WeakMapImpl>& container) { return container.computeSize(); }
-
-template<typename Value>
-using SingleThreadWeakHashCountedSet = WeakHashCountedSet<Value, SingleThreadWeakPtrImpl>;
-
 } // namespace WTF
 
-using WTF::SingleThreadWeakHashCountedSet;
 using WTF::WeakHashCountedSet;

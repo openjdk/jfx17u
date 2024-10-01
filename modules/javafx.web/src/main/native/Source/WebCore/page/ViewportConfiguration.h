@@ -59,7 +59,14 @@ public:
 
         bool ignoreInitialScaleForLayoutWidth { false };
 
-        friend bool operator==(const Parameters&, const Parameters&) = default;
+        bool operator==(const Parameters& other) const
+        {
+            return width == other.width && height == other.height
+                && initialScale == other.initialScale && initialScaleIgnoringLayoutScaleFactor == other.initialScaleIgnoringLayoutScaleFactor && minimumScale == other.minimumScale && maximumScale == other.maximumScale
+                && allowsUserScaling == other.allowsUserScaling && allowsShrinkToFit == other.allowsShrinkToFit && avoidsUnsafeArea == other.avoidsUnsafeArea
+                && widthIsSet == other.widthIsSet && heightIsSet == other.heightIsSet && initialScaleIsSet == other.initialScaleIsSet
+                && ignoreInitialScaleForLayoutWidth == other.ignoreInitialScaleForLayoutWidth;
+        }
     };
 
     WEBCORE_EXPORT ViewportConfiguration();
@@ -149,8 +156,8 @@ public:
     WEBCORE_EXPORT static Parameters xhtmlMobileParameters();
     WEBCORE_EXPORT static Parameters testingParameters();
 
-    String description() const;
 #if !LOG_DISABLED
+    String description() const;
     WEBCORE_EXPORT void dump() const;
 #endif
 

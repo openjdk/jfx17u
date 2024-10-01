@@ -250,13 +250,14 @@ void ResourceUsageThread::platformCollectCPUData(JSC::VM*, ResourceUsageData& da
 
     HashMap<pid_t, String> knownWorkerThreads;
     {
-        for (auto& thread : WorkerOrWorkletThread::workerOrWorkletThreads()) {
+        Locker locker { WorkerOrWorkletThread::workerOrWorkletThreadsLock() };
+        for (auto* thread : WorkerOrWorkletThread::workerOrWorkletThreads()) {
             // Ignore worker threads that have not been fully started yet.
-            if (!thread.thread())
+            if (!thread->thread())
                 continue;
 
-            if (auto id = thread.thread()->id())
-                knownWorkerThreads.set(id, thread.inspectorIdentifier().isolatedCopy());
+            if (auto id = thread->thread()->id())
+                knownWorkerThreads.set(id, thread->inspectorIdentifier().isolatedCopy());
         }
     }
 

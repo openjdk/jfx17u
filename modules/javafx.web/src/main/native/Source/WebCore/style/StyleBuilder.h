@@ -35,7 +35,7 @@ namespace Style {
 class Builder {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    Builder(RenderStyle&, BuilderContext&&, const MatchResult&, CascadeLevel, OptionSet<PropertyCascade::PropertyType> = PropertyCascade::normalProperties(), const HashSet<AnimatableCSSProperty>* animatedProperties = nullptr);
+    Builder(RenderStyle&, BuilderContext&&, const MatchResult&, CascadeLevel, OptionSet<PropertyCascade::PropertyType> = PropertyCascade::allProperties(), const HashSet<AnimatableProperty>* animatedProperties = nullptr);
     ~Builder();
 
     void applyAllProperties();
@@ -48,13 +48,12 @@ public:
 
     BuilderState& state() { return m_state; }
 
-    const HashSet<AnimatableCSSProperty> overriddenAnimatedProperties() const { return m_cascade.overriddenAnimatedProperties(); }
+    const HashSet<AnimatableProperty> overriddenAnimatedProperties() const { return m_cascade.overriddenAnimatedProperties(); }
 
 private:
     void applyProperties(int firstProperty, int lastProperty);
     void applyDeferredProperties();
     void applyCustomProperties();
-    void applyCustomPropertyImpl(const AtomString&, const PropertyCascade::Property&);
 
     enum CustomPropertyCycleTracking { Enabled = 0, Disabled };
     template<CustomPropertyCycleTracking trackCycles>
@@ -64,7 +63,7 @@ private:
     void applyProperty(CSSPropertyID, CSSValue&, SelectorChecker::LinkMatchMask);
 
     Ref<CSSValue> resolveVariableReferences(CSSPropertyID, CSSValue&);
-    RefPtr<CSSCustomPropertyValue> resolveCustomPropertyValue(CSSCustomPropertyValue&);
+    RefPtr<CSSCustomPropertyValue> resolveCustomPropertyValueWithVariableReferences(CSSCustomPropertyValue&);
 
     const PropertyCascade* ensureRollbackCascadeForRevert();
     const PropertyCascade* ensureRollbackCascadeForRevertLayer();

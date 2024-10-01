@@ -48,7 +48,7 @@ private:
     bool isAccessibilityScrollbar() const override { return true; }
     LayoutRect elementRect() const override;
 
-    AccessibilityRole determineAccessibilityRole() final { return AccessibilityRole::ScrollBar; }
+    AccessibilityRole roleValue() const override { return AccessibilityRole::ScrollBar; }
     AccessibilityOrientation orientation() const override;
     Document* document() const override;
     bool isEnabled() const override;

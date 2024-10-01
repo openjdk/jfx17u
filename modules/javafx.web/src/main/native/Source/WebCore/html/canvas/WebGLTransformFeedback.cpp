@@ -31,32 +31,31 @@
 #include "WebCoreOpaqueRootInlines.h"
 #include "WebGL2RenderingContext.h"
 #include "WebGLBuffer.h"
+#include "WebGLContextGroup.h"
 #include <JavaScriptCore/AbstractSlotVisitorInlines.h>
 #include <wtf/Lock.h>
 #include <wtf/Locker.h>
 
 namespace WebCore {
 
-RefPtr<WebGLTransformFeedback> WebGLTransformFeedback::create(WebGL2RenderingContext& context)
+Ref<WebGLTransformFeedback> WebGLTransformFeedback::create(WebGL2RenderingContext& ctx)
 {
-    auto object = context.protectedGraphicsContextGL()->createTransformFeedback();
-    if (!object)
-        return nullptr;
-    return adoptRef(*new WebGLTransformFeedback { context, object });
+    return adoptRef(*new WebGLTransformFeedback(ctx));
 }
 
 WebGLTransformFeedback::~WebGLTransformFeedback()
 {
-    if (!m_context)
+    if (!hasGroupOrContext())
         return;
 
     runDestructor();
 }
 
-WebGLTransformFeedback::WebGLTransformFeedback(WebGL2RenderingContext& context, PlatformGLObject object)
-    : WebGLObject(context, object)
+WebGLTransformFeedback::WebGLTransformFeedback(WebGL2RenderingContext& ctx)
+    : WebGLSharedObject(ctx)
 {
-    m_boundIndexedTransformFeedbackBuffers.grow(context.maxTransformFeedbackSeparateAttribs());
+    setObject(ctx.graphicsContextGL()->createTransformFeedback());
+    m_boundIndexedTransformFeedbackBuffers.resize(ctx.maxTransformFeedbackSeparateAttribs());
 }
 
 void WebGLTransformFeedback::deleteObjectImpl(const AbstractLocker&, GraphicsContextGL* context3d, PlatformGLObject object)

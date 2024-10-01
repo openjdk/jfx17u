@@ -36,7 +36,6 @@
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
-DEFINE_ALLOCATOR_WITH_HEAP_IDENTIFIER(DOMCSSPaintWorklet);
 
 PaintWorklet& DOMCSSPaintWorklet::ensurePaintWorklet(Document& document)
 {
@@ -54,9 +53,9 @@ DOMCSSPaintWorklet* DOMCSSPaintWorklet::from(DOMCSSNamespace& css)
     return supplement;
 }
 
-ASCIILiteral DOMCSSPaintWorklet::supplementName()
+const char* DOMCSSPaintWorklet::supplementName()
 {
-    return "DOMCSSPaintWorklet"_s;
+    return "DOMCSSPaintWorklet";
 }
 
 // FIXME: Get rid of this override and rely on the standard-compliant Worklet::addModule() instead.
@@ -64,16 +63,15 @@ void PaintWorklet::addModule(const String& moduleURL, WorkletOptions&&, DOMPromi
 {
     auto* document = this->document();
     if (!document) {
-        promise.reject(Exception { ExceptionCode::InvalidStateError, "This frame is detached"_s });
+        promise.reject(Exception { InvalidStateError, "This frame is detached"_s });
         return;
     }
 
     // FIXME: We should download the source from the URL
     // https://bugs.webkit.org/show_bug.cgi?id=191136
-    // PaintWorklets don't have access to any sensitive APIs so we don't bother tracking taintedness there.
-    auto maybeContext = PaintWorkletGlobalScope::tryCreate(*document, ScriptSourceCode(moduleURL, JSC::SourceTaintedOrigin::Untainted));
+    auto maybeContext = PaintWorkletGlobalScope::tryCreate(*document, ScriptSourceCode(moduleURL));
     if (UNLIKELY(!maybeContext)) {
-        promise.reject(Exception { ExceptionCode::OutOfMemoryError });
+        promise.reject(Exception { OutOfMemoryError });
         return;
     }
     auto context = maybeContext.releaseNonNull();

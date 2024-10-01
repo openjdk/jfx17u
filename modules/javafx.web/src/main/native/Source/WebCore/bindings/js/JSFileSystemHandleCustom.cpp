@@ -31,7 +31,6 @@
 #include "JSDOMBinding.h"
 #include "JSFileSystemDirectoryHandle.h"
 #include "JSFileSystemFileHandle.h"
-#include "ScriptExecutionContext.h"
 
 namespace WebCore {
 

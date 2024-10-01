@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2022 Igalia S.L.
- * Copyright (C) 2023 Apple Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -24,6 +23,7 @@
 #include "CairoUtilities.h"
 #include "CharacterProperties.h"
 #include "FontCache.h"
+#include "UTF16UChar32Iterator.h"
 
 namespace WebCore {
 
@@ -41,7 +41,7 @@ FontSetCache::FontSet::FontSet(RefPtr<FcPattern>&& fontPattern)
     }
 }
 
-RefPtr<FcPattern> FontSetCache::bestForCharacters(const FontDescription& fontDescription, bool preferColoredFont, StringView stringView)
+RefPtr<FcPattern> FontSetCache::bestForCharacters(const FontDescription& fontDescription, bool preferColoredFont, const UChar* characters, unsigned length)
 {
     auto addResult = m_cache.ensure(FontSetCacheKey(fontDescription, preferColoredFont), [&fontDescription, preferColoredFont]() -> std::unique_ptr<FontSetCache::FontSet> {
         RefPtr<FcPattern> pattern = adoptRef(FcPatternCreate());
@@ -71,12 +71,15 @@ RefPtr<FcPattern> FontSetCache::bestForCharacters(const FontDescription& fontDes
     }
 
     FcUniquePtr<FcCharSet> fontConfigCharSet(FcCharSetCreate());
+    UTF16UChar32Iterator iterator(characters, length);
+    UChar32 character = iterator.next();
     bool hasNonIgnorableCharacters = false;
-    for (char32_t character : stringView.codePoints()) {
+    while (character != iterator.end()) {
         if (!isDefaultIgnorableCodePoint(character)) {
             FcCharSetAddChar(fontConfigCharSet.get(), character);
             hasNonIgnorableCharacters = true;
         }
+        character = iterator.next();
     }
 
     FcPattern* bestPattern = nullptr;

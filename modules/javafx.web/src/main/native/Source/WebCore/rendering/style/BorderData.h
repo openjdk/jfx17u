@@ -37,8 +37,6 @@ struct BorderDataRadii {
     LengthSize topRight { LengthType::Fixed, LengthType::Fixed };
     LengthSize bottomLeft { LengthType::Fixed, LengthType::Fixed };
     LengthSize bottomRight { LengthType::Fixed, LengthType::Fixed };
-
-    friend bool operator==(const BorderDataRadii&, const BorderDataRadii&) = default;
 };
 
 class BorderData {
@@ -112,7 +110,11 @@ public:
 
     bool isEquivalentForPainting(const BorderData& other, bool currentColorDiffers) const;
 
-    friend bool operator==(const BorderData&, const BorderData&) = default;
+    bool operator==(const BorderData& o) const
+    {
+        return m_left == o.m_left && m_right == o.m_right && m_top == o.m_top && m_bottom == o.m_bottom && m_image == o.m_image
+            && m_radii.topLeft == o.m_radii.topLeft && m_radii.topRight == o.m_radii.topRight && m_radii.bottomLeft == o.m_radii.bottomLeft && m_radii.bottomRight == o.m_radii.bottomRight;
+    }
 
     const BorderValue& left() const { return m_left; }
     const BorderValue& right() const { return m_right; }

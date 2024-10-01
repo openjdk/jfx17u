@@ -1,6 +1,6 @@
 /*
  * (C) 1999 Lars Knoll (knoll@kde.org)
- * Copyright (C) 2004-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2004-2019 Apple Inc. All rights reserved.
  * Copyright (C) 2007-2009 Torch Mobile, Inc.
  *
  * This library is free software; you can redistribute it and/or
@@ -67,7 +67,7 @@ int codePointCompare(const String& a, const String& b)
     return codePointCompare(a.impl(), b.impl());
 }
 
-char32_t String::characterStartingAt(unsigned i) const
+UChar32 String::characterStartingAt(unsigned i) const
 {
     if (!m_impl || i >= m_impl->length())
         return 0;
@@ -171,17 +171,17 @@ String String::foldCase() const
     return m_impl ? m_impl->foldCase() : String { };
 }
 
-Expected<Vector<UChar>, UTF8ConversionError> String::charactersWithoutNullTermination() const
+Vector<UChar> String::charactersWithoutNullTermination() const
 {
     Vector<UChar> result;
 
     if (m_impl) {
-        if (!result.tryReserveInitialCapacity(length() + 1))
-            return makeUnexpected(UTF8ConversionError::OutOfMemory);
+        result.reserveInitialCapacity(length() + 1);
 
         if (is8Bit()) {
             const LChar* characters8 = m_impl->characters8();
-            result.append(characters8, m_impl->length());
+            for (unsigned i = 0; i < length(); ++i)
+                result.uncheckedAppend(characters8[i]);
         } else {
             const UChar* characters16 = m_impl->characters16();
             result.append(characters16, m_impl->length());
@@ -191,11 +191,10 @@ Expected<Vector<UChar>, UTF8ConversionError> String::charactersWithoutNullTermin
     return result;
 }
 
-Expected<Vector<UChar>, UTF8ConversionError> String::charactersWithNullTermination() const
+Vector<UChar> String::charactersWithNullTermination() const
 {
     auto result = charactersWithoutNullTermination();
-    if (result)
-        result.value().append(0);
+    result.append(0);
     return result;
 }
 
@@ -229,16 +228,16 @@ String String::number(unsigned long long number)
     return numberToStringUnsigned<String>(number);
 }
 
-String String::numberToStringFixedPrecision(float number, unsigned precision, TrailingZerosPolicy trailingZerosTruncatingPolicy)
+String String::numberToStringFixedPrecision(float number, unsigned precision, TrailingZerosTruncatingPolicy trailingZerosTruncatingPolicy)
 {
     NumberToStringBuffer buffer;
-    return String { numberToFixedPrecisionString(number, precision, buffer, trailingZerosTruncatingPolicy == TrailingZerosPolicy::Truncate) };
+    return String { numberToFixedPrecisionString(number, precision, buffer, trailingZerosTruncatingPolicy == TruncateTrailingZeros) };
 }
 
-String String::numberToStringFixedPrecision(double number, unsigned precision, TrailingZerosPolicy trailingZerosTruncatingPolicy)
+String String::numberToStringFixedPrecision(double number, unsigned precision, TrailingZerosTruncatingPolicy trailingZerosTruncatingPolicy)
 {
     NumberToStringBuffer buffer;
-    return String { numberToFixedPrecisionString(number, precision, buffer, trailingZerosTruncatingPolicy == TrailingZerosPolicy::Truncate) };
+    return String { numberToFixedPrecisionString(number, precision, buffer, trailingZerosTruncatingPolicy == TruncateTrailingZeros) };
 }
 
 String String::number(float number)
@@ -540,7 +539,7 @@ String String::fromUTF8WithLatin1Fallback(const LChar* string, size_t size)
     return utf8;
 }
 
-String String::fromCodePoint(char32_t codePoint)
+String String::fromCodePoint(UChar32 codePoint)
 {
     UChar buffer[2];
     uint8_t length = 0;

@@ -35,9 +35,8 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderFrame);
 
 RenderFrame::RenderFrame(HTMLFrameElement& frame, RenderStyle&& style)
-    : RenderFrameBase(Type::Frame, frame, WTFMove(style))
+    : RenderFrameBase(frame, WTFMove(style))
 {
-    ASSERT(isRenderFrame());
 }
 
 HTMLFrameElement& RenderFrame::frameElement() const
@@ -52,8 +51,8 @@ FrameEdgeInfo RenderFrame::edgeInfo() const
 
 void RenderFrame::updateFromElement()
 {
-    if (CheckedPtr frameSet = dynamicDowncast<RenderFrameSet>(parent()))
-        frameSet->notifyFrameEdgeInfoChanged();
+    if (is<RenderFrameSet>(parent()))
+        downcast<RenderFrameSet>(*parent()).notifyFrameEdgeInfoChanged();
 }
 
 } // namespace WebCore

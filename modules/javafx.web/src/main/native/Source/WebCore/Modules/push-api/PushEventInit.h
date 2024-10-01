@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "ExtendableEventInit.h"
 #include <JavaScriptCore/ArrayBuffer.h>
 #include <variant>
@@ -38,3 +40,5 @@ struct PushEventInit : ExtendableEventInit {
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

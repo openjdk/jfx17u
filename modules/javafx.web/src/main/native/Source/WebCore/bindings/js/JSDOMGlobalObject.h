@@ -109,7 +109,10 @@ public:
 
     static constexpr const JSC::ClassInfo* info() { return &s_info; }
 
-    inline static JSC::Structure* createStructure(JSC::VM&, JSC::JSValue);
+    static JSC::Structure* createStructure(JSC::VM& vm, JSC::JSValue prototype)
+    {
+        return JSC::Structure::create(vm, 0, prototype, JSC::TypeInfo(JSC::GlobalObjectType, StructureFlags), info());
+    }
 
 protected:
     JSDOMGlobalObject(JSC::VM&, JSC::Structure*, Ref<DOMWrapperWorld>&&, const JSC::GlobalObjectMethodTable* = nullptr);

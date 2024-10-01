@@ -66,7 +66,6 @@ public:
 
     TagName tagName() const;
     bool selfClosing() const;
-    void setSelfClosingToFalse();
     const Vector<Attribute>& attributes() const;
 
     // Characters
@@ -137,14 +136,6 @@ inline bool AtomHTMLToken::selfClosing() const
 {
     ASSERT(m_type == Type::StartTag || m_type == Type::EndTag);
     return m_selfClosing;
-}
-
-inline void AtomHTMLToken::setSelfClosingToFalse()
-{
-    ASSERT(m_selfClosing);
-    ASSERT(m_type == Type::StartTag);
-    ASSERT(m_tagName == TagName::script);
-    m_selfClosing = false;
 }
 
 inline Vector<Attribute>& AtomHTMLToken::attributes()
@@ -230,16 +221,18 @@ inline void AtomHTMLToken::initializeAttributes(const HTMLToken::AttributeList& 
 
     HashSet<AtomString> addedAttributes;
     addedAttributes.reserveInitialCapacity(size);
-    m_attributes = WTF::compactMap(attributes, [&](auto& attribute) -> std::optional<Attribute> {
+    m_attributes.reserveInitialCapacity(size);
+    for (auto& attribute : attributes) {
         if (attribute.name.isEmpty())
-            return std::nullopt;
+            continue;
 
         auto qualifiedName = HTMLNameCache::makeAttributeQualifiedName(attribute.name);
+
         if (addedAttributes.add(qualifiedName.localName()).isNewEntry)
-            return Attribute(WTFMove(qualifiedName), HTMLNameCache::makeAttributeValue(attribute.value));
+            m_attributes.uncheckedAppend(Attribute(WTFMove(qualifiedName), HTMLNameCache::makeAttributeValue(attribute.value)));
+        else
             m_hasDuplicateAttribute = true;
-        return std::nullopt;
-    });
+    }
 }
 
 inline AtomHTMLToken::AtomHTMLToken(HTMLToken& token)

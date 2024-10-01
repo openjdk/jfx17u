@@ -404,7 +404,8 @@ static WebCore::ResourceResponse setupResponse(JNIEnv* env,
         contentTypeString = "text/html"_s;
     }
     if (!contentTypeString.isEmpty()) {
-        response.setMimeType(extractMIMETypeFromMediaType(contentTypeString).convertToASCIILowercase());
+        response.setMimeType(
+               AtomString{extractMIMETypeFromMediaType(contentTypeString).convertToLowercaseWithoutLocale()});
     }
 
     String contentEncodingString(env, contentEncoding);
@@ -412,7 +413,7 @@ static WebCore::ResourceResponse setupResponse(JNIEnv* env,
         contentEncodingString = extractCharsetFromMediaType(contentTypeString).toString();
     }
     if (!contentEncodingString.isEmpty()) {
-        response.setTextEncodingName(WTFMove(contentEncodingString));
+        response.setTextEncodingName(AtomString{contentEncodingString});
     }
 
     if (contentLength > 0) {
@@ -439,7 +440,7 @@ static WebCore::ResourceResponse setupResponse(JNIEnv* env,
 
     // Setup mime type for local resources
     if (/*kurl.hasPath()*/kurl.pathEnd() != kurl.pathStart() && kurl.protocol() == String("file"_s)) {
-        response.setMimeType(MIMETypeRegistry::mimeTypeForPath(kurl.path().toString()));
+        response.setMimeType(AtomString{MIMETypeRegistry::mimeTypeForPath(kurl.path().toString())});
     }
     return response;
 }

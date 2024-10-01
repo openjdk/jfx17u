@@ -135,11 +135,11 @@ void HTMLTextAreaElement::collectPresentationalHintsForAttribute(const Qualified
     if (name == wrapAttr) {
         if (m_wrap != NoWrap) {
             addPropertyToPresentationalHintStyle(style, CSSPropertyWhiteSpaceCollapse, CSSValuePreserve);
-            addPropertyToPresentationalHintStyle(style, CSSPropertyTextWrapMode, CSSValueWrap);
+            addPropertyToPresentationalHintStyle(style, CSSPropertyTextWrap, CSSValueWrap);
             addPropertyToPresentationalHintStyle(style, CSSPropertyOverflowWrap, CSSValueBreakWord);
         } else {
             addPropertyToPresentationalHintStyle(style, CSSPropertyWhiteSpaceCollapse, CSSValuePreserve);
-            addPropertyToPresentationalHintStyle(style, CSSPropertyTextWrapMode, CSSValueNowrap);
+            addPropertyToPresentationalHintStyle(style, CSSPropertyTextWrap, CSSValueNowrap);
             addPropertyToPresentationalHintStyle(style, CSSPropertyOverflowWrap, CSSValueNormal);
         }
     } else
@@ -238,12 +238,10 @@ void HTMLTextAreaElement::updateFocusAppearance(SelectionRestorationMode restora
 
 void HTMLTextAreaElement::defaultEventHandler(Event& event)
 {
-    if (renderer()) {
-        if (event.isMouseEvent() || event.type() == eventNames().blurEvent)
+    if (renderer() && (event.isMouseEvent() || event.type() == eventNames().blurEvent))
         forwardEvent(event);
-        else if (auto* insertedEvent = dynamicDowncast<BeforeTextInsertedEvent>(event))
-            handleBeforeTextInsertedEvent(*insertedEvent);
-    }
+    else if (renderer() && is<BeforeTextInsertedEvent>(event))
+        handleBeforeTextInsertedEvent(downcast<BeforeTextInsertedEvent>(event));
 
     HTMLTextFormControlElement::defaultEventHandler(event);
 }
@@ -430,11 +428,6 @@ String HTMLTextAreaElement::validationMessage() const
     return String();
 }
 
-void HTMLTextAreaElement::setSelectionRangeForBindings(unsigned start, unsigned end, const String& direction)
-{
-    setSelectionRange(start, end, direction, AXTextStateChangeIntent(), ForBindings::Yes);
-}
-
 bool HTMLTextAreaElement::valueMissing() const
 {
     return valueMissing({ });
@@ -526,7 +519,7 @@ void HTMLTextAreaElement::updatePlaceholderText()
     }
     if (!m_placeholder) {
         m_placeholder = TextControlPlaceholderElement::create(document());
-        userAgentShadowRoot()->insertBefore(*m_placeholder, innerTextElement()->protectedNextSibling());
+        userAgentShadowRoot()->insertBefore(*m_placeholder, innerTextElement()->nextSibling());
     }
     m_placeholder->setInnerText(String { placeholderText });
 }

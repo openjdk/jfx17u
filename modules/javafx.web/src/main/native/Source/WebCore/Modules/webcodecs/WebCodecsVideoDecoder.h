@@ -44,7 +44,7 @@ class WebCodecsErrorCallback;
 class WebCodecsVideoFrameOutputCallback;
 
 class WebCodecsVideoDecoder
-    : public ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr<WebCodecsVideoDecoder>
+    : public RefCounted<WebCodecsVideoDecoder>
     , public ActiveDOMObject
     , public EventTarget {
     WTF_MAKE_ISO_ALLOCATED(WebCodecsVideoDecoder);
@@ -69,8 +69,8 @@ public:
 
     static void isConfigSupported(ScriptExecutionContext&, WebCodecsVideoDecoderConfig&&, Ref<DeferredPromise>&&);
 
-    using ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr::ref;
-    using ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr::deref;
+    using RefCounted::ref;
+    using RefCounted::deref;
 
 private:
     WebCodecsVideoDecoder(ScriptExecutionContext&, Init&&);

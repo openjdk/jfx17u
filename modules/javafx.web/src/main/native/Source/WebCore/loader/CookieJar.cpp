@@ -35,7 +35,6 @@
 #include "FrameLoader.h"
 #include "HTTPCookieAcceptPolicy.h"
 #include "LocalFrame.h"
-#include "LocalFrameLoaderClient.h"
 #include "NetworkStorageSession.h"
 #include "NetworkingContext.h"
 #include "Page.h"
@@ -49,7 +48,7 @@ namespace WebCore {
 
 static ShouldRelaxThirdPartyCookieBlocking shouldRelaxThirdPartyCookieBlocking(const Document& document)
 {
-    if (RefPtr page = document.page())
+    if (auto* page = document.page())
         return page->shouldRelaxThirdPartyCookieBlocking();
     return ShouldRelaxThirdPartyCookieBlocking::No;
 }
@@ -66,13 +65,7 @@ IncludeSecureCookies CookieJar::shouldIncludeSecureCookies(const Document& docum
 
 SameSiteInfo CookieJar::sameSiteInfo(const Document& document, IsForDOMCookieAccess isAccessForDOM)
 {
-    RefPtr frame = document.frame();
-    if (frame && frame->loader().client().isRemoteWorkerFrameLoaderClient()) {
-        RegistrableDomain domain(document.securityOrigin().data());
-        return { domain.matches(document.firstPartyForCookies()), false, true };
-    }
-
-    if (RefPtr loader = document.loader())
+    if (auto* loader = document.loader())
         return SameSiteInfo::create(loader->request(), isAccessForDOM);
     return { };
 }
@@ -132,27 +125,13 @@ void CookieJar::setCookies(Document& document, const URL& url, const String& coo
         ASSERT_NOT_REACHED();
 }
 
-bool CookieJar::cookiesEnabled(Document& document)
+bool CookieJar::cookiesEnabled(const Document&) const
 {
-    auto cookieURL = document.cookieURL();
-    if (cookieURL.isEmpty())
-        return false;
-
-    auto pageID = document.pageID();
-    std::optional<FrameIdentifier> frameID;
-    if (auto* frame = document.frame())
-        frameID = frame->loader().frameID();
-
     if (auto* session = m_storageSessionProvider->storageSession())
-        return session->cookiesEnabled(document.firstPartyForCookies(), cookieURL, frameID, pageID, shouldRelaxThirdPartyCookieBlocking(document));
+        return session->cookieAcceptPolicy() != HTTPCookieAcceptPolicy::Never;
 
     ASSERT_NOT_REACHED();
     return false;
-}
-
-void CookieJar::remoteCookiesEnabled(const Document&, CompletionHandler<void(bool)>&& completionHandler) const
-{
-    completionHandler(false);
 }
 
 std::pair<String, SecureCookiesAccessed> CookieJar::cookieRequestHeaderFieldValue(const URL& firstParty, const SameSiteInfo& sameSiteInfo, const URL& url, std::optional<FrameIdentifier> frameID, std::optional<PageIdentifier> pageID, IncludeSecureCookies includeSecureCookies) const

@@ -26,8 +26,7 @@
 #pragma once
 
 #include "ScriptElementCachedScriptFetcher.h"
-#include <wtf/CheckedRef.h>
-#include <wtf/WeakHashCountedSet.h>
+#include <wtf/HashCountedSet.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
@@ -46,7 +45,7 @@ public:
     using Error = LoadableScriptError;
     using ErrorType = LoadableScriptErrorType;
 
-    virtual ~LoadableScript();
+    virtual ~LoadableScript() = default;
 
     virtual bool isLoaded() const = 0;
     virtual bool hasError() const = 0;
@@ -59,12 +58,15 @@ public:
     void removeClient(LoadableScriptClient&);
 
 protected:
-    LoadableScript(const AtomString& nonce, ReferrerPolicy, RequestPriority, const AtomString& crossOriginMode, const String& charset, const AtomString& initiatorType, bool isInUserAgentShadowTree);
+    LoadableScript(const AtomString& nonce, ReferrerPolicy policy, RequestPriority fetchPriority, const AtomString& crossOriginMode, const String& charset, const AtomString& initiatorType, bool isInUserAgentShadowTree)
+        : ScriptElementCachedScriptFetcher(nonce, policy, fetchPriority, crossOriginMode, charset, initiatorType, isInUserAgentShadowTree)
+    {
+    }
 
     void notifyClientFinished();
 
 private:
-    WeakHashCountedSet<LoadableScriptClient> m_clients;
+    HashCountedSet<LoadableScriptClient*> m_clients;
 };
 
 }

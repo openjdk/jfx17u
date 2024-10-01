@@ -25,14 +25,13 @@
 
 #pragma once
 
-#include <wtf/CheckedPtr.h>
 #include <wtf/text/AtomString.h>
 
 namespace WebCore {
 
 class IdTargetObserverRegistry;
 
-class IdTargetObserver : public CanMakeCheckedPtr {
+class IdTargetObserver {
 public:
     virtual ~IdTargetObserver();
     virtual void idTargetChanged() = 0;
@@ -41,7 +40,7 @@ protected:
     IdTargetObserver(IdTargetObserverRegistry&, const AtomString& id);
 
 private:
-    CheckedPtr<IdTargetObserverRegistry> m_registry;
+    IdTargetObserverRegistry* m_registry;
     AtomString m_id;
 };
 

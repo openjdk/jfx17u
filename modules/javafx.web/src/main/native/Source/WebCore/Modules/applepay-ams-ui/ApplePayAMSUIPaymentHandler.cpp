@@ -39,15 +39,15 @@ namespace WebCore {
 static ExceptionOr<ApplePayAMSUIRequest> convertAndValidateApplePayAMSUIRequest(Document& document, JSC::JSValue data)
 {
     if (data.isEmpty())
-        return Exception { ExceptionCode::TypeError, "Missing payment method data."_s };
+        return Exception { TypeError, "Missing payment method data."_s };
 
     auto throwScope = DECLARE_THROW_SCOPE(document.vm());
     auto applePayAMSUIRequest = convertDictionary<ApplePayAMSUIRequest>(*document.globalObject(), data);
     if (throwScope.exception())
-        return Exception { ExceptionCode::ExistingExceptionError };
+        return Exception { ExistingExceptionError };
 
     if (!applePayAMSUIRequest.engagementRequest.startsWith('{'))
-        return Exception { ExceptionCode::TypeError, "Member ApplePayAMSUIRequest.engagementRequest is required and must be a JSON-serializable object"_s };
+        return Exception { TypeError, "Member ApplePayAMSUIRequest.engagementRequest is required and must be a JSON-serializable object"_s };
 
     return WTFMove(applePayAMSUIRequest);
 }
@@ -79,7 +79,7 @@ bool ApplePayAMSUIPaymentHandler::hasActiveSession(Document& document)
 void ApplePayAMSUIPaymentHandler::finishSession(std::optional<bool>&& result)
 {
     if (!result) {
-        m_paymentRequest->reject(Exception { ExceptionCode::AbortError });
+        m_paymentRequest->reject(Exception { AbortError });
         return;
     }
 
@@ -108,7 +108,7 @@ ApplePayAMSUIPaymentHandler::ApplePayAMSUIPaymentHandler(Document& document, con
 
 Document& ApplePayAMSUIPaymentHandler::document() const
 {
-    ASSERT(scriptExecutionContext());
+    ASSERT(is<Document>(scriptExecutionContext()));
     return downcast<Document>(*scriptExecutionContext());
 }
 
@@ -128,12 +128,12 @@ ExceptionOr<void> ApplePayAMSUIPaymentHandler::convertData(Document& document, J
     return { };
 }
 
-ExceptionOr<void> ApplePayAMSUIPaymentHandler::show(Document&)
+ExceptionOr<void> ApplePayAMSUIPaymentHandler::show(Document& document)
 {
     ASSERT(m_applePayAMSUIRequest);
 
-    if (!page().startApplePayAMSUISession(page().mainFrameURL(), *this, *m_applePayAMSUIRequest))
-        return Exception { ExceptionCode::AbortError };
+    if (!page().startApplePayAMSUISession(document, *this, *m_applePayAMSUIRequest))
+        return Exception { AbortError };
 
     return { };
 }

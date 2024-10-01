@@ -82,8 +82,10 @@ public:
         return *this;
     }
 
-    bool operator!() const { return !get(); }
-    explicit operator bool() const { return !!get(); }
+    bool operator!() const
+    {
+        return !get();
+    }
 
     RetainPtr<ValueType> get() const;
 

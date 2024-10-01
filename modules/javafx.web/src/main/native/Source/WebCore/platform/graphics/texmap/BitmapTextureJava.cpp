@@ -33,10 +33,8 @@
 
 namespace WebCore {
 
-
-void BitmapTextureJava::updateContents(const void*, const IntRect& target, const IntPoint& sourceOffset, int bytesPerLine)
+void BitmapTextureJava::updateContents(const void*, const IntRect&, const IntPoint&, int)
 {
-    notImplemented();
 }
 
 void BitmapTextureJava::didReset()
@@ -46,9 +44,9 @@ void BitmapTextureJava::didReset()
                      DestinationColorSpace::SRGB(), PixelFormat::BGRA8);
 }
 
-void BitmapTextureJava::updateContents(NativeImage* image, const IntRect& targetRect, const IntPoint& offset)
+void BitmapTextureJava::updateContents(Image* image, const IntRect& targetRect, const IntPoint& offset)
 {
-    //m_image->context().drawImage(*image, targetRect, IntRect(offset, targetRect.size()));
+    m_image->context().drawImage(*image, targetRect, IntRect(offset, targetRect.size()), CompositeOperator::Copy);
 }
 
 RefPtr<BitmapTexture> BitmapTextureJava::applyFilters(TextureMapper&, const FilterOperations&, bool)

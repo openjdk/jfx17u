@@ -47,7 +47,7 @@ class EditCommand : public RefCounted<EditCommand> {
 public:
     virtual ~EditCommand();
 
-    void setParent(RefPtr<CompositeEditCommand>&&);
+    void setParent(CompositeEditCommand*);
 
     virtual EditAction editingAction() const;
 
@@ -62,10 +62,9 @@ public:
     virtual void doApply() = 0;
 
 protected:
-    explicit EditCommand(Ref<Document>&&, EditAction = EditAction::Unspecified);
-    EditCommand(Ref<Document>&&, const VisibleSelection&, const VisibleSelection&);
+    explicit EditCommand(Document&, EditAction = EditAction::Unspecified);
+    EditCommand(Document&, const VisibleSelection&, const VisibleSelection&);
 
-    Ref<Document> protectedDocument() const { return m_document.copyRef(); }
     const Document& document() const { return m_document; }
     Document& document() { return m_document; }
     CompositeEditCommand* parent() const { return m_parent.get(); }
@@ -100,7 +99,7 @@ public:
 #endif
 
 protected:
-    explicit SimpleEditCommand(Ref<Document>&&, EditAction = EditAction::Unspecified);
+    explicit SimpleEditCommand(Document&, EditAction = EditAction::Unspecified);
 
 #ifndef NDEBUG
     void addNodeAndDescendants(Node*, HashSet<Ref<Node>>&);

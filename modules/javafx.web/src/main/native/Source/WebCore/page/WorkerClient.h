@@ -28,7 +28,6 @@
 #include "GraphicsClient.h"
 #include <wtf/FastMalloc.h>
 #include <wtf/FunctionDispatcher.h>
-#include <wtf/UniqueRef.h>
 
 namespace WebCore {
 
@@ -36,8 +35,7 @@ class WorkerClient : public GraphicsClient {
     WTF_MAKE_FAST_ALLOCATED;
 public:
 
-    // Used for constructing clients for nested workers. Created on the worker thread of the outer worker, and then transferred to the nested worker.
-    virtual UniqueRef<WorkerClient> createNestedWorkerClient(SerialFunctionDispatcher&) = 0;
+    virtual std::unique_ptr<WorkerClient> clone(SerialFunctionDispatcher&) = 0;
 
     virtual ~WorkerClient() = default;
 };

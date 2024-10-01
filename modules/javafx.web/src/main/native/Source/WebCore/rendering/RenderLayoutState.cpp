@@ -38,9 +38,9 @@
 
 namespace WebCore {
 
-RenderLayoutState::RenderLayoutState(RenderElement& renderer)
+RenderLayoutState::RenderLayoutState(RenderElement& renderer, IsPaginated isPaginated)
     : m_clipped(false)
-    , m_isPaginated(false)
+    , m_isPaginated(isPaginated == IsPaginated::Yes)
     , m_pageLogicalHeightChanged(false)
 #if ASSERT_ENABLED
     , m_layoutDeltaXSaturated(false)
@@ -99,9 +99,9 @@ void RenderLayoutState::computeOffsets(const RenderLayoutState& ancestor, Render
         m_paintOffset = ancestor.paintOffset() + offset;
 
     if (renderer.isOutOfFlowPositioned() && !fixed) {
-        if (CheckedPtr container = dynamicDowncast<RenderInline>(renderer.container())) {
-            if (container && container->isInFlowPositioned())
-                m_paintOffset += container->offsetForInFlowPositionedInline(&renderer);
+        if (auto* container = renderer.container()) {
+            if (container->isInFlowPositioned() && is<RenderInline>(*container))
+                m_paintOffset += downcast<RenderInline>(*container).offsetForInFlowPositionedInline(&renderer);
         }
     }
 
@@ -167,16 +167,12 @@ void RenderLayoutState::computePaginationInformation(const LocalFrameViewLayoutC
     if (ancestor)
         propagateLineGridInfo(*ancestor, renderer);
 
-    if (lineGrid() && (lineGrid()->style().writingMode() == renderer.style().writingMode())) {
-        if (CheckedPtr columnFlow = dynamicDowncast<RenderMultiColumnFlow>(renderer))
-            computeLineGridPaginationOrigin(*columnFlow);
-    }
+    if (lineGrid() && (lineGrid()->style().writingMode() == renderer.style().writingMode()) && is<RenderMultiColumnFlow>(renderer))
+        computeLineGridPaginationOrigin(downcast<RenderMultiColumnFlow>(renderer));
 
     // If we have a new grid to track, then add it to our set.
-    if (renderer.style().lineGrid() != RenderStyle::initialLineGrid()) {
-        if (CheckedPtr blockFlow = dynamicDowncast<RenderBlockFlow>(renderer))
-            establishLineGrid(layoutStateStack, *blockFlow);
-    }
+    if (renderer.style().lineGrid() != RenderStyle::initialLineGrid() && is<RenderBlockFlow>(renderer))
+        establishLineGrid(layoutStateStack, downcast<RenderBlockFlow>(renderer));
 }
 
 LayoutUnit RenderLayoutState::pageLogicalOffset(RenderBox* child, LayoutUnit childLogicalOffset) const
@@ -197,6 +193,10 @@ void RenderLayoutState::computeLineGridPaginationOrigin(const RenderMultiColumnF
     // at the top of each column.
     // Get the current line grid and offset.
     ASSERT(m_lineGrid);
+    // Get the hypothetical line box used to establish the grid.
+    auto* lineGridBox = m_lineGrid->lineGridBox();
+    if (!lineGridBox)
+        return;
 
     // Now determine our position on the grid. Our baseline needs to be adjusted to the nearest baseline multiple
     // as established by the line box.
@@ -204,17 +204,17 @@ void RenderLayoutState::computeLineGridPaginationOrigin(const RenderMultiColumnF
     // the grid should honor line-box-contain.
     bool isHorizontalWritingMode = m_lineGrid->isHorizontalWritingMode();
     LayoutUnit lineGridBlockOffset = isHorizontalWritingMode ? m_lineGridOffset.height() : m_lineGridOffset.width();
-    LayoutUnit firstLineTop = lineGridBlockOffset + m_lineGrid->borderAndPaddingBefore();
+    LayoutUnit firstLineTopWithLeading = lineGridBlockOffset + lineGridBox->lineBoxTop();
     LayoutUnit pageLogicalTop = isHorizontalWritingMode ? m_pageOffset.height() : m_pageOffset.width();
-    if (pageLogicalTop <= firstLineTop)
+    if (pageLogicalTop <= firstLineTopWithLeading)
         return;
 
     // Shift to the next highest line grid multiple past the page logical top. Cache the delta
     // between this new value and the page logical top as the pagination origin.
-    auto lineBoxHeight = m_lineGrid->style().computedLineHeight();
+    auto lineBoxHeight = lineGridBox->lineBoxHeight();
     if (!roundToInt(lineBoxHeight))
         return;
-    LayoutUnit remainder = roundToInt(pageLogicalTop - firstLineTop) % roundToInt(lineBoxHeight);
+    LayoutUnit remainder = roundToInt(pageLogicalTop - firstLineTopWithLeading) % roundToInt(lineBoxHeight);
     LayoutUnit paginationDelta = lineBoxHeight - remainder;
     if (isHorizontalWritingMode)
         m_lineGridPaginationOrigin.setHeight(paginationDelta);
@@ -336,18 +336,16 @@ SubtreeLayoutStateMaintainer::~SubtreeLayoutStateMaintainer()
     }
 }
 
-ContentVisibilityForceLayoutScope::ContentVisibilityForceLayoutScope(RenderView& layoutRoot, const Element* context)
+PaginatedLayoutStateMaintainer::PaginatedLayoutStateMaintainer(RenderBlockFlow& flow)
+    : m_context(flow.view().frameView().layoutContext())
+    , m_pushed(m_context.pushLayoutStateForPaginationIfNeeded(flow))
 {
-    if (context) {
-        m_context = &layoutRoot.frameView().layoutContext();
-        m_context->setNeedsSkippedContentLayout(true);
-    }
 }
 
-ContentVisibilityForceLayoutScope::~ContentVisibilityForceLayoutScope()
+PaginatedLayoutStateMaintainer::~PaginatedLayoutStateMaintainer()
 {
-    if (m_context)
-        m_context->setNeedsSkippedContentLayout(false);
+    if (m_pushed)
+        m_context.popLayoutState();
 }
 
 } // namespace WebCore

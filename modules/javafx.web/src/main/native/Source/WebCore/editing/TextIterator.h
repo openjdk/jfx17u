@@ -104,7 +104,6 @@ public:
     StringView text() const { ASSERT(!atEnd()); return m_text; }
     WEBCORE_EXPORT SimpleRange range() const;
     WEBCORE_EXPORT Node* node() const;
-    RefPtr<Node> protectedCurrentNode() const;
 
     const TextIteratorCopyableText& copyableText() const { ASSERT(!atEnd()); return m_copyableText; }
     void appendTextToStringBuilder(StringBuilder& builder) const { copyableText().appendToStringBuilder(builder); }
@@ -120,40 +119,38 @@ private:
     bool handleNonTextNode();
     void handleTextRun();
     void handleTextNodeFirstLetter(RenderTextFragment&);
-    void emitCharacter(UChar, RefPtr<Node>&& characterNode, RefPtr<Node>&& offsetBaseNode, int textStartOffset, int textEndOffset);
+    void emitCharacter(UChar, Node& characterNode, Node* offsetBaseNode, int textStartOffset, int textEndOffset);
     void emitText(Text& textNode, RenderText&, int textStartOffset, int textEndOffset);
     void revertToRemainingTextRun();
 
     Node* baseNodeForEmittingNewLine() const;
 
-    RefPtr<Node> protectedStartContainer() const { return m_startContainer; }
-
     const TextIteratorBehaviors m_behaviors;
 
     // Current position, not necessarily of the text being returned, but position as we walk through the DOM tree.
-    RefPtr<Node> m_currentNode;
+    Node* m_node { nullptr };
     int m_offset { 0 };
     bool m_handledNode { false };
     bool m_handledChildren { false };
     BitStack m_fullyClippedStack;
 
     // The range.
-    RefPtr<Node> m_startContainer;
+    Node* m_startContainer { nullptr };
     int m_startOffset { 0 };
-    RefPtr<Node> m_endContainer;
+    Node* m_endContainer { nullptr };
     int m_endOffset { 0 };
-    RefPtr<Node> m_pastEndNode;
+    Node* m_pastEndNode { nullptr };
 
     // The current text and its position, in the form to be returned from the iterator.
-    RefPtr<Node> m_positionNode;
-    mutable RefPtr<Node> m_positionOffsetBaseNode;
+    Node* m_positionNode { nullptr };
+    mutable Node* m_positionOffsetBaseNode { nullptr };
     mutable int m_positionStartOffset { 0 };
     mutable int m_positionEndOffset { 0 };
     TextIteratorCopyableText m_copyableText;
     StringView m_text;
 
     // Used when there is still some pending text from the current node; when these are false and null, we go back to normal iterating.
-    RefPtr<Node> m_nodeForAdditionalNewline;
+    Node* m_nodeForAdditionalNewline { nullptr };
     InlineIterator::TextBoxIterator m_textRun;
     InlineIterator::TextLogicalOrderCache m_textRunLogicalOrderCache;
 
@@ -162,10 +159,10 @@ private:
     InlineIterator::TextLogicalOrderCache m_remainingTextRunLogicalOrderCache;
 
     // Used to point to RenderText object for :first-letter.
-    SingleThreadWeakPtr<RenderText> m_firstLetterText;
+    RenderText* m_firstLetterText { nullptr };
 
     // Used to do the whitespace collapsing logic.
-    RefPtr<Text> m_lastTextNode;
+    Text* m_lastTextNode { nullptr };
     bool m_lastTextNodeEndedWithCollapsedSpace { false };
     UChar m_lastCharacter { 0 };
 
@@ -188,8 +185,7 @@ public:
 
     StringView text() const { ASSERT(!atEnd()); return m_text; }
     WEBCORE_EXPORT SimpleRange range() const;
-    Node* node() const { ASSERT(!atEnd()); return m_node.get(); }
-    RefPtr<Node> protectedNode() const { return m_node.get(); }
+    Node* node() const { ASSERT(!atEnd()); return m_node; }
 
 private:
     void exitNode();
@@ -197,33 +193,33 @@ private:
     RenderText* handleFirstLetter(int& startOffset, int& offsetInNode);
     bool handleReplacedElement();
     bool handleNonTextNode();
-    void emitCharacter(UChar, RefPtr<Node>&&, int startOffset, int endOffset);
+    void emitCharacter(UChar, Node&, int startOffset, int endOffset);
     bool advanceRespectingRange(Node*);
 
     const TextIteratorBehaviors m_behaviors;
 
     // Current position, not necessarily of the text being returned, but position as we walk through the DOM tree.
-    RefPtr<Node> m_node;
+    Node* m_node { nullptr };
     int m_offset { 0 };
     bool m_handledNode { false };
     bool m_handledChildren { false };
     BitStack m_fullyClippedStack;
 
     // The range.
-    RefPtr<Node> m_startContainer;
+    Node* m_startContainer { nullptr };
     int m_startOffset { 0 };
-    RefPtr<Node> m_endContainer;
+    Node* m_endContainer { nullptr };
     int m_endOffset { 0 };
 
     // The current text and its position, in the form to be returned from the iterator.
-    RefPtr<Node> m_positionNode;
+    Node* m_positionNode { nullptr };
     int m_positionStartOffset { 0 };
     int m_positionEndOffset { 0 };
     TextIteratorCopyableText m_copyableText;
     StringView m_text;
 
     // Used to do the whitespace logic.
-    RefPtr<Text> m_lastTextNode;
+    Text* m_lastTextNode { nullptr };
     UChar m_lastCharacter { 0 };
 
     // Whether m_node has advanced beyond the iteration range (i.e. m_startContainer).

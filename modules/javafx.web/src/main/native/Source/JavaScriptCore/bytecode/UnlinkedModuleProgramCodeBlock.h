@@ -97,7 +97,10 @@ private:
     int m_moduleEnvironmentSymbolTableConstantRegisterOffset { 0 };
 
 public:
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue proto)
+    {
+        return Structure::create(vm, globalObject, proto, TypeInfo(UnlinkedModuleProgramCodeBlockType, StructureFlags), info());
+    }
 
     DECLARE_INFO;
 };

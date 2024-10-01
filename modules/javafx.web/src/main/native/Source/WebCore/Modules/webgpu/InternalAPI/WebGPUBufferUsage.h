@@ -26,6 +26,7 @@
 #pragma once
 
 #include <cstdint>
+#include <wtf/EnumTraits.h>
 #include <wtf/OptionSet.h>
 
 namespace WebCore::WebGPU {
@@ -42,6 +43,27 @@ enum class BufferUsage : uint16_t {
     Indirect        = 1 << 8,
     QueryResolve    = 1 << 9,
 };
-using BufferUsageFlags = std::underlying_type_t<BufferUsage>;
+using BufferUsageFlags = OptionSet<BufferUsage>;
 
 } // namespace WebCore::WebGPU
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::WebGPU::BufferUsage> {
+    using values = EnumValues<
+        WebCore::WebGPU::BufferUsage,
+        WebCore::WebGPU::BufferUsage::MapRead,
+        WebCore::WebGPU::BufferUsage::MapWrite,
+        WebCore::WebGPU::BufferUsage::CopySource,
+        WebCore::WebGPU::BufferUsage::CopyDestination,
+        WebCore::WebGPU::BufferUsage::Index,
+        WebCore::WebGPU::BufferUsage::Vertex,
+        WebCore::WebGPU::BufferUsage::Uniform,
+        WebCore::WebGPU::BufferUsage::Storage,
+        WebCore::WebGPU::BufferUsage::Indirect,
+        WebCore::WebGPU::BufferUsage::QueryResolve
+
+    >;
+};
+
+} // namespace WTF

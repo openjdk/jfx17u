@@ -25,7 +25,6 @@
 
 #pragma once
 
-#include "LoaderMalloc.h"
 #include "ThreadGlobalData.h"
 #include <wtf/text/AtomString.h>
 
@@ -40,7 +39,7 @@ struct CachedResourceRequestInitiatorTypes {
     const AtomString icon;
     const AtomString navigation;
     const AtomString xmlhttprequest;
-    WTF_MAKE_NONCOPYABLE(CachedResourceRequestInitiatorTypes); WTF_MAKE_STRUCT_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Loader);
+    WTF_MAKE_NONCOPYABLE(CachedResourceRequestInitiatorTypes); WTF_MAKE_FAST_ALLOCATED;
 private:
     friend class ThreadGlobalData;
 };

@@ -70,9 +70,9 @@ MediaDevices* NavigatorMediaDevices::mediaDevices() const
     return m_mediaDevices.get();
 }
 
-ASCIILiteral NavigatorMediaDevices::supplementName()
+const char* NavigatorMediaDevices::supplementName()
 {
-    return "NavigatorMediaDevices"_s;
+    return "NavigatorMediaDevices";
 }
 
 } // namespace WebCore

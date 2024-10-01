@@ -48,15 +48,13 @@ bool PixelBuffer::supportedPixelFormat(PixelFormat pixelFormat)
     return false;
 }
 
-CheckedUint32 PixelBuffer::computeBufferSize(PixelFormat pixelFormat, const IntSize& size)
+CheckedUint32 PixelBuffer::computeBufferSize(const PixelBufferFormat& format, const IntSize& size)
 {
-    ASSERT_UNUSED(pixelFormat, supportedPixelFormat(pixelFormat));
-    constexpr unsigned bytesPerPixel = 4;
-    auto bufferSize = CheckedUint32 { size.width() } * size.height() * bytesPerPixel;
-    if (!bufferSize.hasOverflowed() && bufferSize.value() > std::numeric_limits<int32_t>::max())
-        bufferSize.overflowed();
-    return bufferSize;
+    ASSERT_UNUSED(format, supportedPixelFormat(format.pixelFormat));
 
+    constexpr unsigned bytesPerPixel = 4;
+
+    return size.area<RecordOverflow>() * bytesPerPixel;
 }
 
 PixelBuffer::PixelBuffer(const PixelBufferFormat& format, const IntSize& size, uint8_t* bytes, size_t sizeInBytes)

@@ -30,6 +30,7 @@
 #include "RenderBoxModelObjectInlines.h"
 #include "RenderElementInlines.h"
 #include "RenderStyleSetters.h"
+#include "RenderTextFragment.h"
 #include "RenderTheme.h"
 #include "RenderTreeBuilder.h"
 #include "StyleInheritedData.h"
@@ -46,9 +47,8 @@ using namespace HTMLNames;
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderButton);
 
 RenderButton::RenderButton(HTMLFormControlElement& element, RenderStyle&& style)
-    : RenderFlexibleBox(Type::Button, element, WTFMove(style))
+    : RenderFlexibleBox(element, WTFMove(style))
 {
-    ASSERT(isRenderButton());
 }
 
 RenderButton::~RenderButton() = default;
@@ -78,19 +78,12 @@ void RenderButton::setInnerRenderer(RenderBlock& innerRenderer)
 void RenderButton::updateAnonymousChildStyle(RenderStyle& childStyle) const
 {
     childStyle.setFlexGrow(1.0f);
-
-    // min-inline-size: 0; is needed for correct shrinking.
-    // Use margin-block:auto instead of align-items:center to get safe centering, i.e.
+    // min-width: 0; is needed for correct shrinking.
+    childStyle.setMinWidth(Length(0, LengthType::Fixed));
+    // Use margin:auto instead of align-items:center to get safe centering, i.e.
     // when the content overflows, treat it the same as align-items: flex-start.
-    if (isHorizontalWritingMode()) {
-        childStyle.setMinWidth(Length(0, LengthType::Fixed));
     childStyle.setMarginTop(Length());
     childStyle.setMarginBottom(Length());
-    } else {
-        childStyle.setMinHeight(Length(0, LengthType::Fixed));
-        childStyle.setMarginLeft(Length());
-        childStyle.setMarginRight(Length());
-    }
     childStyle.setFlexDirection(style().flexDirection());
     childStyle.setJustifyContent(style().justifyContent());
     childStyle.setFlexWrap(style().flexWrap());
@@ -101,8 +94,9 @@ void RenderButton::updateAnonymousChildStyle(RenderStyle& childStyle) const
 void RenderButton::updateFromElement()
 {
     // If we're an input element, we may need to change our button text.
-    if (RefPtr input = dynamicDowncast<HTMLInputElement>(formControlElement())) {
-        String value = input->valueWithDefault();
+    if (is<HTMLInputElement>(formControlElement())) {
+        HTMLInputElement& input = downcast<HTMLInputElement>(formControlElement());
+        String value = input.valueWithDefault();
         setText(value);
     }
 }

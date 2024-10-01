@@ -41,17 +41,17 @@ namespace WebCore {
 
 using namespace HTMLNames;
 
-static RefPtr<Node> enclosingListChild(Node* node, Node* listNode)
+static Node* enclosingListChild(Node* node, Node* listNode)
 {
-    RefPtr listChild = enclosingListChild(node);
-    while (listChild && enclosingList(listChild.get()) != listNode)
+    Node* listChild = enclosingListChild(node);
+    while (listChild && enclosingList(listChild) != listNode)
         listChild = enclosingListChild(listChild->parentNode());
     return listChild;
 }
 
-RefPtr<HTMLElement> InsertListCommand::insertList(Ref<Document>&& document, Type type)
+RefPtr<HTMLElement> InsertListCommand::insertList(Document& document, Type type)
 {
-    RefPtr<InsertListCommand> insertCommand = create(WTFMove(document), type);
+    RefPtr<InsertListCommand> insertCommand = create(document, type);
     insertCommand->apply();
     return insertCommand->m_listElement;
 }
@@ -80,18 +80,19 @@ Ref<HTMLElement> InsertListCommand::mergeWithNeighboringLists(HTMLElement& list)
     if (canMergeLists(previousList.get(), &list))
         mergeIdenticalElements(*previousList, list);
 
-    RefPtr sibling = dynamicDowncast<HTMLElement>(ElementTraversal::nextSibling(list));
-    if (!sibling)
+    RefPtr sibling = ElementTraversal::nextSibling(list);
+    if (!is<HTMLElement>(sibling))
         return protectedList;
 
-    if (canMergeLists(&list, sibling.get())) {
-        mergeIdenticalElements(list, *sibling);
-        return sibling.releaseNonNull();
+    Ref<HTMLElement> nextList = downcast<HTMLElement>(*sibling);
+    if (canMergeLists(&list, nextList.ptr())) {
+        mergeIdenticalElements(list, nextList);
+        return nextList;
     }
     return protectedList;
 }
 
-bool InsertListCommand::selectionHasListOfType(const VisibleSelection& selection, const HTMLQualifiedName& listTag)
+bool InsertListCommand::selectionHasListOfType(const VisibleSelection& selection, const QualifiedName& listTag)
 {
     VisiblePosition start = selection.visibleStart();
 
@@ -100,7 +101,7 @@ bool InsertListCommand::selectionHasListOfType(const VisibleSelection& selection
 
     VisiblePosition end = startOfParagraph(selection.visibleEnd());
     while (start.isNotNull() && start != end) {
-        RefPtr listNode = enclosingList(start.deepEquivalent().deprecatedNode());
+        Element* listNode = enclosingList(start.deepEquivalent().deprecatedNode());
         if (!listNode || !listNode->hasTagName(listTag))
             return false;
         start = startOfNextParagraph(start);
@@ -109,8 +110,8 @@ bool InsertListCommand::selectionHasListOfType(const VisibleSelection& selection
     return true;
 }
 
-InsertListCommand::InsertListCommand(Ref<Document>&& document, Type type)
-    : CompositeEditCommand(WTFMove(document))
+InsertListCommand::InsertListCommand(Document& document, Type type)
+    : CompositeEditCommand(document)
     , m_type(type)
 {
 }
@@ -218,12 +219,12 @@ void InsertListCommand::doApplyForSingleParagraph(bool forceCreateList, const HT
     // FIXME: This will produce unexpected results for a selection that starts just before a
     // table and ends inside the first cell, selectionForParagraphIteration should probably
     // be renamed and deployed inside setEndingSelection().
-    auto selectionNode = endingSelection().start().protectedDeprecatedNode();
-    RefPtr listChildNode = enclosingListChild(selectionNode.get());
+    Node* selectionNode = endingSelection().start().deprecatedNode();
+    Node* listChildNode = enclosingListChild(selectionNode);
     bool switchListType = false;
     if (listChildNode) {
         // Remove the list child.
-        RefPtr listNode = enclosingList(listChildNode.get());
+        RefPtr<HTMLElement> listNode = enclosingList(listChildNode);
         if (!listNode) {
             RefPtr<HTMLElement> listElement = fixOrphanedListChild(*listChildNode);
             if (!listElement || !listElement->isConnected())
@@ -253,10 +254,10 @@ void InsertListCommand::doApplyForSingleParagraph(bool forceCreateList, const HT
             if (!newList->hasEditableStyle())
                 return;
 
-            RefPtr firstChildInList = enclosingListChild(VisiblePosition(firstPositionInNode(listNode.get())).deepEquivalent().deprecatedNode(), listNode.get());
-            RefPtr outerBlock = firstChildInList && isBlockFlowElement(*firstChildInList) ? firstChildInList : listNode.get();
+            auto* firstChildInList = enclosingListChild(VisiblePosition(firstPositionInNode(listNode.get())).deepEquivalent().deprecatedNode(), listNode.get());
+            Node* outerBlock = firstChildInList && isBlockFlowElement(*firstChildInList) ? firstChildInList : listNode.get();
 
-            moveParagraphWithClones(firstPositionInNode(listNode.get()), lastPositionInNode(listNode.get()), newList.get(), outerBlock.get());
+            moveParagraphWithClones(firstPositionInNode(listNode.get()), lastPositionInNode(listNode.get()), newList.get(), outerBlock);
 
             // Manually remove listNode because moveParagraphWithClones sometimes leaves it behind in the document.
             // See the bug 33668 and editing/execCommand/insert-list-orphaned-item-with-nested-lists.html.
@@ -279,7 +280,7 @@ void InsertListCommand::doApplyForSingleParagraph(bool forceCreateList, const HT
             return;
         }
 
-        unlistifyParagraph(endingSelection().visibleStart(), *listNode, listChildNode.get());
+        unlistifyParagraph(endingSelection().visibleStart(), *listNode, listChildNode);
     }
 
     if (!listChildNode || switchListType || forceCreateList)
@@ -350,9 +351,9 @@ void InsertListCommand::unlistifyParagraph(const VisiblePosition& originalStart,
     moveParagraphs(start, end, insertionPoint, true);
 }
 
-static RefPtr<HTMLElement> adjacentEnclosingList(const VisiblePosition& pos, const VisiblePosition& adjacentPos, const HTMLQualifiedName& listTag)
+static RefPtr<Element> adjacentEnclosingList(const VisiblePosition& pos, const VisiblePosition& adjacentPos, const QualifiedName& listTag)
 {
-    RefPtr listNode = outermostEnclosingList(adjacentPos.deepEquivalent().protectedDeprecatedNode().get());
+    RefPtr<Element> listNode = outermostEnclosingList(adjacentPos.deepEquivalent().deprecatedNode());
 
     if (!listNode)
         return nullptr;
@@ -363,13 +364,13 @@ static RefPtr<HTMLElement> adjacentEnclosingList(const VisiblePosition& pos, con
     if (!listNode->hasTagName(listTag)
         || listNode->contains(pos.deepEquivalent().deprecatedNode())
         || previousCell != currentCell
-        || enclosingList(listNode.get()) != enclosingList(pos.deepEquivalent().protectedDeprecatedNode().get()))
+        || enclosingList(listNode.get()) != enclosingList(pos.deepEquivalent().deprecatedNode()))
         return nullptr;
 
     return listNode;
 }
 
-RefPtr<HTMLElement> InsertListCommand::listifyParagraph(const VisiblePosition& originalStart, const HTMLQualifiedName& listTag)
+RefPtr<HTMLElement> InsertListCommand::listifyParagraph(const VisiblePosition& originalStart, const QualifiedName& listTag)
 {
     VisiblePosition start = startOfParagraph(originalStart, CanSkipOverEditingBoundary);
     VisiblePosition end = endOfParagraph(start, CanSkipOverEditingBoundary);
@@ -395,16 +396,13 @@ RefPtr<HTMLElement> InsertListCommand::listifyParagraph(const VisiblePosition& o
         listElement = createHTMLElement(document(), listTag);
         appendNode(WTFMove(listItemElement), *listElement);
 
-        if (start == end) {
-            RefPtr node = start.deepEquivalent().deprecatedNode();
-            if (node && isBlock(*node)) {
+        if (start == end && isBlock(start.deepEquivalent().deprecatedNode())) {
             // Inserting the list into an empty paragraph that isn't held open
             // by a br or a '\n', will invalidate start and end.  Insert
             // a placeholder and then recompute start and end.
             auto blockPlaceholder = insertBlockPlaceholder(start.deepEquivalent());
             start = positionBeforeNode(blockPlaceholder.get());
             end = start;
-            }
         }
 
         // Insert the list at a position visually equivalent to start of the

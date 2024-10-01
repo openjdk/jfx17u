@@ -63,11 +63,11 @@ const MutableStyleProperties* HTMLTableSectionElement::additionalPresentationalH
 ExceptionOr<Ref<HTMLTableRowElement>> HTMLTableSectionElement::insertRow(int index)
 {
     if (index < -1)
-        return Exception { ExceptionCode::IndexSizeError };
+        return Exception { IndexSizeError };
     auto children = rows();
     int numRows = children->length();
     if (index > numRows)
-        return Exception { ExceptionCode::IndexSizeError };
+        return Exception { IndexSizeError };
     auto row = HTMLTableRowElement::create(trTag, document());
     ExceptionOr<void> result;
     if (numRows == index || index == -1)
@@ -89,7 +89,7 @@ ExceptionOr<void> HTMLTableSectionElement::deleteRow(int index)
         index = numRows - 1;
     }
     if (index < 0 || index >= numRows)
-        return Exception { ExceptionCode::IndexSizeError };
+        return Exception { IndexSizeError };
     return removeChild(*children->item(index));
 }
 

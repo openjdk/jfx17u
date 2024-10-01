@@ -123,14 +123,6 @@ public:
         return { };
     }
 
-    void updateByteStreamData(const SVGPathByteStream::Data& byteStreamData)
-    {
-        pathByteStreamWillChange();
-        m_pathByteStream.setData(byteStreamData);
-    }
-
-    const SVGPathByteStream& existingPathByteStream() const { return m_pathByteStream; }
-
     const SVGPathByteStream& pathByteStream() const { return const_cast<SVGPathSegList*>(this)->pathByteStream(); }
     SVGPathByteStream& pathByteStream()
     {

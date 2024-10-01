@@ -53,6 +53,8 @@ public:
 
     void ensureIntrinsicSizeMaintainsAspectRatio();
 
+    const std::optional<VideoPreset> currentPreset() const { return m_currentPreset; }
+
     void ref() const final;
     void deref() const final;
     ThreadSafeWeakPtrControlBlock& controlBlock() const final;
@@ -79,9 +81,6 @@ protected:
 
     static std::span<const IntSize> standardVideoSizes();
 
-    virtual Ref<TakePhotoNativePromise> takePhotoInternal(PhotoSettings&&);
-    bool mutedForPhotoCapture() const { return m_mutedForPhotoCapture; }
-
 private:
     struct CaptureSizeFrameRateAndZoom {
         std::optional<VideoPreset> encodingPreset;
@@ -93,12 +92,9 @@ private:
 
     enum class TryPreservingSize { No, Yes };
     std::optional<CaptureSizeFrameRateAndZoom> bestSupportedSizeFrameRateAndZoom(std::optional<int> width, std::optional<int> height, std::optional<double>, std::optional<double>, TryPreservingSize = TryPreservingSize::Yes);
-    std::optional<CaptureSizeFrameRateAndZoom> bestSupportedSizeFrameRateAndZoomConsideringObservers(std::optional<int> width, std::optional<int> height, std::optional<double>, std::optional<double>);
 
     bool presetSupportsFrameRate(const VideoPreset&, double);
     bool presetSupportsZoom(const VideoPreset&, double);
-
-    Ref<TakePhotoNativePromise> takePhoto(PhotoSettings&&) final;
 
 #if !RELEASE_LOG_DISABLED
     const char* logClassName() const override { return "RealtimeVideoCaptureSource"; }
@@ -108,7 +104,6 @@ private:
     Vector<VideoPreset> m_presets;
     Deque<double> m_observedFrameTimeStamps;
     double m_observedFrameRate { 0 };
-    bool m_mutedForPhotoCapture { false };
 };
 
 struct SizeFrameRateAndZoom {

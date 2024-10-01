@@ -44,7 +44,7 @@ public:
     HTMLProgressElement* progressElement() const;
 
 protected:
-    explicit ProgressShadowElement(Document&);
+    ProgressShadowElement(Document&);
 
 private:
     bool rendererIsNeeded(const RenderStyle&) override;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2009-2021 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -134,7 +134,7 @@ void ArrayBufferContents::tryAllocate(size_t numElements, unsigned elementByteSi
         data = Gigacage::tryZeroedMalloc(Gigacage::Primitive, allocationSize);
     else
         data = Gigacage::tryMalloc(Gigacage::Primitive, allocationSize);
-    m_data = DataType(data);
+    m_data = DataType(data, sizeInBytes.value());
     if (!data) {
         reset();
         return;
@@ -208,14 +208,6 @@ Ref<ArrayBuffer> ArrayBuffer::create(const void* source, size_t byteLength)
     return buffer.releaseNonNull();
 }
 
-Ref<ArrayBuffer> ArrayBuffer::create(std::span<uint8_t> span)
-{
-    auto buffer = tryCreate(span);
-    if (!buffer)
-        CRASH();
-    return buffer.releaseNonNull();
-}
-
 Ref<ArrayBuffer> ArrayBuffer::create(ArrayBufferContents&& contents)
 {
     return adoptRef(*new ArrayBuffer(WTFMove(contents)));
@@ -274,11 +266,6 @@ RefPtr<ArrayBuffer> ArrayBuffer::tryCreate(const void* source, size_t byteLength
     if (!contents.m_data)
         return nullptr;
     return createInternal(WTFMove(contents), source, byteLength);
-}
-
-RefPtr<ArrayBuffer> ArrayBuffer::tryCreate(std::span<uint8_t> span)
-{
-    return tryCreate(span.data(), span.size_bytes());
 }
 
 Ref<ArrayBuffer> ArrayBuffer::createUninitialized(size_t numElements, unsigned elementByteSize)
@@ -425,7 +412,9 @@ bool ArrayBuffer::transferTo(VM& vm, ArrayBufferContents& result)
         return true;
     }
 
-    if (!isDetachable()) {
+    bool isDetachable = !m_pinCount && !m_locked;
+
+    if (!isDetachable) {
         m_contents.copyTo(result);
         if (!result.m_data)
             return false;
@@ -462,7 +451,7 @@ Expected<int64_t, GrowFailReason> ArrayBuffer::grow(VM& vm, size_t newByteLength
         return makeUnexpected(GrowFailReason::GrowSharedUnavailable);
     auto result = shared->grow(vm, newByteLength);
     if (result && result.value() > 0)
-        vm.heap.reportExtraMemoryAllocated(static_cast<JSCell*>(nullptr), result.value());
+        vm.heap.reportExtraMemoryAllocated(result.value());
     return result;
 }
 
@@ -556,7 +545,7 @@ Expected<int64_t, GrowFailReason> ArrayBuffer::resize(VM& vm, size_t newByteLeng
     }
 
     if (deltaByteLength > 0)
-        vm.heap.reportExtraMemoryAllocated(static_cast<JSCell*>(nullptr), deltaByteLength);
+        vm.heap.reportExtraMemoryAllocated(deltaByteLength);
 
     return deltaByteLength;
 }
@@ -650,17 +639,6 @@ ASCIILiteral errorMessageForTransfer(ArrayBuffer* buffer)
     if (buffer->isWasmMemory())
         return "Cannot transfer a WebAssembly.Memory"_s;
     return "Cannot transfer an ArrayBuffer whose backing store has been accessed by the JavaScriptCore C API"_s;
-}
-
-std::optional<ArrayBufferContents> ArrayBufferContents::fromDataSpan(std::span<const uint8_t> data)
-{
-    void* buffer = Gigacage::tryMalloc(Gigacage::Primitive, data.size_bytes());
-    if (!buffer)
-        return std::nullopt;
-
-    memcpy(buffer, data.data(), data.size_bytes());
-
-    return ArrayBufferContents { buffer, data.size_bytes(), std::nullopt, ArrayBuffer::primitiveGigacageDestructor() };
 }
 
 } // namespace JSC

@@ -45,10 +45,6 @@ class CanvasRenderingContext;
 class ImageBitmap;
 class PaintRenderingContext2D;
 
-namespace DisplayList {
-class DrawingContext;
-}
-
 class CustomPaintCanvas final : public RefCounted<CustomPaintCanvas>, public CanvasBase, private ContextDestructionObserver {
     WTF_MAKE_FAST_ALLOCATED;
 public:
@@ -65,11 +61,11 @@ public:
 
     void didDraw(const std::optional<FloatRect>&, ShouldApplyPostProcessingToDirtyRect) final { }
 
-    AffineTransform baseTransform() const final;
+    AffineTransform baseTransform() const final { ASSERT(m_destinationGraphicsContext && m_copiedBuffer); return m_copiedBuffer->baseTransform(); }
     Image* copiedImage() const final;
     void clearCopiedImage() const final;
 
-    void replayDisplayList(GraphicsContext&);
+    void replayDisplayList(GraphicsContext*) const;
 
     void queueTaskKeepingObjectAlive(TaskSource, Function<void()>&&) final { };
     void dispatchEvent(Event&) final { }
@@ -83,10 +79,10 @@ private:
     void refCanvasBase() final { ref(); }
     void derefCanvasBase() final { deref(); }
     ScriptExecutionContext* canvasBaseScriptExecutionContext() const final { return ContextDestructionObserver::scriptExecutionContext(); }
-    void replayDisplayListImpl(GraphicsContext& target) const;
 
     std::unique_ptr<CanvasRenderingContext> m_context;
-    mutable std::unique_ptr<DisplayList::DrawingContext> m_recordingContext;
+    mutable GraphicsContext* m_destinationGraphicsContext = nullptr;
+    mutable RefPtr<ImageBuffer> m_copiedBuffer;
     mutable RefPtr<Image> m_copiedImage;
 };
 

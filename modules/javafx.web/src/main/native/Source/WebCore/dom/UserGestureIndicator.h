@@ -40,7 +40,11 @@ namespace WebCore {
 class Document;
 class WeakPtrImplWithEventTargetData;
 
-enum class IsProcessingUserGesture : uint8_t { No, Yes, Potentially };
+enum ProcessingUserGestureState {
+    ProcessingUserGesture,
+    ProcessingPotentialUserGesture,
+    NotProcessingUserGesture
+};
 
 enum class CanRequestDOMPaste : bool { No, Yes };
 enum class UserGestureType : uint8_t { EscapeKey, ActivationTriggering, Other };
@@ -51,16 +55,16 @@ public:
     static const Seconds& maximumIntervalForUserGestureForwardingForFetch();
     WEBCORE_EXPORT static void setMaximumIntervalForUserGestureForwardingForFetchForTesting(Seconds);
 
-    static Ref<UserGestureToken> create(IsProcessingUserGesture isProcessingUserGesture, UserGestureType gestureType, Document* document = nullptr, std::optional<WTF::UUID> authorizationToken = std::nullopt, CanRequestDOMPaste canRequestDOMPaste = CanRequestDOMPaste::Yes)
+    static Ref<UserGestureToken> create(ProcessingUserGestureState state, UserGestureType gestureType, Document* document = nullptr, std::optional<WTF::UUID> authorizationToken = std::nullopt, CanRequestDOMPaste canRequestDOMPaste = CanRequestDOMPaste::Yes)
     {
-        return adoptRef(*new UserGestureToken(isProcessingUserGesture, gestureType, document, authorizationToken, canRequestDOMPaste));
+        return adoptRef(*new UserGestureToken(state, gestureType, document, authorizationToken, canRequestDOMPaste));
     }
 
     WEBCORE_EXPORT ~UserGestureToken();
 
-    IsProcessingUserGesture isProcessingUserGesture() const { return m_isProcessingUserGesture; }
-    bool processingUserGesture() const { return m_scope == GestureScope::All && m_isProcessingUserGesture == IsProcessingUserGesture::Yes; }
-    bool processingUserGestureForMedia() const { return m_isProcessingUserGesture == IsProcessingUserGesture::Yes || m_isProcessingUserGesture == IsProcessingUserGesture::Potentially; }
+    ProcessingUserGestureState state() const { return m_state; }
+    bool processingUserGesture() const { return m_scope == GestureScope::All && m_state == ProcessingUserGesture; }
+    bool processingUserGestureForMedia() const { return m_state == ProcessingUserGesture || m_state == ProcessingPotentialUserGesture; }
     UserGestureType gestureType() const { return m_gestureType; }
 
     void addDestructionObserver(Function<void(UserGestureToken&)>&& observer)
@@ -110,9 +114,9 @@ public:
     void forEachImpactedDocument(Function<void(Document&)>&&);
 
 private:
-    UserGestureToken(IsProcessingUserGesture, UserGestureType, Document*, std::optional<WTF::UUID> authorizationToken, CanRequestDOMPaste);
+    UserGestureToken(ProcessingUserGestureState, UserGestureType, Document*, std::optional<WTF::UUID> authorizationToken, CanRequestDOMPaste);
 
-    IsProcessingUserGesture m_isProcessingUserGesture = IsProcessingUserGesture::No;
+    ProcessingUserGestureState m_state = NotProcessingUserGesture;
     Vector<Function<void(UserGestureToken&)>> m_destructionObservers;
     UserGestureType m_gestureType;
     WeakHashSet<Document, WeakPtrImplWithEventTargetData> m_documentsImpactedByUserGesture;
@@ -134,8 +138,8 @@ public:
     WEBCORE_EXPORT static bool processingUserGestureForMedia();
 
     // If a document is provided, its last known user gesture timestamp is updated.
-    enum class ProcessInteractionStyle { Immediate, Delayed, Never };
-    WEBCORE_EXPORT explicit UserGestureIndicator(std::optional<IsProcessingUserGesture>, Document* = nullptr, UserGestureType = UserGestureType::ActivationTriggering, ProcessInteractionStyle = ProcessInteractionStyle::Immediate, std::optional<WTF::UUID> authorizationToken = std::nullopt, CanRequestDOMPaste = CanRequestDOMPaste::Yes);
+    enum class ProcessInteractionStyle { Immediate, Delayed };
+    WEBCORE_EXPORT explicit UserGestureIndicator(std::optional<ProcessingUserGestureState>, Document* = nullptr, UserGestureType = UserGestureType::ActivationTriggering, ProcessInteractionStyle = ProcessInteractionStyle::Immediate, std::optional<WTF::UUID> authorizationToken = std::nullopt, CanRequestDOMPaste = CanRequestDOMPaste::Yes);
     WEBCORE_EXPORT explicit UserGestureIndicator(RefPtr<UserGestureToken>, UserGestureToken::GestureScope = UserGestureToken::GestureScope::All, UserGestureToken::IsPropagatedFromFetch = UserGestureToken::IsPropagatedFromFetch::No);
     WEBCORE_EXPORT ~UserGestureIndicator();
 

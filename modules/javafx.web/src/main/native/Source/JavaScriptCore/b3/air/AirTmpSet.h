@@ -98,7 +98,11 @@ public:
             return *this;
         }
 
-        friend bool operator==(const iterator&, const iterator&) = default;
+        bool operator==(const iterator& other) const
+        {
+            return m_gpIter == other.m_gpIter
+                && m_fpIter == other.m_fpIter;
+        }
 
     private:
         BitVector::iterator m_gpIter;

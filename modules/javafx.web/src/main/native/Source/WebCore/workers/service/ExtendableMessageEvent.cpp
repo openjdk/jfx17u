@@ -25,6 +25,7 @@
 
 #include "config.h"
 
+#if ENABLE(SERVICE_WORKER)
 #include "ExtendableMessageEvent.h"
 
 #include "EventNames.h"
@@ -64,3 +65,5 @@ ExtendableMessageEvent::~ExtendableMessageEvent()
 }
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

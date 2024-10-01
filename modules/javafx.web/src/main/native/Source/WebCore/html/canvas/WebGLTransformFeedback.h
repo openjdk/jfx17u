@@ -27,8 +27,7 @@
 
 #if ENABLE(WEBGL)
 
-#include "GraphicsContextGL.h"
-#include "WebGLObject.h"
+#include "WebGLSharedObject.h"
 #include <wtf/RefPtr.h>
 #include <wtf/Vector.h>
 
@@ -46,11 +45,11 @@ class WebGL2RenderingContext;
 class WebGLBuffer;
 class WebGLProgram;
 
-class WebGLTransformFeedback final : public WebGLObject {
+class WebGLTransformFeedback final : public WebGLSharedObject {
 public:
     virtual ~WebGLTransformFeedback();
 
-    static RefPtr<WebGLTransformFeedback> create(WebGL2RenderingContext&);
+    static Ref<WebGLTransformFeedback> create(WebGL2RenderingContext&);
 
     bool isActive() const { return m_active; }
     bool isPaused() const { return m_paused; }
@@ -67,7 +66,8 @@ public:
 
     bool validateProgramForResume(WebGLProgram*) const;
 
-    void didBind() { m_hasEverBeenBound = true; }
+    bool hasEverBeenBound() const { return object() && m_hasEverBeenBound; }
+    void setHasEverBeenBound() { m_hasEverBeenBound = true; }
 
     WebGLProgram* program() const { return m_program.get(); }
     void setProgram(const AbstractLocker&, WebGLProgram&);
@@ -78,11 +78,8 @@ public:
 
     void addMembersToOpaqueRoots(const AbstractLocker&, JSC::AbstractSlotVisitor&);
 
-    bool isUsable() const { return object() && !isDeleted(); }
-    bool isInitialized() const { return m_hasEverBeenBound; }
-
 private:
-    WebGLTransformFeedback(WebGL2RenderingContext&, PlatformGLObject);
+    WebGLTransformFeedback(WebGL2RenderingContext&);
 
     void deleteObjectImpl(const AbstractLocker&, GraphicsContextGL*, PlatformGLObject) override;
 
@@ -90,7 +87,7 @@ private:
     bool m_paused { false };
     bool m_hasEverBeenBound { false };
     unsigned m_programLinkCount { 0 };
-    Vector<WebGLBindingPoint<WebGLBuffer, GraphicsContextGL::TRANSFORM_FEEDBACK_BUFFER>> m_boundIndexedTransformFeedbackBuffers;
+    Vector<RefPtr<WebGLBuffer>> m_boundIndexedTransformFeedbackBuffers;
     RefPtr<WebGLProgram> m_program;
 };
 

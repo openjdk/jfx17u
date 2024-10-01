@@ -54,8 +54,6 @@ public:
     uint64_t bitrate() const { return m_state.bitrate; }
     void setBitrate(uint64_t bitrate) { m_state.bitrate = bitrate; }
 
-    Ref<JSON::Object> toJSON() const;
-
 private:
     AudioTrackConfiguration(AudioTrackConfigurationInit&& init)
         : m_state(init)

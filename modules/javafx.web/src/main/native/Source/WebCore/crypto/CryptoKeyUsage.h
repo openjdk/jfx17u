@@ -26,6 +26,7 @@
 #pragma once
 
 #if ENABLE(WEB_CRYPTO)
+
 namespace WebCore {
 
 enum {
@@ -54,4 +55,5 @@ enum class CryptoKeyUsage {
 };
 
 } // namespace WebCore
+
 #endif // ENABLE(WEB_CRYPTO)

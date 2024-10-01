@@ -34,8 +34,8 @@
 
 namespace WebCore {
 
-SimplifyMarkupCommand::SimplifyMarkupCommand(Ref<Document>&& document, Node* firstNode, Node* nodeAfterLast)
-    : CompositeEditCommand(WTFMove(document))
+SimplifyMarkupCommand::SimplifyMarkupCommand(Document& document, Node* firstNode, Node* nodeAfterLast)
+    : CompositeEditCommand(document)
     , m_firstNode(firstNode)
     , m_nodeAfterLast(nodeAfterLast)
 {
@@ -43,7 +43,7 @@ SimplifyMarkupCommand::SimplifyMarkupCommand(Ref<Document>&& document, Node* fir
 
 void SimplifyMarkupCommand::doApply()
 {
-    RefPtr rootNode = m_firstNode->parentNode();
+    Node* rootNode = m_firstNode->parentNode();
     Vector<Ref<Node>> nodesToRemove;
 
     document().updateLayoutIgnorePendingStylesheets();
@@ -52,26 +52,26 @@ void SimplifyMarkupCommand::doApply()
     // without affecting the style. The goal is to produce leaner markup even when starting
     // from a verbose fragment.
     // We look at inline elements as well as non top level divs that don't have attributes.
-    for (RefPtr node = m_firstNode.get(); node && node != m_nodeAfterLast; node = NodeTraversal::next(*node)) {
+    for (Node* node = m_firstNode.get(); node && node != m_nodeAfterLast; node = NodeTraversal::next(*node)) {
         if (node->firstChild() || (node->isTextNode() && node->nextSibling()) || !node->parentNode())
             continue;
 
-        RefPtr startingNode = node->parentNode();
+        Node* startingNode = node->parentNode();
         auto* startingStyle = startingNode->renderStyle();
         if (!startingStyle)
             continue;
-        RefPtr currentNode = startingNode;
-        RefPtr<Node> topNodeWithStartingStyle;
+        Node* currentNode = startingNode;
+        Node* topNodeWithStartingStyle = nullptr;
         while (currentNode != rootNode) {
-            if (currentNode->parentNode() != rootNode && isRemovableBlock(currentNode.get()))
+            if (currentNode->parentNode() != rootNode && isRemovableBlock(currentNode))
                 nodesToRemove.append(*currentNode);
 
             currentNode = currentNode->parentNode();
             if (!currentNode)
                 break;
 
-            CheckedPtr renderInline = dynamicDowncast<RenderInline>(currentNode->renderer());
-            if (!renderInline || renderInline->mayAffectLayout())
+            auto* renderer = currentNode->renderer();
+            if (!is<RenderInline>(renderer) || downcast<RenderInline>(*renderer).mayAffectLayout())
                 continue;
 
             if (currentNode->firstChild() != currentNode->lastChild()) {
@@ -85,7 +85,7 @@ void SimplifyMarkupCommand::doApply()
 
         }
         if (topNodeWithStartingStyle) {
-            for (RefPtr node = startingNode; node && node != topNodeWithStartingStyle; node = node->parentNode())
+            for (Node* node = startingNode; node && node != topNodeWithStartingStyle; node = node->parentNode())
                 nodesToRemove.append(*node);
         }
     }
@@ -111,8 +111,8 @@ int SimplifyMarkupCommand::pruneSubsequentAncestorsToRemove(Vector<Ref<Node>>& n
             break;
     }
 
-    Ref highestAncestorToRemove = nodesToRemove[pastLastNodeToRemove - 1].get();
-    RefPtr parent = highestAncestorToRemove->parentNode();
+    Node* highestAncestorToRemove = nodesToRemove[pastLastNodeToRemove - 1].ptr();
+    RefPtr<ContainerNode> parent = highestAncestorToRemove->parentNode();
     if (!parent) // Parent has already been removed.
         return -1;
 
@@ -120,8 +120,8 @@ int SimplifyMarkupCommand::pruneSubsequentAncestorsToRemove(Vector<Ref<Node>>& n
         return 0;
 
     removeNode(nodesToRemove[startNodeIndex], AssumeContentIsAlwaysEditable);
-    insertNodeBefore(nodesToRemove[startNodeIndex].copyRef(), highestAncestorToRemove, AssumeContentIsAlwaysEditable);
-    removeNode(highestAncestorToRemove, AssumeContentIsAlwaysEditable);
+    insertNodeBefore(nodesToRemove[startNodeIndex].copyRef(), *highestAncestorToRemove, AssumeContentIsAlwaysEditable);
+    removeNode(*highestAncestorToRemove, AssumeContentIsAlwaysEditable);
 
     return pastLastNodeToRemove - startNodeIndex - 1;
 }

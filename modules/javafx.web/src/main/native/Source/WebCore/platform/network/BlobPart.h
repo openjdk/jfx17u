@@ -27,15 +27,9 @@
 
 #include <wtf/URL.h>
 
-namespace IPC {
-template<typename T, typename> struct ArgumentCoder;
-}
-
 namespace WebCore {
 
 class BlobPart {
-private:
-    friend struct IPC::ArgumentCoder<BlobPart, void>;
 public:
     enum class Type : bool {
         Data,
@@ -43,50 +37,51 @@ public:
     };
 
     BlobPart()
-        : m_dataOrURL(Vector<uint8_t> { })
+        : m_type(Type::Data)
     {
     }
 
     BlobPart(Vector<uint8_t>&& data)
-        : m_dataOrURL(WTFMove(data))
+        : m_type(Type::Data)
+        , m_data(WTFMove(data))
     {
     }
 
     BlobPart(const URL& url)
-        : m_dataOrURL(url)
+        : m_type(Type::Blob)
+        , m_url(url)
     {
     }
 
-    Type type() const
+    Type type() const { return m_type; }
+
+    const Vector<uint8_t>& data() const
     {
-        return std::holds_alternative<URL>(m_dataOrURL) ? Type::Blob : Type::Data;
+        ASSERT(m_type == Type::Data);
+        return m_data;
     }
 
-    Vector<uint8_t>&& moveData()
+    Vector<uint8_t> moveData()
     {
-        ASSERT(std::holds_alternative<Vector<uint8_t>>(m_dataOrURL));
-        return WTFMove(std::get<Vector<uint8_t>>(m_dataOrURL));
+        ASSERT(m_type == Type::Data);
+        return WTFMove(m_data);
     }
 
     const URL& url() const
     {
-        ASSERT(std::holds_alternative<URL>(m_dataOrURL));
-        return std::get<URL>(m_dataOrURL);
+        ASSERT(m_type == Type::Blob);
+        return m_url;
     }
 
     void detachFromCurrentThread()
     {
-        if (std::holds_alternative<URL>(m_dataOrURL))
-            m_dataOrURL = std::get<URL>(m_dataOrURL).isolatedCopy();
+        m_url = m_url.isolatedCopy();
     }
 
 private:
-    BlobPart(std::variant<Vector<uint8_t>, URL>&& dataOrURL)
-        : m_dataOrURL(WTFMove(dataOrURL))
-    {
-    }
-
-    std::variant<Vector<uint8_t>, URL> m_dataOrURL;
+    Type m_type;
+    Vector<uint8_t> m_data;
+    URL m_url;
 };
 
 } // namespace WebCore

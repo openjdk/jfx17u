@@ -74,7 +74,6 @@ private:
     const Ref<Instance> m_instance;
 
     const HardwareCapabilities m_capabilities { };
-    bool m_deviceRequested { false };
 };
 
 } // namespace WebGPU

@@ -35,10 +35,15 @@ class Directive : public Node {
 public:
     using List = ReferenceWrapperVector<Directive>;
 
-protected:
-    Directive(SourceSpan span)
+    const String& name() const { return m_name.id(); }
+
+private:
+    Directive(SourceSpan span, Identifier&& name)
         : Node(span)
+        , m_name(WTFMove(name))
     { }
+
+    Identifier m_name;
 };
 
 } // namespace WGSL::AST

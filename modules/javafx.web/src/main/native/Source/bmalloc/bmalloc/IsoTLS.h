@@ -37,51 +37,51 @@ template<typename Config> class IsoAllocator;
 template<typename Config> class IsoDeallocator;
 
 namespace api {
-template<typename Type> struct IsoHeapBase;
+template<typename Type> struct IsoHeap;
 }
 
 class IsoTLS {
 public:
     template<typename Type>
-    static void* allocate(api::IsoHeapBase<Type>&, bool abortOnFailure);
+    static void* allocate(api::IsoHeap<Type>&, bool abortOnFailure);
 
     template<typename Type>
-    static void deallocate(api::IsoHeapBase<Type>&, void* p);
+    static void deallocate(api::IsoHeap<Type>&, void* p);
 
     template<typename Type>
-    static void ensureHeap(api::IsoHeapBase<Type>&);
+    static void ensureHeap(api::IsoHeap<Type>&);
 
     BEXPORT static void scavenge();
 
     template<typename Type>
-    static void scavenge(api::IsoHeapBase<Type>&);
+    static void scavenge(api::IsoHeap<Type>&);
 
 private:
     IsoTLS();
 
     template<typename Config, typename Type>
-    static void* allocateImpl(api::IsoHeapBase<Type>&, bool abortOnFailure);
+    static void* allocateImpl(api::IsoHeap<Type>&, bool abortOnFailure);
 
     template<typename Config, typename Type>
-    void* allocateFast(api::IsoHeapBase<Type>&, unsigned offset, bool abortOnFailure);
+    void* allocateFast(api::IsoHeap<Type>&, unsigned offset, bool abortOnFailure);
 
     template<typename Config, typename Type>
-    static void* allocateSlow(api::IsoHeapBase<Type>&, bool abortOnFailure);
+    static void* allocateSlow(api::IsoHeap<Type>&, bool abortOnFailure);
 
     template<typename Config, typename Type>
-    static void deallocateImpl(api::IsoHeapBase<Type>&, void* p);
+    static void deallocateImpl(api::IsoHeap<Type>&, void* p);
 
     template<typename Config, typename Type>
-    void deallocateFast(api::IsoHeapBase<Type>&, unsigned offset, void* p);
+    void deallocateFast(api::IsoHeap<Type>&, unsigned offset, void* p);
 
     template<typename Config, typename Type>
-    static void deallocateSlow(api::IsoHeapBase<Type>&, void* p);
+    static void deallocateSlow(api::IsoHeap<Type>&, void* p);
 
     static IsoTLS* get();
     static void set(IsoTLS*);
 
     template<typename Type>
-    static IsoTLS* ensureHeapAndEntries(api::IsoHeapBase<Type>&);
+    static IsoTLS* ensureHeapAndEntries(api::IsoHeap<Type>&);
 
     BEXPORT static IsoTLS* ensureEntries(unsigned offset);
 

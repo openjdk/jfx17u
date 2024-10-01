@@ -31,13 +31,13 @@
 
 namespace WebCore {
 
-Ref<FEOffset> FEOffset::create(float dx, float dy, DestinationColorSpace colorSpace)
+Ref<FEOffset> FEOffset::create(float dx, float dy)
 {
-    return adoptRef(*new FEOffset(dx, dy, colorSpace));
+    return adoptRef(*new FEOffset(dx, dy));
 }
 
-FEOffset::FEOffset(float dx, float dy, DestinationColorSpace colorSpace)
-    : FilterEffect(FilterEffect::Type::FEOffset, colorSpace)
+FEOffset::FEOffset(float dx, float dy)
+    : FilterEffect(FilterEffect::Type::FEOffset)
     , m_dx(dx)
     , m_dy(dy)
 {

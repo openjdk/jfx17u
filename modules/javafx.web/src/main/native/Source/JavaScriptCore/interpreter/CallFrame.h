@@ -66,7 +66,7 @@ using JSInstruction = BaseInstruction<JSOpcodeTraits>;
         { }
 
         explicit operator bool() const { return !!m_bits; }
-        friend bool operator==(const CallSiteIndex&, const CallSiteIndex&) = default;
+        bool operator==(const CallSiteIndex& other) const { return m_bits == other.m_bits; }
 
         unsigned hash() const { return intHash(m_bits); }
         static CallSiteIndex deletedValue() { return fromBits(s_invalidIndex - 1); }
@@ -218,18 +218,16 @@ using JSInstruction = BaseInstruction<JSOpcodeTraits>;
         unsigned unsafeCallSiteAsRawBits() const;
         CallSiteIndex callSiteIndex() const;
         CallSiteIndex unsafeCallSiteIndex() const;
-        void setCallSiteIndex(CallSiteIndex);
 
 #if ENABLE(WEBASSEMBLY)
         Wasm::Instance* wasmInstance() const;
 #endif
 
-        JSCell* codeOwnerCell() const;
-
     private:
         unsigned callSiteBitsAsBytecodeOffset() const;
-        JS_EXPORT_PRIVATE JSGlobalObject* lexicalGlobalObjectFromNativeCallee(VM&) const;
-        JS_EXPORT_PRIVATE JSCell* codeOwnerCellSlow() const;
+#if ENABLE(WEBASSEMBLY)
+        JS_EXPORT_PRIVATE JSGlobalObject* lexicalGlobalObjectFromWasmCallee(VM&) const;
+#endif
     public:
 
         // This will try to get you the bytecode offset, but you should be aware that
@@ -309,7 +307,7 @@ using JSInstruction = BaseInstruction<JSOpcodeTraits>;
 
         static int offsetFor(size_t argumentCountIncludingThis) { return CallFrameSlot::thisArgument + argumentCountIncludingThis - 1; }
 
-        static constexpr CallFrame* noCaller() { return nullptr; }
+        static CallFrame* noCaller() { return nullptr; }
 
         bool isEmptyTopLevelCallFrameForDebugger() const
         {
@@ -317,8 +315,8 @@ using JSInstruction = BaseInstruction<JSOpcodeTraits>;
         }
 
         void convertToStackOverflowFrame(VM&, CodeBlock* codeBlockToKeepAliveUntilFrameIsUnwound);
-        bool isPartiallyInitializedFrame() const;
-        bool isNativeCalleeFrame() const;
+        bool isStackOverflowFrame() const;
+        bool isWasmFrame() const;
 
         void setArgumentCountIncludingThis(int count) { static_cast<Register*>(this)[static_cast<int>(CallFrameSlot::argumentCountIncludingThis)].payload() = count; }
         inline void setCallee(JSObject*);

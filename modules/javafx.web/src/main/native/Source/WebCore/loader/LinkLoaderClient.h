@@ -31,11 +31,9 @@
 
 #pragma once
 
-#include <wtf/WeakPtr.h>
-
 namespace WebCore {
 
-class LinkLoaderClient : public CanMakeWeakPtr<LinkLoaderClient> {
+class LinkLoaderClient {
 public:
     virtual ~LinkLoaderClient() = default;
 

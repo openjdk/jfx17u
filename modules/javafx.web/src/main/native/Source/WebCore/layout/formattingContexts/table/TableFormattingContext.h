@@ -45,9 +45,9 @@ public:
     void layoutInFlowContent(const ConstraintsForInFlowContent&) override;
     LayoutUnit usedContentHeight() const override;
 
-    const TableFormattingGeometry& formattingGeometry() const { return m_tableFormattingGeometry; }
-    const TableFormattingQuirks& formattingQuirks() const { return m_tableFormattingQuirks; }
-    const TableFormattingState& formattingState() const { return m_tableFormattingState; }
+    const TableFormattingGeometry& formattingGeometry() const final { return m_tableFormattingGeometry; }
+    const TableFormattingQuirks& formattingQuirks() const final { return m_tableFormattingQuirks; }
+    const TableFormattingState& formattingState() const { return downcast<TableFormattingState>(FormattingContext::formattingState()); }
 
 private:
     class TableLayout {
@@ -75,9 +75,8 @@ private:
     IntrinsicWidthConstraints computedPreferredWidthForColumns();
     void computeAndDistributeExtraSpace(LayoutUnit availableHorizontalSpace, std::optional<LayoutUnit> availableVerticalSpace);
 
-    TableFormattingState& formattingState() { return m_tableFormattingState; }
+    TableFormattingState& formattingState() { return downcast<TableFormattingState>(FormattingContext::formattingState()); }
 
-    TableFormattingState& m_tableFormattingState;
     const TableFormattingGeometry m_tableFormattingGeometry;
     const TableFormattingQuirks m_tableFormattingQuirks;
 };

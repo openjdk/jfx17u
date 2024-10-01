@@ -26,6 +26,7 @@
 // https://www.w3.org/TR/push-api/#pushsubscription-interface
 
 [
+    Conditional=SERVICE_WORKER,
     JSGenerateToJSObject,
 ] dictionary PushSubscriptionJSON {
     USVString endpoint;

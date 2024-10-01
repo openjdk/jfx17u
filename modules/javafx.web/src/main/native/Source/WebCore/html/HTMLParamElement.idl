@@ -25,3 +25,4 @@
     [CEReactions=NotNeeded, Reflect] attribute DOMString value;
     [CEReactions=NotNeeded, Reflect] attribute DOMString valueType;
 };
+

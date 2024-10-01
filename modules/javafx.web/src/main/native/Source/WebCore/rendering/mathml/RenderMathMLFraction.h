@@ -46,6 +46,7 @@ public:
     float relativeLineThickness() const;
 
 private:
+    bool isRenderMathMLFraction() const final { return true; }
     ASCIILiteral renderName() const final { return "RenderMathMLFraction"_s; }
 
     void computePreferredLogicalWidths() final;

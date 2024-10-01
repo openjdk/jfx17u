@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2012 Google Inc. All rights reserved.
- * Copyright (C) 2016-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2016-2022 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -44,7 +44,7 @@ namespace WebCore {
 
 class MediaConstraint {
 public:
-    enum class DataType : uint8_t { Integer, Double, Boolean, String };
+    enum class DataType : uint8_t { None, Integer, Double, Boolean, String };
 
     bool isInt() const { return m_dataType == DataType::Integer; }
     bool isDouble() const { return m_dataType == DataType::Double; }
@@ -52,16 +52,25 @@ public:
     bool isString() const { return m_dataType == DataType::String; }
 
     DataType dataType() const { return m_dataType; }
+    MediaConstraintType constraintType() const { return m_constraintType; }
+    const String& name() const { return m_name; }
 
-    void log(MediaConstraintType) const;
+    void log() const;
 
-    explicit MediaConstraint(DataType dataType)
-        : m_dataType(dataType)
+    MediaConstraint(const String& name, MediaConstraintType constraintType, DataType dataType)
+        : m_name(name)
+        , m_constraintType(constraintType)
+        , m_dataType(dataType)
     {
     }
 
+protected:
+    MediaConstraint() = default;
+
 private:
-    DataType m_dataType { DataType::Integer };
+    String m_name;
+    MediaConstraintType m_constraintType { MediaConstraintType::Unknown };
+    DataType m_dataType { DataType::None };
 };
 
 template<class ValueType>
@@ -114,12 +123,6 @@ public:
         // e.g. "aspectRatio: 1.333", will never match.
         const double epsilon = 0.00001;
         return std::abs(a - b) <= epsilon;
-    }
-
-    template<typename RangeType>
-    double fitnessDistance(const RangeType& range) const
-    {
-        return fitnessDistance(range.min, range.max);
     }
 
     double fitnessDistance(ValueType rangeMin, ValueType rangeMax) const
@@ -230,12 +233,6 @@ public:
         return 0;
     }
 
-    template<typename RangeType>
-    ValueType valueForCapabilityRange(ValueType current, const RangeType& range) const
-    {
-        return valueForCapabilityRange(current, range.min, range.max);
-    }
-
     ValueType valueForCapabilityRange(ValueType current, ValueType capabilityMin, ValueType capabilityMax) const
     {
         ValueType value { 0 };
@@ -319,8 +316,8 @@ public:
     bool isMandatory() const { return m_min || m_max || m_exact; }
 
 protected:
-    NumericConstraint(DataType dataType)
-        : MediaConstraint(dataType)
+    NumericConstraint(const String& name, MediaConstraintType type, DataType dataType)
+        : MediaConstraint(name, type, dataType)
     {
     }
 
@@ -369,17 +366,20 @@ protected:
 
 class IntConstraint final : public NumericConstraint<int> {
 public:
-    IntConstraint()
-        : NumericConstraint<int>(DataType::Integer)
+    IntConstraint(const String& name, MediaConstraintType type)
+        : NumericConstraint<int>(name, type, DataType::Integer)
     {
     }
 
-    void merge(const IntConstraint& other)
+    IntConstraint() = default;
+
+    void merge(const MediaConstraint& other)
     {
-        NumericConstraint::innerMerge(other);
+        ASSERT(other.isInt());
+        NumericConstraint::innerMerge(downcast<const IntConstraint>(other));
     }
 
-    void logAsInt(MediaConstraintType) const;
+    void logAsInt() const;
 
 private:
     friend struct IPC::ArgumentCoder<IntConstraint, void>;
@@ -392,17 +392,20 @@ private:
 
 class DoubleConstraint final : public NumericConstraint<double> {
 public:
-    DoubleConstraint()
-        : NumericConstraint<double>(DataType::Double)
+    DoubleConstraint(const String& name, MediaConstraintType type)
+        : NumericConstraint<double>(name, type, DataType::Double)
     {
     }
 
-    void merge(const DoubleConstraint& other)
+    DoubleConstraint() = default;
+
+    void merge(const MediaConstraint& other)
     {
-        NumericConstraint::innerMerge(other);
+        ASSERT(other.isDouble());
+        NumericConstraint::innerMerge(downcast<DoubleConstraint>(other));
     }
 
-    void logAsDouble(MediaConstraintType) const;
+    void logAsDouble() const;
 
 private:
     friend struct IPC::ArgumentCoder<DoubleConstraint, void>;
@@ -415,10 +418,12 @@ private:
 
 class BooleanConstraint final : public MediaConstraint {
 public:
-    BooleanConstraint()
-        : MediaConstraint(DataType::Boolean)
+    BooleanConstraint(const String& name, MediaConstraintType type)
+        : MediaConstraint(name, type, DataType::Boolean)
     {
     }
+
+    BooleanConstraint() = default;
 
     void setExact(bool value) { m_exact = value; }
     void setIdeal(bool value) { m_ideal = value; }
@@ -464,16 +469,19 @@ public:
         return 1;
     }
 
-    void merge(const BooleanConstraint& other)
+    void merge(const MediaConstraint& other)
     {
-        if (other.isEmpty())
+        ASSERT(other.isBoolean());
+        const BooleanConstraint& typedOther = downcast<BooleanConstraint>(other);
+
+        if (typedOther.isEmpty())
             return;
 
         bool value;
-        if (other.getExact(value))
+        if (typedOther.getExact(value))
             m_exact = value;
 
-        if (other.getIdeal(value)) {
+        if (typedOther.getIdeal(value)) {
             if (!m_ideal || (value && !m_ideal.value()))
                 m_ideal = value;
         }
@@ -482,7 +490,7 @@ public:
     bool isEmpty() const { return !m_exact && !m_ideal; };
     bool isMandatory() const { return bool(m_exact); }
 
-    void logAsBoolean(MediaConstraintType) const;
+    void logAsBoolean() const;
 
 private:
     friend struct IPC::ArgumentCoder<BooleanConstraint, void>;
@@ -500,10 +508,12 @@ private:
 
 class StringConstraint : public MediaConstraint {
 public:
-    StringConstraint()
-        : MediaConstraint(DataType::String)
+    StringConstraint(const String& name, MediaConstraintType type)
+        : MediaConstraint(name, type, DataType::String)
     {
     }
+
+    StringConstraint() = default;
 
     void setExact(const String& value)
     {
@@ -552,7 +562,7 @@ public:
 
     bool isEmpty() const { return m_exact.isEmpty() && m_ideal.isEmpty(); }
     bool isMandatory() const { return !m_exact.isEmpty(); }
-    WEBCORE_EXPORT void merge(const StringConstraint&);
+    WEBCORE_EXPORT void merge(const MediaConstraint&);
 
     void removeEmptyStringConstraint()
     {
@@ -563,8 +573,6 @@ public:
             return constraint.isEmpty();
         });
     }
-
-    StringConstraint isolatedCopy() const;
 
 private:
     friend struct IPC::ArgumentCoder<StringConstraint, void>;
@@ -580,31 +588,23 @@ private:
     Vector<String> m_ideal;
 };
 
-class MediaTrackConstraintSetMap {
+class UnknownConstraint final : public MediaConstraint {
 public:
-    MediaTrackConstraintSetMap() = default;
-    MediaTrackConstraintSetMap(std::optional<IntConstraint> width, std::optional<IntConstraint> height, std::optional<IntConstraint> sampleRate, std::optional<IntConstraint> sampleSize, std::optional<DoubleConstraint> aspectRatio, std::optional<DoubleConstraint> frameRate, std::optional<DoubleConstraint> volume, std::optional<BooleanConstraint> echoCancellation, std::optional<BooleanConstraint> displaySurface, std::optional<BooleanConstraint> logicalSurface, std::optional<StringConstraint>&& facingMode, std::optional<StringConstraint>&& deviceId, std::optional<StringConstraint>&& groupId, std::optional<StringConstraint>&& whiteBalanceMode, std::optional<DoubleConstraint> zoom, std::optional<BooleanConstraint> torch)
-        : m_width(width)
-        , m_height(height)
-        , m_sampleRate(sampleRate)
-        , m_sampleSize(sampleSize)
-        , m_aspectRatio(aspectRatio)
-        , m_frameRate(frameRate)
-        , m_volume(volume)
-        , m_echoCancellation(echoCancellation)
-        , m_displaySurface(displaySurface)
-        , m_logicalSurface(logicalSurface)
-        , m_facingMode(facingMode)
-        , m_deviceId(WTFMove(deviceId))
-        , m_groupId(WTFMove(groupId))
-        , m_whiteBalanceMode(WTFMove(whiteBalanceMode))
-        , m_zoom(zoom)
-        , m_torch(torch)
+    UnknownConstraint(const String& name, MediaConstraintType type)
+        : MediaConstraint(name, type, DataType::None)
     {
     }
 
-    WEBCORE_EXPORT void forEach(Function<void(MediaConstraintType, const MediaConstraint&)>&&) const;
-    void filter(const Function<bool(MediaConstraintType, const MediaConstraint&)>&) const;
+private:
+    bool isEmpty() const { return true; }
+    bool isMandatory() const { return false; }
+    void merge(const MediaConstraint&) { }
+};
+
+class MediaTrackConstraintSetMap {
+public:
+    WEBCORE_EXPORT void forEach(Function<void(const MediaConstraint&)>&&) const;
+    void filter(const Function<bool(const MediaConstraint&)>&) const;
     bool isEmpty() const;
     WEBCORE_EXPORT size_t size() const;
 
@@ -612,36 +612,24 @@ public:
     WEBCORE_EXPORT void set(MediaConstraintType, std::optional<DoubleConstraint>&&);
     WEBCORE_EXPORT void set(MediaConstraintType, std::optional<BooleanConstraint>&&);
     WEBCORE_EXPORT void set(MediaConstraintType, std::optional<StringConstraint>&&);
-    void set(MediaConstraintType, const MediaConstraint&);
 
-    void merge(MediaConstraintType, const IntConstraint&);
-    void merge(MediaConstraintType, const DoubleConstraint&);
-    void merge(MediaConstraintType, const BooleanConstraint&);
-    void merge(MediaConstraintType, const StringConstraint&);
-    void merge(MediaConstraintType, const MediaConstraint&);
+    std::optional<IntConstraint> width() const { return m_width; }
+    std::optional<IntConstraint> height() const { return m_height; }
+    std::optional<IntConstraint> sampleRate() const { return m_sampleRate; }
+    std::optional<IntConstraint> sampleSize() const { return m_sampleSize; }
 
-    const std::optional<IntConstraint>& width() const { return m_width; }
-    const std::optional<IntConstraint>& height() const { return m_height; }
-    const std::optional<IntConstraint>& sampleRate() const { return m_sampleRate; }
-    const std::optional<IntConstraint>& sampleSize() const { return m_sampleSize; }
+    std::optional<DoubleConstraint> aspectRatio() const { return m_aspectRatio; }
+    std::optional<DoubleConstraint> zoom() const { return m_zoom; }
+    std::optional<DoubleConstraint> frameRate() const { return m_frameRate; }
+    std::optional<DoubleConstraint> volume() const { return m_volume; }
 
-    const std::optional<DoubleConstraint>& aspectRatio() const { return m_aspectRatio; }
-    const std::optional<DoubleConstraint>& frameRate() const { return m_frameRate; }
-    const std::optional<DoubleConstraint>& volume() const { return m_volume; }
+    std::optional<BooleanConstraint> echoCancellation() const { return m_echoCancellation; }
+    std::optional<BooleanConstraint> displaySurface() const { return m_displaySurface; }
+    std::optional<BooleanConstraint> logicalSurface() const { return m_logicalSurface; }
 
-    const std::optional<BooleanConstraint>& echoCancellation() const { return m_echoCancellation; }
-    const std::optional<BooleanConstraint>& displaySurface() const { return m_displaySurface; }
-    const std::optional<BooleanConstraint>& logicalSurface() const { return m_logicalSurface; }
-
-    const std::optional<StringConstraint>& facingMode() const { return m_facingMode; }
-    const std::optional<StringConstraint>& deviceId() const { return m_deviceId; }
-    const std::optional<StringConstraint>& groupId() const { return m_groupId; }
-
-    const std::optional<StringConstraint>& whiteBalanceMode() const { return m_whiteBalanceMode; }
-    const std::optional<DoubleConstraint>& zoom() const { return m_zoom; }
-    const std::optional<BooleanConstraint>& torch() const { return m_torch; }
-
-    MediaTrackConstraintSetMap isolatedCopy() const;
+    std::optional<StringConstraint> facingMode() const { return m_facingMode; }
+    std::optional<StringConstraint> deviceId() const { return m_deviceId; }
+    std::optional<StringConstraint> groupId() const { return m_groupId; }
 
 private:
     friend struct IPC::ArgumentCoder<MediaTrackConstraintSetMap, void>;
@@ -651,6 +639,7 @@ private:
     std::optional<IntConstraint> m_sampleSize;
 
     std::optional<DoubleConstraint> m_aspectRatio;
+    std::optional<DoubleConstraint> m_zoom;
     std::optional<DoubleConstraint> m_frameRate;
     std::optional<DoubleConstraint> m_volume;
 
@@ -661,10 +650,146 @@ private:
     std::optional<StringConstraint> m_facingMode;
     std::optional<StringConstraint> m_deviceId;
     std::optional<StringConstraint> m_groupId;
+};
 
-    std::optional<StringConstraint> m_whiteBalanceMode;
-    std::optional<DoubleConstraint> m_zoom;
-    std::optional<BooleanConstraint> m_torch;
+class FlattenedConstraint {
+public:
+
+    void set(const MediaConstraint&);
+    void merge(const MediaConstraint&);
+    void append(const MediaConstraint&);
+    const MediaConstraint* find(MediaConstraintType) const;
+    bool isEmpty() const { return m_variants.isEmpty(); }
+
+    class iterator {
+    public:
+        iterator(const FlattenedConstraint* constraint, size_t index)
+            : m_constraint(constraint)
+            , m_index(index)
+#if ASSERT_ENABLED
+            , m_generation(constraint->m_generation)
+#endif
+        {
+        }
+
+        MediaConstraint& operator*() const
+        {
+            return m_constraint->m_variants.at(m_index).constraint();
+        }
+
+        iterator& operator++()
+        {
+#if ASSERT_ENABLED
+            ASSERT(m_generation == m_constraint->m_generation);
+#endif
+            m_index++;
+            return *this;
+        }
+
+        bool operator==(const iterator& other) const { return m_index == other.m_index; }
+
+    private:
+        const FlattenedConstraint* m_constraint { nullptr };
+        size_t m_index { 0 };
+#if ASSERT_ENABLED
+        int m_generation { 0 };
+#endif
+    };
+
+    const iterator begin() const { return iterator(this, 0); }
+    const iterator end() const { return iterator(this, m_variants.size()); }
+
+private:
+    class ConstraintHolder {
+    public:
+        static ConstraintHolder create(const MediaConstraint& value) { return ConstraintHolder(value); }
+
+        ~ConstraintHolder()
+        {
+            if (m_value.asRaw) {
+                switch (dataType()) {
+                case MediaConstraint::DataType::Integer:
+                    delete m_value.asInteger;
+                    break;
+                case MediaConstraint::DataType::Double:
+                    delete m_value.asDouble;
+                    break;
+                case MediaConstraint::DataType::Boolean:
+                    delete m_value.asBoolean;
+                    break;
+                case MediaConstraint::DataType::String:
+                    delete m_value.asString;
+                    break;
+                case MediaConstraint::DataType::None:
+                    ASSERT_NOT_REACHED();
+                    break;
+                }
+            }
+#ifndef NDEBUG
+            m_value.asRaw = reinterpret_cast<MediaConstraint*>(0xbbadbeef);
+#endif
+        }
+
+        ConstraintHolder(ConstraintHolder&& other)
+        {
+            switch (other.dataType()) {
+            case MediaConstraint::DataType::Integer:
+                m_value.asInteger = std::exchange(other.m_value.asInteger, nullptr);
+                break;
+            case MediaConstraint::DataType::Double:
+                m_value.asDouble = std::exchange(other.m_value.asDouble, nullptr);
+                break;
+            case MediaConstraint::DataType::Boolean:
+                m_value.asBoolean = std::exchange(other.m_value.asBoolean, nullptr);
+                break;
+            case MediaConstraint::DataType::String:
+                m_value.asString = std::exchange(other.m_value.asString, nullptr);
+                break;
+            case MediaConstraint::DataType::None:
+                ASSERT_NOT_REACHED();
+                break;
+            }
+        }
+
+        MediaConstraint& constraint() const { return *m_value.asRaw; }
+        MediaConstraint::DataType dataType() const { return constraint().dataType(); }
+        MediaConstraintType constraintType() const { return constraint().constraintType(); }
+
+    private:
+        explicit ConstraintHolder(const MediaConstraint& value)
+        {
+            switch (value.dataType()) {
+            case MediaConstraint::DataType::Integer:
+                m_value.asInteger = new IntConstraint(downcast<const IntConstraint>(value));
+                break;
+            case MediaConstraint::DataType::Double:
+                m_value.asDouble = new DoubleConstraint(downcast<DoubleConstraint>(value));
+                break;
+            case MediaConstraint::DataType::Boolean:
+                m_value.asBoolean = new BooleanConstraint(downcast<BooleanConstraint>(value));
+                break;
+            case MediaConstraint::DataType::String:
+                m_value.asString = new StringConstraint(downcast<StringConstraint>(value));
+                break;
+            case MediaConstraint::DataType::None:
+                ASSERT_NOT_REACHED();
+                break;
+            }
+        }
+
+        union {
+            MediaConstraint* asRaw;
+            IntConstraint* asInteger;
+            DoubleConstraint* asDouble;
+            BooleanConstraint* asBoolean;
+            StringConstraint* asString;
+        } m_value;
+    };
+
+    Vector<ConstraintHolder> m_variants;
+#ifndef NDEBUG
+    int m_generation { 0 };
+#endif
 };
 
 struct MediaConstraints {
@@ -675,8 +800,6 @@ struct MediaConstraints {
     MediaTrackConstraintSetMap mandatoryConstraints;
     Vector<MediaTrackConstraintSetMap> advancedConstraints;
     bool isValid { false };
-
-    MediaConstraints isolatedCopy() const;
 };
 
 } // namespace WebCore

@@ -38,8 +38,6 @@ namespace WebCore {
 
 class IntPoint;
 
-enum class ScrollBehavior : uint8_t;
-
 // scrollPosition is in content coordinates (0,0 is at scrollOrigin), so may have negative components.
 using ScrollPosition = IntPoint;
 // scrollOffset() is the value used by scrollbars (min is 0,0), and should never have negative components.
@@ -56,7 +54,7 @@ enum class OverscrollBehavior : uint8_t {
     None
 };
 
-enum class ScrollDirection : uint8_t {
+enum ScrollDirection : uint8_t {
     ScrollUp,
     ScrollDown,
     ScrollLeft,
@@ -88,53 +86,53 @@ inline ScrollDirection logicalToPhysical(ScrollLogicalDirection direction, bool 
     case ScrollBlockDirectionBackward: {
         if (isVertical) {
             if (!isFlipped)
-                return ScrollDirection::ScrollUp;
-            return ScrollDirection::ScrollDown;
+                return ScrollUp;
+            return ScrollDown;
         } else {
             if (!isFlipped)
-                return ScrollDirection::ScrollLeft;
-            return ScrollDirection::ScrollRight;
+                return ScrollLeft;
+            return ScrollRight;
         }
         break;
     }
     case ScrollBlockDirectionForward: {
         if (isVertical) {
             if (!isFlipped)
-                return ScrollDirection::ScrollDown;
-            return ScrollDirection::ScrollUp;
+                return ScrollDown;
+            return ScrollUp;
         } else {
             if (!isFlipped)
-                return ScrollDirection::ScrollRight;
-            return ScrollDirection::ScrollLeft;
+                return ScrollRight;
+            return ScrollLeft;
         }
         break;
     }
     case ScrollInlineDirectionBackward: {
         if (isVertical) {
             if (!isFlipped)
-                return ScrollDirection::ScrollLeft;
-            return ScrollDirection::ScrollRight;
+                return ScrollLeft;
+            return ScrollRight;
         } else {
             if (!isFlipped)
-                return ScrollDirection::ScrollUp;
-            return ScrollDirection::ScrollDown;
+                return ScrollUp;
+            return ScrollDown;
         }
         break;
     }
     case ScrollInlineDirectionForward: {
         if (isVertical) {
             if (!isFlipped)
-                return ScrollDirection::ScrollRight;
-            return ScrollDirection::ScrollLeft;
+                return ScrollRight;
+            return ScrollLeft;
         } else {
             if (!isFlipped)
-                return ScrollDirection::ScrollDown;
-            return ScrollDirection::ScrollUp;
+                return ScrollDown;
+            return ScrollUp;
         }
         break;
     }
     }
-    return ScrollDirection::ScrollUp;
+    return ScrollUp;
 }
 
 enum class ScrollGranularity : uint8_t {
@@ -186,10 +184,10 @@ enum class ScrollEventAxis : uint8_t {
 inline constexpr ScrollEventAxis axisFromDirection(ScrollDirection direction)
 {
     switch (direction) {
-    case ScrollDirection::ScrollUp: return ScrollEventAxis::Vertical;
-    case ScrollDirection::ScrollDown: return ScrollEventAxis::Vertical;
-    case ScrollDirection::ScrollLeft: return ScrollEventAxis::Horizontal;
-    case ScrollDirection::ScrollRight: return ScrollEventAxis::Horizontal;
+    case ScrollUp: return ScrollEventAxis::Vertical;
+    case ScrollDown: return ScrollEventAxis::Vertical;
+    case ScrollLeft: return ScrollEventAxis::Horizontal;
+    case ScrollRight: return ScrollEventAxis::Horizontal;
     }
     ASSERT_NOT_REACHED();
     return ScrollEventAxis::Vertical;
@@ -378,7 +376,6 @@ struct ScrollPositionChangeOptions {
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, ScrollType);
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, ScrollClamping);
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, ScrollBehaviorForFixedElements);
-WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, ScrollBehavior);
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, ScrollElasticity);
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, ScrollbarMode);
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, OverflowAnchor);
@@ -391,3 +388,32 @@ WTF::TextStream& operator<<(WTF::TextStream&, ScrollbarWidth);
 
 } // namespace WebCore
 
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::ScrollDirection> {
+    using values = EnumValues<
+        WebCore::ScrollDirection,
+        WebCore::ScrollDirection::ScrollUp,
+        WebCore::ScrollDirection::ScrollDown,
+        WebCore::ScrollDirection::ScrollLeft,
+        WebCore::ScrollDirection::ScrollRight
+    >;
+};
+
+template<> struct EnumTraits<WebCore::ScrollbarOrientation> {
+    using values = EnumValues<
+        WebCore::ScrollbarOrientation,
+        WebCore::ScrollbarOrientation::Horizontal,
+        WebCore::ScrollbarOrientation::Vertical
+    >;
+};
+
+template<> struct EnumTraits<WebCore::ScrollbarWidth> {
+    using values = EnumValues<
+        WebCore::ScrollbarWidth,
+        WebCore::ScrollbarWidth::Auto,
+        WebCore::ScrollbarWidth::Thin,
+        WebCore::ScrollbarWidth::None
+    >;
+};
+} // namespace WTF

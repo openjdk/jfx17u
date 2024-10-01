@@ -49,7 +49,7 @@ public:
     const Length& maxWidth() const { return m_maxWidth; }
     const Length& maxHeight() const { return m_maxHeight; }
 
-    const Length& verticalAlignLength() const { return m_verticalAlignLength; }
+    const Length& verticalAlign() const { return m_verticalAlign; }
 
     int specifiedZIndex() const { return m_specifiedZIndex; }
     bool hasAutoSpecifiedZIndex() const { return m_hasAutoSpecifiedZIndex; }
@@ -58,8 +58,9 @@ public:
     bool hasAutoUsedZIndex() const { return m_hasAutoUsedZIndex; }
 
     BoxSizing boxSizing() const { return static_cast<BoxSizing>(m_boxSizing); }
+#if ENABLE(CSS_BOX_DECORATION_BREAK)
     BoxDecorationBreak boxDecorationBreak() const { return static_cast<BoxDecorationBreak>(m_boxDecorationBreak); }
-    VerticalAlign verticalAlign() const { return static_cast<VerticalAlign>(m_verticalAlign); }
+#endif
 
 private:
     friend class RenderStyle;
@@ -76,15 +77,16 @@ private:
     Length m_minHeight;
     Length m_maxHeight;
 
-    Length m_verticalAlignLength;
+    Length m_verticalAlign;
 
     int m_specifiedZIndex;
     int m_usedZIndex;
     unsigned m_hasAutoSpecifiedZIndex : 1;
     unsigned m_hasAutoUsedZIndex : 1;
     unsigned m_boxSizing : 1; // BoxSizing
+#if ENABLE(CSS_BOX_DECORATION_BREAK)
     unsigned m_boxDecorationBreak : 1; // BoxDecorationBreak
-    unsigned m_verticalAlign : 4; // VerticalAlign
+#endif
 };
 
 } // namespace WebCore

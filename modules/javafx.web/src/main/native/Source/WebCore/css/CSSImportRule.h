@@ -43,7 +43,6 @@ public:
     WEBCORE_EXPORT MediaList& media() const;
     WEBCORE_EXPORT CSSStyleSheet* styleSheet() const;
     String layerName() const;
-    String supportsText() const;
 
 private:
     friend class MediaList;
@@ -52,11 +51,8 @@ private:
 
     StyleRuleType styleRuleType() const final { return StyleRuleType::Import; }
     String cssText() const final;
-    String cssTextWithReplacementURLs(const HashMap<String, String>&, const HashMap<RefPtr<CSSStyleSheet>, String>&) const final;
     void reattach(StyleRuleBase&) final;
-    void getChildStyleSheets(HashSet<RefPtr<CSSStyleSheet>>&) final;
 
-    String cssTextInternal(const String& urlString) const;
     const MQ::MediaQueryList& mediaQueries() const;
     void setMediaQueries(MQ::MediaQueryList&&);
 

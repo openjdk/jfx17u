@@ -57,7 +57,6 @@ private:
     bool shouldRespectHeightAndWidthAttributes() final;
     void setValue(const String&, bool, TextFieldEventBehavior, TextControlSetValueSelection) final;
     bool appendFormData(DOMFormData&) const final;
-    bool dirAutoUsesValue() const final;
 };
 
 } // namespace WebCore

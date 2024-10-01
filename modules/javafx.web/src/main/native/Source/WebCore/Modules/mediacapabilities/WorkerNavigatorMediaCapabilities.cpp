@@ -38,9 +38,9 @@ WorkerNavigatorMediaCapabilities::WorkerNavigatorMediaCapabilities()
 
 WorkerNavigatorMediaCapabilities::~WorkerNavigatorMediaCapabilities() = default;
 
-ASCIILiteral WorkerNavigatorMediaCapabilities::supplementName()
+const char* WorkerNavigatorMediaCapabilities::supplementName()
 {
-    return "WorkerNavigatorMediaCapabilities"_s;
+    return "WorkerNavigatorMediaCapabilities";
 }
 
 WorkerNavigatorMediaCapabilities& WorkerNavigatorMediaCapabilities::from(WorkerNavigator& navigator)

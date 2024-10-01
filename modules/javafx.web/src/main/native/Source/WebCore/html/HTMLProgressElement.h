@@ -44,10 +44,11 @@ public:
     double position() const;
 
 private:
+    constexpr static auto CreateHTMLProgressElement = CreateHTMLElement | NodeFlag::HasCustomStyleResolveCallbacks;
     HTMLProgressElement(const QualifiedName&, Document&);
     virtual ~HTMLProgressElement();
 
-    bool matchesIndeterminatePseudoClass() const final;
+    bool shouldAppearIndeterminate() const final;
     bool isLabelable() const final { return true; }
 
     RenderPtr<RenderElement> createElementRenderer(RenderStyle&&, const RenderTreePosition&) final;

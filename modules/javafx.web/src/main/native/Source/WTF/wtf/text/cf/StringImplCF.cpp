@@ -34,7 +34,7 @@ namespace WTF {
 
 namespace StringWrapperCFAllocator {
 
-    DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER_AND_EXPORT(StringWrapperCFAllocator, WTF_INTERNAL);
+    DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(StringWrapperCFAllocator);
     DEFINE_ALLOCATOR_WITH_HEAP_IDENTIFIER(StringWrapperCFAllocator);
 
     static StringImpl* currentString;

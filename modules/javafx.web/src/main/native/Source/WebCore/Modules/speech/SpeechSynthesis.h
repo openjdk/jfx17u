@@ -42,7 +42,7 @@ class Document;
 class PlatformSpeechSynthesizerClient;
 class SpeechSynthesisVoice;
 
-class SpeechSynthesis : public PlatformSpeechSynthesizerClient, public SpeechSynthesisClientObserver, public RefCounted<SpeechSynthesis>, public ActiveDOMObject, public EventTarget {
+class SpeechSynthesis : public PlatformSpeechSynthesizerClient, public SpeechSynthesisClientObserver, public RefCounted<SpeechSynthesis>, public ContextDestructionObserver, public EventTarget {
     WTF_MAKE_ISO_ALLOCATED(SpeechSynthesis);
 public:
     static Ref<SpeechSynthesis> create(ScriptExecutionContext&);
@@ -58,7 +58,7 @@ public:
     void speak(SpeechSynthesisUtterance&);
     void cancel();
     void pause();
-    void resumeSynthesis();
+    void resume();
 
     const Vector<Ref<SpeechSynthesisVoice>>& getVoices();
 
@@ -74,13 +74,11 @@ public:
 
     bool userGestureRequiredForSpeechStart() const { return m_restrictions & RequireUserGestureForSpeechStartRestriction; }
     void removeBehaviorRestriction(BehaviorRestrictions restriction) { m_restrictions &= ~restriction; }
-    WEBCORE_EXPORT void simulateVoicesListChange();
 
 private:
     SpeechSynthesis(ScriptExecutionContext&);
-    RefPtr<SpeechSynthesisUtterance> protectedCurrentSpeechUtterance();
 
-    // PlatformSpeechSynthesizerClient
+    // PlatformSpeechSynthesizerClient override methods.
     void voicesDidChange() override;
     void didStartSpeaking(PlatformSpeechSynthesisUtterance&) override;
     void didPauseSpeaking(PlatformSpeechSynthesisUtterance&) override;
@@ -89,7 +87,7 @@ private:
     void speakingErrorOccurred(PlatformSpeechSynthesisUtterance&) override;
     void boundaryEventOccurred(PlatformSpeechSynthesisUtterance&, SpeechBoundary, unsigned charIndex, unsigned charLength) override;
 
-    // SpeechSynthesisClientObserver
+    // SpeechSynthesisClient override methods
     void didStartSpeaking() override;
     void didFinishSpeaking() override;
     void didPauseSpeaking() override;
@@ -98,30 +96,23 @@ private:
     void boundaryEventOccurred(bool wordBoundary, unsigned charIndex, unsigned charLength) override;
     void voicesChanged() override;
 
-    // ActiveDOMObject
-    const char* activeDOMObjectName() const final;
-    bool virtualHasPendingActivity() const final;
-
     void startSpeakingImmediately(SpeechSynthesisUtterance&);
     void handleSpeakingCompleted(SpeechSynthesisUtterance&, bool errorOccurred);
 
-    // EventTarget
-    ScriptExecutionContext* scriptExecutionContext() const final { return ActiveDOMObject::scriptExecutionContext(); }
+    ScriptExecutionContext* scriptExecutionContext() const final { return ContextDestructionObserver::scriptExecutionContext(); }
     EventTargetInterface eventTargetInterface() const final { return SpeechSynthesisEventTargetInterfaceType; }
     void refEventTarget() final { ref(); }
     void derefEventTarget() final { deref(); }
-    void eventListenersDidChange() final;
 
     PlatformSpeechSynthesizer& ensurePlatformSpeechSynthesizer();
 
     RefPtr<PlatformSpeechSynthesizer> m_platformSpeechSynthesizer;
-    std::optional<Vector<Ref<SpeechSynthesisVoice>>> m_voiceList;
-    std::unique_ptr<SpeechSynthesisUtteranceActivity> m_currentSpeechUtterance;
+    Vector<Ref<SpeechSynthesisVoice>> m_voiceList;
+    RefPtr<SpeechSynthesisUtterance> m_currentSpeechUtterance;
     Deque<Ref<SpeechSynthesisUtterance>> m_utteranceQueue;
     bool m_isPaused;
     BehaviorRestrictions m_restrictions;
     WeakPtr<SpeechSynthesisClient> m_speechSynthesisClient;
-    bool m_hasEventListener { false };
 };
 
 } // namespace WebCore

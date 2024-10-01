@@ -231,7 +231,7 @@ function(GI_DOCGEN namespace toml)
 
     install(
         DIRECTORY "${outdir}"
-        DESTINATION "${CMAKE_INSTALL_DATADIR}/doc"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/gtk-doc/html"
         COMPONENT development
     )
 

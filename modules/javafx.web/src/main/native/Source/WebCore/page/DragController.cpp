@@ -30,6 +30,7 @@
 #include "SVGAElement.h"
 #include "SVGElementTypeHelpers.h"
 
+
 #if ENABLE(DRAG_SUPPORT)
 #include "CachedImage.h"
 #include "CachedResourceLoader.h"
@@ -79,8 +80,6 @@
 #include "Position.h"
 #include "PromisedAttachmentInfo.h"
 #include "Range.h"
-#include "RemoteFrame.h"
-#include "RemoteUserInputEventData.h"
 #include "RenderAttachment.h"
 #include "RenderFileUploadControl.h"
 #include "RenderImage.h"
@@ -112,11 +111,12 @@ namespace WebCore {
 
 bool isDraggableLink(const Element& element)
 {
-    if (RefPtr anchorElement = dynamicDowncast<HTMLAnchorElement>(element)) {
-        if (!anchorElement->isLiveLink())
+    if (is<HTMLAnchorElement>(element)) {
+        auto& anchorElement = downcast<HTMLAnchorElement>(element);
+        if (!anchorElement.isLiveLink())
             return false;
 #if ENABLE(DATA_DETECTION)
-        return !DataDetection::isDataDetectorURL(anchorElement->href());
+        return !DataDetection::isDataDetectorURL(anchorElement.href());
 #else
         return true;
 #endif
@@ -131,7 +131,7 @@ bool isDraggableLink(const Element& element)
 static PlatformMouseEvent createMouseEvent(const DragData& dragData)
 {
     auto modifiers = PlatformKeyboardEvent::currentStateOfModifierKeys();
-    return PlatformMouseEvent(dragData.clientPosition(), dragData.globalPosition(), MouseButton::Left, PlatformEvent::Type::MouseMoved, 0, modifiers, WallTime::now(), ForceAtClick, SyntheticClickType::NoTap);
+    return PlatformMouseEvent(dragData.clientPosition(), dragData.globalPosition(), LeftButton, PlatformEvent::Type::MouseMoved, 0, modifiers, WallTime::now(), ForceAtClick, SyntheticClickType::NoTap);
 }
 
 DragController::DragController(Page& page, std::unique_ptr<DragClient>&& client)
@@ -210,15 +210,28 @@ void DragController::dragEnded()
     client().dragEnded();
 }
 
-void DragController::dragExited(LocalFrame& frame, DragData&& dragData)
+std::optional<DragOperation> DragController::dragEntered(DragData&& dragData)
+{
+    return dragEnteredOrUpdated(WTFMove(dragData));
+}
+
+void DragController::dragExited(DragData&& dragData)
 {
     disallowFileAccessIfNeeded(dragData);
-    if (frame.view())
-        frame.eventHandler().cancelDragAndDrop(createMouseEvent(dragData), Pasteboard::create(dragData), dragData.draggingSourceOperationMask(), dragData.containsFiles());
+    auto* localMainFrame = dynamicDowncast<LocalFrame>(m_page.mainFrame());
+    if (!localMainFrame)
+        return;
+    if (localMainFrame->view())
+        localMainFrame->eventHandler().cancelDragAndDrop(createMouseEvent(dragData), Pasteboard::create(dragData), dragData.draggingSourceOperationMask(), dragData.containsFiles());
     mouseMovedIntoDocument(nullptr);
     if (m_fileInputElementUnderMouse)
         m_fileInputElementUnderMouse->setCanReceiveDroppedFiles(false);
     m_fileInputElementUnderMouse = nullptr;
+}
+
+std::optional<DragOperation> DragController::dragUpdated(DragData&& dragData)
+{
+    return dragEnteredOrUpdated(WTFMove(dragData));
 }
 
 inline static bool dragIsHandledByDocument(DragHandlingMethod dragHandlingMethod)
@@ -304,21 +317,12 @@ void DragController::mouseMovedIntoDocument(Document* newDocument)
     m_documentUnderMouse = newDocument;
 }
 
-std::variant<std::optional<DragOperation>, RemoteUserInputEventData> DragController::dragEnteredOrUpdated(LocalFrame& frame, DragData&& dragData)
+std::optional<DragOperation> DragController::dragEnteredOrUpdated(DragData&& dragData)
 {
-    auto point = frame.protectedView()->windowToContents(dragData.clientPosition());
-    auto hitTestResult = HitTestResult(point);
-    if (frame.contentRenderer()) {
-        constexpr OptionSet<HitTestRequest::Type> hitType { HitTestRequest::Type::ReadOnly, HitTestRequest::Type::Active, HitTestRequest::Type::DisallowUserAgentShadowContent, HitTestRequest::Type::AllowChildFrameContent };
-        hitTestResult = frame.checkedEventHandler()->hitTestResultAtPoint(point, hitType);
-    }
-
-    if (RefPtr remoteSubframe = dynamicDowncast<RemoteFrame>(frame.checkedEventHandler()->subframeForTargetNode(hitTestResult.targetNode()))) {
-        // FIXME(264611): These mouse coordinates need to be correctly transformed.
-        return RemoteUserInputEventData { remoteSubframe->frameID(), dragData.clientPosition() };
-    }
-
-    mouseMovedIntoDocument(hitTestResult.innerNode() ? &hitTestResult.innerNode()->document() : nullptr);
+    auto* localMainFrame = dynamicDowncast<LocalFrame>(m_page.mainFrame());
+    if (!localMainFrame)
+        return std::nullopt;
+    mouseMovedIntoDocument(localMainFrame->documentAtPoint(dragData.clientPosition()));
 
     m_dragDestinationActionMask = dragData.dragDestinationActionMask();
     if (m_dragDestinationActionMask.isEmpty()) {
@@ -329,7 +333,7 @@ std::variant<std::optional<DragOperation>, RemoteUserInputEventData> DragControl
     disallowFileAccessIfNeeded(dragData);
 
     std::optional<DragOperation> dragOperation;
-    m_dragHandlingMethod = tryDocumentDrag(frame, dragData, m_dragDestinationActionMask, dragOperation);
+    m_dragHandlingMethod = tryDocumentDrag(dragData, m_dragDestinationActionMask, dragOperation);
     if (m_dragHandlingMethod == DragHandlingMethod::None && (m_dragDestinationActionMask.contains(DragDestinationAction::Load))) {
         dragOperation = operationForLoad(dragData);
         if (dragOperation)
@@ -348,11 +352,12 @@ void DragController::disallowFileAccessIfNeeded(DragData& dragData)
         dragData.disallowFileAccess();
 }
 
-static RefPtr<HTMLInputElement> asFileInput(Node& node)
+static HTMLInputElement* asFileInput(Node& node)
 {
-    RefPtr inputElement = dynamicDowncast<HTMLInputElement>(node);
-    if (!inputElement)
+    if (!is<HTMLInputElement>(node))
         return nullptr;
+
+    auto* inputElement = &downcast<HTMLInputElement>(node);
 
     // If this is a button inside of the a file input, move up to the file input.
     if (inputElement->isTextButton())
@@ -365,10 +370,10 @@ static RefPtr<HTMLInputElement> asFileInput(Node& node)
 
 static bool isEnabledColorInput(Node& node)
 {
-    RefPtr input = dynamicDowncast<HTMLInputElement>(node);
-    if (!input)
+    if (!is<HTMLInputElement>(node))
         return false;
-    return input->isColorControl() && !input->isDisabledFormControl();
+    auto& input = downcast<HTMLInputElement>(node);
+    return input.isColorControl() && !input.isDisabledFormControl();
 }
 
 static bool isInShadowTreeOfEnabledColorInput(Node& node)
@@ -380,23 +385,20 @@ static bool isInShadowTreeOfEnabledColorInput(Node& node)
 #endif
 
 // This can return null if an empty document is loaded.
-static Element* elementUnderMouse(Document& documentUnderMouse, const IntPoint& p)
+static Element* elementUnderMouse(Document* documentUnderMouse, const IntPoint& p)
 {
-    auto* frame = documentUnderMouse.frame();
+    auto* frame = documentUnderMouse->frame();
     float zoomFactor = frame ? frame->pageZoomFactor() : 1;
     LayoutPoint point(p.x() * zoomFactor, p.y() * zoomFactor);
 
     HitTestResult result(point);
-    documentUnderMouse.hitTest(HitTestRequest(), result);
+    documentUnderMouse->hitTest(HitTestRequest(), result);
 
     auto* node = result.innerNode();
     if (!node)
         return nullptr;
-
     // FIXME: Use parentElementInComposedTree here.
-    auto* element = dynamicDowncast<Element>(*node);
-    if (!element)
-        element = node->parentElement();
+    auto* element = is<Element>(*node) ? &downcast<Element>(*node) : node->parentElement();
     auto* host = element->shadowHost();
     return host ? host : element;
 }
@@ -409,7 +411,7 @@ void DragController::updateSupportedTypeIdentifiersForDragHandlingMethod(DragHan
 
 #endif
 
-DragHandlingMethod DragController::tryDocumentDrag(LocalFrame& frame, const DragData& dragData, OptionSet<DragDestinationAction> destinationActionMask, std::optional<DragOperation>& dragOperation)
+DragHandlingMethod DragController::tryDocumentDrag(const DragData& dragData, OptionSet<DragDestinationAction> destinationActionMask, std::optional<DragOperation>& dragOperation)
 {
     if (!m_documentUnderMouse)
         return DragHandlingMethod::None;
@@ -419,7 +421,7 @@ DragHandlingMethod DragController::tryDocumentDrag(LocalFrame& frame, const Drag
 
     bool isHandlingDrag = false;
     if (destinationActionMask.contains(DragDestinationAction::DHTML)) {
-        isHandlingDrag = tryDHTMLDrag(frame, dragData, dragOperation);
+        isHandlingDrag = tryDHTMLDrag(dragData, dragOperation);
         // Do not continue if m_documentUnderMouse has been reset by tryDHTMLDrag.
         // tryDHTMLDrag fires dragenter event. The event listener that listens
         // to this event may create a nested message loop (open a modal dialog),
@@ -448,11 +450,11 @@ DragHandlingMethod DragController::tryDocumentDrag(LocalFrame& frame, const Drag
         }
 
         IntPoint point = frameView->windowToContents(dragData.clientPosition());
-        RefPtr element = elementUnderMouse(*protectedDocumentUnderMouse(), point);
+        Element* element = elementUnderMouse(m_documentUnderMouse.get(), point);
         if (!element)
             return DragHandlingMethod::None;
 
-        RefPtr elementAsFileInput = asFileInput(*element);
+        HTMLInputElement* elementAsFileInput = asFileInput(*element);
         if (m_fileInputElementUnderMouse != elementAsFileInput) {
             if (m_fileInputElementUnderMouse)
                 m_fileInputElementUnderMouse->setCanReceiveDroppedFiles(false);
@@ -562,7 +564,7 @@ bool DragController::concludeEditDrag(const DragData& dragData)
         return false;
 
     IntPoint point = m_documentUnderMouse->view()->windowToContents(dragData.clientPosition());
-    RefPtr element = elementUnderMouse(*protectedDocumentUnderMouse(), point);
+    Element* element = elementUnderMouse(m_documentUnderMouse.get(), point);
     if (!element)
         return false;
     RefPtr innerFrame = element->document().frame();
@@ -734,16 +736,20 @@ static std::optional<DragOperation> defaultOperationForDrag(OptionSet<DragOperat
     return DragOperation::Generic;
 }
 
-bool DragController::tryDHTMLDrag(LocalFrame& frame, const DragData& dragData, std::optional<DragOperation>& operation)
+bool DragController::tryDHTMLDrag(const DragData& dragData, std::optional<DragOperation>& operation)
 {
     ASSERT(m_documentUnderMouse);
-    Ref protectedFrame(frame);
-    RefPtr viewProtector = protectedFrame->view();
+    auto* localMainFrame = dynamicDowncast<LocalFrame>(m_page.mainFrame());
+    if (!localMainFrame)
+        return false;
+
+    Ref protectedLocalMainFrame(*localMainFrame);
+    RefPtr viewProtector = protectedLocalMainFrame->view();
     if (!viewProtector)
         return false;
 
     auto sourceOperationMask = dragData.draggingSourceOperationMask();
-    auto targetResponse = protectedFrame->eventHandler().updateDragAndDrop(createMouseEvent(dragData), [&dragData]() {
+    auto targetResponse = protectedLocalMainFrame->eventHandler().updateDragAndDrop(createMouseEvent(dragData), [&dragData]() {
         return Pasteboard::create(dragData);
     }, sourceOperationMask, dragData.containsFiles());
     if (!targetResponse.accept)
@@ -765,11 +771,10 @@ static bool imageElementIsDraggable(const HTMLImageElement& image, const LocalFr
         return true;
 
     auto* renderer = image.renderer();
-    CheckedPtr renderImage = dynamicDowncast<RenderImage>(renderer);
-    if (!renderImage)
+    if (!is<RenderImage>(renderer))
         return false;
 
-    CachedResourceHandle cachedImage = renderImage->cachedImage();
+    auto* cachedImage = downcast<RenderImage>(*renderer).cachedImage();
     return cachedImage && !cachedImage->errorOccurred() && cachedImage->imageForRenderer(renderer);
 }
 
@@ -786,10 +791,13 @@ static bool modelElementIsDraggable(const HTMLModelElement& modelElement)
 
 static RefPtr<HTMLAttachmentElement> enclosingAttachmentElement(Element& element)
 {
-    if (RefPtr attachment = dynamicDowncast<HTMLAttachmentElement>(element))
-        return attachment;
+    if (is<HTMLAttachmentElement>(element))
+        return downcast<HTMLAttachmentElement>(&element);
 
-    return dynamicDowncast<HTMLAttachmentElement>(element.parentOrShadowHostElement());
+    if (is<HTMLAttachmentElement>(element.parentOrShadowHostElement()))
+        return downcast<HTMLAttachmentElement>(element.parentOrShadowHostElement());
+
+    return { };
 }
 
 #endif
@@ -831,9 +839,9 @@ Element* DragController::draggableElement(const LocalFrame* sourceFrame, Element
             return element;
         }
         if (dragMode == UserDrag::Auto) {
-            if (RefPtr image = dynamicDowncast<HTMLImageElement>(*element); image
-                && m_dragSourceAction.contains(DragSourceAction::Image)
-                && imageElementIsDraggable(*image, *sourceFrame)) {
+            if ((m_dragSourceAction.contains(DragSourceAction::Image))
+                && is<HTMLImageElement>(*element)
+                && imageElementIsDraggable(downcast<HTMLImageElement>(*element), *sourceFrame)) {
                 state.type.add(DragSourceAction::Image);
                 return element;
             }
@@ -842,9 +850,9 @@ Element* DragController::draggableElement(const LocalFrame* sourceFrame, Element
                 return element;
             }
 #if ENABLE(ATTACHMENT_ELEMENT)
-            if (RefPtr attachment = dynamicDowncast<HTMLAttachmentElement>(*element); attachment
-                && m_dragSourceAction.contains(DragSourceAction::Attachment)
-                && attachment->file()) {
+            if (m_dragSourceAction.contains(DragSourceAction::Attachment)
+                && is<HTMLAttachmentElement>(*element)
+                && downcast<HTMLAttachmentElement>(*element).file()) {
                 state.type.add(DragSourceAction::Attachment);
                 return element;
             }
@@ -856,9 +864,7 @@ Element* DragController::draggableElement(const LocalFrame* sourceFrame, Element
             }
 #endif
 #if ENABLE(MODEL_ELEMENT)
-            if (RefPtr model = dynamicDowncast<HTMLModelElement>(*element); model
-                && m_dragSourceAction.contains(DragSourceAction::Model)
-                && modelElementIsDraggable(*model)) {
+            if (m_dragSourceAction.contains(DragSourceAction::Model) && is<HTMLModelElement>(*element) && modelElementIsDraggable(downcast<HTMLModelElement>(*element))) {
                 state.type.add(DragSourceAction::Model);
                 return element;
             }
@@ -872,8 +878,11 @@ Element* DragController::draggableElement(const LocalFrame* sourceFrame, Element
 
 static CachedImage* getCachedImage(Element& element)
 {
-    CheckedPtr renderImage = dynamicDowncast<RenderImage>(element.renderer());
-    return renderImage ? renderImage->cachedImage() : nullptr;
+    RenderObject* renderer = element.renderer();
+    if (!is<RenderImage>(renderer))
+        return nullptr;
+    auto& image = downcast<RenderImage>(*renderer);
+    return image.cachedImage();
 }
 
 static Image* getImage(Element& element)
@@ -1184,8 +1193,9 @@ bool DragController::startDrag(LocalFrame& src, const DragState& state, OptionSe
             // selected.  In this case, we should expand the selection to
             // the enclosing anchor element
             Position pos = sourceSelection.base();
-            if (RefPtr node = enclosingAnchorElement(pos))
-                src.selection().setSelection(VisibleSelection::selectionFromContentsOfNode(node.get()));
+            Node* node = enclosingAnchorElement(pos);
+            if (node)
+                src.selection().setSelection(VisibleSelection::selectionFromContentsOfNode(node));
         }
 
         client().willPerformDragSourceAction(DragSourceAction::Link, dragOrigin, dataTransfer);
@@ -1218,7 +1228,9 @@ bool DragController::startDrag(LocalFrame& src, const DragState& state, OptionSe
     }
 
 #if ENABLE(ATTACHMENT_ELEMENT)
-    if (RefPtr attachment = dynamicDowncast<HTMLAttachmentElement>(element); attachment && m_dragSourceAction.contains(DragSourceAction::Attachment)) {
+    if (is<HTMLAttachmentElement>(element) && m_dragSourceAction.contains(DragSourceAction::Attachment)) {
+        auto& attachment = downcast<HTMLAttachmentElement>(element);
+
         src.editor().setIgnoreSelectionChanges(true);
         auto previousSelection = src.selection().selection();
         selectElement(element);
@@ -1226,7 +1238,7 @@ bool DragController::startDrag(LocalFrame& src, const DragState& state, OptionSe
         PromisedAttachmentInfo promisedAttachment;
         if (hasData == HasNonDefaultPasteboardData::No) {
             auto& editor = src.editor();
-            promisedAttachment = editor.promisedAttachmentInfo(*attachment);
+            promisedAttachment = editor.promisedAttachmentInfo(attachment);
 #if PLATFORM(COCOA)
             if (!promisedAttachment && editor.client()) {
                 // Otherwise, if no file URL is specified, call out to the injected bundle to populate the pasteboard with data.
@@ -1241,7 +1253,7 @@ bool DragController::startDrag(LocalFrame& src, const DragState& state, OptionSe
 
         if (!dragImage) {
             TextIndicatorData textIndicator;
-            auto* attachmentRenderer = dynamicDowncast<RenderAttachment>(attachment->renderer());
+            auto* attachmentRenderer = dynamicDowncast<RenderAttachment>(attachment.renderer());
             if (attachmentRenderer)
                 attachmentRenderer->setShouldDrawBorder(false);
             dragImage = DragImage { dissolveDragImageToFraction(createDragImageForSelection(src, textIndicator), DragImageAlpha) };
@@ -1261,13 +1273,13 @@ bool DragController::startDrag(LocalFrame& src, const DragState& state, OptionSe
 #endif
 
 #if ENABLE(INPUT_TYPE_COLOR)
-    if (RefPtr input = dynamicDowncast<HTMLInputElement>(state.source); input
-        && m_dragSourceAction.contains(DragSourceAction::Color)
-        && input->isColorControl()) {
-        auto color = input->valueAsColor();
+    bool isColorControl = is<HTMLInputElement>(state.source) && downcast<HTMLInputElement>(*state.source).isColorControl();
+    if (isColorControl && m_dragSourceAction.contains(DragSourceAction::Color)) {
+        auto& input = downcast<HTMLInputElement>(*state.source);
+        auto color = input.valueAsColor();
 
         Path visiblePath;
-        dragImage = DragImage { createDragImageForColor(color, input->boundsInRootViewSpace(), input->document().page()->pageScaleFactor(), visiblePath) };
+        dragImage = DragImage { createDragImageForColor(color, input.boundsInRootViewSpace(), input.document().page()->pageScaleFactor(), visiblePath) };
         dragImage.setVisiblePath(visiblePath);
         dataTransfer.pasteboard().write(color);
         dragImageOffset = IntPoint { dragImageSize(dragImage.get()) };
@@ -1280,13 +1292,15 @@ bool DragController::startDrag(LocalFrame& src, const DragState& state, OptionSe
 #endif
 
 #if ENABLE(MODEL_ELEMENT)
-    if (RefPtr modelElement = dynamicDowncast<HTMLModelElement>(state.source); modelElement && m_dragSourceAction.contains(DragSourceAction::Model)) {
-        dragImage = DragImage { createDragImageForNode(src, *modelElement) };
+    bool isModel = is<HTMLModelElement>(state.source);
+    if (isModel && m_dragSourceAction.contains(DragSourceAction::Model)) {
+        auto& modelElement = downcast<HTMLModelElement>(*state.source);
+        dragImage = DragImage { createDragImageForNode(src, modelElement) };
 
         PasteboardImage pasteboardImage;
-        pasteboardImage.suggestedName = modelElement->currentSrc().lastPathComponent().toString();
-        pasteboardImage.resourceMIMEType = modelElement->model()->mimeType();
-        pasteboardImage.resourceData = modelElement->model()->data();
+        pasteboardImage.suggestedName = modelElement.currentSrc().lastPathComponent().toString();
+        pasteboardImage.resourceMIMEType = modelElement.model()->mimeType();
+        pasteboardImage.resourceData = modelElement.model()->data();
         dataTransfer.pasteboard().write(pasteboardImage);
 
         dragImageOffset = IntPoint { dragImageSize(dragImage.get()) };
@@ -1361,9 +1375,12 @@ void DragController::beginDrag(DragItem dragItem, LocalFrame& frame, const IntPo
     m_didInitiateDrag = true;
     m_dragInitiator = frame.document();
 
+    auto* localMainFrame = dynamicDowncast<LocalFrame>(m_page.mainFrame());
+    if (!localMainFrame)
+        return;
     // Protect this frame and view, as a load may occur mid drag and attempt to unload this frame
-    Ref protectedLocalMainFrame(m_page.mainFrame());
-    RefPtr viewProtector = protectedLocalMainFrame->virtualView();
+    Ref protectedLocalMainFrame(*localMainFrame);
+    RefPtr viewProtector = protectedLocalMainFrame->view();
 
     auto mouseDownPointInRootViewCoordinates = viewProtector->rootViewToContents(frame.view()->contentsToRootView(mouseDownPoint));
     auto mouseDraggedPointInRootViewCoordinates = viewProtector->rootViewToContents(frame.view()->contentsToRootView(mouseDraggedPoint));
@@ -1384,9 +1401,12 @@ void DragController::doSystemDrag(DragImage image, const IntPoint& dragLoc, cons
 {
     m_didInitiateDrag = true;
     m_dragInitiator = frame.document();
+    auto* localMainFrame = dynamicDowncast<LocalFrame>(m_page.mainFrame());
+    if (!localMainFrame)
+        return;
     // Protect this frame and view, as a load may occur mid drag and attempt to unload this frame
-    Ref protectedMainFrame(m_page.mainFrame());
-    RefPtr viewProtector = protectedMainFrame->virtualView();
+    Ref protectedLocalMainFrame(*localMainFrame);
+    RefPtr viewProtector = protectedLocalMainFrame->view();
 
     DragItem item;
     item.image = WTFMove(image);
@@ -1424,9 +1444,9 @@ void DragController::doSystemDrag(DragImage image, const IntPoint& dragLoc, cons
             item.url = frame.document()->completeURL(link->getAttribute(HTMLNames::hrefAttr));
         }
     }
-    client().startDrag(WTFMove(item), *state.dataTransfer, protectedMainFrame.get());
+    client().startDrag(WTFMove(item), *state.dataTransfer, protectedLocalMainFrame.get());
     // DragClient::startDrag can cause our Page to dispear, deallocating |this|.
-    if (!protectedMainFrame->page())
+    if (!protectedLocalMainFrame->page())
         return;
 
     cleanupAfterSystemDrag();
@@ -1455,13 +1475,12 @@ bool DragController::tryToUpdateDroppedImagePlaceholders(const DragData& dragDat
     auto pasteboard = Pasteboard::create(dragData);
     pasteboard->read(reader);
 
-    auto fragment = reader.protectedFragment();
-    if (!fragment)
+    if (!reader.fragment)
         return false;
 
     Vector<Ref<HTMLImageElement>> imageElements;
-    for (Ref imageElement : descendantsOfType<HTMLImageElement>(*fragment))
-        imageElements.append(WTFMove(imageElement));
+    for (auto& imageElement : descendantsOfType<HTMLImageElement>(*reader.fragment))
+        imageElements.append(imageElement);
 
     if (imageElements.size() != m_droppedImagePlaceholders.size()) {
         ASSERT_NOT_REACHED();
@@ -1523,14 +1542,14 @@ void DragController::insertDroppedImagePlaceholdersAtCaret(const Vector<IntSize>
         return;
     }
 
-    RefPtr container = dynamicDowncast<ContainerNode>(commonInclusiveAncestor<ComposedTree>(*insertedContentRange));
-    if (!container) {
+    auto container = commonInclusiveAncestor<ComposedTree>(*insertedContentRange);
+    if (!is<ContainerNode>(container)) {
         ASSERT_NOT_REACHED();
         return;
     }
 
     Vector<Ref<HTMLImageElement>> placeholders;
-    for (auto& placeholder : descendantsOfType<HTMLImageElement>(*container)) {
+    for (auto& placeholder : descendantsOfType<HTMLImageElement>(downcast<ContainerNode>(*container))) {
         if (intersects<ComposedTree>(*insertedContentRange, placeholder))
             placeholders.append(placeholder);
     }

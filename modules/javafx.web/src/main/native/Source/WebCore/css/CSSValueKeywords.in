@@ -135,13 +135,6 @@ full-width
 proportional-width
 ruby
 
-// font-variant-emoji
-//
-// normal
-// text
-emoji
-unicode
-
 //
 // CSS_PROP_FONT_WEIGHT:
 //
@@ -533,11 +526,7 @@ flow-root
 flow
 -webkit-inline-flex
 -webkit-flex
-// ruby
-block-ruby
-ruby-base
-ruby-text
-// none
+//none
 //
 // CSS_PROP_CURSOR:
 // The order here must match the order of the CursorType enum in RenderStyleConstants.h.
@@ -677,8 +666,8 @@ end
 //baseline
 
 // CSS_PROP_BOX_DECORATION_BREAK
-clone
-slice
+clone enable-if=ENABLE_CSS_BOX_DECORATION_BREAK
+slice enable-if=ENABLE_CSS_BOX_DECORATION_BREAK
 
 // CSS_PROP_BOX_DIRECTION
 // normal
@@ -700,7 +689,7 @@ block-axis
 single
 multiple
 
-// align-content
+// align-content / align-tracks
 flex-start
 flex-end
 // center
@@ -718,7 +707,7 @@ first-baseline
 last-baseline
 // stretch
 
-// justify-content
+// justify-content / justify-tracks
 // start
 // end
 // flex-start
@@ -855,7 +844,6 @@ skip-white-space
 //
 // CSS_PROP_WORD_BREAK
 //
-auto-phrase
 break-all
 keep-all
 
@@ -966,6 +954,7 @@ exclude
 // Variables Implementation
 //
 var
+-internal-variable-value
 
 //
 // Environment Variables
@@ -1059,17 +1048,6 @@ accumulate
 replace
 
 //
-// animation-timeline
-//
-// auto
-// none
-// scroll
-nearest
-root
-self
-view
-
-//
 // CSS_PROP_ZOOM
 //
 document
@@ -1136,7 +1114,7 @@ manual
 // auto
 touch enable-if=ENABLE_OVERFLOW_SCROLLING_TOUCH
 
-// writing-mode
+// -webkit-writing-mode
 // SVG compatibility
 lr
 rl
@@ -1146,11 +1124,8 @@ rl-tb
 tb-rl
 // Standard values from CSS3
 horizontal-tb
-vertical-lr
 vertical-rl
-sideways-lr
-sideways-rl
-// Non-standard
+vertical-lr
 horizontal-bt
 
 // -webkit-ruby-position
@@ -1449,7 +1424,6 @@ fill-box
 
 // motion path
 path
-xywh
 
 calc
 -webkit-calc
@@ -1474,7 +1448,7 @@ sign
 mod
 rem
 to-zero
-// nearest
+nearest
 infinity
 -infinity id=NegativeInfinity
 NaN
@@ -1591,9 +1565,6 @@ AAA-large
 
 // color-mix()
 color-mix
-
-// light-dark()
-light-dark
 
 // color-space-interpolation
 in
@@ -1751,16 +1722,3 @@ no-autospace
 // auto
 // stable
 both-edges
-
-// transition-behavior
-// normal
-allow-discrete
-
-// resize
-// none
-// both
-// horizontal
-// vertical
-// block
-// inline
--internal-textarea-auto

@@ -107,13 +107,13 @@ void AccessibilityMenuListPopup::addChildren()
     if (!m_parent)
         return;
 
-    RefPtr select = dynamicDowncast<HTMLSelectElement>(m_parent->node());
-    if (!select)
+    auto* parentNode = m_parent->node();
+    if (!is<HTMLSelectElement>(parentNode))
         return;
 
     m_childrenInitialized = true;
 
-    for (const auto& listItem : select->listItems()) {
+    for (const auto& listItem : downcast<HTMLSelectElement>(*parentNode).listItems()) {
         if (auto* menuListOptionObject = menuListOptionAccessibilityObject(listItem.get())) {
             menuListOptionObject->setParent(this);
             addChild(menuListOptionObject, DescendIfIgnored::No);

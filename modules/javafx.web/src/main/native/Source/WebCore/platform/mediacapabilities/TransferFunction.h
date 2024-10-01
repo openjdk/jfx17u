@@ -34,3 +34,16 @@ enum class TransferFunction : uint8_t {
 };
 
 } // namespace WebCore
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::TransferFunction> {
+    using values = EnumValues<
+        WebCore::TransferFunction,
+        WebCore::TransferFunction::SRGB,
+        WebCore::TransferFunction::PQ,
+        WebCore::TransferFunction::HLG
+    >;
+};
+
+}

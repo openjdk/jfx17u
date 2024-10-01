@@ -48,37 +48,41 @@ private:
 #if COMPILER(MSVC)
 #pragma warning(disable: 4701)
 #endif
-    template<typename DataType>
+    template<typename DataType, typename ByteType>
     DataType readType()
     {
-        DataType data;
-        size_t dataSize = sizeof(DataType);
+        ByteType data;
+        size_t typeSize = sizeof(ByteType);
 
-        ASSERT_WITH_SECURITY_IMPLICATION(m_streamCurrent + dataSize <= m_streamEnd);
-        memcpy(&data, m_streamCurrent, dataSize);
-        m_streamCurrent += dataSize;
-        return data;
+        for (size_t i = 0; i < typeSize; ++i) {
+            ASSERT_WITH_SECURITY_IMPLICATION(m_streamCurrent < m_streamEnd);
+            data.bytes[i] = *m_streamCurrent;
+            ++m_streamCurrent;
         }
+
+        return data.value;
+    }
 
     bool readFlag()
     {
-        return readType<bool>();
+        return readType<bool, BoolByte>();
     }
 
     float readFloat()
     {
-        return readType<float>();
+        return readType<float, FloatByte>();
     }
 
-    SVGPathSegType readSVGSegmentType()
+    unsigned short readSVGSegmentType()
     {
-        static_assert(std::is_same_v<std::underlying_type_t<SVGPathSegType>, uint8_t>);
-        return static_cast<SVGPathSegType>(readType<uint8_t>());
+        return readType<unsigned short, UnsignedShortByte>();
     }
 
     FloatPoint readFloatPoint()
     {
-        return readType<FloatPoint>();
+        float x = readType<float, FloatByte>();
+        float y = readType<float, FloatByte>();
+        return FloatPoint(x, y);
     }
 
     SVGPathByteStream::DataIterator m_streamCurrent;

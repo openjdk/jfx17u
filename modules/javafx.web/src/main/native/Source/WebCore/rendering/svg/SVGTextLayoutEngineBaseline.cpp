@@ -101,7 +101,7 @@ AlignmentBaseline SVGTextLayoutEngineBaseline::dominantBaselineToAlignmentBaseli
         return AlignmentBaseline::TextBeforeEdge;
     default:
         ASSERT_NOT_REACHED();
-        return AlignmentBaseline::Baseline;
+        return AlignmentBaseline::Auto;
     }
 }
 
@@ -111,9 +111,9 @@ float SVGTextLayoutEngineBaseline::calculateAlignmentBaselineShift(bool isVertic
     ASSERT(textRendererParent);
 
     AlignmentBaseline baseline = textRenderer.style().svgStyle().alignmentBaseline();
-    if (baseline == AlignmentBaseline::Baseline) {
+    if (baseline == AlignmentBaseline::Auto || baseline == AlignmentBaseline::Baseline) {
         baseline = dominantBaselineToAlignmentBaseline(isVerticalText, textRendererParent);
-        ASSERT(baseline != AlignmentBaseline::Baseline);
+        ASSERT(baseline != AlignmentBaseline::Auto && baseline != AlignmentBaseline::Baseline);
     }
 
     const FontMetrics& fontMetrics = m_font.metricsOfPrimaryFont();
@@ -138,6 +138,9 @@ float SVGTextLayoutEngineBaseline::calculateAlignmentBaselineShift(bool isVertic
     case AlignmentBaseline::Mathematical:
         return fontMetrics.floatAscent() / 2;
     case AlignmentBaseline::Baseline:
+        ASSERT_NOT_REACHED();
+        return 0;
+    case AlignmentBaseline::Auto:
         ASSERT_NOT_REACHED();
         return 0;
     }

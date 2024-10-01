@@ -27,6 +27,7 @@
 #include "CryptoAlgorithmRSA_OAEP.h"
 
 #if ENABLE(WEB_CRYPTO)
+
 #include "CryptoAlgorithmRsaHashedImportParams.h"
 #include "CryptoAlgorithmRsaHashedKeyGenParams.h"
 #include "CryptoAlgorithmRsaOaepParams.h"
@@ -58,7 +59,7 @@ CryptoAlgorithmIdentifier CryptoAlgorithmRSA_OAEP::identifier() const
 void CryptoAlgorithmRSA_OAEP::encrypt(const CryptoAlgorithmParameters& parameters, Ref<CryptoKey>&& key, Vector<uint8_t>&& plainText, VectorCallback&& callback, ExceptionCallback&& exceptionCallback, ScriptExecutionContext& context, WorkQueue& workQueue)
 {
     if (key->type() != CryptoKeyType::Public) {
-        exceptionCallback(ExceptionCode::InvalidAccessError);
+        exceptionCallback(InvalidAccessError);
         return;
     }
 
@@ -71,7 +72,7 @@ void CryptoAlgorithmRSA_OAEP::encrypt(const CryptoAlgorithmParameters& parameter
 void CryptoAlgorithmRSA_OAEP::decrypt(const CryptoAlgorithmParameters& parameters, Ref<CryptoKey>&& key, Vector<uint8_t>&& cipherText, VectorCallback&& callback, ExceptionCallback&& exceptionCallback, ScriptExecutionContext& context, WorkQueue& workQueue)
 {
     if (key->type() != CryptoKeyType::Private) {
-        exceptionCallback(ExceptionCode::InvalidAccessError);
+        exceptionCallback(InvalidAccessError);
         return;
     }
 
@@ -86,7 +87,7 @@ void CryptoAlgorithmRSA_OAEP::generateKey(const CryptoAlgorithmParameters& param
     const auto& rsaParameters = downcast<CryptoAlgorithmRsaHashedKeyGenParams>(parameters);
 
     if (usages & (CryptoKeyUsageSign | CryptoKeyUsageVerify | CryptoKeyUsageDeriveKey | CryptoKeyUsageDeriveBits)) {
-        exceptionCallback(ExceptionCode::SyntaxError);
+        exceptionCallback(SyntaxError);
         return;
     }
 
@@ -96,7 +97,7 @@ void CryptoAlgorithmRSA_OAEP::generateKey(const CryptoAlgorithmParameters& param
         capturedCallback(WTFMove(pair));
     };
     auto failureCallback = [capturedCallback = WTFMove(exceptionCallback)]() {
-        capturedCallback(ExceptionCode::OperationError);
+        capturedCallback(OperationError);
     };
     CryptoKeyRSA::generatePair(CryptoAlgorithmIdentifier::RSA_OAEP, rsaParameters.hashIdentifier, true, rsaParameters.modulusLength, rsaParameters.publicExponentVector(), extractable, usages, WTFMove(keyPairCallback), WTFMove(failureCallback), &context);
 }
@@ -124,12 +125,12 @@ void CryptoAlgorithmRSA_OAEP::importKey(CryptoKeyFormat format, KeyData&& data, 
         }
         isUsagesAllowed = isUsagesAllowed || !usages;
         if (!isUsagesAllowed) {
-            exceptionCallback(ExceptionCode::SyntaxError);
+            exceptionCallback(SyntaxError);
             return;
         }
 
         if (usages && !key.use.isNull() && key.use != "enc"_s) {
-            exceptionCallback(ExceptionCode::DataError);
+            exceptionCallback(DataError);
             return;
         }
 
@@ -154,7 +155,7 @@ void CryptoAlgorithmRSA_OAEP::importKey(CryptoKeyFormat format, KeyData&& data, 
             break;
         }
         if (!isMatched) {
-            exceptionCallback(ExceptionCode::DataError);
+            exceptionCallback(DataError);
             return;
         }
 
@@ -163,7 +164,7 @@ void CryptoAlgorithmRSA_OAEP::importKey(CryptoKeyFormat format, KeyData&& data, 
     }
     case CryptoKeyFormat::Spki: {
         if (usages && (usages ^ CryptoKeyUsageEncrypt) && (usages ^ CryptoKeyUsageWrapKey) && (usages ^ (CryptoKeyUsageEncrypt | CryptoKeyUsageWrapKey))) {
-            exceptionCallback(ExceptionCode::SyntaxError);
+            exceptionCallback(SyntaxError);
             return;
         }
         // FIXME: <webkit.org/b/165436>
@@ -172,7 +173,7 @@ void CryptoAlgorithmRSA_OAEP::importKey(CryptoKeyFormat format, KeyData&& data, 
     }
     case CryptoKeyFormat::Pkcs8: {
         if (usages && (usages ^ CryptoKeyUsageDecrypt) && (usages ^ CryptoKeyUsageUnwrapKey) && (usages ^ (CryptoKeyUsageDecrypt | CryptoKeyUsageUnwrapKey))) {
-            exceptionCallback(ExceptionCode::SyntaxError);
+            exceptionCallback(SyntaxError);
             return;
         }
         // FIXME: <webkit.org/b/165436>
@@ -180,11 +181,11 @@ void CryptoAlgorithmRSA_OAEP::importKey(CryptoKeyFormat format, KeyData&& data, 
         break;
     }
     default:
-        exceptionCallback(ExceptionCode::NotSupportedError);
+        exceptionCallback(NotSupportedError);
         return;
     }
     if (!result) {
-        exceptionCallback(ExceptionCode::DataError);
+        exceptionCallback(DataError);
         return;
     }
 
@@ -197,7 +198,7 @@ void CryptoAlgorithmRSA_OAEP::exportKey(CryptoKeyFormat format, Ref<CryptoKey>&&
     const auto& rsaKey = downcast<CryptoKeyRSA>(key.get());
 
     if (!rsaKey.keySizeInBits()) {
-        exceptionCallback(ExceptionCode::OperationError);
+        exceptionCallback(OperationError);
         return;
     }
 
@@ -248,12 +249,13 @@ void CryptoAlgorithmRSA_OAEP::exportKey(CryptoKeyFormat format, Ref<CryptoKey>&&
         break;
     }
     default:
-        exceptionCallback(ExceptionCode::NotSupportedError);
+        exceptionCallback(NotSupportedError);
         return;
     }
 
     callback(format, WTFMove(result));
 }
 
-} // namespace WebCore
+}
+
 #endif // ENABLE(WEB_CRYPTO)

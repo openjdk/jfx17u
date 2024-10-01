@@ -27,6 +27,8 @@
 
 #if ENABLE(APPLE_PAY_LATER_AVAILABILITY)
 
+#include <wtf/Forward.h>
+
 namespace WebCore {
 
 enum class ApplePayLaterAvailability : uint8_t {
@@ -36,5 +38,18 @@ enum class ApplePayLaterAvailability : uint8_t {
 };
 
 } // namespace WebCore
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::ApplePayLaterAvailability> {
+    using values = EnumValues<
+        WebCore::ApplePayLaterAvailability,
+        WebCore::ApplePayLaterAvailability::Available,
+        WebCore::ApplePayLaterAvailability::UnavailableItemIneligible,
+        WebCore::ApplePayLaterAvailability::UnavailableRecurringTransaction
+    >;
+};
+
+} // namespace WTF
 
 #endif // ENABLE(APPLE_PAY_LATER_AVAILABILITY)

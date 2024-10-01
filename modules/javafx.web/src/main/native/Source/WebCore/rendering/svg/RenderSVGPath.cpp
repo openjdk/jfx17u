@@ -8,7 +8,7 @@
  * Copyright (C) 2009 Jeff Schiller <codedread@gmail.com>
  * Copyright (C) 2011 Renata Hodovan <reni@webkit.org>
  * Copyright (C) 2011 University of Szeged
- * Copyright (C) 2020, 2021, 2022, 2023, 2024 Igalia S.L.
+ * Copyright (C) 2020, 2021, 2022 Igalia S.L.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -30,13 +30,10 @@
 #include "RenderSVGPath.h"
 
 #if ENABLE(LAYER_BASED_SVG_ENGINE)
+
 #include "Gradient.h"
-#include "ReferencedSVGResources.h"
-#include "RenderLayer.h"
-#include "RenderSVGResourceMarkerInlines.h"
 #include "RenderSVGShapeInlines.h"
 #include "RenderStyleInlines.h"
-#include "SVGMarkerElement.h"
 #include "SVGPathElement.h"
 #include "SVGSubpathData.h"
 #include <wtf/IsoMallocInlines.h>
@@ -46,34 +43,24 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderSVGPath);
 
 RenderSVGPath::RenderSVGPath(SVGGraphicsElement& element, RenderStyle&& style)
-    : RenderSVGShape(Type::SVGPath, element, WTFMove(style))
+    : RenderSVGShape(element, WTFMove(style))
 {
-    ASSERT(isRenderSVGPath());
 }
 
 RenderSVGPath::~RenderSVGPath() = default;
 
 void RenderSVGPath::updateShapeFromElement()
 {
-    clearPath();
-    m_shapeType = ShapeType::Empty;
-    m_fillBoundingBox = ensurePath().boundingRect();
-    m_strokeBoundingBox = std::nullopt;
-    m_approximateStrokeBoundingBox = std::nullopt;
-    updateMarkerPositions();
+    RenderSVGShape::updateShapeFromElement();
     updateZeroLengthSubpaths();
 
-    ASSERT(hasPath());
-    if (path().isEmpty())
-        return;
-    if (path().definitelySingleLine())
-        m_shapeType = ShapeType::Line;
-    else
-        m_shapeType = ShapeType::Path;
+    m_strokeBoundingBox = calculateUpdatedStrokeBoundingBox();
 }
 
-FloatRect RenderSVGPath::adjustStrokeBoundingBoxForZeroLengthLinecaps(RepaintRectCalculation, FloatRect strokeBoundingBox) const
+FloatRect RenderSVGPath::calculateUpdatedStrokeBoundingBox() const
 {
+    FloatRect strokeBoundingBox = m_strokeBoundingBox;
+
     if (style().svgStyle().hasStroke()) {
         // FIXME: zero-length subpaths do not respect vector-effect = non-scaling-stroke.
         float strokeWidth = this->strokeWidth();
@@ -184,98 +171,6 @@ void RenderSVGPath::strokeZeroLengthSubpaths(GraphicsContext& context) const
             usePath = nonScalingStrokePath(usePath, nonScalingTransform);
         context.fillPath(*usePath);
     }
-}
-
-static inline RenderSVGResourceMarker* markerForType(SVGMarkerType type, RenderSVGResourceMarker* markerStart, RenderSVGResourceMarker* markerMid, RenderSVGResourceMarker* markerEnd)
-{
-    switch (type) {
-    case StartMarker:
-        return markerStart;
-    case MidMarker:
-        return markerMid;
-    case EndMarker:
-        return markerEnd;
-    }
-
-    ASSERT_NOT_REACHED();
-    return 0;
-}
-
-bool RenderSVGPath::shouldGenerateMarkerPositions() const
-{
-    if (style().svgStyle().hasMarkers() && graphicsElement().supportsMarkers())
-        return svgMarkerStartResourceFromStyle() || svgMarkerMidResourceFromStyle() || svgMarkerEndResourceFromStyle();
-    return false;
-}
-
-void RenderSVGPath::drawMarkers(PaintInfo& paintInfo)
-{
-    if (m_markerPositions.isEmpty())
-        return;
-
-    if (SVGHitTestCycleDetectionScope::isVisiting(*this))
-        return;
-
-    SVGHitTestCycleDetectionScope paintScope(*this);
-
-    auto* markerStart = svgMarkerStartResourceFromStyle();
-    auto* markerMid = svgMarkerMidResourceFromStyle();
-    auto* markerEnd = svgMarkerEndResourceFromStyle();
-    if (!markerStart && !markerMid && !markerEnd)
-        return;
-
-    float strokeWidth = this->strokeWidth();
-    for (auto& markerPosition : m_markerPositions) {
-        if (auto* marker = markerForType(markerPosition.type, markerStart, markerMid, markerEnd); marker && marker->hasLayer()) {
-            auto& context = paintInfo.context();
-            GraphicsContextStateSaver stateSaver(context);
-
-            auto contentTransform = marker->markerTransformation(markerPosition.origin, markerPosition.angle, strokeWidth);
-            marker->layer()->paintSVGResourceLayer(context, contentTransform);
-        }
-    }
-}
-
-FloatRect RenderSVGPath::computeMarkerBoundingBox(const SVGBoundingBoxComputation::DecorationOptions& options) const
-{
-    if (m_markerPositions.isEmpty())
-        return { };
-
-    if (SVGHitTestCycleDetectionScope::isVisiting(*this))
-        return { };
-
-    SVGHitTestCycleDetectionScope queryScope(*this);
-
-    auto* markerStart = svgMarkerStartResourceFromStyle();
-    auto* markerMid = svgMarkerMidResourceFromStyle();
-    auto* markerEnd = svgMarkerEndResourceFromStyle();
-    if (!markerStart && !markerMid && !markerEnd)
-        return { };
-
-    FloatRect boundaries;
-    for (auto& markerPosition : m_markerPositions) {
-        if (auto* marker = markerForType(markerPosition.type, markerStart, markerMid, markerEnd))
-            boundaries.unite(marker->computeMarkerBoundingBox(options, marker->markerTransformation(markerPosition.origin, markerPosition.angle, strokeWidth())));
-    }
-
-    return boundaries;
-}
-
-void RenderSVGPath::updateMarkerPositions()
-{
-    m_markerPositions.clear();
-
-    if (!shouldGenerateMarkerPositions())
-        return;
-
-    ASSERT(hasPath());
-    auto* markerStart = svgMarkerStartResourceFromStyle();
-
-    SVGMarkerData markerData(m_markerPositions, markerStart ? markerStart->hasReverseStart() : false);
-    path().applyElements([&markerData](const PathElement& pathElement) {
-        SVGMarkerData::updateFromPathElement(markerData, pathElement);
-    });
-    markerData.pathIsDone();
 }
 
 bool RenderSVGPath::isRenderingDisabled() const

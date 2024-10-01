@@ -29,32 +29,34 @@
 #pragma once
 
 #include "JSRunLoopTimer.h"
-#include "Synchronousness.h"
 #include <wtf/RefPtr.h>
+
+#if USE(CF)
+#include <CoreFoundation/CoreFoundation.h>
+#endif
 
 namespace JSC {
 
 class FullGCActivityCallback;
 class Heap;
 
-class GCActivityCallback : public JSRunLoopTimer {
+class JS_EXPORT_PRIVATE GCActivityCallback : public JSRunLoopTimer {
 public:
     using Base = JSRunLoopTimer;
+    static RefPtr<FullGCActivityCallback> tryCreateFullTimer(Heap*);
+    static RefPtr<GCActivityCallback> tryCreateEdenTimer(Heap*);
 
-    JS_EXPORT_PRIVATE GCActivityCallback(Heap&, Synchronousness);
-    JS_EXPORT_PRIVATE ~GCActivityCallback();
+    GCActivityCallback(Heap*);
 
-    JS_EXPORT_PRIVATE void doWork(VM&) override;
+    void doWork(VM&) override;
 
     virtual void doCollection(VM&) = 0;
 
     void didAllocate(Heap&, size_t);
     void willCollect();
-    JS_EXPORT_PRIVATE void cancel();
+    void cancel();
     bool isEnabled() const { return m_enabled; }
     void setEnabled(bool enabled) { m_enabled = enabled; }
-    bool didGCRecently() const { return m_didGCRecently; }
-    void setDidGCRecently(bool didGCRecently) { m_didGCRecently = didGCRecently; }
 
     static bool s_shouldCreateGCTimer;
 
@@ -62,14 +64,21 @@ protected:
     virtual Seconds lastGCLength(Heap&) = 0;
     virtual double gcTimeSlice(size_t bytes) = 0;
     virtual double deathRate(Heap&) = 0;
-    JS_EXPORT_PRIVATE void scheduleTimer(Seconds);
 
-    GCActivityCallback(VM&, Synchronousness);
+    GCActivityCallback(VM& vm)
+        : Base(vm)
+        , m_enabled(true)
+        , m_delay(s_decade)
+    {
+    }
 
-    Synchronousness m_synchronousness { Synchronousness::Async };
-    bool m_enabled { true };
-    bool m_didGCRecently { false };
-    Seconds m_delay { s_decade };
+    bool m_enabled;
+
+protected:
+    void scheduleTimer(Seconds);
+
+private:
+    Seconds m_delay;
 };
 
 } // namespace JSC

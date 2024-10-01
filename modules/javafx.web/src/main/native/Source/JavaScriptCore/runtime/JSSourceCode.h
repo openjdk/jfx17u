@@ -46,7 +46,10 @@ public:
         return vm.sourceCodeSpace<mode>();
     }
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        return Structure::create(vm, globalObject, prototype, TypeInfo(JSSourceCodeType, StructureFlags), info());
+    }
 
     static JSSourceCode* create(VM& vm, Structure* structure, SourceCode&& sourceCode)
     {

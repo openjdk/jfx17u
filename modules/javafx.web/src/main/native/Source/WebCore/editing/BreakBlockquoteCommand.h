@@ -31,13 +31,13 @@ namespace WebCore {
 
 class BreakBlockquoteCommand : public CompositeEditCommand {
 public:
-    static Ref<BreakBlockquoteCommand> create(Ref<Document>&& document)
+    static Ref<BreakBlockquoteCommand> create(Document& document)
     {
-        return adoptRef(*new BreakBlockquoteCommand(WTFMove(document)));
+        return adoptRef(*new BreakBlockquoteCommand(document));
     }
 
 private:
-    explicit BreakBlockquoteCommand(Ref<Document>&&);
+    explicit BreakBlockquoteCommand(Document&);
     void doApply() override;
 };
 

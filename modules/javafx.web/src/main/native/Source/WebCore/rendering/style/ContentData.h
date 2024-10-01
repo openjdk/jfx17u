@@ -192,13 +192,13 @@ inline bool operator==(const ContentData& a, const ContentData& b)
 
     switch (a.type()) {
     case ContentData::CounterDataType:
-        return uncheckedDowncast<CounterContentData>(a) == uncheckedDowncast<CounterContentData>(b);
+        return downcast<CounterContentData>(a) == downcast<CounterContentData>(b);
     case ContentData::ImageDataType:
-        return uncheckedDowncast<ImageContentData>(a) == uncheckedDowncast<ImageContentData>(b);
+        return downcast<ImageContentData>(a) == downcast<ImageContentData>(b);
     case ContentData::QuoteDataType:
-        return uncheckedDowncast<QuoteContentData>(a) == uncheckedDowncast<QuoteContentData>(b);
+        return downcast<QuoteContentData>(a) == downcast<QuoteContentData>(b);
     case ContentData::TextDataType:
-        return uncheckedDowncast<TextContentData>(a) == uncheckedDowncast<TextContentData>(b);
+        return downcast<TextContentData>(a) == downcast<TextContentData>(b);
     }
 
     ASSERT_NOT_REACHED();

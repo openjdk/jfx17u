@@ -53,10 +53,10 @@ PaymentRequestUpdateEvent::~PaymentRequestUpdateEvent() = default;
 ExceptionOr<void> PaymentRequestUpdateEvent::updateWith(Ref<DOMPromise>&& detailsPromise)
 {
     if (!isTrusted())
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
 
     if (m_waitForUpdate)
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
 
     stopPropagation();
     stopImmediatePropagation();
@@ -70,7 +70,7 @@ ExceptionOr<void> PaymentRequestUpdateEvent::updateWith(Ref<DOMPromise>&& detail
         reason = PaymentRequest::UpdateReason::PaymentMethodChanged;
     else {
         ASSERT_NOT_REACHED();
-        return Exception { ExceptionCode::TypeError };
+        return Exception { TypeError };
     }
 
     auto exception = downcast<PaymentRequest>(target())->updateWith(reason, WTFMove(detailsPromise));

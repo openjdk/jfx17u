@@ -83,8 +83,7 @@ bool isValidMarkerStyleProperty(CSSPropertyID id)
     case CSSPropertyTextEmphasisStyle:
     case CSSPropertyTextShadow:
     case CSSPropertyTextTransform:
-    case CSSPropertyTextWrapMode:
-    case CSSPropertyTextWrapStyle:
+    case CSSPropertyTextWrap:
     case CSSPropertyUnicodeBidi:
     case CSSPropertyWordBreak:
     case CSSPropertyWordSpacing:
@@ -99,7 +98,6 @@ bool isValidMarkerStyleProperty(CSSPropertyID id)
     case CSSPropertyAnimationPlayState:
     case CSSPropertyAnimationComposition:
     case CSSPropertyAnimationName:
-    case CSSPropertyTransitionBehavior:
     case CSSPropertyTransitionDuration:
     case CSSPropertyTransitionTimingFunction:
     case CSSPropertyTransitionDelay:
@@ -146,8 +144,7 @@ bool isValidCueStyleProperty(CSSPropertyID id)
     case CSSPropertyWhiteSpaceCollapse:
     case CSSPropertyTextDecorationLine:
     case CSSPropertyTextShadow:
-    case CSSPropertyTextWrapMode:
-    case CSSPropertyTextWrapStyle:
+    case CSSPropertyTextWrap:
     case CSSPropertyBorderStyle:
     case CSSPropertyPaintOrder:
     case CSSPropertyStrokeLinejoin:

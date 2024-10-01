@@ -35,6 +35,7 @@ private:
     Comment(Document&, String&&);
 
     String nodeName() const override;
+    NodeType nodeType() const override;
     Ref<Node> cloneNodeInternal(Document&, CloningOperation) override;
 };
 

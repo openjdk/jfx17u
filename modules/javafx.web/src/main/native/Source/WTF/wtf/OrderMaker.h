@@ -104,7 +104,10 @@ public:
             return *this;
         }
 
-        friend bool operator==(const iterator&, const iterator&) = default;
+        bool operator==(const iterator& other) const
+        {
+            return m_iter == other.m_iter;
+        }
 
     private:
         typename SentinelLinkedList<Node>::iterator m_iter;

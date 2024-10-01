@@ -29,36 +29,38 @@
 #include "WebGLSync.h"
 
 #include "HTMLCanvasElement.h"
+#include "WebGLContextGroup.h"
 #include "WebGLRenderingContextBase.h"
 #include <wtf/Lock.h>
 #include <wtf/Locker.h>
 
 namespace WebCore {
 
-RefPtr<WebGLSync> WebGLSync::create(WebGLRenderingContextBase& context)
+Ref<WebGLSync> WebGLSync::create(WebGLRenderingContextBase& ctx)
 {
-    auto object = context.protectedGraphicsContextGL()->fenceSync(GraphicsContextGL::SYNC_GPU_COMMANDS_COMPLETE, 0);
-    if (!object)
-        return nullptr;
-    return adoptRef(*new WebGLSync { context, object });
+    return adoptRef(*new WebGLSync(ctx));
 }
 
 WebGLSync::~WebGLSync()
 {
-    if (!m_context)
+    if (!hasGroupOrContext())
         return;
 
     runDestructor();
 }
 
-WebGLSync::WebGLSync(WebGLRenderingContextBase& context, GCGLsync object)
-    : WebGLObject(context, static_cast<PlatformGLObject>(-1)) // This value is unused because the sync object is a pointer type, but it needs to be non-zero or other parts of the code will assume the object is invalid.
-    , m_sync(object)
+WebGLSync::WebGLSync(WebGLRenderingContextBase& ctx)
+    : WebGLSharedObject(ctx)
+    , m_sync(ctx.graphicsContextGL()->fenceSync(GraphicsContextGL::SYNC_GPU_COMMANDS_COMPLETE, 0))
 {
+    // This value is unused because the sync object is a pointer type, but it needs to be non-zero
+    // or other parts of the code will assume the object is invalid.
+    setObject(-1);
 }
 
-void WebGLSync::deleteObjectImpl(const AbstractLocker&, GraphicsContextGL* context3d, PlatformGLObject)
+void WebGLSync::deleteObjectImpl(const AbstractLocker&, GraphicsContextGL* context3d, PlatformGLObject object)
 {
+    UNUSED_PARAM(object);
     context3d->deleteSync(m_sync);
     m_sync = nullptr;
 }
@@ -69,7 +71,7 @@ void WebGLSync::updateCache(WebGLRenderingContextBase& context)
         return;
 
     m_allowCacheUpdate = false;
-    m_syncStatus = context.protectedGraphicsContextGL()->getSynci(m_sync, GraphicsContextGL::SYNC_STATUS);
+    m_syncStatus = context.graphicsContextGL()->getSynci(m_sync, GraphicsContextGL::SYNC_STATUS);
     if (m_syncStatus == GraphicsContextGL::UNSIGNALED)
         scheduleAllowCacheUpdate(context);
 }

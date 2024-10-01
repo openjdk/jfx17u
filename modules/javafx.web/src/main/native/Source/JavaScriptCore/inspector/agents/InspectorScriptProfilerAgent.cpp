@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2015-2021 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,13 +32,10 @@
 #include "InspectorEnvironment.h"
 #include "SamplingProfiler.h"
 #include <wtf/Stopwatch.h>
-#include <wtf/TZoneMallocInlines.h>
 
 namespace Inspector {
 
 using namespace JSC;
-
-WTF_MAKE_TZONE_ALLOCATED_IMPL(InspectorScriptProfilerAgent);
 
 InspectorScriptProfilerAgent::InspectorScriptProfilerAgent(AgentContext& context)
     : InspectorAgentBase("ScriptProfiler"_s)
@@ -196,7 +193,7 @@ static Ref<Protocol::ScriptProfiler::Samples> buildSamples(VM& vm, Vector<Sampli
             frames->addItem(WTFMove(frameObject));
         }
         Ref<Protocol::ScriptProfiler::StackTrace> inspectorStackTrace = Protocol::ScriptProfiler::StackTrace::create()
-            .setTimestamp(stackTrace.stopwatchTimestamp.seconds())
+            .setTimestamp(stackTrace.timestamp.seconds())
             .setStackFrames(WTFMove(frames))
             .release();
         stackTraces->addItem(WTFMove(inspectorStackTrace));
@@ -210,7 +207,7 @@ static Ref<Protocol::ScriptProfiler::Samples> buildSamples(VM& vm, Vector<Sampli
 
 void InspectorScriptProfilerAgent::trackingComplete()
 {
-    auto stopwatchTimestamp = m_environment.executionStopwatch().elapsedTime().seconds();
+    auto timestamp = m_environment.executionStopwatch().elapsedTime().seconds();
 
 #if ENABLE(SAMPLING_PROFILER)
     if (m_enabledSamplingProfiler) {
@@ -229,11 +226,11 @@ void InspectorScriptProfilerAgent::trackingComplete()
 
         m_enabledSamplingProfiler = false;
 
-        m_frontendDispatcher->trackingComplete(stopwatchTimestamp, WTFMove(samples));
+        m_frontendDispatcher->trackingComplete(timestamp, WTFMove(samples));
     } else
-        m_frontendDispatcher->trackingComplete(stopwatchTimestamp, nullptr);
+        m_frontendDispatcher->trackingComplete(timestamp, nullptr);
 #else
-    m_frontendDispatcher->trackingComplete(stopwatchTimestamp, nullptr);
+    m_frontendDispatcher->trackingComplete(timestamp, nullptr);
 #endif // ENABLE(SAMPLING_PROFILER)
 }
 

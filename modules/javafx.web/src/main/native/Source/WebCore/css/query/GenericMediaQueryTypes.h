@@ -27,7 +27,6 @@
 #include "CSSToLengthConversionData.h"
 #include "CSSValue.h"
 #include "CSSValueKeywords.h"
-#include <wtf/CheckedPtr.h>
 #include <wtf/OptionSet.h>
 #include <wtf/text/AtomString.h>
 
@@ -73,9 +72,9 @@ struct Condition {
 enum class EvaluationResult : uint8_t { False, True, Unknown };
 
 struct FeatureEvaluationContext {
-    CheckedRef<const Document> document;
+    const Document& document;
     CSSToLengthConversionData conversionData { };
-    CheckedPtr<const RenderElement> renderer { };
+    const RenderElement* renderer { nullptr };
 };
 
 struct FeatureSchema {
@@ -110,8 +109,7 @@ void traverseFeatures(const QueryInParens& queryInParens, TraverseFunction&& fun
     }, [&](const MQ::Feature& feature) {
         function(feature);
     }, [&](const MQ::GeneralEnclosed&) {
-        MQ::Feature dummy { };
-        function(dummy);
+        return;
     });
 }
 

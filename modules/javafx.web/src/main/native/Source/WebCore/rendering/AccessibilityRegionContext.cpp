@@ -53,8 +53,8 @@ void AccessibilityRegionContext::takeBounds(const RenderInline& renderInline, La
 
 void AccessibilityRegionContext::takeBounds(const RenderBox& renderBox, LayoutPoint paintOffset)
 {
-    if (CheckedPtr renderView = dynamicDowncast<RenderView>(renderBox); UNLIKELY(renderView)) {
-        takeBounds(*renderView, WTFMove(paintOffset));
+    if (UNLIKELY(is<RenderView>(renderBox))) {
+        takeBounds(downcast<RenderView>(renderBox), WTFMove(paintOffset));
         return;
     }
     auto mappedPaintRect = enclosingIntRect(mapRect(LayoutRect(paintOffset, renderBox.size())));

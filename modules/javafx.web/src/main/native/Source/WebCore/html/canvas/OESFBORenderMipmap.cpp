@@ -35,12 +35,17 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(OESFBORenderMipmap);
 
 OESFBORenderMipmap::OESFBORenderMipmap(WebGLRenderingContextBase& context)
-    : WebGLExtension(context, WebGLExtensionName::OESFBORenderMipmap)
+    : WebGLExtension(context)
 {
-    context.protectedGraphicsContextGL()->ensureExtensionEnabled("GL_OES_fbo_render_mipmap"_s);
+    context.graphicsContextGL()->ensureExtensionEnabled("GL_OES_fbo_render_mipmap"_s);
 }
 
 OESFBORenderMipmap::~OESFBORenderMipmap() = default;
+
+WebGLExtension::ExtensionName OESFBORenderMipmap::getName() const
+{
+    return OESFBORenderMipmapName;
+}
 
 bool OESFBORenderMipmap::supported(GraphicsContextGL& context)
 {

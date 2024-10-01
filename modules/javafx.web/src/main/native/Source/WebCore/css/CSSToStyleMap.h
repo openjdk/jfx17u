@@ -68,10 +68,8 @@ public:
     void mapAnimationName(Animation&, const CSSValue&);
     static void mapAnimationPlayState(Animation&, const CSSValue&);
     static void mapAnimationProperty(Animation&, const CSSValue&);
-    static void mapAnimationTimeline(Animation&, const CSSValue&);
     static void mapAnimationTimingFunction(Animation&, const CSSValue&);
     static void mapAnimationCompositeOperation(Animation&, const CSSValue&);
-    static void mapAnimationAllowsDiscreteTransitions(Animation&, const CSSValue&);
 
     void mapNinePieceImage(const CSSValue*, NinePieceImage&);
     static void mapNinePieceImageSlice(const CSSValue&, NinePieceImage&);

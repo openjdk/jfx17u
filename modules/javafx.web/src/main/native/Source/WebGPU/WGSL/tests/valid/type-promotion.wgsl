@@ -26,12 +26,8 @@ fn testLiteral() -> i32
 
 @compute @workgroup_size(1)
 fn main() {
-    // - Simple variable initialization promotion
-    let x : array<vec2<f32>, 1> = array(vec2(0));
-
     // - Simple assignment promotion
-    var y : array<vec2<f32>, 1>;
-    y = array(vec2(0));
+    let x : array<vec2<f32>, 1> = array(vec2(0));
 
     // - Call with immediate value
     _ = f1(array(vec2(0)));

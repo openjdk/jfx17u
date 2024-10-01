@@ -47,54 +47,50 @@ void SplitElementCommand::executeApply()
     if (m_atChild->parentNode() != m_element2.ptr())
         return;
 
-    Ref element2 = m_element2;
     Vector<Ref<Node>> children;
-    for (RefPtr node = element2->firstChild(); node != m_atChild.ptr(); node = node->nextSibling())
+    for (Node* node = m_element2->firstChild(); node != m_atChild.ptr(); node = node->nextSibling())
         children.append(*node);
 
-    RefPtr parent = element2->parentNode();
+    auto* parent = m_element2->parentNode();
     if (!parent || !parent->hasEditableStyle())
         return;
-    RefPtr element1 = m_element1;
-    if (parent->insertBefore(*element1, element2.copyRef()).hasException())
+    if (parent->insertBefore(*m_element1, m_element2.ptr()).hasException())
         return;
 
     // Delete id attribute from the second element because the same id cannot be used for more than one element
-    element2->removeAttribute(HTMLNames::idAttr);
+    m_element2->removeAttribute(HTMLNames::idAttr);
 
     for (auto& child : children)
-        element1->appendChild(child);
+        m_element1->appendChild(child);
 }
 
 void SplitElementCommand::doApply()
 {
-    m_element1 = protectedElement2()->cloneElementWithoutChildren(protectedDocument());
+    m_element1 = m_element2->cloneElementWithoutChildren(document());
 
     executeApply();
 }
 
 void SplitElementCommand::doUnapply()
 {
-    RefPtr element1 = m_element1;
-    Ref element2 = m_element2;
-    if (!element1 || !element1->hasEditableStyle() || !element2->hasEditableStyle())
+    if (!m_element1 || !m_element1->hasEditableStyle() || !m_element2->hasEditableStyle())
         return;
 
     Vector<Ref<Node>> children;
-    for (Node* node = element1->firstChild(); node; node = node->nextSibling())
+    for (Node* node = m_element1->firstChild(); node; node = node->nextSibling())
         children.append(*node);
 
-    RefPtr<Node> refChild = element2->firstChild();
+    RefPtr<Node> refChild = m_element2->firstChild();
 
     for (auto& child : children)
-        element2->insertBefore(child, refChild.copyRef());
+        m_element2->insertBefore(child, refChild.get());
 
     // Recover the id attribute of the original element.
-    const AtomString& id = element1->getIdAttribute();
+    const AtomString& id = m_element1->getIdAttribute();
     if (!id.isNull())
-        element2->setIdAttribute(id);
+        m_element2->setIdAttribute(id);
 
-    element1->remove();
+    m_element1->remove();
 }
 
 void SplitElementCommand::doReapply()
@@ -108,9 +104,9 @@ void SplitElementCommand::doReapply()
 #ifndef NDEBUG
 void SplitElementCommand::getNodesInCommand(HashSet<Ref<Node>>& nodes)
 {
-    addNodeAndDescendants(protectedElement1().get(), nodes);
-    addNodeAndDescendants(protectedElement2().ptr(), nodes);
-    addNodeAndDescendants(Ref { m_atChild }.ptr(), nodes);
+    addNodeAndDescendants(m_element1.get(), nodes);
+    addNodeAndDescendants(m_element2.ptr(), nodes);
+    addNodeAndDescendants(m_atChild.ptr(), nodes);
 }
 #endif
 

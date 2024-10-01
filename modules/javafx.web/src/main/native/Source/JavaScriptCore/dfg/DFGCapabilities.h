@@ -40,18 +40,18 @@ bool mightCompileEval(CodeBlock*);
 bool mightCompileProgram(CodeBlock*);
 bool mightCompileFunctionForCall(CodeBlock*);
 bool mightCompileFunctionForConstruct(CodeBlock*);
-bool mightInlineFunctionForCall(JITType, CodeBlock*);
-bool mightInlineFunctionForClosureCall(JITType, CodeBlock*);
-bool mightInlineFunctionForConstruct(JITType, CodeBlock*);
+bool mightInlineFunctionForCall(CodeBlock*);
+bool mightInlineFunctionForClosureCall(CodeBlock*);
+bool mightInlineFunctionForConstruct(CodeBlock*);
 bool canUseOSRExitFuzzing(CodeBlock*);
 #else // ENABLE(DFG_JIT)
 inline bool mightCompileEval(CodeBlock*) { return false; }
 inline bool mightCompileProgram(CodeBlock*) { return false; }
 inline bool mightCompileFunctionForCall(CodeBlock*) { return false; }
 inline bool mightCompileFunctionForConstruct(CodeBlock*) { return false; }
-inline bool mightInlineFunctionForCall(JITType, CodeBlock*) { return false; }
-inline bool mightInlineFunctionForClosureCall(JITType, CodeBlock*) { return false; }
-inline bool mightInlineFunctionForConstruct(JITType, CodeBlock*) { return false; }
+inline bool mightInlineFunctionForCall(CodeBlock*) { return false; }
+inline bool mightInlineFunctionForClosureCall(CodeBlock*) { return false; }
+inline bool mightInlineFunctionForConstruct(CodeBlock*) { return false; }
 inline bool canUseOSRExitFuzzing(CodeBlock*) { return false; }
 #endif // ENABLE(DFG_JIT)
 
@@ -83,52 +83,52 @@ inline CapabilityLevel functionCapabilityLevel(bool mightCompile, bool mightInli
     return CannotCompile;
 }
 
-inline CapabilityLevel functionForCallCapabilityLevel(JITType jitType, CodeBlock* codeBlock)
+inline CapabilityLevel functionForCallCapabilityLevel(CodeBlock* codeBlock)
 {
     return functionCapabilityLevel(
         mightCompileFunctionForCall(codeBlock),
-        mightInlineFunctionForCall(jitType, codeBlock),
+        mightInlineFunctionForCall(codeBlock),
         CanCompileAndInline);
 }
 
-inline CapabilityLevel functionForConstructCapabilityLevel(JITType jitType, CodeBlock* codeBlock)
+inline CapabilityLevel functionForConstructCapabilityLevel(CodeBlock* codeBlock)
 {
     return functionCapabilityLevel(
         mightCompileFunctionForConstruct(codeBlock),
-        mightInlineFunctionForConstruct(jitType, codeBlock),
+        mightInlineFunctionForConstruct(codeBlock),
         CanCompileAndInline);
 }
 
-inline CapabilityLevel inlineFunctionForCallCapabilityLevel(JITType jitType, CodeBlock* codeBlock)
+inline CapabilityLevel inlineFunctionForCallCapabilityLevel(CodeBlock* codeBlock)
 {
-    if (!mightInlineFunctionForCall(jitType, codeBlock))
+    if (!mightInlineFunctionForCall(codeBlock))
         return CannotCompile;
 
     return CanCompileAndInline;
 }
 
-inline CapabilityLevel inlineFunctionForClosureCallCapabilityLevel(JITType jitType, CodeBlock* codeBlock)
+inline CapabilityLevel inlineFunctionForClosureCallCapabilityLevel(CodeBlock* codeBlock)
 {
-    if (!mightInlineFunctionForClosureCall(jitType, codeBlock))
+    if (!mightInlineFunctionForClosureCall(codeBlock))
         return CannotCompile;
 
     return CanCompileAndInline;
 }
 
-inline CapabilityLevel inlineFunctionForConstructCapabilityLevel(JITType jitType, CodeBlock* codeBlock)
+inline CapabilityLevel inlineFunctionForConstructCapabilityLevel(CodeBlock* codeBlock)
 {
-    if (!mightInlineFunctionForConstruct(jitType, codeBlock))
+    if (!mightInlineFunctionForConstruct(codeBlock))
         return CannotCompile;
 
     return CanCompileAndInline;
 }
 
-inline bool mightInlineFunctionFor(JITType jitType, CodeBlock* codeBlock, CodeSpecializationKind kind)
+inline bool mightInlineFunctionFor(CodeBlock* codeBlock, CodeSpecializationKind kind)
 {
     if (kind == CodeForCall)
-        return mightInlineFunctionForCall(jitType, codeBlock);
+        return mightInlineFunctionForCall(codeBlock);
     ASSERT(kind == CodeForConstruct);
-    return mightInlineFunctionForConstruct(jitType, codeBlock);
+    return mightInlineFunctionForConstruct(codeBlock);
 }
 
 inline bool mightCompileFunctionFor(CodeBlock* codeBlock, CodeSpecializationKind kind)
@@ -139,22 +139,22 @@ inline bool mightCompileFunctionFor(CodeBlock* codeBlock, CodeSpecializationKind
     return mightCompileFunctionForConstruct(codeBlock);
 }
 
-inline bool mightInlineFunction(JITType jitType, CodeBlock* codeBlock)
+inline bool mightInlineFunction(CodeBlock* codeBlock)
 {
-    return mightInlineFunctionFor(jitType, codeBlock, codeBlock->specializationKind());
+    return mightInlineFunctionFor(codeBlock, codeBlock->specializationKind());
 }
 
-inline CapabilityLevel inlineFunctionForCapabilityLevel(JITType jitType, CodeBlock* codeBlock, CodeSpecializationKind kind, bool isClosureCall)
+inline CapabilityLevel inlineFunctionForCapabilityLevel(CodeBlock* codeBlock, CodeSpecializationKind kind, bool isClosureCall)
 {
     if (isClosureCall) {
         if (kind != CodeForCall)
             return CannotCompile;
-        return inlineFunctionForClosureCallCapabilityLevel(jitType, codeBlock);
+        return inlineFunctionForClosureCallCapabilityLevel(codeBlock);
     }
     if (kind == CodeForCall)
-        return inlineFunctionForCallCapabilityLevel(jitType, codeBlock);
+        return inlineFunctionForCallCapabilityLevel(codeBlock);
     ASSERT(kind == CodeForConstruct);
-    return inlineFunctionForConstructCapabilityLevel(jitType, codeBlock);
+    return inlineFunctionForConstructCapabilityLevel(codeBlock);
 }
 
 inline bool isSmallEnoughToInlineCodeInto(CodeBlock* codeBlock)

@@ -50,7 +50,7 @@ inline bool MarkedBlock::hasAnyNewlyAllocated()
     return !isNewlyAllocatedStale();
 }
 
-inline JSC::Heap* MarkedBlock::heap() const
+inline Heap* MarkedBlock::heap() const
 {
     return &vm().heap;
 }
@@ -229,27 +229,6 @@ inline bool MarkedBlock::Handle::areMarksStaleForSweep()
 //
 // Only the DoesNotNeedDestruction one should be specialized by MarkedBlock.
 
-template<size_t storageSize, bool alwaysFitsOnStack>
-class DeadCellStorage {
-public:
-    DeadCellStorage() = default;
-    void append(MarkedBlock::AtomNumberType cell) { return m_deadCells.append(cell); }
-    std::span<const MarkedBlock::AtomNumberType> span() const { return m_deadCells.span(); }
-private:
-    Vector<MarkedBlock::AtomNumberType, storageSize> m_deadCells;
-};
-
-template<size_t storageSize>
-class DeadCellStorage<storageSize, true> {
-public:
-    DeadCellStorage() = default;
-    void append(MarkedBlock::AtomNumberType cell) { m_deadCells[m_size++] = cell; }
-    std::span<const MarkedBlock::AtomNumberType> span() const { return { m_deadCells.data(), m_size }; }
-private:
-    std::array<MarkedBlock::AtomNumberType, storageSize> m_deadCells;
-    size_t m_size { 0 };
-};
-
 template<bool specialize, MarkedBlock::Handle::EmptyMode specializedEmptyMode, MarkedBlock::Handle::SweepMode specializedSweepMode, MarkedBlock::Handle::SweepDestructionMode specializedDestructionMode, MarkedBlock::Handle::ScribbleMode specializedScribbleMode, MarkedBlock::Handle::NewlyAllocatedMode specializedNewlyAllocatedMode, MarkedBlock::Handle::MarksMode specializedMarksMode, typename DestroyFunc>
 void MarkedBlock::Handle::specializedSweep(FreeList* freeList, MarkedBlock::Handle::EmptyMode emptyMode, MarkedBlock::Handle::SweepMode sweepMode, MarkedBlock::Handle::SweepDestructionMode destructionMode, MarkedBlock::Handle::ScribbleMode scribbleMode, MarkedBlock::Handle::NewlyAllocatedMode newlyAllocatedMode, MarkedBlock::Handle::MarksMode marksMode, const DestroyFunc& destroyFunc)
 {
@@ -344,7 +323,7 @@ void MarkedBlock::Handle::specializedSweep(FreeList* freeList, MarkedBlock::Hand
     constexpr size_t deadCellBufferBytes = std::min(atomsPerBlock * sizeof(AtomNumberType), maxDeadCellBufferBytes);
     static_assert(deadCellBufferBytes <= maxDeadCellBufferBytes);
     constexpr bool deadCellsAlwaysFitsOnStack = (deadCellBufferBytes / sizeof(AtomNumberType)) <= atomsPerBlock;
-    DeadCellStorage<deadCellBufferBytes / sizeof(AtomNumberType), deadCellsAlwaysFitsOnStack> deadCells;
+    Vector<AtomNumberType, deadCellBufferBytes / sizeof(AtomNumberType)> deadCells;
 
     auto handleDeadCell = [&] (size_t i) {
         HeapCell* cell = reinterpret_cast_ptr<HeapCell*>(&block.atoms()[i]);
@@ -395,9 +374,12 @@ void MarkedBlock::Handle::specializedSweep(FreeList* freeList, MarkedBlock::Hand
             continue;
         }
 
-        if (destructionMode == BlockHasDestructorsAndCollectorIsRunning)
-                deadCells.append(i);
+        if (destructionMode == BlockHasDestructorsAndCollectorIsRunning) {
+            if constexpr (deadCellsAlwaysFitsOnStack)
+                deadCells.uncheckedAppend(i);
         else
+                deadCells.append(i);
+        } else
             handleDeadCell(i);
     }
     if (destructionMode != BlockHasDestructorsAndCollectorIsRunning)
@@ -412,7 +394,7 @@ void MarkedBlock::Handle::specializedSweep(FreeList* freeList, MarkedBlock::Hand
         header.m_lock.unlock();
 
     if (destructionMode == BlockHasDestructorsAndCollectorIsRunning) {
-        for (size_t i : deadCells.span())
+        for (size_t i : deadCells)
             handleDeadCell(i);
         checkForFinalInterval();
     }

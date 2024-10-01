@@ -122,7 +122,6 @@ private:
 template <typename T, uintptr_t Tag>
 struct IsSmartPtr<SignedPtr<T, Tag>> {
     static constexpr bool value = true;
-    static constexpr bool isNullable = true;
 };
 
 template<typename T, uintptr_t Tag>

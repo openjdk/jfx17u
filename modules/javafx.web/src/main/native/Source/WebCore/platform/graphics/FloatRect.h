@@ -65,42 +65,42 @@ public:
         InsideButNotOnStroke
     };
 
-    constexpr FloatRect() = default;
-    constexpr FloatRect(const FloatPoint& location, const FloatSize& size)
+    FloatRect() { }
+    FloatRect(const FloatPoint& location, const FloatSize& size)
         : m_location(location), m_size(size) { }
-    constexpr FloatRect(float x, float y, float width, float height)
+    FloatRect(float x, float y, float width, float height)
         : m_location(FloatPoint(x, y)), m_size(FloatSize(width, height)) { }
-    constexpr FloatRect(const FloatPoint& topLeft, const FloatPoint& bottomRight)
+    FloatRect(const FloatPoint& topLeft, const FloatPoint& bottomRight)
         : m_location(topLeft), m_size(FloatSize(bottomRight.x() - topLeft.x(), bottomRight.y() - topLeft.y())) { }
     WEBCORE_EXPORT FloatRect(const IntRect&);
 
     static FloatRect narrowPrecision(double x, double y, double width, double height);
 
-    constexpr FloatPoint location() const { return m_location; }
-    constexpr FloatSize size() const { return m_size; }
+    FloatPoint location() const { return m_location; }
+    FloatSize size() const { return m_size; }
 
     void setLocation(const FloatPoint& location) { m_location = location; }
     void setSize(const FloatSize& size) { m_size = size; }
 
-    constexpr float x() const { return m_location.x(); }
-    constexpr float y() const { return m_location.y(); }
-    constexpr float maxX() const { return x() + width(); }
-    constexpr float maxY() const { return y() + height(); }
-    constexpr float width() const { return m_size.width(); }
-    constexpr float height() const { return m_size.height(); }
+    float x() const { return m_location.x(); }
+    float y() const { return m_location.y(); }
+    float maxX() const { return x() + width(); }
+    float maxY() const { return y() + height(); }
+    float width() const { return m_size.width(); }
+    float height() const { return m_size.height(); }
 
-    constexpr float area() const { return m_size.area(); }
+    float area() const { return m_size.area(); }
 
     void setX(float x) { m_location.setX(x); }
     void setY(float y) { m_location.setY(y); }
     void setWidth(float width) { m_size.setWidth(width); }
     void setHeight(float height) { m_size.setHeight(height); }
 
-    constexpr bool isEmpty() const { return m_size.isEmpty(); }
-    constexpr bool isZero() const { return m_size.isZero(); }
+    bool isEmpty() const { return m_size.isEmpty(); }
+    bool isZero() const { return m_size.isZero(); }
     bool isExpressibleAsIntRect() const;
 
-    constexpr FloatPoint center() const { return location() + size() / 2; }
+    FloatPoint center() const { return location() + size() / 2; }
 
     void move(const FloatSize& delta) { m_location += delta; }
     void moveBy(const FloatPoint& delta) { m_location.move(delta.x(), delta.y()); }
@@ -169,10 +169,10 @@ public:
         shiftMaxYEdgeTo(maxY() + delta);
     }
 
-    constexpr FloatPoint minXMinYCorner() const { return m_location; } // typically topLeft
-    constexpr FloatPoint maxXMinYCorner() const { return FloatPoint(m_location.x() + m_size.width(), m_location.y()); } // typically topRight
-    constexpr FloatPoint minXMaxYCorner() const { return FloatPoint(m_location.x(), m_location.y() + m_size.height()); } // typically bottomLeft
-    constexpr FloatPoint maxXMaxYCorner() const { return FloatPoint(m_location.x() + m_size.width(), m_location.y() + m_size.height()); } // typically bottomRight
+    FloatPoint minXMinYCorner() const { return m_location; } // typically topLeft
+    FloatPoint maxXMinYCorner() const { return FloatPoint(m_location.x() + m_size.width(), m_location.y()); } // typically topRight
+    FloatPoint minXMaxYCorner() const { return FloatPoint(m_location.x(), m_location.y() + m_size.height()); } // typically bottomLeft
+    FloatPoint maxXMaxYCorner() const { return FloatPoint(m_location.x() + m_size.width(), m_location.y() + m_size.height()); } // typically bottomRight
 
     WEBCORE_EXPORT bool intersects(const FloatRect&) const;
     WEBCORE_EXPORT bool inclusivelyIntersects(const FloatRect&) const;
@@ -188,11 +188,11 @@ public:
 
     // Note, this doesn't match what IntRect::contains(IntPoint&) does; the int version
     // is really checking for containment of 1x1 rect, but that doesn't make sense with floats.
-    constexpr bool contains(float px, float py) const
+    bool contains(float px, float py) const
         { return px >= x() && px <= maxX() && py >= y() && py <= maxY(); }
 
-    constexpr bool overlapsYRange(float y1, float y2) const { return !isEmpty() && y2 >= y1 && y2 >= y() && y1 <= maxY(); }
-    constexpr bool overlapsXRange(float x1, float x2) const { return !isEmpty() && x2 >= x1 && x2 >= x() && x1 <= maxX(); }
+    bool overlapsYRange(float y1, float y2) const { return !isEmpty() && y2 >= y1 && y2 >= y() && y1 <= maxY(); }
+    bool overlapsXRange(float x1, float x2) const { return !isEmpty() && x2 >= x1 && x2 >= x() && x1 <= maxX(); }
 
     void inflateX(float dx) {
         m_location.setX(m_location.x() - dx);
@@ -210,7 +210,7 @@ public:
     WEBCORE_EXPORT void scale(float sx, float sy);
     void scale(FloatSize size) { scale(size.width(), size.height()); }
 
-    constexpr FloatRect transposedRect() const { return FloatRect(m_location.transposedPoint(), m_size.transposedSize()); }
+    FloatRect transposedRect() const { return FloatRect(m_location.transposedPoint(), m_size.transposedSize()); }
 
 #if USE(CG)
     WEBCORE_EXPORT FloatRect(const CGRect&);
@@ -231,31 +231,14 @@ public:
     WEBCORE_EXPORT FloatRect(const RECT&);
 #endif
 
-    static constexpr FloatRect infiniteRect();
-    constexpr bool isInfinite() const;
+    static FloatRect infiniteRect();
+    bool isInfinite() const;
 
-    static constexpr FloatRect smallestRect();
-    constexpr bool isSmallest() const;
-
-    static constexpr FloatRect nanRect();
-    constexpr bool isNaN() const;
+    static FloatRect smallestRect();
+    bool isSmallest() const;
 
     WEBCORE_EXPORT String toJSONString() const;
     WEBCORE_EXPORT Ref<JSON::Object> toJSONObject() const;
-
-    friend bool operator==(const FloatRect&, const FloatRect&) = default;
-
-    struct MarkableTraits {
-        constexpr static bool isEmptyValue(const FloatRect& rect)
-        {
-            return rect.isNaN();
-        }
-
-        constexpr static FloatRect emptyValue()
-        {
-            return FloatRect::nanRect();
-        }
-    };
 
 private:
     FloatPoint m_location;
@@ -291,14 +274,16 @@ inline FloatRect& operator+=(FloatRect& a, const FloatRect& b)
     return a;
 }
 
-constexpr FloatRect operator+(const FloatRect& a, const FloatRect& b)
+inline FloatRect operator+(const FloatRect& a, const FloatRect& b)
 {
-    return FloatRect {
-        a.x() + b.x(),
-        a.y() + b.y(),
-        a.width() + b.width(),
-        a.height() + b.height(),
-    };
+    FloatRect c = a;
+    c += b;
+    return c;
+}
+
+inline bool operator==(const FloatRect& a, const FloatRect& b)
+{
+    return a.location() == b.location() && a.size() == b.size();
 }
 
 inline bool areEssentiallyEqual(const FloatRect& a, const FloatRect& b)
@@ -306,49 +291,26 @@ inline bool areEssentiallyEqual(const FloatRect& a, const FloatRect& b)
     return areEssentiallyEqual(a.location(), b.location()) && areEssentiallyEqual(a.size(), b.size());
 }
 
-constexpr FloatRect FloatRect::infiniteRect()
+inline FloatRect FloatRect::infiniteRect()
 {
-    return {
-        -std::numeric_limits<float>::max() / 2,
-        -std::numeric_limits<float>::max() / 2,
-        std::numeric_limits<float>::max(),
-        std::numeric_limits<float>::max()
-    };
+    static FloatRect infiniteRect(-std::numeric_limits<float>::max() / 2, -std::numeric_limits<float>::max() / 2, std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
+    return infiniteRect;
 }
 
-constexpr bool FloatRect::isInfinite() const
+inline bool FloatRect::isInfinite() const
 {
     return *this == infiniteRect();
 }
 
-constexpr FloatRect FloatRect::smallestRect()
+inline FloatRect FloatRect::smallestRect()
 {
-    return {
-        std::numeric_limits<float>::max() / 2,
-        std::numeric_limits<float>::max() / 2,
-        -std::numeric_limits<float>::max(),
-        -std::numeric_limits<float>::max()
-    };
+    static FloatRect smallestRect(std::numeric_limits<float>::max() / 2, std::numeric_limits<float>::max() / 2, -std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
+    return smallestRect;
 }
 
-constexpr bool FloatRect::isSmallest() const
+inline bool FloatRect::isSmallest() const
 {
     return *this == smallestRect();
-}
-
-constexpr FloatRect FloatRect::nanRect()
-{
-    return {
-        std::numeric_limits<float>::quiet_NaN(),
-        std::numeric_limits<float>::quiet_NaN(),
-        std::numeric_limits<float>::quiet_NaN(),
-        std::numeric_limits<float>::quiet_NaN()
-    };
-}
-
-constexpr bool FloatRect::isNaN() const
-{
-    return isNaNConstExpr(x());
 }
 
 inline void FloatRect::inflate(float deltaX, float deltaY, float deltaMaxX, float deltaMaxY)

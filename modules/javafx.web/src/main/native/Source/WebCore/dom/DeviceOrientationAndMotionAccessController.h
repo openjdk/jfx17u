@@ -48,7 +48,7 @@ public:
     void shouldAllowAccess(const Document&, Function<void(DeviceOrientationOrMotionPermissionState)>&&);
 
 private:
-    WeakRef<Document, WeakPtrImplWithEventTargetData> m_topDocument;
+    Document& m_topDocument;
     HashMap<SecurityOriginData, DeviceOrientationOrMotionPermissionState> m_accessStatePerOrigin;
 };
 

@@ -61,12 +61,6 @@ struct MainThreadAccessTraits;
 struct ObjectIdentifierMainThreadAccessTraits;
 struct ObjectIdentifierThreadSafeAccessTraits;
 
-namespace JSONImpl {
-class Array;
-class Object;
-template<typename> class ArrayOf;
-}
-
 #if ENABLE(MALLOC_HEAP_BREAKDOWN)
 struct VectorBufferMalloc;
 #else
@@ -93,7 +87,7 @@ template<typename T, size_t = alignof(T)> class PackedAlignedPtr;
 template<typename> struct RawPtrTraits;
 template<typename T, typename = RawPtrTraits<T>> class CheckedRef;
 template<typename T, typename = RawPtrTraits<T>> class CheckedPtr;
-template<typename T, typename = RawPtrTraits<T>, typename = DefaultRefDerefTraits<T>> class Ref;
+template<typename T, typename = RawPtrTraits<T>> class Ref;
 template<typename T, typename = RawPtrTraits<T>, typename = DefaultRefDerefTraits<T>> class RefPtr;
 template<typename> class RetainPtr;
 template<typename> class ScopedLambda;
@@ -103,8 +97,7 @@ template<typename, typename = void> class StringTypeAdapter;
 template<typename> class UniqueRef;
 template<typename T, class... Args> UniqueRef<T> makeUniqueRef(Args&&...);
 template<typename, size_t = 0, typename = CrashOnOverflow, size_t = 16, typename = VectorBufferMalloc> class Vector;
-template<typename, typename WeakPtrImpl = DefaultWeakPtrImpl, typename = RawPtrTraits<WeakPtrImpl>> class WeakPtr;
-template<typename, typename = DefaultWeakPtrImpl> class WeakRef;
+template<typename, typename = DefaultWeakPtrImpl> class WeakPtr;
 
 template<typename> struct DefaultHash;
 template<> struct DefaultHash<AtomString>;
@@ -129,14 +122,7 @@ template<typename Key, typename Value, typename Extractor, typename HashFunction
 template<typename Value, typename = DefaultHash<Value>, typename = HashTraits<Value>> class HashCountedSet;
 template<typename KeyArg, typename MappedArg, typename = DefaultHash<KeyArg>, typename = HashTraits<KeyArg>, typename = HashTraits<MappedArg>, typename = HashTableTraits> class HashMap;
 template<typename ValueArg, typename = DefaultHash<ValueArg>, typename = HashTraits<ValueArg>, typename = HashTableTraits> class HashSet;
-template<typename ResolveValueT, typename RejectValueT, unsigned options = 0> class NativePromise;
-using GenericPromise = NativePromise<void, void>;
-using GenericNonExclusivePromise = NativePromise<void, void, 1>;
-class NativePromiseRequest;
-}
 
-namespace JSON {
-using namespace WTF::JSONImpl;
 }
 
 namespace std {
@@ -159,7 +145,6 @@ using WTF::EnumeratedArray;
 using WTF::FixedVector;
 using WTF::Function;
 using WTF::FunctionDispatcher;
-using WTF::GenericPromise;
 using WTF::HashCountedSet;
 using WTF::HashMap;
 using WTF::HashSet;
@@ -170,8 +155,6 @@ using WTF::Logger;
 using WTF::MachSendRight;
 using WTF::makeUniqueRef;
 using WTF::MonotonicTime;
-using WTF::NativePromise;
-using WTF::NativePromiseRequest;
 using WTF::NeverDestroyed;
 using WTF::ObjectIdentifier;
 using WTF::ObjectIdentifierGeneric;
@@ -198,7 +181,6 @@ using WTF::URL;
 using WTF::UniqueRef;
 using WTF::Vector;
 using WTF::WeakPtr;
-using WTF::WeakRef;
 
 template<class T, class E> using Expected = std::experimental::expected<T, E>;
 template<class E> using Unexpected = std::experimental::unexpected<E>;

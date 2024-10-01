@@ -5,6 +5,7 @@ list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/platform/image-decoders/gif"
     "${WEBCORE_DIR}/platform/image-decoders/ico"
     "${WEBCORE_DIR}/platform/image-decoders/jpeg"
+    "${WEBCORE_DIR}/platform/image-decoders/jpeg2000"
     "${WEBCORE_DIR}/platform/image-decoders/jpegxl"
     "${WEBCORE_DIR}/platform/image-decoders/png"
     "${WEBCORE_DIR}/platform/image-decoders/webp"
@@ -27,6 +28,8 @@ list(APPEND WebCore_SOURCES
 
     platform/image-decoders/jpeg/JPEGImageDecoder.cpp
 
+    platform/image-decoders/jpeg2000/JPEG2000ImageDecoder.cpp
+
     platform/image-decoders/jpegxl/JPEGXLImageDecoder.cpp
 
     platform/image-decoders/png/PNGImageDecoder.cpp
@@ -38,6 +41,10 @@ list(APPEND WebCore_LIBRARIES
     JPEG::JPEG
     PNG::PNG
 )
+
+if (OpenJPEG_FOUND)
+    list(APPEND WebCore_LIBRARIES OpenJPEG::OpenJPEG)
+endif ()
 
 if (WebP_FOUND)
     list(APPEND WebCore_LIBRARIES

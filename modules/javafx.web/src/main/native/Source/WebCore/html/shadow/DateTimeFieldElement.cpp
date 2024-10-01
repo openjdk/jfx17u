@@ -53,9 +53,14 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(DateTimeFieldElement);
 DateTimeFieldElement::FieldOwner::~FieldOwner() = default;
 
 DateTimeFieldElement::DateTimeFieldElement(Document& document, FieldOwner& fieldOwner)
-    : HTMLDivElement(divTag, document, TypeFlag::HasCustomStyleResolveCallbacks)
+    : HTMLDivElement(divTag, document, CreateDateTimeFieldElement)
     , m_fieldOwner(fieldOwner)
 {
+}
+
+void DateTimeFieldElement::initialize(const AtomString& pseudo)
+{
+    setPseudo(pseudo);
 }
 
 std::optional<Style::ResolvedStyle> DateTimeFieldElement::resolveCustomStyle(const Style::ResolutionContext& resolutionContext, const RenderStyle* shadowHostStyle)
@@ -78,15 +83,16 @@ void DateTimeFieldElement::defaultEventHandler(Event& event)
     if (event.type() == eventNames().blurEvent)
         handleBlurEvent(event);
 
-    if (auto* keyboardEvent = dynamicDowncast<KeyboardEvent>(event)) {
+    if (is<KeyboardEvent>(event)) {
+        auto& keyboardEvent = downcast<KeyboardEvent>(event);
         if (!isFieldOwnerDisabled() && !isFieldOwnerReadOnly()) {
-            handleKeyboardEvent(*keyboardEvent);
-            if (keyboardEvent->defaultHandled())
+            handleKeyboardEvent(keyboardEvent);
+            if (keyboardEvent.defaultHandled())
                 return;
         }
 
-        defaultKeyboardEventHandler(*keyboardEvent);
-        if (keyboardEvent->defaultHandled())
+        defaultKeyboardEventHandler(keyboardEvent);
+        if (keyboardEvent.defaultHandled())
             return;
     }
 
@@ -104,18 +110,12 @@ void DateTimeFieldElement::defaultKeyboardEventHandler(KeyboardEvent& keyboardEv
     auto key = keyboardEvent.keyIdentifier();
     auto code = keyboardEvent.code();
 
-    bool isHorizontal = isFieldOwnerHorizontal();
-    auto nextKeyIdentifier = isHorizontal ? "Right"_s : "Down"_s;
-    auto previousKeyIdentifier = isHorizontal ? "Left"_s : "Up"_s;
-    auto stepUpKeyIdentifier = isHorizontal ? "Up"_s : "Right"_s;
-    auto stepDownKeyIdentifier = isHorizontal ? "Down"_s : "Left"_s;
-
-    if (key == previousKeyIdentifier && m_fieldOwner && m_fieldOwner->focusOnPreviousField(*this)) {
+    if (key == "Left"_s && m_fieldOwner && m_fieldOwner->focusOnPreviousField(*this)) {
         keyboardEvent.setDefaultHandled();
         return;
     }
 
-    if ((key == nextKeyIdentifier || code == "Comma"_s || code == "Minus"_s || code == "Period"_s || code == "Slash"_s || code == "Semicolon"_s)
+    if ((key == "Right"_s || code == "Comma"_s || code == "Minus"_s || code == "Period"_s || code == "Slash"_s || code == "Semicolon"_s)
         && m_fieldOwner && m_fieldOwner->focusOnNextField(*this)) {
         keyboardEvent.setDefaultHandled();
         return;
@@ -124,13 +124,13 @@ void DateTimeFieldElement::defaultKeyboardEventHandler(KeyboardEvent& keyboardEv
     if (isFieldOwnerReadOnly())
         return;
 
-    if (key == stepUpKeyIdentifier) {
+    if (key == "Up"_s) {
         stepUp();
         keyboardEvent.setDefaultHandled();
         return;
     }
 
-    if (key == stepDownKeyIdentifier) {
+    if (key == "Down"_s) {
         stepDown();
         keyboardEvent.setDefaultHandled();
         return;
@@ -152,13 +152,6 @@ bool DateTimeFieldElement::isFieldOwnerDisabled() const
 bool DateTimeFieldElement::isFieldOwnerReadOnly() const
 {
     return m_fieldOwner && m_fieldOwner->isFieldOwnerReadOnly();
-}
-
-bool DateTimeFieldElement::isFieldOwnerHorizontal() const
-{
-    if (m_fieldOwner)
-        return m_fieldOwner->isFieldOwnerHorizontal();
-    return true;
 }
 
 bool DateTimeFieldElement::isFocusable() const

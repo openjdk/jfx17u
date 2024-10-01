@@ -38,12 +38,12 @@ void MemoryPressureHandler::platformInitialize()
 
 void MemoryPressureHandler::windowsMeasurementTimerFired()
 {
-    setMemoryPressureStatus(SystemMemoryPressureStatus::Normal);
+    setMemoryPressureStatus(MemoryPressureStatus::Normal);
 
     BOOL memoryLow;
 
     if (QueryMemoryResourceNotification(m_lowMemoryHandle.get(), &memoryLow) && memoryLow) {
-        setMemoryPressureStatus(SystemMemoryPressureStatus::Critical);
+        setMemoryPressureStatus(MemoryPressureStatus::SystemCritical);
         releaseMemory(Critical::Yes);
         return;
     }
@@ -60,7 +60,7 @@ void MemoryPressureHandler::windowsMeasurementTimerFired()
     const int maxMemoryUsageBytes = 0.9 * 1024 * 1024 * 1024;
 
     if (counters.PrivateUsage > maxMemoryUsageBytes) {
-        didExceedProcessMemoryLimit(ProcessMemoryLimit::Critical);
+        setMemoryPressureStatus(MemoryPressureStatus::ProcessLimitCritical);
         releaseMemory(Critical::Yes);
     }
 #endif
@@ -85,7 +85,7 @@ void MemoryPressureHandler::uninstall()
     m_installed = false;
 }
 
-void MemoryPressureHandler::holdOff(Seconds)
+void MemoryPressureHandler::holdOff(Seconds seconds)
 {
 }
 

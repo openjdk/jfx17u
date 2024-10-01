@@ -83,6 +83,7 @@ public:
     WEBCORE_EXPORT void reset();
 
     void submitImplicitly(Event&, bool fromImplicitSubmissionTrigger);
+    bool formWouldHaveSecureSubmission(const String& url);
 
     String name() const;
 

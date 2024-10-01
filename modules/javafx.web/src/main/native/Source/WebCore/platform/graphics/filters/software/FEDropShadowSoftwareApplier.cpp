@@ -34,7 +34,7 @@ bool FEDropShadowSoftwareApplier::apply(const Filter& filter, const FilterImageV
 {
     auto& input = inputs[0].get();
 
-    RefPtr resultImage = result.imageBuffer();
+    auto resultImage = result.imageBuffer();
     if (!resultImage)
         return false;
 
@@ -48,7 +48,7 @@ bool FEDropShadowSoftwareApplier::apply(const Filter& filter, const FilterImageV
     FloatRect inputImageRectWithOffset(inputImageRect);
     inputImageRectWithOffset.move(absoluteOffset);
 
-    RefPtr inputImage = input.imageBuffer();
+    auto inputImage = input.imageBuffer();
     if (!inputImage)
         return false;
 

@@ -45,8 +45,8 @@ static bool isPrescriptDelimiter(const RenderObject& renderObject)
     return renderObject.node() && renderObject.node()->hasTagName(MathMLNames::mprescriptsTag);
 }
 
-RenderMathMLScripts::RenderMathMLScripts(Type type, MathMLScriptsElement& element, RenderStyle&& style)
-    : RenderMathMLBlock(type, element, WTFMove(style))
+RenderMathMLScripts::RenderMathMLScripts(MathMLScriptsElement& element, RenderStyle&& style)
+    : RenderMathMLBlock(element, WTFMove(style))
 {
 }
 
@@ -62,8 +62,10 @@ MathMLScriptsElement::ScriptType RenderMathMLScripts::scriptType() const
 
 RenderMathMLOperator* RenderMathMLScripts::unembellishedOperator() const
 {
-    auto* base = dynamicDowncast<RenderMathMLBlock>(firstChildBox());
-    return base ? base->unembellishedOperator() : nullptr;
+    auto base = firstChildBox();
+    if (!is<RenderMathMLBlock>(base))
+        return nullptr;
+    return downcast<RenderMathMLBlock>(base)->unembellishedOperator();
 }
 
 std::optional<RenderMathMLScripts::ReferenceChildren> RenderMathMLScripts::validateAndGetReferenceChildren()
@@ -163,8 +165,8 @@ LayoutUnit RenderMathMLScripts::spaceAfterScript()
 
 LayoutUnit RenderMathMLScripts::italicCorrection(const ReferenceChildren& reference)
 {
-    if (auto* mathMLBlock = dynamicDowncast<RenderMathMLBlock>(*reference.base)) {
-        if (auto* renderOperator = mathMLBlock->unembellishedOperator())
+    if (is<RenderMathMLBlock>(*reference.base)) {
+        if (auto* renderOperator = downcast<RenderMathMLBlock>(*reference.base).unembellishedOperator())
             return renderOperator->italicCorrection();
     }
     return 0;

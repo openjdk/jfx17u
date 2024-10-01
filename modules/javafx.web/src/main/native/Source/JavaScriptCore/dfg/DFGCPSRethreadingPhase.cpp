@@ -117,7 +117,7 @@ private:
 
             for (unsigned phiIndex = block->phis.size(); phiIndex--;)
                 m_graph.deleteNode(block->phis[phiIndex]);
-            block->phis.shrink(0);
+            block->phis.resize(0);
         }
     }
 

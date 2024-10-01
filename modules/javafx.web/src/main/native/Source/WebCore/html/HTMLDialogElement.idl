@@ -24,6 +24,7 @@
 */
 
 [
+    EnabledBySetting=DialogElementEnabled,
     Exposed=Window,
 ] interface HTMLDialogElement : HTMLElement {
     [CEReactions=Needed, Reflect] attribute boolean open;

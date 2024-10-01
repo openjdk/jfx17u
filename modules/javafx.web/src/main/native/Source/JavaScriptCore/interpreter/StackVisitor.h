@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2024 Apple Inc. All rights reserved.
+ * Copyright (C) 2013-2022 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,7 +27,6 @@
 
 #include "BytecodeIndex.h"
 #include "CalleeBits.h"
-#include "LineColumn.h"
 #include "SourceID.h"
 #include "WasmIndexOrName.h"
 #include <wtf/Function.h>
@@ -78,12 +77,12 @@ public:
 #endif
         }
 
-        bool isNativeFrame() const { return !codeBlock() && !isNativeCalleeFrame(); }
-        bool isInlinedDFGFrame() const { return !isNativeCalleeFrame() && !!inlineCallFrame(); }
-        bool isNativeCalleeFrame() const { return m_callee.isNativeCallee(); }
+        bool isNativeFrame() const { return !codeBlock() && !isWasmFrame(); }
+        bool isInlinedDFGFrame() const { return !isWasmFrame() && !!inlineCallFrame(); }
+        bool isWasmFrame() const { return m_isWasmFrame; }
         Wasm::IndexOrName const wasmFunctionIndexOrName()
         {
-            ASSERT(isNativeCalleeFrame());
+            ASSERT(isWasmFrame());
             return m_wasmFunctionIndexOrName;
         }
 
@@ -96,7 +95,7 @@ public:
 
         CodeType codeType() const;
         bool hasLineAndColumnInfo() const;
-        JS_EXPORT_PRIVATE LineColumn computeLineAndColumn() const;
+        JS_EXPORT_PRIVATE void computeLineAndColumn(unsigned& line, unsigned& column) const;
 
 #if ENABLE(ASSEMBLER)
         std::optional<RegisterAtOffsetList> calleeSaveRegistersForUnwinding();
@@ -114,6 +113,7 @@ public:
         Frame() { }
         ~Frame() { }
 
+        void retrieveExpressionInfo(int& divot, int& startOffset, int& endOffset, unsigned& line, unsigned& column) const;
         void setToEnd();
 
 #if ENABLE(DFG_JIT)
@@ -145,9 +145,9 @@ public:
     };
 
     template <EmptyEntryFrameAction action = ContinueIfTopEntryFrameIsEmpty, typename Functor>
-    static void visit(CallFrame* startFrame, VM& vm, const Functor& functor, bool skipFirstFrame = false)
+    static void visit(CallFrame* startFrame, VM& vm, const Functor& functor)
     {
-        StackVisitor visitor(startFrame, vm, skipFirstFrame);
+        StackVisitor visitor(startFrame, vm);
         if (action == TerminateIfTopEntryFrameIsEmpty && visitor.topEntryFrameIsEmpty())
             return;
         while (visitor->callFrame()) {
@@ -165,12 +165,12 @@ public:
     bool topEntryFrameIsEmpty() const { return m_topEntryFrameIsEmpty; }
 
 private:
-    JS_EXPORT_PRIVATE StackVisitor(CallFrame* startFrame, VM&, bool skipFirstFrame);
+    JS_EXPORT_PRIVATE StackVisitor(CallFrame* startFrame, VM&);
 
     JS_EXPORT_PRIVATE void gotoNextFrame();
 
     void readFrame(CallFrame*);
-    void readInlinableNativeCalleeFrame(CallFrame*);
+    void readInlinableWasmFrame(CallFrame*);
     void readNonInlinedFrame(CallFrame*, CodeOrigin* = nullptr);
 #if ENABLE(DFG_JIT)
     void readInlinedFrame(CallFrame*, CodeOrigin*);

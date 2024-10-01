@@ -64,7 +64,6 @@ QualifiedName::QualifiedNameImpl::~QualifiedNameImpl()
 
 // Global init routines
 LazyNeverDestroyed<const QualifiedName> anyName;
-LazyNeverDestroyed<const QualifiedName> nullName;
 
 void QualifiedName::init()
 {
@@ -73,8 +72,13 @@ void QualifiedName::init()
         return;
 
     anyName.construct(nullAtom(), starAtom(), starAtom(), Namespace::Unknown, NodeName::Unknown);
-    nullName.construct(nullAtom(), nullAtom(), nullAtom(), Namespace::None, NodeName::Unknown);
     initialized = true;
+}
+
+const QualifiedName& nullQName()
+{
+    static NeverDestroyed<QualifiedName> nullName(nullAtom(), nullAtom(), nullAtom(), Namespace::None, NodeName::Unknown);
+    return nullName;
 }
 
 const AtomString& QualifiedName::localNameUppercase() const

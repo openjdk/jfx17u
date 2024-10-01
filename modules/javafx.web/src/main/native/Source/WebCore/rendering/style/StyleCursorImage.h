@@ -58,7 +58,7 @@ private:
     Ref<CSSValue> computedStyleValue(const RenderStyle&) const final;
     ImageWithScale selectBestFitImage(const Document&) final;
 
-    RefPtr<SVGCursorElement> updateCursorElement(const Document&);
+    SVGCursorElement* updateCursorElement(const Document&);
 
     Ref<StyleImage> m_image;
     std::optional<IntPoint> m_hotSpot;

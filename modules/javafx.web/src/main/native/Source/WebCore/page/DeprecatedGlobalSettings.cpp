@@ -72,6 +72,13 @@ void DeprecatedGlobalSettings::setMediaSourceInlinePaintingEnabled(bool isEnable
 }
 #endif
 
+#if PLATFORM(WIN)
+void DeprecatedGlobalSettings::setShouldUseHighResolutionTimers(bool shouldUseHighResolutionTimers)
+{
+    shared().m_shouldUseHighResolutionTimers = shouldUseHighResolutionTimers;
+}
+#endif
+
 #if USE(AVFOUNDATION)
 void DeprecatedGlobalSettings::setAVFoundationEnabled(bool enabled)
 {

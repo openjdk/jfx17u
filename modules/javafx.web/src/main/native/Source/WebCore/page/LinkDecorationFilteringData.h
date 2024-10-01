@@ -26,23 +26,28 @@
 #pragma once
 
 #include "RegistrableDomain.h"
+#include <optional>
 
 namespace WebCore {
 
 struct LinkDecorationFilteringData {
     RegistrableDomain domain;
-    String path;
     String linkDecoration;
 
-    LinkDecorationFilteringData(RegistrableDomain&& domain, String&& path, String&& linkDecoration)
+    LinkDecorationFilteringData(RegistrableDomain&& domain, const String& linkDecoration)
         : domain(WTFMove(domain))
-        , path(WTFMove(path))
-        , linkDecoration(WTFMove(linkDecoration))
+        , linkDecoration(linkDecoration)
     {
     }
 
-    LinkDecorationFilteringData(String&& domain, String&& path, String&& linkDecoration)
-        : LinkDecorationFilteringData(RegistrableDomain { URL { WTFMove(domain) } }, WTFMove(path), WTFMove(linkDecoration))
+    LinkDecorationFilteringData(const String& domain, const String& linkDecoration)
+        : domain(RegistrableDomain { URL { domain } } )
+        , linkDecoration(linkDecoration)
+    {
+    }
+
+    LinkDecorationFilteringData(const String& linkDecoration)
+        : linkDecoration(linkDecoration)
     {
     }
 
@@ -51,7 +56,6 @@ struct LinkDecorationFilteringData {
 
     LinkDecorationFilteringData(LinkDecorationFilteringData&& data)
         : domain(WTFMove(data.domain))
-        , path(WTFMove(data.path))
         , linkDecoration(WTFMove(data.linkDecoration))
     {
     }
@@ -59,9 +63,29 @@ struct LinkDecorationFilteringData {
     LinkDecorationFilteringData& operator=(LinkDecorationFilteringData&& data)
     {
         domain = WTFMove(data.domain);
-        path = WTFMove(data.path);
         linkDecoration = WTFMove(data.linkDecoration);
         return *this;
+    }
+
+    template<class Encoder> void encode(Encoder& encoder) const
+    {
+        encoder << domain;
+        encoder << linkDecoration;
+    }
+
+    template<class Decoder> static std::optional<LinkDecorationFilteringData> decode(Decoder& decoder)
+    {
+        std::optional<RegistrableDomain> domain;
+        decoder >> domain;
+        if (!domain)
+            return std::nullopt;
+
+        std::optional<String> linkDecoration;
+        decoder >> linkDecoration;
+        if (!linkDecoration)
+            return std::nullopt;
+
+        return { { WTFMove(*domain), WTFMove(*linkDecoration) } };
     }
 };
 

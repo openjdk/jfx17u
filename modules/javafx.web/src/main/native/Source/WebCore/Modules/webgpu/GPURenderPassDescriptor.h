@@ -29,7 +29,7 @@
 #include "GPUQuerySet.h"
 #include "GPURenderPassColorAttachment.h"
 #include "GPURenderPassDepthStencilAttachment.h"
-#include "GPURenderPassTimestampWrites.h"
+#include "GPURenderPassTimestampWrite.h"
 #include "WebGPURenderPassDescriptor.h"
 #include <optional>
 #include <wtf/RefPtr.h>
@@ -49,8 +49,7 @@ struct GPURenderPassDescriptor : public GPUObjectDescriptorBase {
             }),
             depthStencilAttachment ? std::optional { depthStencilAttachment->convertToBacking() } : std::nullopt,
             occlusionQuerySet ? &occlusionQuerySet->backing() : nullptr,
-            timestampWrites.convertToBacking(),
-            maxDrawCount,
+            WebCore::convertToBacking(timestampWrites),
         };
     }
 
@@ -58,7 +57,6 @@ struct GPURenderPassDescriptor : public GPUObjectDescriptorBase {
     std::optional<GPURenderPassDepthStencilAttachment> depthStencilAttachment;
     GPUQuerySet* occlusionQuerySet { nullptr };
     GPURenderPassTimestampWrites timestampWrites;
-    std::optional<GPUSize64> maxDrawCount;
 };
 
 }

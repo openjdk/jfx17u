@@ -74,8 +74,8 @@ struct TextRecognitionLineData {
 
 struct TextRecognitionDataDetector {
     TextRecognitionDataDetector() = default;
-    TextRecognitionDataDetector(RetainPtr<DDScannerResult>&& scannerResult, Vector<FloatQuad>&& quads)
-        : result(WTFMove(scannerResult))
+    TextRecognitionDataDetector(DDScannerResult *scannerResult, Vector<FloatQuad>&& quads)
+        : result(scannerResult)
         , normalizedQuads(WTFMove(quads))
     {
     }

@@ -50,7 +50,10 @@ struct ResourceCryptographicDigest {
     Algorithm algorithm;
     Vector<uint8_t> value;
 
-    friend bool operator==(const ResourceCryptographicDigest&, const ResourceCryptographicDigest&) = default;
+    bool operator==(const ResourceCryptographicDigest& other) const
+    {
+        return algorithm == other.algorithm && value == other.value;
+    }
 };
 
 inline void add(Hasher& hasher, const ResourceCryptographicDigest& digest)

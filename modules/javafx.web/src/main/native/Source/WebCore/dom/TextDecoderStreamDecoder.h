@@ -38,7 +38,6 @@ public:
 
 private:
     explicit TextDecoderStreamDecoder(Ref<TextDecoder>&&);
-    Ref<TextDecoder> protectedTextDecoder();
 
     Ref<TextDecoder> m_textDecoder;
 };

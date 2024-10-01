@@ -55,7 +55,10 @@ public:
 
     DOMAttributeAnnotation domAttribute() const { return m_domAttribute; }
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        return Structure::create(vm, globalObject, prototype, TypeInfo(CustomGetterSetterType, StructureFlags), info());
+    }
 
     DECLARE_EXPORT_INFO;
 

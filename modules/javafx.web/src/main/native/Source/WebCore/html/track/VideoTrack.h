@@ -81,7 +81,7 @@ private:
     void configurationChanged(const PlatformVideoTrackConfiguration&) final;
 
     // TrackPrivateBaseClient
-    void idChanged(TrackID) final;
+    void idChanged(const AtomString&) final;
     void labelChanged(const AtomString&) final;
     void languageChanged(const AtomString&) final;
     void willRemove() final;

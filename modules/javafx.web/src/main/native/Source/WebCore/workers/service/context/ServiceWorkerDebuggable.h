@@ -26,6 +26,7 @@
 #pragma once
 
 #if ENABLE(REMOTE_INSPECTOR)
+#if ENABLE(SERVICE_WORKER)
 
 #include "ServiceWorkerContextData.h"
 #include <JavaScriptCore/RemoteInspectionTarget.h>
@@ -61,4 +62,5 @@ private:
 
 SPECIALIZE_TYPE_TRAITS_CONTROLLABLE_TARGET(WebCore::ServiceWorkerDebuggable, ServiceWorker);
 
+#endif // ENABLE(SERVICE_WORKER)
 #endif // ENABLE(REMOTE_INSPECTOR)

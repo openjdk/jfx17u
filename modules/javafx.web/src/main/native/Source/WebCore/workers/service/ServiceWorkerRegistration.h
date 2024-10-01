@@ -25,15 +25,15 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "ActiveDOMObject.h"
-#include "CookieStoreManager.h"
 #include "EventTarget.h"
 #include "JSDOMPromiseDeferredForward.h"
 #include "Notification.h"
 #include "NotificationOptions.h"
 #include "PushPermissionState.h"
 #include "PushSubscription.h"
-#include "PushSubscriptionOwner.h"
 #include "SWClientConnection.h"
 #include "ServiceWorkerRegistrationData.h"
 #include "Supplementable.h"
@@ -51,7 +51,7 @@ class ServiceWorker;
 class ServiceWorkerContainer;
 class WebCoreOpaqueRoot;
 
-class ServiceWorkerRegistration final : public RefCounted<ServiceWorkerRegistration>, public Supplementable<ServiceWorkerRegistration>, public EventTarget, public ActiveDOMObject, public PushSubscriptionOwner {
+class ServiceWorkerRegistration final : public RefCounted<ServiceWorkerRegistration>, public Supplementable<ServiceWorkerRegistration>, public EventTarget, public ActiveDOMObject {
     WTF_MAKE_ISO_ALLOCATED_EXPORT(ServiceWorkerRegistration, WEBCORE_EXPORT);
 public:
     static Ref<ServiceWorkerRegistration> getOrCreate(ScriptExecutionContext&, Ref<ServiceWorkerContainer>&&, ServiceWorkerRegistrationData&&);
@@ -63,8 +63,6 @@ public:
     ServiceWorker* installing();
     ServiceWorker* waiting();
     ServiceWorker* active();
-
-    bool isActive() const final { return !!m_activeWorker; }
 
     ServiceWorker* getNewestWorker() const;
 
@@ -86,8 +84,8 @@ public:
     void getPushSubscription(DOMPromiseDeferred<IDLNullable<IDLInterface<PushSubscription>>>&&);
     void getPushPermissionState(DOMPromiseDeferred<IDLEnumeration<PushPermissionState>>&&);
 
-    void ref() const final { RefCounted::ref(); };
-    void deref() const final { RefCounted::deref(); };
+    using RefCounted::ref;
+    using RefCounted::deref;
 
     const ServiceWorkerRegistrationData& data() const { return m_registrationData; }
 
@@ -105,8 +103,6 @@ public:
     void showNotification(ScriptExecutionContext&, String&& title, NotificationOptions&&, Ref<DeferredPromise>&&);
     void getNotifications(const GetNotificationOptions& filter, DOMPromiseDeferred<IDLSequence<IDLInterface<Notification>>>);
 #endif
-
-    CookieStoreManager& cookies();
 
 private:
     ServiceWorkerRegistration(ScriptExecutionContext&, Ref<ServiceWorkerContainer>&&, ServiceWorkerRegistrationData&&);
@@ -129,10 +125,10 @@ private:
     RefPtr<ServiceWorker> m_activeWorker;
 
     std::unique_ptr<NavigationPreloadManager> m_navigationPreload;
-
-    RefPtr<CookieStoreManager> m_cookieStoreManager;
 };
 
 WebCoreOpaqueRoot root(ServiceWorkerRegistration*);
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

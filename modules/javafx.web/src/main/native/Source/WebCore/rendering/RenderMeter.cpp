@@ -35,9 +35,8 @@ using namespace HTMLNames;
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderMeter);
 
 RenderMeter::RenderMeter(HTMLElement& element, RenderStyle&& style)
-    : RenderBlockFlow(Type::Meter, element, WTFMove(style))
+    : RenderBlockFlow(element, WTFMove(style))
 {
-    ASSERT(isRenderMeter());
 }
 
 RenderMeter::~RenderMeter() = default;
@@ -46,8 +45,8 @@ HTMLMeterElement* RenderMeter::meterElement() const
 {
     ASSERT(element());
 
-    if (auto* meterElement = dynamicDowncast<HTMLMeterElement>(*element()))
-        return meterElement;
+    if (is<HTMLMeterElement>(*element()))
+        return downcast<HTMLMeterElement>(element());
 
     ASSERT(element()->shadowHost());
     return downcast<HTMLMeterElement>(element()->shadowHost());

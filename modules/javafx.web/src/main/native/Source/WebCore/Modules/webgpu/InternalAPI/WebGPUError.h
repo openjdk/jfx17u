@@ -25,7 +25,6 @@
 
 #pragma once
 
-#include "WebGPUInternalError.h"
 #include "WebGPUOutOfMemoryError.h"
 #include "WebGPUValidationError.h"
 #include <variant>
@@ -33,6 +32,6 @@
 
 namespace WebCore::WebGPU {
 
-using Error = std::variant<Ref<OutOfMemoryError>, Ref<ValidationError>, Ref<InternalError>>;
+using Error = std::variant<Ref<OutOfMemoryError>, Ref<ValidationError>>;
 
 } // namespace WebCore::WebGPU

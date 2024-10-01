@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "ScriptExecutionContextIdentifier.h"
 #include "SecurityOriginData.h"
 #include "ServiceWorkerJobDataIdentifier.h"
@@ -70,3 +72,5 @@ private:
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

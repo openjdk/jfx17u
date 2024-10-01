@@ -94,7 +94,6 @@ private:
     String label() const final;
     void didRemoveFromUndoManager() final { }
     bool areRootEditabledElementsConnected();
-    RefPtr<Document> protectedDocument() const { return m_document; }
 
     RefPtr<Document> m_document;
     VisibleSelection m_startingSelection;
@@ -113,7 +112,6 @@ public:
     void apply();
     bool isFirstCommand(EditCommand* command) { return !m_commands.isEmpty() && m_commands.first() == command; }
     EditCommandComposition* composition() const;
-    RefPtr<EditCommandComposition> protectedComposition() const { return composition(); }
     EditCommandComposition& ensureComposition();
 
     virtual bool isCreateLinkCommand() const;
@@ -132,7 +130,7 @@ public:
     virtual RefPtr<DataTransfer> inputEventDataTransfer() const;
 
 protected:
-    explicit CompositeEditCommand(Ref<Document>&&, EditAction = EditAction::Unspecified);
+    explicit CompositeEditCommand(Document&, EditAction = EditAction::Unspecified);
 
     // If willApplyCommand returns false, we won't proceed with applying the command.
     virtual bool willApplyCommand();
@@ -174,7 +172,7 @@ protected:
     void removeNodeAttribute(Element&, const QualifiedName& attribute);
     void removeChildrenInRange(Node&, unsigned from, unsigned to);
     virtual void removeNode(Node&, ShouldAssumeContentIsAlwaysEditable = DoNotAssumeContentIsAlwaysEditable);
-    RefPtr<HTMLElement> replaceElementWithSpanPreservingChildrenAndAttributes(HTMLElement&);
+    HTMLElement* replaceElementWithSpanPreservingChildrenAndAttributes(HTMLElement&);
     void removeNodePreservingChildren(Node&, ShouldAssumeContentIsAlwaysEditable = DoNotAssumeContentIsAlwaysEditable);
     void removeNodeAndPruneAncestors(Node&);
     void moveRemainingSiblingsToNewParent(Node*, Node* pastLastNodeToMove, Element& newParent);

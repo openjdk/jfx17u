@@ -55,14 +55,11 @@ public:
 
     void handleUnavailablePluginIndicatorEvent(Event*);
 
-    bool requiresAcceleratedCompositing() const override;
+    bool allowsAcceleratedCompositing() const;
 
     LayoutRect unavailablePluginIndicatorBounds(const LayoutPoint& accumulatedOffset) const;
 
     const String& pluginReplacementTextIfUnavailable() const { return m_unavailablePluginReplacementText; }
-
-    bool usesAsyncScrolling() const;
-    ScrollingNodeID scrollingNodeID() const;
 
 private:
     void paintReplaced(PaintInfo&, const LayoutPoint&) final;
@@ -74,8 +71,11 @@ private:
     void willBeDestroyed() final;
 
     ASCIILiteral renderName() const final { return "RenderEmbeddedObject"_s; }
+    bool isEmbeddedObject() const final { return true; }
 
     bool showsUnavailablePluginIndicator() const { return isPluginUnavailable() && m_isUnavailablePluginIndicatorState != UnavailablePluginIndicatorState::Hidden; }
+
+    bool requiresLayer() const final;
 
     bool nodeAtPoint(const HitTestRequest&, HitTestResult&, const HitTestLocation& locationInContainer, const LayoutPoint& accumulatedOffset, HitTestAction) final;
 
@@ -100,4 +100,4 @@ private:
 
 } // namespace WebCore
 
-SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderEmbeddedObject, isRenderEmbeddedObject())
+SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderEmbeddedObject, isEmbeddedObject())

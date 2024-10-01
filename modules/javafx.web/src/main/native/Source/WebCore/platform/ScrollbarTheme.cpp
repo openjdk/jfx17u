@@ -44,7 +44,7 @@ ScrollbarTheme& ScrollbarTheme::theme()
 
 ScrollbarButtonPressAction ScrollbarTheme::handleMousePressEvent(Scrollbar&, const PlatformMouseEvent& event, ScrollbarPart pressedPart)
 {
-    if (event.button() == MouseButton::Right)
+    if (event.button() == RightButton)
         return ScrollbarButtonPressAction::None;
     if (pressedPart == ThumbPart)
         return ScrollbarButtonPressAction::StartDrag;

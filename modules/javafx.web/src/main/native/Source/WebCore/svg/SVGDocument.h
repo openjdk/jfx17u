@@ -55,9 +55,5 @@ inline Ref<SVGDocument> SVGDocument::create(LocalFrame* frame, const Settings& s
 
 SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::SVGDocument)
     static bool isType(const WebCore::Document& document) { return document.isSVGDocument(); }
-    static bool isType(const WebCore::Node& node)
-    {
-        auto* document = dynamicDowncast<WebCore::Document>(node);
-        return document && isType(*document);
-    }
+    static bool isType(const WebCore::Node& node) { return is<WebCore::Document>(node) && isType(downcast<WebCore::Document>(node)); }
 SPECIALIZE_TYPE_TRAITS_END()

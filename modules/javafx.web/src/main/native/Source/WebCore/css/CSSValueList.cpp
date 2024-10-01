@@ -22,7 +22,6 @@
 #include "CSSValueList.h"
 
 #include "CSSPrimitiveValue.h"
-#include <wtf/Hasher.h>
 #include <wtf/text/StringBuilder.h>
 
 namespace WebCore {
@@ -211,9 +210,11 @@ bool CSSValueContainingVector::hasValue(CSSValueID otherValue) const
 
 CSSValueListBuilder CSSValueContainingVector::copyValues() const
 {
-    return WTF::map<CSSValueListBuilderInlineCapacity>(*this, [](auto& value) -> Ref<CSSValue> {
-        return const_cast<CSSValue&>(value);
-    });
+    CSSValueListBuilder builder;
+    builder.reserveInitialCapacity(size());
+    for (auto& value : *this)
+        builder.uncheckedAppend(const_cast<CSSValue&>(value));
+    return builder;
 }
 
 void CSSValueContainingVector::serializeItems(StringBuilder& builder) const
@@ -258,17 +259,6 @@ bool CSSValueContainingVector::containsSingleEqualItem(const CSSValue& other) co
     return size() == 1 && (*this)[0].equals(other);
 }
 
-bool CSSValueContainingVector::addDerivedHash(Hasher& hasher) const
-{
-    add(hasher, separator());
-
-    for (auto& item : *this) {
-        if (!item.addHash(hasher))
-            return false;
-    }
-    return true;
-}
-
 bool CSSValueContainingVector::customTraverseSubresources(const Function<bool(const CachedResource&)>& handler) const
 {
     for (auto& value : *this) {
@@ -276,18 +266,6 @@ bool CSSValueContainingVector::customTraverseSubresources(const Function<bool(co
             return true;
     }
     return false;
-}
-
-void CSSValueContainingVector::customSetReplacementURLForSubresources(const HashMap<String, String>& replacementURLStrings)
-{
-    for (auto& value : *this)
-        const_cast<CSSValue&>(value).setReplacementURLForSubresources(replacementURLStrings);
-}
-
-void CSSValueContainingVector::customClearReplacementURLForSubresources()
-{
-    for (auto& value : *this)
-        const_cast<CSSValue&>(value).clearReplacementURLForSubresources();
 }
 
 } // namespace WebCore

@@ -26,7 +26,7 @@
 #include "config.h"
 #include "WasmOpcodeOrigin.h"
 
-#if ENABLE(WEBASSEMBLY_OMGJIT)
+#if ENABLE(WEBASSEMBLY_B3JIT)
 
 namespace JSC { namespace Wasm {
 
@@ -37,4 +37,4 @@ void OpcodeOrigin::dump(PrintStream& out) const
 
 } } // namespace JSC::Wasm
 
-#endif // ENABLE(WEBASSEMBLY_OMGJIT)
+#endif // ENABLE(WEBASSEMBLY_B3JIT)

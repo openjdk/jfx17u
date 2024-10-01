@@ -45,12 +45,12 @@ public:
         Invalid
     };
 
-    enum class ParsingMode : bool {
-        ForAtRuleSupports,
-        AllowBareDeclarationAndGeneralEnclosed,
+    enum SupportsParsingMode {
+        ForAtRule,
+        ForWindowCSS,
     };
 
-    static SupportsResult supportsCondition(CSSParserTokenRange, CSSParserImpl&, ParsingMode, CSSParserEnum::IsNestedContext);
+    static SupportsResult supportsCondition(CSSParserTokenRange, CSSParserImpl&, SupportsParsingMode, CSSParserEnum::IsNestedContext);
 
 private:
     CSSSupportsParser(CSSParserImpl& parser, CSSParserEnum::IsNestedContext isNestedContext = CSSParserEnum::IsNestedContext::No)

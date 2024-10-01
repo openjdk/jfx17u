@@ -57,4 +57,5 @@ inline CryptoAlgorithmIdentifier CryptoAlgorithmEd25519::identifier() const
 }
 
 } // namespace WebCore
+
 #endif // ENABLE(WEB_CRYPTO)

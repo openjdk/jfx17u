@@ -56,7 +56,6 @@ my $writeDependencies;
 my $verbose;
 my $supplementalDependencyFile;
 my $idlAttributesFile;
-my $idlFileNamesList;
 
 GetOptions('include=s@' => \@idlDirectories,
            'outputDir=s' => \$outputDirectory,
@@ -69,8 +68,7 @@ GetOptions('include=s@' => \@idlDirectories,
            'verbose' => \$verbose,
            'write-dependencies' => \$writeDependencies,
            'supplementalDependencyFile=s' => \$supplementalDependencyFile,
-           'idlAttributesFile=s' => \$idlAttributesFile,
-           'idlFileNamesList=s' => \$idlFileNamesList);
+           'idlAttributesFile=s' => \$idlAttributesFile);
 
 
 die('Must specify input file.') unless @ARGV;
@@ -131,7 +129,7 @@ sub generateBindings
     my $targetDocument = $targetParser->Parse($targetIdlFile, $defines, $preprocessor, $idlAttributes);
 
     # Generate desired output for the target IDL file.
-    my $codeGen = CodeGenerator->new($generator, $outputDirectory, $outputHeadersDirectory, $preprocessor, $writeDependencies, $verbose, $targetIdlFile, $idlAttributes, \%supplementalDependencies, $idlFileNamesList);
+    my $codeGen = CodeGenerator->new(\@idlDirectories, $generator, $outputDirectory, $outputHeadersDirectory, $preprocessor, $writeDependencies, $verbose, $targetIdlFile, $idlAttributes, \%supplementalDependencies);
     $codeGen->ProcessDocument($targetDocument, $defines);
 }
 

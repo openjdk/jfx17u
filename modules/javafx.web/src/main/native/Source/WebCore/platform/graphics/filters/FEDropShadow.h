@@ -27,7 +27,7 @@ namespace WebCore {
 
 class FEDropShadow : public FilterEffect {
 public:
-    WEBCORE_EXPORT static Ref<FEDropShadow> create(float stdX, float stdY, float dx, float dy, const Color& shadowColor, float shadowOpacity, DestinationColorSpace = DestinationColorSpace::SRGB());
+    WEBCORE_EXPORT static Ref<FEDropShadow> create(float stdX, float stdY, float dx, float dy, const Color& shadowColor, float shadowOpacity);
 
     bool operator==(const FEDropShadow&) const;
 
@@ -51,12 +51,8 @@ public:
 
     static IntOutsets calculateOutsets(const FloatSize& offset, const FloatSize& stdDeviation);
 
-#if USE(CAIRO)
-    void setOperatingColorSpace(const DestinationColorSpace&) override { }
-#endif
-
 private:
-    FEDropShadow(float stdX, float stdY, float dx, float dy, const Color& shadowColor, float shadowOpacity, DestinationColorSpace);
+    FEDropShadow(float stdX, float stdY, float dx, float dy, const Color& shadowColor, float shadowOpacity);
 
     bool operator==(const FilterEffect& other) const override { return areEqual<FEDropShadow>(*this, other); }
 
@@ -79,4 +75,4 @@ private:
 
 } // namespace WebCore
 
-SPECIALIZE_TYPE_TRAITS_FILTER_FUNCTION(FEDropShadow)
+SPECIALIZE_TYPE_TRAITS_FILTER_EFFECT(FEDropShadow)

@@ -47,7 +47,7 @@ static bool canDropAnonymousBlock(const RenderBlock& anonymousBlock)
 {
     if (anonymousBlock.beingDestroyed() || anonymousBlock.continuation())
         return false;
-    if (anonymousBlock.isRenderRubyRun() || anonymousBlock.isRenderRubyBase())
+    if (anonymousBlock.isRubyRun() || anonymousBlock.isRubyBase())
         return false;
     return true;
 }
@@ -173,7 +173,7 @@ void RenderTreeBuilder::Block::attachIgnoringContinuation(RenderBlock& parent, R
                 m_builder.attach(parent, WTFMove(child), beforeChildContainer);
                 return;
             }
-            RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(!beforeChildContainer->isInline() || beforeChildContainer->isRenderTable());
+            RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(!beforeChildContainer->isInline() || beforeChildContainer->isTable());
 
             // If the requested beforeChild is not one of our children, then this is because
             // there is an anonymous container within this object that contains the beforeChild.
@@ -197,7 +197,7 @@ void RenderTreeBuilder::Block::attachIgnoringContinuation(RenderBlock& parent, R
                 return;
             }
 
-            ASSERT(beforeChildAnonymousContainer->isRenderTable());
+            ASSERT(beforeChildAnonymousContainer->isTable());
 
             if (child->isTablePart()) {
                 // Insert into the anonymous table.
@@ -226,7 +226,7 @@ void RenderTreeBuilder::Block::attachIgnoringContinuation(RenderBlock& parent, R
             ASSERT(beforeChild->isAnonymousBlock());
             ASSERT(beforeChild->parent() == &parent);
         }
-    } else if (!parent.childrenInline() && ((child->isFloatingOrOutOfFlowPositioned() && !is<RenderFlexibleBox>(parent) && !parent.isRenderGrid()) || child->isInline())) {
+    } else if (!parent.childrenInline() && ((child->isFloatingOrOutOfFlowPositioned() && !parent.isFlexibleBox() && !parent.isRenderGrid()) || child->isInline())) {
         // If we're inserting an inline child but all of our children are blocks, then we have to make sure
         // it is put into an anomyous block box. We try to use an existing anonymous box if possible, otherwise
         // a new one is created and inserted into our list of children in the appropriate position.
@@ -282,7 +282,7 @@ void RenderTreeBuilder::Block::removeLeftoverAnonymousBlock(RenderBlock& anonymo
     // anonymousBlock is dead here.
 }
 
-RenderPtr<RenderObject> RenderTreeBuilder::Block::detach(RenderBlock& parent, RenderObject& oldChild, CanCollapseAnonymousBlock canCollapseAnonymousBlock, WillBeDestroyed willBeDestroyed)
+RenderPtr<RenderObject> RenderTreeBuilder::Block::detach(RenderBlock& parent, RenderObject& oldChild, CanCollapseAnonymousBlock canCollapseAnonymousBlock)
 {
     // No need to waste time in merging or removing empty anonymous blocks.
     // We can just bail out if our document is getting destroyed.
@@ -295,7 +295,7 @@ RenderPtr<RenderObject> RenderTreeBuilder::Block::detach(RenderBlock& parent, Re
     WeakPtr next = oldChild.nextSibling();
     bool canMergeAnonymousBlocks = canCollapseAnonymousBlock == CanCollapseAnonymousBlock::Yes && canMergeContiguousAnonymousBlocks(oldChild, prev.get(), next.get());
 
-    auto takenChild = m_builder.detachFromRenderElement(parent, oldChild, willBeDestroyed);
+    auto takenChild = m_builder.detachFromRenderElement(parent, oldChild);
 
     if (canMergeAnonymousBlocks && prev && next) {
         prev->setNeedsLayoutAndPrefWidthsRecalc();
@@ -382,14 +382,14 @@ void RenderTreeBuilder::Block::dropAnonymousBoxChild(RenderBlock& parent, Render
     child.deleteLines();
 }
 
-RenderPtr<RenderObject> RenderTreeBuilder::Block::detach(RenderBlockFlow& parent, RenderObject& child, CanCollapseAnonymousBlock canCollapseAnonymousBlock, WillBeDestroyed willBeDestroyed)
+RenderPtr<RenderObject> RenderTreeBuilder::Block::detach(RenderBlockFlow& parent, RenderObject& child, CanCollapseAnonymousBlock canCollapseAnonymousBlock)
 {
     if (!parent.renderTreeBeingDestroyed()) {
         auto* fragmentedFlow = parent.multiColumnFlow();
         if (fragmentedFlow && fragmentedFlow != &child)
             m_builder.multiColumnBuilder().multiColumnRelativeWillBeRemoved(*fragmentedFlow, child, canCollapseAnonymousBlock);
     }
-    return detach(static_cast<RenderBlock&>(parent), child, canCollapseAnonymousBlock, willBeDestroyed);
+    return detach(static_cast<RenderBlock&>(parent), child, canCollapseAnonymousBlock);
 }
 
 }

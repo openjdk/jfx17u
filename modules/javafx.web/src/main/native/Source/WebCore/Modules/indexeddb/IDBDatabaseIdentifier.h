@@ -62,7 +62,10 @@ public:
         return m_databaseName.isNull();
     }
 
-    friend bool operator==(const IDBDatabaseIdentifier&, const IDBDatabaseIdentifier&) = default;
+    bool operator==(const IDBDatabaseIdentifier& other) const
+    {
+        return other.m_databaseName == m_databaseName && other.m_origin == m_origin && other.m_isTransient == m_isTransient;
+    }
 
     const String& databaseName() const { return m_databaseName; }
     const ClientOrigin& origin() const { return m_origin; }

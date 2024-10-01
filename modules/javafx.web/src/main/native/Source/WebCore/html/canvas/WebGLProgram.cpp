@@ -31,6 +31,7 @@
 #include "InspectorInstrumentation.h"
 #include "ScriptExecutionContext.h"
 #include "WebCoreOpaqueRootInlines.h"
+#include "WebGLContextGroup.h"
 #include "WebGLRenderingContextBase.h"
 #include "WebGLShader.h"
 #include <JavaScriptCore/SlotVisitor.h>
@@ -54,24 +55,23 @@ Lock& WebGLProgram::instancesLock()
     return s_instancesLock;
 }
 
-RefPtr<WebGLProgram> WebGLProgram::create(WebGLRenderingContextBase& context)
+Ref<WebGLProgram> WebGLProgram::create(WebGLRenderingContextBase& ctx)
 {
-    auto object = context.protectedGraphicsContextGL()->createProgram();
-    if (!object)
-        return nullptr;
-    return adoptRef(*new WebGLProgram { context, object });
+    return adoptRef(*new WebGLProgram(ctx));
 }
 
-WebGLProgram::WebGLProgram(WebGLRenderingContextBase& context, PlatformGLObject object)
-    : WebGLObject(context, object)
-    , ContextDestructionObserver(context.scriptExecutionContext())
+WebGLProgram::WebGLProgram(WebGLRenderingContextBase& ctx)
+    : WebGLSharedObject(ctx)
+    , ContextDestructionObserver(ctx.scriptExecutionContext())
 {
     ASSERT(scriptExecutionContext());
 
     {
         Locker locker { instancesLock() };
-        instances().add(this, &context);
+        instances().add(this, &ctx);
     }
+
+    setObject(ctx.graphicsContextGL()->createProgram());
 }
 
 WebGLProgram::~WebGLProgram()
@@ -84,7 +84,7 @@ WebGLProgram::~WebGLProgram()
         instances().remove(this);
     }
 
-    if (!m_context)
+    if (!hasGroupOrContext())
         return;
 
     runDestructor();
@@ -138,6 +138,12 @@ bool WebGLProgram::getLinkStatus()
 {
     cacheInfoIfNeeded();
     return m_linkStatus;
+}
+
+void WebGLProgram::setLinkStatus(bool status)
+{
+    cacheInfoIfNeeded();
+    m_linkStatus = status;
 }
 
 void WebGLProgram::increaseLinkCount()
@@ -225,13 +231,13 @@ void WebGLProgram::cacheInfoIfNeeded()
     if (!object())
         return;
 
-    RefPtr context = graphicsContextGL();
+    GraphicsContextGL* context = getAGraphicsContextGL();
     if (!context)
         return;
     GCGLint linkStatus = context->getProgrami(object(), GraphicsContextGL::LINK_STATUS);
     m_linkStatus = linkStatus;
     if (m_linkStatus) {
-        cacheActiveAttribLocations(context.get());
+        cacheActiveAttribLocations(context);
         m_requiredTransformFeedbackBufferCount = m_requiredTransformFeedbackBufferCountAfterNextLink;
     }
     m_infoValid = true;

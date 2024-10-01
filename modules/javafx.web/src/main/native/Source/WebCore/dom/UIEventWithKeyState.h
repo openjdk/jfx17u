@@ -38,6 +38,7 @@ public:
     bool shiftKey() const { return m_modifiers.contains(Modifier::ShiftKey); }
     bool altKey() const { return m_modifiers.contains(Modifier::AltKey); }
     bool metaKey() const { return m_modifiers.contains(Modifier::MetaKey); }
+    bool altGraphKey() const { return m_modifiers.contains(Modifier::AltGraphKey); }
     bool capsLockKey() const { return m_modifiers.contains(Modifier::CapsLockKey); }
 
     OptionSet<Modifier> modifierKeys() const { return m_modifiers; }
@@ -67,7 +68,7 @@ protected:
     {
     }
 
-    void setModifierKeys(bool ctrlKey, bool altKey, bool shiftKey, bool metaKey);
+    void setModifierKeys(bool ctrlKey, bool altKey, bool shiftKey, bool metaKey, bool altGraphKey = false);
 
 private:
     OptionSet<Modifier> m_modifiers;

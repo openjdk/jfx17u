@@ -37,8 +37,8 @@ namespace WebCore {
 
 class ApplyBlockElementCommand : public CompositeEditCommand {
 protected:
-    ApplyBlockElementCommand(Ref<Document>&&, const QualifiedName& tagName, const AtomString& inlineStyle);
-    ApplyBlockElementCommand(Ref<Document>&&, const QualifiedName& tagName);
+    ApplyBlockElementCommand(Document&, const QualifiedName& tagName, const AtomString& inlineStyle);
+    ApplyBlockElementCommand(Document&, const QualifiedName& tagName);
 
     virtual void formatSelection(const VisiblePosition& startOfSelection, const VisiblePosition& endOfSelection);
     Ref<HTMLElement> createBlockElement();

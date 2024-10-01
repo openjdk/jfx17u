@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2015-2018 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,7 +25,7 @@
 
 #pragma once
 
-#if ENABLE(B3_JIT) || ENABLE(WEBASSEMBLY_BBQJIT)
+#if ENABLE(B3_JIT)
 
 #include "FPRInfo.h"
 #include "GPRInfo.h"
@@ -34,7 +34,6 @@
 #include "RegisterSet.h"
 #include "ValueRecovery.h"
 #include <wtf/PrintStream.h>
-#include <wtf/TZoneMalloc.h>
 #if ENABLE(WEBASSEMBLY)
 #include "WasmValueLocation.h"
 #endif
@@ -51,7 +50,7 @@ namespace B3 {
 // output.
 
 class ValueRep {
-    WTF_MAKE_TZONE_ALLOCATED(ValueRep);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     enum Kind : uint8_t {
         // As an input representation, this means that B3 can pick any representation. As an output

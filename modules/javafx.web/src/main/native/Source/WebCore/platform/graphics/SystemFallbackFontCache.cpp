@@ -41,14 +41,27 @@ SystemFallbackFontCache& SystemFallbackFontCache::forCurrentThread()
     return FontCache::forCurrentThread().systemFallbackFontCache();
 }
 
-RefPtr<Font> SystemFallbackFontCache::systemFallbackFontForCharacterCluster(const Font* font, StringView characterCluster, const FontDescription& description, ResolvedEmojiPolicy resolvedEmojiPolicy, IsForPlatformFont isForPlatformFont)
+RefPtr<Font> SystemFallbackFontCache::systemFallbackFontForCharacter(const Font* font, UChar32 character, const FontDescription& description, ResolvedEmojiPolicy resolvedEmojiPolicy, IsForPlatformFont isForPlatformFont)
 {
     auto fontAddResult = m_characterFallbackMaps.add(font, CharacterFallbackMap());
 
-    auto key = CharacterFallbackMapKey { description.computedLocale(), characterCluster.toString(), isForPlatformFont != IsForPlatformFont::No, resolvedEmojiPolicy };
+    if (!character) {
+        UChar codeUnit = 0;
+        return FontCache::forCurrentThread().systemFallbackForCharacters(description, *font, isForPlatformFont, FontCache::PreferColoredFont::No, &codeUnit, 1);
+    }
+
+    auto key = CharacterFallbackMapKey { description.computedLocale(), character, isForPlatformFont != IsForPlatformFont::No, resolvedEmojiPolicy };
     return fontAddResult.iterator->value.ensure(WTFMove(key), [&] {
-        StringBuilder stringBuilder;
-        stringBuilder.append(FontCascade::normalizeSpaces(characterCluster));
+        UChar codeUnits[3];
+        unsigned codeUnitsLength;
+        if (U_IS_BMP(character)) {
+            codeUnits[0] = FontCascade::normalizeSpaces(character);
+            codeUnitsLength = 1;
+        } else {
+            codeUnits[0] = U16_LEAD(character);
+            codeUnits[1] = U16_TRAIL(character);
+            codeUnitsLength = 2;
+        }
 
         // FIXME: Is this the right place to add the variation selectors?
         // Should this be done in platform-specific code instead?
@@ -60,14 +73,14 @@ RefPtr<Font> SystemFallbackFontCache::systemFallbackFontForCharacterCluster(cons
         case ResolvedEmojiPolicy::NoPreference:
             break;
         case ResolvedEmojiPolicy::RequireText:
-            stringBuilder.append(textVariationSelector);
+            codeUnits[codeUnitsLength++] = textVariationSelector;
             break;
         case ResolvedEmojiPolicy::RequireEmoji:
-            stringBuilder.append(emojiVariationSelector);
+            codeUnits[codeUnitsLength++] = emojiVariationSelector;
             break;
         }
 
-        auto fallbackFont = FontCache::forCurrentThread().systemFallbackForCharacterCluster(description, *font, isForPlatformFont, FontCache::PreferColoredFont::No, stringBuilder).get();
+        auto fallbackFont = FontCache::forCurrentThread().systemFallbackForCharacters(description, *font, isForPlatformFont, FontCache::PreferColoredFont::No, codeUnits, codeUnitsLength).get();
         if (fallbackFont)
             fallbackFont->setIsUsedInSystemFallbackFontCache();
         return fallbackFont;

@@ -77,7 +77,6 @@ public:
     virtual void resume();
     virtual void cancel();
     virtual void resetState();
-    virtual void voicesDidChange();
 
     PlatformSpeechSynthesizerClient& client() const { return m_speechSynthesizerClient; }
 
@@ -87,7 +86,6 @@ protected:
 
 private:
     virtual void initializeVoiceList();
-    virtual void resetVoiceList();
 
     bool m_voiceListIsInitialized { false };
     PlatformSpeechSynthesizerClient& m_speechSynthesizerClient;

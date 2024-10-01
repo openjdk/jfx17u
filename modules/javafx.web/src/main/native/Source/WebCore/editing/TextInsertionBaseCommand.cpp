@@ -35,8 +35,8 @@
 
 namespace WebCore {
 
-TextInsertionBaseCommand::TextInsertionBaseCommand(Ref<Document>&& document, EditAction editingAction)
-    : CompositeEditCommand(WTFMove(document), editingAction)
+TextInsertionBaseCommand::TextInsertionBaseCommand(Document& document, EditAction editingAction)
+    : CompositeEditCommand(document, editingAction)
 {
 }
 
@@ -60,11 +60,11 @@ String dispatchBeforeTextInsertedEvent(const String& text, const VisibleSelectio
         return text;
 
     String newText = text;
-    if (RefPtr startNode = selectionForInsertion.start().containerNode()) {
+    if (Node* startNode = selectionForInsertion.start().containerNode()) {
         if (startNode->rootEditableElement()) {
             // Send BeforeTextInsertedEvent. The event handler will update text if necessary.
-            Ref event = BeforeTextInsertedEvent::create(text);
-            RefPtr { startNode->rootEditableElement() }->dispatchEvent(event);
+            Ref<BeforeTextInsertedEvent> event = BeforeTextInsertedEvent::create(text);
+            startNode->rootEditableElement()->dispatchEvent(event);
             newText = event->text();
         }
     }
@@ -73,11 +73,11 @@ String dispatchBeforeTextInsertedEvent(const String& text, const VisibleSelectio
 
 bool canAppendNewLineFeedToSelection(const VisibleSelection& selection)
 {
-    RefPtr node = selection.rootEditableElement();
+    Node* node = selection.rootEditableElement();
     if (!node)
         return false;
 
-    Ref event = BeforeTextInsertedEvent::create("\n"_s);
+    Ref<BeforeTextInsertedEvent> event = BeforeTextInsertedEvent::create("\n"_s);
     node->dispatchEvent(event);
     return event->text().length();
 }

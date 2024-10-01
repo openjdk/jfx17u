@@ -59,7 +59,7 @@ public:
     }
 
     VM& vm() const;
-    JSC::Heap* heap() const;
+    Heap* heap() const;
 
     explicit operator bool() const { return !!m_encodedPointer; }
 

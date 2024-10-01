@@ -32,13 +32,11 @@
 #include "JSCJSValue.h"
 #include "JSString.h"
 #include "MacroAssembler.h"
-#include <wtf/TZoneMalloc.h>
 
 #if ENABLE(JIT)
 
 namespace JSC {
     class JSInterfaceJIT : public CCallHelpers, public GPRInfo, public JSRInfo, public FPRInfo {
-        WTF_MAKE_TZONE_ALLOCATED(JSInterfaceJIT);
     public:
 
         JSInterfaceJIT(VM* vm = nullptr, CodeBlock* codeBlock = nullptr)

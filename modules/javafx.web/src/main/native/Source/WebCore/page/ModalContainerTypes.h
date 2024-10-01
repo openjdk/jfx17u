@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include <wtf/EnumTraits.h>
+
 namespace WebCore {
 
 enum class ModalContainerControlType : uint8_t {
@@ -42,3 +44,17 @@ enum class ModalContainerDecision : uint8_t {
 };
 
 } // namespace WebCore
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::ModalContainerControlType> {
+    using values = EnumValues<
+        WebCore::ModalContainerControlType,
+        WebCore::ModalContainerControlType::Neutral,
+        WebCore::ModalContainerControlType::Positive,
+        WebCore::ModalContainerControlType::Negative,
+        WebCore::ModalContainerControlType::Other
+    >;
+};
+
+} // namespace WTF

@@ -26,18 +26,16 @@
 #pragma once
 
 #include "WebGLExtension.h"
-#include "WebGLRenderingContextBase.h"
-#include <wtf/IsoMalloc.h>
-#include <wtf/Noncopyable.h>
 
 namespace WebCore {
 
-class EXTBlendMinMax final : public WebGLExtension<WebGLRenderingContextBase> {
+class EXTBlendMinMax final : public WebGLExtension {
     WTF_MAKE_ISO_ALLOCATED(EXTBlendMinMax);
-    WTF_MAKE_NONCOPYABLE(EXTBlendMinMax);
 public:
     explicit EXTBlendMinMax(WebGLRenderingContextBase&);
-    ~EXTBlendMinMax();
+    virtual ~EXTBlendMinMax();
+
+    ExtensionName getName() const override;
 
     static bool supported(GraphicsContextGL&);
 };

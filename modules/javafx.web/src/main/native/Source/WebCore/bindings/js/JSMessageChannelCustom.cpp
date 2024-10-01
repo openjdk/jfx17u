@@ -25,6 +25,8 @@
 
 #include "config.h"
 
+#if ENABLE(CHANNEL_MESSAGING)
+
 #include "DOMWrapperWorld.h"
 #include "JSMessageChannel.h"
 #include "JSNodeCustom.h"
@@ -44,3 +46,5 @@ void JSMessageChannel::visitAdditionalChildren(Visitor& visitor)
 DEFINE_VISIT_ADDITIONAL_CHILDREN(JSMessageChannel);
 
 } // namespace WebCore
+
+#endif // ENABLE(CHANNEL_MESSAGING)

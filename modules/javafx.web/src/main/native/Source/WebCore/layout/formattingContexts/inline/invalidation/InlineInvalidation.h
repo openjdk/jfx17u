@@ -27,6 +27,7 @@
 
 #include "InlineDamage.h"
 #include "InlineDisplayContent.h"
+#include "InlineFormattingState.h"
 #include <optional>
 #include <wtf/Forward.h>
 
@@ -38,11 +39,12 @@ namespace Layout {
 
 class Box;
 class InlineTextBox;
+class InlineFormattingState;
 struct DamagedLine;
 
 class InlineInvalidation {
 public:
-    InlineInvalidation(InlineDamage&, const InlineItemList&, const InlineDisplay::Content&);
+    InlineInvalidation(InlineDamage&, const InlineItems&, const InlineDisplay::Content&);
 
     void styleChanged(const Box&, const RenderStyle& oldStyle);
 
@@ -56,14 +58,14 @@ public:
 
 private:
     enum class ShouldApplyRangeLayout : bool { No, Yes };
-    void updateInlineDamage(InlineDamage::Type, std::optional<InlineDamage::Reason>, std::optional<DamagedLine>, ShouldApplyRangeLayout = ShouldApplyRangeLayout::No);
+    void updateInlineDamage(InlineDamage::Type, std::optional<DamagedLine>, ShouldApplyRangeLayout = ShouldApplyRangeLayout::No);
     bool applyFullDamageIfNeeded(const Box&);
     const InlineDisplay::Boxes& displayBoxes() const { return m_displayContent.boxes; }
     const InlineDisplay::Lines& displayLines() const { return m_displayContent.lines; }
 
     InlineDamage& m_inlineDamage;
 
-    const InlineItemList& m_inlineItemList;
+    const InlineItems& m_inlineItems;
     const InlineDisplay::Content& m_displayContent;
 };
 

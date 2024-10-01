@@ -80,40 +80,33 @@ enum class StyleDifferenceContextSensitiveProperty : uint8_t {
 };
 
 // Static pseudo styles. Dynamic ones are produced on the fly.
-enum class PseudoId : uint32_t {
+enum class PseudoId : uint16_t {
     // The order must be None, public IDs, and then internal IDs.
     None,
 
     // Public:
     FirstLine,
     FirstLetter,
-    GrammarError,
     Highlight,
     Marker,
     Before,
     After,
     Selection,
     Backdrop,
-    WebKitScrollbar,
-    SpellingError,
-    ViewTransition,
-    ViewTransitionGroup,
-    ViewTransitionImagePair,
-    ViewTransitionOld,
-    ViewTransitionNew,
+    Scrollbar,
 
     // Internal:
-    WebKitScrollbarThumb,
-    WebKitScrollbarButton,
-    WebKitScrollbarTrack,
-    WebKitScrollbarTrackPiece,
-    WebKitScrollbarCorner,
-    WebKitResizer,
+    ScrollbarThumb,
+    ScrollbarButton,
+    ScrollbarTrack,
+    ScrollbarTrackPiece,
+    ScrollbarCorner,
+    Resizer,
 
     AfterLastInternalPseudoId,
 
     FirstPublicPseudoId = FirstLine,
-    FirstInternalPseudoId = WebKitScrollbarThumb,
+    FirstInternalPseudoId = ScrollbarThumb,
     PublicPseudoIdMask = ((1 << FirstInternalPseudoId) - 1) & ~((1 << FirstPublicPseudoId) - 1)
 };
 
@@ -250,9 +243,9 @@ enum class Float : uint8_t {
 };
 
 enum class UsedFloat : uint8_t {
-    None  = 1 << 0,
-    Left  = 1 << 1,
-    Right = 1 << 2
+    None,
+    Left,
+    Right,
 };
 
 // Box decoration attributes. Not inherited.
@@ -544,7 +537,7 @@ enum class WordBreak : uint8_t {
     BreakAll,
     KeepAll,
     BreakWord,
-    AutoPhrase
+    Auto
 };
 
 enum class OverflowWrap : uint8_t {
@@ -826,6 +819,7 @@ enum class CursorVisibility : bool {
 };
 #endif
 
+// The order of this enum must match the order of the display values in CSSValueKeywords.in.
 enum class DisplayType : uint8_t {
     Inline,
     Block,
@@ -849,10 +843,6 @@ enum class DisplayType : uint8_t {
     Grid,
     InlineGrid,
     FlowRoot,
-    Ruby,
-    RubyBlock,
-    RubyBase,
-    RubyAnnotation,
     None
 };
 
@@ -949,16 +939,12 @@ enum class TextOverflow : bool {
     Ellipsis
 };
 
-enum class TextWrapMode : bool {
+enum class TextWrap : uint8_t {
     Wrap,
-    NoWrap
-};
-
-enum class TextWrapStyle : uint8_t {
-    Auto,
+    NoWrap,
     Balance,
-    Pretty,
-    Stable
+    Stable,
+    Pretty
 };
 
 enum class ImageRendering : uint8_t {
@@ -1215,7 +1201,6 @@ WTF::TextStream& operator<<(WTF::TextStream&, ColumnProgression);
 WTF::TextStream& operator<<(WTF::TextStream&, ColumnSpan);
 WTF::TextStream& operator<<(WTF::TextStream&, ContentDistribution);
 WTF::TextStream& operator<<(WTF::TextStream&, ContentPosition);
-WTF::TextStream& operator<<(WTF::TextStream&, ContentVisibility);
 WTF::TextStream& operator<<(WTF::TextStream&, CursorType);
 #if ENABLE(CURSOR_VISIBILITY)
 WTF::TextStream& operator<<(WTF::TextStream&, CursorVisibility);
@@ -1286,8 +1271,7 @@ WTF::TextStream& operator<<(WTF::TextStream&, TextOverflow);
 WTF::TextStream& operator<<(WTF::TextStream&, TextSecurity);
 WTF::TextStream& operator<<(WTF::TextStream&, TextTransform);
 WTF::TextStream& operator<<(WTF::TextStream&, TextUnderlinePosition);
-WTF::TextStream& operator<<(WTF::TextStream&, TextWrapMode);
-WTF::TextStream& operator<<(WTF::TextStream&, TextWrapStyle);
+WTF::TextStream& operator<<(WTF::TextStream&, TextWrap);
 WTF::TextStream& operator<<(WTF::TextStream&, TextBoxTrim);
 WTF::TextStream& operator<<(WTF::TextStream&, TextBoxEdgeType);
 WTF::TextStream& operator<<(WTF::TextStream&, TextZoom);

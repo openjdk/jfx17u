@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2012-2018 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,7 +32,6 @@
 #include "ExitFlag.h"
 #include "ICStatusMap.h"
 #include "JSCJSValue.h"
-#include <wtf/TZoneMalloc.h>
 
 namespace JSC {
 
@@ -43,7 +42,7 @@ class Structure;
 class CallLinkInfo;
 
 class CallLinkStatus final {
-    WTF_MAKE_TZONE_ALLOCATED(CallLinkStatus);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     CallLinkStatus()
     {

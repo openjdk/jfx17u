@@ -90,13 +90,13 @@ std::optional<uint64_t> fileSize(PlatformFileHandle fileHandle)
     return getFileSizeFromByHandleFileInformationStructure(fileInformation);
 }
 
-std::optional<PlatformFileID> fileID(PlatformFileHandle)
+std::optional<PlatformFileID> fileID(PlatformFileHandle fileHandle)
 {
     // FIXME (246118): Implement this function properly.
     return std::nullopt;
 }
 
-bool fileIDsAreEqual(std::optional<PlatformFileID>, std::optional<PlatformFileID>)
+bool fileIDsAreEqual(std::optional<PlatformFileID> a, std::optional<PlatformFileID> b)
 {
     // FIXME (246118): Implement this function properly.
     return true;
@@ -269,7 +269,7 @@ bool truncateFile(PlatformFileHandle handle, long long offset)
     return SetFileInformationByHandle(handle, FileEndOfFileInfo, &eofInfo, sizeof(FILE_END_OF_FILE_INFO));
 }
 
-bool flushFile(PlatformFileHandle)
+bool flushFile(PlatformFileHandle handle)
 {
     // Not implemented.
     return false;

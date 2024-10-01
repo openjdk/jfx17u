@@ -172,7 +172,7 @@ let InjectedScript = class InjectedScript extends PrototypelessObjectBase
             return;
         }
 
-        if (!@isPromise(promiseObject)) {
+        if (!(promiseObject instanceof @Promise)) {
             callback("Object with given id is not a Promise");
             return;
         }
@@ -207,16 +207,14 @@ let InjectedScript = class InjectedScript extends PrototypelessObjectBase
         return this._evaluateAndWrap(callFrame.evaluateWithScopeExtension, callFrame, expression, objectGroup, isEvalOnCallFrame, includeCommandLineAPI, returnByValue, generatePreview, saveResult);
     }
 
-    callFunctionOn(objectId, expression, args, returnByValue, generatePreview, awaitPromise, callback)
+    callFunctionOn(objectId, expression, args, returnByValue, generatePreview)
     {
         let parsedObjectId = this._parseObjectId(objectId);
         let object = this._objectForId(parsedObjectId);
         let objectGroupName = this._idToObjectGroupName[parsedObjectId.id];
 
-        if (!isDefined(object)) {
-            callback("Could not find object with given id");
-            return;
-        }
+        if (!isDefined(object))
+            return "Could not find object with given id";
 
         let resolvedArgs = @createArrayWithoutPrototype();
         if (args) {
@@ -225,37 +223,22 @@ let InjectedScript = class InjectedScript extends PrototypelessObjectBase
                 try {
                     resolvedArgs[i] = this._resolveCallArgument(callArgs[i]);
                 } catch (e) {
-                    callback(@String(e));
-                    return;
+                    return @String(e);
                 }
             }
         }
 
         try {
             let func = InjectedScriptHost.evaluate("(" + expression + ")");
-            if (typeof func !== "function") {
-                callback("Given expression does not evaluate to a function");
-                return;
-            }
-            let result = func.@apply(object, resolvedArgs);
-            if (awaitPromise && isDefined(result) && @isPromise(result)) {
-                result.then((value) => {
-                    callback(@createObjectWithoutPrototype(
+            if (typeof func !== "function")
+                return "Given expression does not evaluate to a function";
+
+            return @createObjectWithoutPrototype(
                 "wasThrown", false,
-                        "result", RemoteObject.create(value, objectGroupName, returnByValue, generatePreview),
-                    ));
-                }, (reason) => {
-                    callback(this._createThrownValue(reason, objectGroupName));
-                });
-            } else {
-                callback(@createObjectWithoutPrototype(
-                    "wasThrown", false,
-                    "result", RemoteObject.create(result, objectGroupName, returnByValue, generatePreview),
-                ));
-            }
+                "result", RemoteObject.create(func.@apply(object, resolvedArgs), objectGroupName, returnByValue, generatePreview),
+            );
         } catch (e) {
-            callback(this._createThrownValue(e, objectGroupName));
-            return;
+            return this._createThrownValue(e, objectGroupName);
         }
     }
 
@@ -752,7 +735,7 @@ let InjectedScript = class InjectedScript extends PrototypelessObjectBase
                 if (symbol)
                     fakeDescriptor.symbol = symbol;
                 // Silence any possible unhandledrejection exceptions created from accessing a native accessor with a wrong this object.
-                if (@isPromise(fakeDescriptor.value) && InjectedScriptHost.isPromiseRejectedWithNativeGetterTypeError(fakeDescriptor.value))
+                if (fakeDescriptor.value instanceof @Promise && InjectedScriptHost.isPromiseRejectedWithNativeGetterTypeError(fakeDescriptor.value))
                     fakeDescriptor.value.@catch(function(){});
                 return fakeDescriptor;
             } catch (e) {
@@ -786,18 +769,17 @@ let InjectedScript = class InjectedScript extends PrototypelessObjectBase
             }
         }
 
-        function processProperty(o, propertyName, isOwnProperty, isPrivate)
+        function processProperty(o, propertyName, isOwnProperty, privateDescriptor)
         {
             if (nameProcessed.@has(propertyName))
                 return InjectedScript.PropertyFetchAction.Continue;
 
             nameProcessed.@add(propertyName);
 
-            // Private fields are implemented as hidden symbols, so don't treat them like regular `Symbol`.
-            let name = isPrivate ? propertyName.description : toString(propertyName);
-            let symbol = (!isPrivate && isSymbol(propertyName)) ? propertyName : null;
+            let name = toString(propertyName);
+            let symbol = isSymbol(propertyName) ? propertyName : null;
 
-            let descriptor = @Object.@getOwnPropertyDescriptor(o, propertyName);
+            let descriptor = privateDescriptor || @Object.@getOwnPropertyDescriptor(o, propertyName);
             if (!descriptor) {
                 // FIXME: Bad descriptor. Can we get here?
                 // Fall back to very restrictive settings.
@@ -819,7 +801,7 @@ let InjectedScript = class InjectedScript extends PrototypelessObjectBase
                 descriptor.isOwn = true;
             if (symbol)
                 descriptor.symbol = symbol;
-            if (isPrivate)
+            if (privateDescriptor)
                 descriptor.isPrivate = true;
             return processDescriptor(descriptor, isOwnProperty);
         }
@@ -833,10 +815,11 @@ let InjectedScript = class InjectedScript extends PrototypelessObjectBase
             let isOwnProperty = o === object;
             let shouldBreak = false;
 
-            let privatePropertySymbols = InjectedScriptHost.getOwnPrivatePropertySymbols(o);
-            for (let i = 0; i < privatePropertySymbols.length; ++i) {
-                let privatePropertySymbol = privatePropertySymbols[i];
-                let result = processProperty(o, privatePropertySymbol, isOwnProperty, true);
+            let privatePropertyDescriptors = InjectedScriptHost.getOwnPrivatePropertyDescriptors(o);
+            let privatePropertyNames = @Object.@getOwnPropertyNames(privatePropertyDescriptors);
+            for (let i = 0; i < privatePropertyNames.length; ++i) {
+                let privatePropertyName = privatePropertyNames[i];
+                let result = processProperty(o, privatePropertyName, isOwnProperty, privatePropertyDescriptors[privatePropertyName]);
                 shouldBreak = result === InjectedScript.PropertyFetchAction.Stop;
                 if (shouldBreak)
                     break;

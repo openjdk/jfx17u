@@ -82,7 +82,6 @@
 #include "UserContentProvider.h"
 #include "VisitedLinkStore.h"
 #include "WebRTCProvider.h"
-#include "WebTransportSession.h"
 #include <JavaScriptCore/HeapInlines.h>
 #include <pal/SessionID.h>
 #include <wtf/NeverDestroyed.h>
@@ -243,7 +242,7 @@ class EmptyDragClient final : public DragClient {
     void willPerformDragDestinationAction(DragDestinationAction, const DragData&) final { }
     void willPerformDragSourceAction(DragSourceAction, const IntPoint&, DataTransfer&) final { }
     OptionSet<DragSourceAction> dragSourceActionMaskForPoint(const IntPoint&) final { return { }; }
-    void startDrag(DragItem, DataTransfer&, Frame&) final { }
+    void startDrag(DragItem, DataTransfer&, LocalFrame&) final { }
 };
 
 #endif // ENABLE(DRAG_SUPPORT)
@@ -598,19 +597,15 @@ void EmptyChromeClient::requestCookieConsent(CompletionHandler<void(CookieConsen
     completion(CookieConsentDecisionResult::NotSupported);
 }
 
-void EmptyFrameLoaderClient::dispatchDecidePolicyForNewWindowAction(const NavigationAction&, const ResourceRequest&, FormState*, const String&, std::optional<HitTestResult>&&, FramePolicyFunction&&)
+void EmptyFrameLoaderClient::dispatchDecidePolicyForNewWindowAction(const NavigationAction&, const ResourceRequest&, FormState*, const String&, PolicyCheckIdentifier, FramePolicyFunction&&)
 {
 }
 
-void EmptyFrameLoaderClient::dispatchDecidePolicyForNavigationAction(const NavigationAction&, const ResourceRequest&, const ResourceResponse&, FormState*, const String&, uint64_t, std::optional<HitTestResult>&&, bool, SandboxFlags, PolicyDecisionMode, FramePolicyFunction&&)
+void EmptyFrameLoaderClient::dispatchDecidePolicyForNavigationAction(const NavigationAction&, const ResourceRequest&, const ResourceResponse&, FormState*, PolicyDecisionMode, PolicyCheckIdentifier, FramePolicyFunction&&)
 {
 }
 
 void EmptyFrameLoaderClient::broadcastFrameRemovalToOtherProcesses()
-{
-}
-
-void EmptyFrameLoaderClient::broadcastMainFrameURLChangeToOtherProcesses(const URL&)
 {
 }
 
@@ -633,7 +628,7 @@ RefPtr<LocalFrame> EmptyFrameLoaderClient::createFrame(const AtomString&, HTMLFr
     return nullptr;
 }
 
-RefPtr<Widget> EmptyFrameLoaderClient::createPlugin(HTMLPlugInElement&, const URL&, const Vector<AtomString>&, const Vector<AtomString>&, const String&, bool)
+RefPtr<Widget> EmptyFrameLoaderClient::createPlugin(const IntSize&, HTMLPlugInElement&, const URL&, const Vector<AtomString>&, const Vector<AtomString>&, const String&, bool)
 {
     return nullptr;
 }
@@ -821,7 +816,7 @@ void EmptyFrameLoaderClient::dispatchShow()
 {
 }
 
-void EmptyFrameLoaderClient::dispatchDecidePolicyForResponse(const ResourceResponse&, const ResourceRequest&, const String&, FramePolicyFunction&&)
+void EmptyFrameLoaderClient::dispatchDecidePolicyForResponse(const ResourceResponse&, const ResourceRequest&, PolicyCheckIdentifier, const String&, FramePolicyFunction&&)
 {
 }
 
@@ -922,11 +917,6 @@ ResourceError EmptyFrameLoaderClient::httpsUpgradeRedirectLoopError(const Resour
     return { };
 }
 
-ResourceError EmptyFrameLoaderClient::httpNavigationWithHTTPSOnlyError(const ResourceRequest&) const
-{
-    return { };
-}
-
 ResourceError EmptyFrameLoaderClient::pluginWillHandleLoadError(const ResourceResponse&) const
 {
     return { };
@@ -935,10 +925,6 @@ ResourceError EmptyFrameLoaderClient::pluginWillHandleLoadError(const ResourceRe
 bool EmptyFrameLoaderClient::shouldFallBack(const ResourceError&) const
 {
     return false;
-}
-
-void EmptyFrameLoaderClient::loadStorageAccessQuirksIfNeeded()
-{
 }
 
 bool EmptyFrameLoaderClient::canHandleRequest(const ResourceRequest&) const
@@ -1051,7 +1037,7 @@ void EmptyFrameLoaderClient::didDisplayInsecureContent()
 {
 }
 
-void EmptyFrameLoaderClient::didRunInsecureContent(SecurityOrigin&)
+void EmptyFrameLoaderClient::didRunInsecureContent(SecurityOrigin&, const URL&)
 {
 }
 
@@ -1112,14 +1098,14 @@ RefPtr<LegacyPreviewLoaderClient> EmptyFrameLoaderClient::createPreviewLoaderCli
 
 #endif
 
+#if ENABLE(TRACKING_PREVENTION)
+
 bool EmptyFrameLoaderClient::hasFrameSpecificStorageAccess()
 {
     return false;
 }
 
-void EmptyFrameLoaderClient::dispatchLoadEventToOwnerElementInAnotherProcess()
-{
-}
+#endif
 
 inline EmptyFrameNetworkingContext::EmptyFrameNetworkingContext()
     : FrameNetworkingContext { nullptr }
@@ -1194,14 +1180,6 @@ private:
 class EmptySocketProvider final : public SocketProvider {
 public:
     RefPtr<ThreadableWebSocketChannel> createWebSocketChannel(Document&, WebSocketChannelClient&) final { return nullptr; }
-    void initializeWebTransportSession(ScriptExecutionContext&, const URL&, CompletionHandler<void(RefPtr<WebTransportSession>&&)>&& completionHandler) { completionHandler(nullptr); }
-};
-
-class EmptyHistoryItemClient final : public HistoryItemClient {
-public:
-    static Ref<EmptyHistoryItemClient> create() { return adoptRef(*new EmptyHistoryItemClient); }
-private:
-    void historyItemChanged(const HistoryItem&) { }
 };
 
 PageConfiguration pageConfigurationWithEmptyClients(std::optional<PageIdentifier> identifier, PAL::SessionID sessionID)
@@ -1225,7 +1203,6 @@ PageConfiguration pageConfigurationWithEmptyClients(std::optional<PageIdentifier
         makeUniqueRef<DummyStorageProvider>(),
         makeUniqueRef<DummyModelPlayerProvider>(),
         EmptyBadgeClient::create(),
-        EmptyHistoryItemClient::create(),
 #if ENABLE(CONTEXT_MENUS)
         makeUniqueRef<EmptyContextMenuClient>(),
 #endif

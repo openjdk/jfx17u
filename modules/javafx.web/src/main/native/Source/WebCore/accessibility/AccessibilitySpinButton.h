@@ -45,7 +45,7 @@ public:
 private:
     AccessibilitySpinButton();
 
-    AccessibilityRole determineAccessibilityRole() final { return AccessibilityRole::SpinButton; }
+    AccessibilityRole roleValue() const override { return AccessibilityRole::SpinButton; }
     bool isNativeSpinButton() const override { return true; }
     void addChildren() override;
     LayoutRect elementRect() const override;
@@ -65,11 +65,11 @@ private:
     AccessibilitySpinButtonPart();
 
     bool press() override;
-    AccessibilityRole determineAccessibilityRole() final { return AccessibilityRole::SpinButtonPart; }
+    AccessibilityRole roleValue() const override { return AccessibilityRole::SpinButtonPart; }
     bool isSpinButtonPart() const override { return true; }
     LayoutRect elementRect() const override;
 
-    bool m_isIncrementor { true };
+    unsigned m_isIncrementor : 1;
 };
 
 } // namespace WebCore

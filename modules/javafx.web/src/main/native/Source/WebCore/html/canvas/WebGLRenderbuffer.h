@@ -27,20 +27,20 @@
 
 #if ENABLE(WEBGL)
 
-#include "GraphicsContextGL.h"
-#include "WebGLObject.h"
+#include "WebGLSharedObject.h"
 
 namespace WebCore {
 
-class WebGLRenderbuffer final : public WebGLObject {
+class WebGLRenderbuffer final : public WebGLSharedObject {
 public:
     virtual ~WebGLRenderbuffer();
 
-    static RefPtr<WebGLRenderbuffer> create(WebGLRenderingContextBase&);
+    static Ref<WebGLRenderbuffer> create(WebGLRenderingContextBase&);
 
     void setInternalFormat(GCGLenum internalformat)
     {
         m_internalFormat = internalformat;
+        m_initialized = false;
     }
     GCGLenum getInternalFormat() const { return m_internalFormat; }
 
@@ -55,22 +55,26 @@ public:
     void setIsValid(bool isValid) { m_isValid = isValid; }
     bool isValid() const { return m_isValid; }
 
-    void didBind() { m_hasEverBeenBound = true; }
-    bool hasEverBeenBound() const { return m_hasEverBeenBound; }
+    bool isInitialized() const { return m_initialized; }
+    void setInitialized() { m_initialized = true; }
 
-    bool isUsable() const { return object() && !isDeleted(); }
-    bool isInitialized() const { return m_hasEverBeenBound; }
+    bool hasEverBeenBound() const { return object() && m_hasEverBeenBound; }
+
+    void setHasEverBeenBound() { m_hasEverBeenBound = true; }
 
 private:
-    WebGLRenderbuffer(WebGLRenderingContextBase&, PlatformGLObject);
+    WebGLRenderbuffer(WebGLRenderingContextBase&);
 
     void deleteObjectImpl(const AbstractLocker&, GraphicsContextGL*, PlatformGLObject) override;
 
-    GCGLenum m_internalFormat { GraphicsContextGL::RGBA4 };
-    GCGLsizei m_width { 0 };
-    GCGLsizei m_height { 0 };
-    bool m_isValid { true }; // This is only false if internalFormat is DEPTH_STENCIL and packed_depth_stencil is not supported.
-    bool m_hasEverBeenBound { false };
+    bool isRenderbuffer() const override { return true; }
+
+    GCGLenum m_internalFormat;
+    bool m_initialized;
+    GCGLsizei m_width, m_height;
+    bool m_isValid; // This is only false if internalFormat is DEPTH_STENCIL and packed_depth_stencil is not supported.
+
+    bool m_hasEverBeenBound;
 };
 
 } // namespace WebCore

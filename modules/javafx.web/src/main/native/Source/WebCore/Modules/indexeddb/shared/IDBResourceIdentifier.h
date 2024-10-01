@@ -55,7 +55,11 @@ public:
         return !m_resourceNumber && !m_idbConnectionIdentifier;
     }
 
-    friend bool operator==(const IDBResourceIdentifier&, const IDBResourceIdentifier&) = default;
+    bool operator==(const IDBResourceIdentifier& other) const
+    {
+        return m_idbConnectionIdentifier == other.m_idbConnectionIdentifier
+            && m_resourceNumber == other.m_resourceNumber;
+    }
 
     IDBConnectionIdentifier connectionIdentifier() const { return m_idbConnectionIdentifier; }
 

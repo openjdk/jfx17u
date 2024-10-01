@@ -64,6 +64,8 @@ private:
 
     FloatRect objectBoundingBox() const override { return floatLinesBoundingBox(); }
 
+    bool isSVGInlineText() const override { return true; }
+
     VisiblePosition positionForPoint(const LayoutPoint&, const RenderFragmentContainer*) override;
     IntRect linesBoundingBox() const override;
     std::unique_ptr<LegacyInlineTextBox> createTextBox() override;
@@ -75,4 +77,4 @@ private:
 
 } // namespace WebCore
 
-SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderSVGInlineText, isRenderSVGInlineText())
+SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderSVGInlineText, isSVGInlineText())

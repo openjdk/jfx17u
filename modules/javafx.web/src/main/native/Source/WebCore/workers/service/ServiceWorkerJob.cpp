@@ -26,6 +26,8 @@
 #include "config.h"
 #include "ServiceWorkerJob.h"
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "HTTPHeaderNames.h"
 #include "JSDOMPromiseDeferred.h"
 #include "MIMETypeRegistry.h"
@@ -163,7 +165,7 @@ void ServiceWorkerJob::didReceiveResponse(ResourceLoaderIdentifier, const Resour
     m_scriptLoader->cancel();
     m_scriptLoader = nullptr;
 
-    Exception exception { ExceptionCode::SecurityError, error.localizedDescription() };
+    Exception exception { SecurityError, error.localizedDescription() };
     m_client.jobFailedLoadingScript(*this, WTFMove(error), WTFMove(exception));
 }
 
@@ -182,7 +184,7 @@ void ServiceWorkerJob::notifyFinished()
     auto& error = scriptLoader->error();
     ASSERT(!error.isNull());
 
-    m_client.jobFailedLoadingScript(*this, error, Exception { error.isAccessControl() ? ExceptionCode::SecurityError : ExceptionCode::TypeError, makeString("Script ", scriptLoader->url().string(), " load failed") });
+    m_client.jobFailedLoadingScript(*this, error, Exception { error.isAccessControl() ? SecurityError : TypeError, makeString("Script ", scriptLoader->url().string(), " load failed") });
 }
 
 bool ServiceWorkerJob::cancelPendingLoad()
@@ -195,3 +197,5 @@ bool ServiceWorkerJob::cancelPendingLoad()
 }
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

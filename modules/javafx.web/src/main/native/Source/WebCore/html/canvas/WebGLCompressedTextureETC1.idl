@@ -27,7 +27,7 @@
 
 [
     Conditional=WEBGL,
-    GenerateIsReachable,
+    GenerateIsReachable=ImplWebGLRenderingContext,
     LegacyNoInterfaceObject,
 ] interface WebGLCompressedTextureETC1 {
     /* Compressed Texture Formats */

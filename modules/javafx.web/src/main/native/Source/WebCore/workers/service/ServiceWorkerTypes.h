@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "ProcessIdentifier.h"
 #include "ProcessQualified.h"
 #include "ScriptBuffer.h"
@@ -62,16 +64,15 @@ enum class ServiceWorkerClientFrameType : uint8_t {
     None
 };
 
-enum class ServiceWorkerIsInspectable : bool { No, Yes };
 enum class ShouldNotifyWhenResolved : bool { No, Yes };
 
-enum class ServiceWorkerRegistrationIdentifierType { };
+enum ServiceWorkerRegistrationIdentifierType { };
 using ServiceWorkerRegistrationIdentifier = AtomicObjectIdentifier<ServiceWorkerRegistrationIdentifierType>;
 
-enum class ServiceWorkerJobIdentifierType { };
+enum ServiceWorkerJobIdentifierType { };
 using ServiceWorkerJobIdentifier = AtomicObjectIdentifier<ServiceWorkerJobIdentifierType>;
 
-enum class SWServerToContextConnectionIdentifierType { };
+enum SWServerToContextConnectionIdentifierType { };
 using SWServerToContextConnectionIdentifier = ObjectIdentifier<SWServerToContextConnectionIdentifierType>;
 
 using SWServerConnectionIdentifierType = ProcessIdentifierType;
@@ -97,3 +98,5 @@ struct ServiceWorkerScripts {
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

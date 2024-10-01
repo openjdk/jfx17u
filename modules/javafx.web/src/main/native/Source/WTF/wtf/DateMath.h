@@ -67,7 +67,10 @@ struct LocalTimeOffset {
     {
     }
 
-    friend bool operator==(const LocalTimeOffset&, const LocalTimeOffset&) = default;
+    bool operator==(const LocalTimeOffset& other) const
+    {
+        return isDST == other.isDST && offset == other.offset;
+    }
 
     bool isDST { false };
     int offset { 0 };

@@ -59,13 +59,13 @@ RadioNodeList::~RadioNodeList()
 
 static RefPtr<HTMLInputElement> nonEmptyRadioButton(Node& node)
 {
-    auto* inputElement = dynamicDowncast<HTMLInputElement>(node);
-    if (!inputElement)
+    if (!is<HTMLInputElement>(node))
         return nullptr;
 
-    if (!inputElement->isRadioButton() || inputElement->value().isEmpty())
+    auto& inputElement = downcast<HTMLInputElement>(node);
+    if (!inputElement.isRadioButton() || inputElement.value().isEmpty())
         return nullptr;
-    return inputElement;
+    return &inputElement;
 }
 
 String RadioNodeList::value() const
@@ -98,7 +98,7 @@ bool RadioNodeList::elementMatches(Element& element) const
     if (!element.isFormListedElement())
         return false;
 
-    if (auto* input = dynamicDowncast<HTMLInputElement>(element); input && input->isImageButton())
+    if (is<HTMLInputElement>(element) && downcast<HTMLInputElement>(element).isImageButton())
         return false;
 
     if (is<HTMLFormElement>(ownerNode())) {

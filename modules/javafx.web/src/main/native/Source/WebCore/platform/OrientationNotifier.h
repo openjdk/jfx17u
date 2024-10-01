@@ -26,13 +26,11 @@
 #pragma once
 
 #include "IntDegrees.h"
-#include <wtf/CheckedRef.h>
 #include <wtf/Vector.h>
 
 namespace WebCore {
 
-class OrientationNotifier : public CanMakeCheckedPtr {
-    WTF_MAKE_FAST_ALLOCATED;
+class OrientationNotifier {
 public:
     explicit OrientationNotifier(IntDegrees orientation) { m_orientation = orientation; }
     ~OrientationNotifier();

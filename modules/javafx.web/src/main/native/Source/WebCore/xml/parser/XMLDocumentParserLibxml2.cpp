@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2000 Peter Kelly <pmk@post.com>
- * Copyright (C) 2005-2021 Apple Inc. All rights reserved.
+ * Copyright (C) 2005-2017 Apple Inc. All rights reserved.
  * Copyright (C) 2006 Alexey Proskuryakov <ap@webkit.org>
  * Copyright (C) 2007 Samuel Weinig <sam@webkit.org>
  * Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies)
@@ -36,7 +36,6 @@
 #include "CustomElementRegistry.h"
 #include "Document.h"
 #include "DocumentFragment.h"
-#include "DocumentInlines.h"
 #include "DocumentType.h"
 #include "EventLoop.h"
 #include "FrameDestructionObserverInlines.h"
@@ -67,7 +66,6 @@
 #include "TransformSource.h"
 #include "XMLNSNames.h"
 #include "XMLDocumentParserScope.h"
-#include <libxml/parser.h>
 #include <libxml/parserInternals.h>
 #include <wtf/unicode/CharacterNames.h>
 #include <wtf/unicode/UTF8Conversion.h>
@@ -467,7 +465,7 @@ static void* openFunc(const char* uri)
 
     CachedResourceLoader& cachedResourceLoader = *XMLDocumentParserScope::currentCachedResourceLoader;
     Document* document = cachedResourceLoader.document();
-    // Same logic as Document::completeURL(). Keep them in sync.
+    // Same logic as HTMLBaseElement::href(). Keep them in sync.
     auto* encoding = (document && document->decoder()) ? document->decoder()->encodingForURLParsing() : nullptr;
     URL url(document ? document->fallbackBaseURL() : URL(), String::fromLatin1(uri), encoding);
 
@@ -759,6 +757,19 @@ static inline bool handleElementAttributes(Vector<Attribute>& prefixedAttributes
     return true;
 }
 
+// This is a hack around https://bugzilla.gnome.org/show_bug.cgi?id=502960
+// Otherwise libxml doesn't include namespace for parsed entities, breaking entity
+// expansion for all entities containing elements.
+static inline bool hackAroundLibXMLEntityParsingBug()
+{
+#if LIBXML_VERSION >= 20704
+    // This bug has been fixed in libxml 2.7.4.
+    return false;
+#else
+    return true;
+#endif
+}
+
 void XMLDocumentParser::startElementNs(const xmlChar* xmlLocalName, const xmlChar* xmlPrefix, const xmlChar* xmlURI, int numNamespaces, const xmlChar** libxmlNamespaces, int numAttributes, int numDefaulted, const xmlChar** libxmlAttributes)
 {
     if (isStopped())
@@ -784,6 +795,11 @@ void XMLDocumentParser::startElementNs(const xmlChar* xmlLocalName, const xmlCha
         else
             uri = m_defaultNamespaceURI;
     }
+
+    // If libxml entity parsing is broken, transfer the currentNodes' namespaceURI to the new node,
+    // if we're currently expanding elements which originate from an entity declaration.
+    if (hackAroundLibXMLEntityParsingBug() && depthTriggeringEntityExpansion() != -1 && context()->depth > depthTriggeringEntityExpansion() && uri.isNull() && prefix.isNull())
+        uri = m_currentNode->namespaceURI();
 
     bool isFirstElement = !m_sawFirstElement;
     m_sawFirstElement = true;
@@ -837,8 +853,8 @@ void XMLDocumentParser::startElementNs(const xmlChar* xmlLocalName, const xmlCha
     if (!m_currentNode) // Synchronous DOM events may have removed the current node.
         return;
 
-    if (RefPtr templateElement = dynamicDowncast<HTMLTemplateElement>(newElement))
-        pushCurrentNode(&templateElement->content());
+    if (is<HTMLTemplateElement>(newElement))
+        pushCurrentNode(&downcast<HTMLTemplateElement>(newElement.get()).content());
     else
         pushCurrentNode(newElement.ptr());
 
@@ -867,31 +883,33 @@ void XMLDocumentParser::endElementNs()
         return;
 
     RefPtr<ContainerNode> node = m_currentNode;
-    auto* element = dynamicDowncast<Element>(*node);
+    node->finishParsingChildren();
 
-    if (element)
-        element->finishParsingChildren();
+    // Once we reach the depth again where entity expansion started, stop executing the work-around.
+    if (hackAroundLibXMLEntityParsingBug() && context()->depth <= depthTriggeringEntityExpansion())
+        setDepthTriggeringEntityExpansion(-1);
 
-    if (!scriptingContentIsAllowed(parserContentPolicy()) && element && isScriptElement(*element)) {
+    if (!scriptingContentIsAllowed(parserContentPolicy()) && is<Element>(*node) && isScriptElement(downcast<Element>(*node))) {
         popCurrentNode();
         node->remove();
         return;
     }
 
-    if (!element || !m_view) {
+    if (!node->isElementNode() || !m_view) {
         popCurrentNode();
         return;
     }
+
+    auto& element = downcast<Element>(*node);
 
     // The element's parent may have already been removed from document.
     // Parsing continues in this case, but scripts aren't executed.
-    if (!element->isConnected()) {
+    if (!element.isConnected()) {
         popCurrentNode();
         return;
     }
 
-    RefPtr scriptElement = dynamicDowncastScriptElement(*element);
-    if (!scriptElement) {
+    if (!isScriptElement(element)) {
         popCurrentNode();
         return;
     }
@@ -900,14 +918,18 @@ void XMLDocumentParser::endElementNs()
     ASSERT(!m_pendingScript);
     m_requestingScript = true;
 
-    if (scriptElement->prepareScript(m_scriptStartPosition)) {
-        if (scriptElement->readyToBeParserExecuted()) {
-            if (scriptElement->scriptType() == ScriptType::Classic)
-                scriptElement->executeClassicScript(ScriptSourceCode(scriptElement->scriptContent(), scriptElement->sourceTaintedOrigin(), URL(document()->url()), m_scriptStartPosition, JSC::SourceProviderSourceType::Program, InlineClassicScript::create(*scriptElement)));
+    auto& scriptElement = downcastScriptElement(element);
+    if (scriptElement.prepareScript(m_scriptStartPosition)) {
+        // FIXME: Script execution should be shared between
+        // the libxml2 and Qt XMLDocumentParser implementations.
+
+        if (scriptElement.readyToBeParserExecuted()) {
+            if (scriptElement.scriptType() == ScriptType::Classic)
+            scriptElement.executeClassicScript(ScriptSourceCode(scriptElement.scriptContent(), URL(document()->url()), m_scriptStartPosition, JSC::SourceProviderSourceType::Program, InlineClassicScript::create(scriptElement)));
             else
-                scriptElement->registerImportMap(ScriptSourceCode(scriptElement->scriptContent(), scriptElement->sourceTaintedOrigin(), URL(document()->url()), m_scriptStartPosition, JSC::SourceProviderSourceType::ImportMap));
-        } else if (scriptElement->willBeParserExecuted() && scriptElement->loadableScript()) {
-            m_pendingScript = PendingScript::create(*scriptElement, *scriptElement->loadableScript());
+                scriptElement.registerImportMap(ScriptSourceCode(scriptElement.scriptContent(), URL(document()->url()), m_scriptStartPosition, JSC::SourceProviderSourceType::ImportMap));
+        } else if (scriptElement.willBeParserExecuted() && scriptElement.loadableScript()) {
+            m_pendingScript = PendingScript::create(scriptElement, *scriptElement.loadableScript());
             m_pendingScript->setClient(*this);
 
             // m_pendingScript will be nullptr if script was already loaded and setClient() executed it.
@@ -980,7 +1002,7 @@ void XMLDocumentParser::processingInstruction(const xmlChar* target, const xmlCh
 
     m_currentNode->parserAppendChild(pi);
 
-    pi->setCreatedByParser(false);
+    pi->finishParsingChildren();
 
     if (pi->isCSS())
         m_sawCSS = true;
@@ -1073,33 +1095,64 @@ static inline XMLDocumentParser* getParser(void* closure)
     return static_cast<XMLDocumentParser*>(ctxt->_private);
 }
 
+// This is a hack around http://bugzilla.gnome.org/show_bug.cgi?id=159219
+// Otherwise libxml seems to call all the SAX callbacks twice for any replaced entity.
+static inline bool hackAroundLibXMLEntityBug(void* closure)
+{
+#if LIBXML_VERSION >= 20627
+    // This bug has been fixed in libxml 2.6.27.
+    UNUSED_PARAM(closure);
+    return false;
+#else
+    return static_cast<xmlParserCtxtPtr>(closure)->node;
+#endif
+}
+
 static void startElementNsHandler(void* closure, const xmlChar* localname, const xmlChar* prefix, const xmlChar* uri, int numNamespaces, const xmlChar** namespaces, int numAttributes, int numDefaulted, const xmlChar** libxmlAttributes)
 {
+    if (hackAroundLibXMLEntityBug(closure))
+        return;
+
     getParser(closure)->startElementNs(localname, prefix, uri, numNamespaces, namespaces, numAttributes, numDefaulted, libxmlAttributes);
 }
 
 static void endElementNsHandler(void* closure, const xmlChar*, const xmlChar*, const xmlChar*)
 {
+    if (hackAroundLibXMLEntityBug(closure))
+        return;
+
     getParser(closure)->endElementNs();
 }
 
 static void charactersHandler(void* closure, const xmlChar* s, int len)
 {
+    if (hackAroundLibXMLEntityBug(closure))
+        return;
+
     getParser(closure)->characters(s, len);
 }
 
 static void processingInstructionHandler(void* closure, const xmlChar* target, const xmlChar* data)
 {
+    if (hackAroundLibXMLEntityBug(closure))
+        return;
+
     getParser(closure)->processingInstruction(target, data);
 }
 
 static void cdataBlockHandler(void* closure, const xmlChar* s, int len)
 {
+    if (hackAroundLibXMLEntityBug(closure))
+        return;
+
     getParser(closure)->cdataBlock(s, len);
 }
 
 static void commentHandler(void* closure, const xmlChar* comment)
 {
+    if (hackAroundLibXMLEntityBug(closure))
+        return;
+
     getParser(closure)->comment(comment);
 }
 
@@ -1214,9 +1267,33 @@ static xmlEntityPtr getXHTMLEntity(const xmlChar* name)
     return entity;
 }
 
+static void entityDeclarationHandler(void* closure, const xmlChar* name, int type, const xmlChar* publicId, const xmlChar* systemId, xmlChar* content)
+{
+    // Prevent the next call to getEntityHandler() to record the entity expansion depth.
+    // We're parsing the entity declaration, so there's no need to record anything.
+    // We only need to record the depth, if we're actually expanding the entity, when it's referenced.
+    if (hackAroundLibXMLEntityParsingBug())
+        getParser(closure)->setIsParsingEntityDeclaration(true);
+    xmlSAX2EntityDecl(closure, name, type, publicId, systemId, content);
+}
+
 static xmlEntityPtr getEntityHandler(void* closure, const xmlChar* name)
 {
     xmlParserCtxtPtr ctxt = static_cast<xmlParserCtxtPtr>(closure);
+
+    XMLDocumentParser* parser = getParser(closure);
+    if (hackAroundLibXMLEntityParsingBug()) {
+        if (parser->isParsingEntityDeclaration()) {
+            // We're parsing the entity declarations (not an entity reference), no need to do anything special.
+            parser->setIsParsingEntityDeclaration(false);
+            ASSERT(parser->depthTriggeringEntityExpansion() == -1);
+        } else {
+            // The entity will be used and eventually expanded. Record the current parser depth
+            // so the next call to startElementNs() knows that the new element originates from
+            // an entity declaration.
+            parser->setDepthTriggeringEntityExpansion(ctxt->depth);
+        }
+    }
 
     xmlEntityPtr ent = xmlGetPredefinedEntity(name);
     if (ent) {
@@ -1225,7 +1302,7 @@ static xmlEntityPtr getEntityHandler(void* closure, const xmlChar* name)
     }
 
     ent = xmlGetDocEntity(ctxt->myDoc, name);
-    if (!ent && getParser(closure)->isXHTMLDocument()) {
+    if (!ent && parser->isXHTMLDocument()) {
         ent = getXHTMLEntity(name);
         if (ent)
             ent->etype = XML_INTERNAL_GENERAL_ENTITY;
@@ -1298,7 +1375,7 @@ void XMLDocumentParser::initializeParserContext(const CString& chunk)
     sax.internalSubset = internalSubsetHandler;
     sax.externalSubset = externalSubsetHandler;
     sax.ignorableWhitespace = ignorableWhitespaceHandler;
-    sax.entityDecl = xmlSAX2EntityDecl;
+    sax.entityDecl = entityDeclarationHandler;
     sax.initialized = XML_SAX2_MAGIC;
     DocumentParser::startParsing();
     m_sawError = false;

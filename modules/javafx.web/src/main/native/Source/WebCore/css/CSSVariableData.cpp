@@ -39,17 +39,18 @@
 #include <wtf/text/StringView.h>
 
 namespace WebCore {
-DEFINE_ALLOCATOR_WITH_HEAP_IDENTIFIER(CSSVariableData);
 
-template<typename CharacterType> void CSSVariableData::updateBackingStringsInTokens()
+template<typename CharacterType> void CSSVariableData::updateTokens(const CSSParserTokenRange& range)
 {
-    auto* currentOffset = m_backingString.characters<CharacterType>();
-    for (auto& token : m_tokens) {
-        if (!token.hasStringBacking())
-            continue;
+    const CharacterType* currentOffset = m_backingString.characters<CharacterType>();
+    for (const CSSParserToken& token : range) {
+        if (token.hasStringBacking()) {
             unsigned length = token.value().length();
-        token.updateCharacters(currentOffset, length);
+            StringView string(currentOffset, length);
+            m_tokens.append(token.copyWithUpdatedString(string));
             currentOffset += length;
+        } else
+            m_tokens.append(token);
     }
     ASSERT(currentOffset == m_backingString.characters<CharacterType>() + m_backingString.length());
 }
@@ -59,22 +60,23 @@ bool CSSVariableData::operator==(const CSSVariableData& other) const
     return tokens() == other.tokens();
 }
 
-CSSVariableData::CSSVariableData(const CSSParserTokenRange& range, const CSSParserContext& context)
-    : m_context(context)
+CSSVariableData::CSSVariableData(const CSSParserTokenRange& range)
 {
     StringBuilder stringBuilder;
-    m_tokens = WTF::map(range, [&](auto& token) {
+    CSSParserTokenRange localRange = range;
+
+    while (!localRange.atEnd()) {
+        CSSParserToken token = localRange.consume();
         if (token.hasStringBacking())
             stringBuilder.append(token.value());
-        return token;
-    });
-    if (!stringBuilder.isEmpty()) {
+    }
     m_backingString = stringBuilder.toString();
     if (m_backingString.is8Bit())
-            updateBackingStringsInTokens<LChar>();
+        updateTokens<LChar>(range);
     else
-            updateBackingStringsInTokens<UChar>();
-    }
+        updateTokens<UChar>(range);
+
+    m_tokens.shrinkToFit();
 }
 
 } // namespace WebCore

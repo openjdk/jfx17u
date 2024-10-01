@@ -32,11 +32,11 @@ bool SourceAlphaSoftwareApplier::apply(const Filter&, const FilterImageVector& i
 {
     auto& input = inputs[0].get();
 
-    RefPtr resultImage = result.imageBuffer();
+    auto resultImage = result.imageBuffer();
     if (!resultImage)
         return false;
 
-    RefPtr inputImage = input.imageBuffer();
+    auto inputImage = input.imageBuffer();
     if (!inputImage)
         return false;
 
@@ -44,7 +44,7 @@ bool SourceAlphaSoftwareApplier::apply(const Filter&, const FilterImageVector& i
     auto& filterContext = resultImage->context();
 
     filterContext.fillRect(imageRect, Color::black);
-    filterContext.drawImageBuffer(*inputImage, IntPoint(), { CompositeOperator::DestinationIn });
+    filterContext.drawImageBuffer(*inputImage, IntPoint(), CompositeOperator::DestinationIn);
     return true;
 }
 

@@ -37,7 +37,6 @@ namespace WebCore {
 
 class SourceBuffer;
 class TrackListBase;
-using TrackID = uint64_t;
 
 class TrackBase
     : public RefCounted<TrackBase>
@@ -49,13 +48,10 @@ class TrackBase
 public:
     virtual ~TrackBase() = default;
 
-    virtual void didMoveToNewDocument(Document&);
-
     enum Type { BaseTrack, TextTrack, AudioTrack, VideoTrack };
     Type type() const { return m_type; }
 
     virtual AtomString id() const { return m_id; }
-    TrackID trackId() const { return m_trackId; }
     AtomString label() const { return m_label; }
     AtomString validBCP47Language() const { return m_validBCP47Language; }
     AtomString language() const { return m_language; }
@@ -82,13 +78,9 @@ public:
 #endif
 
 protected:
-    TrackBase(ScriptExecutionContext*, Type, const std::optional<AtomString>& id, TrackID, const AtomString& label, const AtomString& language);
+    TrackBase(ScriptExecutionContext*, Type, const AtomString& id, const AtomString& label, const AtomString& language);
 
-    virtual void setId(TrackID id)
-    {
-        m_id = AtomString::number(id);
-        m_trackId = id;
-    }
+    virtual void setId(const AtomString& id) { m_id = id; }
     virtual void setLabel(const AtomString& label) { m_label = label; }
     virtual void setLanguage(const AtomString&);
 
@@ -100,7 +92,6 @@ private:
     Type m_type;
     int m_uniqueId;
     AtomString m_id;
-    TrackID m_trackId { 0 };
     AtomString m_label;
     AtomString m_language;
     AtomString m_validBCP47Language;
@@ -117,7 +108,7 @@ public:
     virtual void setKind(const AtomString&);
 
 protected:
-    MediaTrackBase(ScriptExecutionContext*, Type, const std::optional<AtomString>& id, TrackID, const AtomString& label, const AtomString& language);
+    MediaTrackBase(ScriptExecutionContext*, Type, const AtomString& id, const AtomString& label, const AtomString& language);
 
     void setKindInternal(const AtomString&);
 

@@ -62,9 +62,9 @@ NavigatorContacts* NavigatorContacts::from(Navigator& navigator)
     return supplement;
 }
 
-ASCIILiteral NavigatorContacts::supplementName()
+const char* NavigatorContacts::supplementName()
 {
-    return "NavigatorContacts"_s;
+    return "NavigatorContacts";
 }
 
 }

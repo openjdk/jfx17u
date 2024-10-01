@@ -62,8 +62,6 @@ private:
     ExternalTextureImpl& operator=(ExternalTextureImpl&&) = delete;
 
     void setLabelInternal(const String&) final;
-    void destroy() final;
-    void undestroy() final;
 
     Ref<ConvertToBackingContext> m_convertToBackingContext;
 

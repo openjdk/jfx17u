@@ -193,8 +193,7 @@ void HTMLElementStack::popAll()
     m_bodyElement = nullptr;
     m_stackDepth = 0;
     while (m_top) {
-        if (RefPtr element = dynamicDowncast<Element>(topNode()))
-            element->finishParsingChildren();
+        topNode().finishParsingChildren();
         m_top = m_top->releaseNext();
     }
 }

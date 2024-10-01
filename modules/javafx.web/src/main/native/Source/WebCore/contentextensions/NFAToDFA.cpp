@@ -75,8 +75,9 @@ static inline void epsilonClosureExcludingSelf(const SerializedNFA& nfa, unsigne
 
 static NFANodeClosures resolveEpsilonClosures(const SerializedNFA& nfa)
 {
+    NFANodeClosures nfaNodeClosures;
     unsigned nfaGraphSize = nfa.nodes().size();
-    NFANodeClosures nfaNodeClosures(nfaGraphSize);
+    nfaNodeClosures.resize(nfaGraphSize);
 
     for (unsigned nodeId = 0; nodeId < nfaGraphSize; ++nodeId)
         epsilonClosureExcludingSelf(nfa, nodeId, nfaNodeClosures[nodeId]);
@@ -161,7 +162,10 @@ public:
         fastFree(m_uniqueNodeIdSetBuffer);
     }
 
-    friend bool operator==(const UniqueNodeIdSet&, const UniqueNodeIdSet&) = default;
+    bool operator==(const UniqueNodeIdSet& other) const
+    {
+        return m_uniqueNodeIdSetBuffer == other.m_uniqueNodeIdSetBuffer;
+    }
 
     bool operator==(const NodeIdSet& other) const
     {

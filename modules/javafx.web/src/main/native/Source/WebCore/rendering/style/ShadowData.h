@@ -27,7 +27,6 @@
 #include "FloatRect.h"
 #include "LayoutRect.h"
 #include "Length.h"
-#include "LengthBox.h"
 #include "LengthPoint.h"
 #include "StyleColor.h"
 
@@ -65,7 +64,6 @@ public:
     const Length& y() const { return m_location.y(); }
     const LengthPoint& location() const { return m_location; }
     const Length& radius() const { return m_radius; }
-
     LayoutUnit paintingExtent() const
     {
         // Blurring uses a Gaussian function whose std. deviation is m_radius/2, and which in theory
@@ -74,9 +72,7 @@ public:
         const float radiusExtentMultiplier = 1.4;
         return LayoutUnit(ceilf(m_radius.value() * radiusExtentMultiplier));
     }
-
     const Length& spread() const { return m_spread; }
-
     ShadowStyle style() const { return m_style; }
 
     void setColor(const StyleColor& color) { m_color = color; }
@@ -87,14 +83,8 @@ public:
     const ShadowData* next() const { return m_next.get(); }
     void setNext(std::unique_ptr<ShadowData>&& shadow) { m_next = WTFMove(shadow); }
 
-    void adjustRectForShadow(LayoutRect&) const;
-    void adjustRectForShadow(FloatRect&) const;
-
-    LayoutBoxExtent shadowOutsetExtent() const;
-    LayoutBoxExtent shadowInsetExtent() const;
-
-    static LayoutBoxExtent shadowOutsetExtent(const ShadowData*);
-    static LayoutBoxExtent shadowInsetExtent(const ShadowData*);
+    void adjustRectForShadow(LayoutRect&, int additionalOutlineSize = 0) const;
+    void adjustRectForShadow(FloatRect&, int additionalOutlineSize = 0) const;
 
 private:
     void deleteNextLinkedListWithoutRecursion();
@@ -112,23 +102,6 @@ inline ShadowData::~ShadowData()
 {
     if (m_next)
         deleteNextLinkedListWithoutRecursion();
-}
-
-
-inline LayoutBoxExtent ShadowData::shadowOutsetExtent(const ShadowData* shadow)
-{
-    if (!shadow)
-        return { };
-
-    return shadow->shadowOutsetExtent();
-}
-
-inline LayoutBoxExtent ShadowData::shadowInsetExtent(const ShadowData* shadow)
-{
-    if (!shadow)
-        return { };
-
-    return shadow->shadowInsetExtent();
 }
 
 WTF::TextStream& operator<<(WTF::TextStream&, const ShadowData&);

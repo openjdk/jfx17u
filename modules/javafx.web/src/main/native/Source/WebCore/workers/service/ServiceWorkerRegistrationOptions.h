@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
@@ -42,3 +44,5 @@ struct ServiceWorkerRegistrationOptions {
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

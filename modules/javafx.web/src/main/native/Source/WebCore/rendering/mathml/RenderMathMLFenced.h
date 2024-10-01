@@ -49,13 +49,14 @@ public:
     void updateFromElement();
 
 private:
+    bool isRenderMathMLFenced() const final { return true; }
     ASCIILiteral renderName() const final { return "RenderMathMLFenced"_s; }
 
     String m_open;
     String m_close;
     RefPtr<StringImpl> m_separators;
 
-    SingleThreadWeakPtr<RenderMathMLFencedOperator> m_closeFenceRenderer;
+    WeakPtr<RenderMathMLFencedOperator> m_closeFenceRenderer;
 };
 
 }

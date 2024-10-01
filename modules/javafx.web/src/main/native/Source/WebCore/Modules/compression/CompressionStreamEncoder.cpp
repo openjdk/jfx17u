@@ -38,7 +38,7 @@ ExceptionOr<RefPtr<Uint8Array>> CompressionStreamEncoder::encode(const BufferSou
 {
     auto* data = input.data();
     if (!data)
-        return Exception { ExceptionCode::TypeError, "No data provided"_s };
+        return Exception { TypeError, "No data provided"_s };
 
     auto compressedDataCheck = compress(data, input.length());
     if (compressedDataCheck.hasException())
@@ -91,7 +91,7 @@ ExceptionOr<bool> CompressionStreamEncoder::initialize()
     }
 
     if (result != Z_OK)
-        return Exception { ExceptionCode::TypeError, "Initialization Failed."_s };
+        return Exception { TypeError, "Initialization Failed."_s };
 #endif
     return true;
 }
@@ -138,17 +138,17 @@ ExceptionOr<RefPtr<JSC::ArrayBuffer>> CompressionStreamEncoder::compress(const u
     }
 
     while (shouldCompress) {
-        Vector<uint8_t> output;
+        auto output = Vector<uint8_t>();
         if (!output.tryReserveInitialCapacity(allocateSize)) {
             allocateSize /= 4;
 
             if (allocateSize < startingAllocationSize)
-                return Exception { ExceptionCode::OutOfMemoryError };
+                return Exception { OutOfMemoryError };
 
             continue;
         }
 
-        output.grow(allocateSize);
+        output.resize(allocateSize);
 
         m_zstream.next_out = output.data();
         m_zstream.avail_out = output.size();
@@ -156,11 +156,11 @@ ExceptionOr<RefPtr<JSC::ArrayBuffer>> CompressionStreamEncoder::compress(const u
         result = deflate(&m_zstream, m_didFinish ? Z_FINISH : Z_NO_FLUSH);
 
         if (didDeflateFail(result))
-            return Exception { ExceptionCode::TypeError, "Failed to compress data."_s };
+            return Exception { TypeError, "Failed to compress data."_s };
 
         if (didDeflateFinish(result)) {
             shouldCompress = false;
-            output.shrink(allocateSize - m_zstream.avail_out);
+            output.resize(allocateSize - m_zstream.avail_out);
         }
         else {
             if (allocateSize < maxAllocationSize)
@@ -172,7 +172,7 @@ ExceptionOr<RefPtr<JSC::ArrayBuffer>> CompressionStreamEncoder::compress(const u
 
     auto compressedData = storage.takeAsArrayBuffer();
     if (!compressedData)
-        return Exception { ExceptionCode::OutOfMemoryError };
+        return Exception { OutOfMemoryError };
 
     return compressedData;
 #endif
@@ -181,7 +181,7 @@ ExceptionOr<RefPtr<JSC::ArrayBuffer>> CompressionStreamEncoder::compress(const u
         auto storage = SharedBufferBuilder();
     auto compressedData = storage.takeAsArrayBuffer();
     if (!compressedData)
-        return Exception { ExceptionCode::OutOfMemoryError };
+        return Exception { OutOfMemoryError };
 
     return compressedData;
 }

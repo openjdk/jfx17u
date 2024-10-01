@@ -26,14 +26,11 @@
 #include "config.h"
 #include "WasmTierUpCount.h"
 
-#if ENABLE(WEBASSEMBLY_OMGJIT) || ENABLE(WEBASSEMBLY_BBQJIT)
+#if ENABLE(WEBASSEMBLY_B3JIT)
 
 #include "WasmOSREntryData.h"
-#include <wtf/TZoneMallocInlines.h>
 
 namespace JSC { namespace Wasm {
-
-WTF_MAKE_TZONE_ALLOCATED_IMPL(TierUpCount);
 
 TierUpCount::TierUpCount()
 {
@@ -55,4 +52,4 @@ OSREntryData& TierUpCount::osrEntryData(uint32_t loopIndex)
 
 } } // namespace JSC::Wasm
 
-#endif // ENABLE(WEBASSEMBLY_OMGJIT)
+#endif // ENABLE(WEBASSEMBLY_B3JIT)

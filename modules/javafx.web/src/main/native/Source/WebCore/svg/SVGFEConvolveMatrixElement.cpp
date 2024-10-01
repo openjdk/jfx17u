@@ -22,7 +22,6 @@
 #include "SVGFEConvolveMatrixElement.h"
 
 #include "CommonAtomStrings.h"
-#include "DocumentInlines.h"
 #include "FEConvolveMatrix.h"
 #include "NodeName.h"
 #include "SVGNames.h"

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2017-2022 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,7 +33,6 @@
 #include <wtf/FixedVector.h>
 #include <wtf/HashSet.h>
 #include <wtf/Lock.h>
-#include <wtf/TZoneMalloc.h>
 #include <wtf/Vector.h>
 
 namespace JSC {
@@ -42,13 +41,13 @@ class JSPromise;
 class VM;
 class JSCell;
 
-class DeferredWorkTimer final : public JSRunLoopTimer {
+class JS_EXPORT_PRIVATE DeferredWorkTimer final : public JSRunLoopTimer {
 public:
     using Base = JSRunLoopTimer;
 
     struct TicketData {
     private:
-        WTF_MAKE_TZONE_ALLOCATED(TicketData);
+        WTF_MAKE_FAST_ALLOCATED;
     public:
         inline TicketData(VM&, JSObject* scriptExecutionOwner, Vector<Strong<JSCell>>&& dependencies);
 
@@ -66,7 +65,7 @@ public:
 
     void doWork(VM&) final;
 
-    JS_EXPORT_PRIVATE Ticket addPendingWork(VM&, JSObject* target, Vector<Strong<JSCell>>&& dependencies);
+    Ticket addPendingWork(VM&, JSObject* target, Vector<Strong<JSCell>>&& dependencies);
     bool hasAnyPendingWork() const;
     bool hasPendingWork(Ticket);
     bool hasDependancyInPendingWork(Ticket, JSCell* dependency);
@@ -78,11 +77,11 @@ public:
     // this occurs. The easiest way is to make sure everything is either owned
     // by a GC'd value in dependencies or by the Task lambda.
     using Task = Function<void(Ticket)>;
-    JS_EXPORT_PRIVATE void scheduleWorkSoon(Ticket, Task&&);
-    JS_EXPORT_PRIVATE void didResumeScriptExecutionOwner();
+    void scheduleWorkSoon(Ticket, Task&&);
+    void didResumeScriptExecutionOwner();
 
     void stopRunningTasks() { m_runTasks = false; }
-    JS_EXPORT_PRIVATE void runRunLoop();
+    void runRunLoop();
 
     static Ref<DeferredWorkTimer> create(VM& vm) { return adoptRef(*new DeferredWorkTimer(vm)); }
 private:

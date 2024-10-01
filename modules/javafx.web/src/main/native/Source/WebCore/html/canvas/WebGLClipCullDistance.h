@@ -26,17 +26,16 @@
 #pragma once
 
 #include "WebGLExtension.h"
-#include "WebGLRenderingContextBase.h"
-#include <wtf/IsoMalloc.h>
-#include <wtf/Noncopyable.h>
 
 namespace WebCore {
 
-class WebGLClipCullDistance final : public WebGLExtension<WebGLRenderingContextBase> {
+class WebGLClipCullDistance final : public WebGLExtension {
     WTF_MAKE_ISO_ALLOCATED(WebGLClipCullDistance);
 public:
     explicit WebGLClipCullDistance(WebGLRenderingContextBase&);
-    ~WebGLClipCullDistance();
+    virtual ~WebGLClipCullDistance();
+
+    ExtensionName getName() const override;
 
     static bool supported(GraphicsContextGL&);
 };

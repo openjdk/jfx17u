@@ -106,25 +106,26 @@ void SampleMap::clear()
     m_totalSize = 0;
 }
 
-void SampleMap::addSample(Ref<MediaSample>&& sample)
-{
-    MediaTime presentationTime = sample->presentationTime();
-
-    m_totalSize += sample->sizeInBytes();
-
-    presentationOrder().m_samples.insert(PresentationOrderSampleMap::MapType::value_type(presentationTime, sample));
-
-    auto decodeKey = DecodeOrderSampleMap::KeyType(sample->decodeTime(), presentationTime);
-    decodeOrder().m_samples.insert(DecodeOrderSampleMap::MapType::value_type(decodeKey, WTFMove(sample)));
-}
-
-void SampleMap::removeSample(const MediaSample& sample)
+void SampleMap::addSample(MediaSample& sample)
 {
     MediaTime presentationTime = sample.presentationTime();
 
-    m_totalSize -= sample.sizeInBytes();
+    presentationOrder().m_samples.insert(PresentationOrderSampleMap::MapType::value_type(presentationTime, &sample));
 
     auto decodeKey = DecodeOrderSampleMap::KeyType(sample.decodeTime(), presentationTime);
+    decodeOrder().m_samples.insert(DecodeOrderSampleMap::MapType::value_type(decodeKey, &sample));
+
+    m_totalSize += sample.sizeInBytes();
+}
+
+void SampleMap::removeSample(MediaSample* sample)
+{
+    ASSERT(sample);
+    MediaTime presentationTime = sample->presentationTime();
+
+    m_totalSize -= sample->sizeInBytes();
+
+    auto decodeKey = DecodeOrderSampleMap::KeyType(sample->decodeTime(), presentationTime);
     presentationOrder().m_samples.erase(presentationTime);
     decodeOrder().m_samples.erase(decodeKey);
 }
@@ -147,8 +148,8 @@ PresentationOrderSampleMap::iterator PresentationOrderSampleMap::findSampleConta
 
     // Look at the previous sample; does it contain the requested time?
     --iter;
-    const auto& sample = iter->second;
-    if (sample->presentationTime() + sample->duration() > time)
+    MediaSample& sample = *iter->second;
+    if (sample.presentationTime() + sample.duration() > time)
         return iter;
     return end();
 }
@@ -166,8 +167,8 @@ PresentationOrderSampleMap::iterator PresentationOrderSampleMap::findSampleConta
 
     // Look at the previous sample; does it contain the requested time?
     --iter;
-    const auto& sample = iter->second;
-    if (sample->presentationTime() + sample->duration() > time)
+    MediaSample& sample = *iter->second;
+    if (sample.presentationTime() + sample.duration() > time)
         return iter;
     return ++iter;
 }
@@ -234,7 +235,7 @@ DecodeOrderSampleMap::reverse_iterator DecodeOrderSampleMap::findSyncSamplePrior
     if (reverseCurrentSamplePTS == m_presentationOrder.rend())
         return rend();
 
-    const auto& sample = reverseCurrentSamplePTS->second;
+    const RefPtr<MediaSample>& sample = reverseCurrentSamplePTS->second;
     reverse_iterator reverseCurrentSampleDTS = reverseFindSampleWithDecodeKey(KeyType(sample->decodeTime(), sample->presentationTime()));
 
     reverse_iterator foundSample = findSyncSamplePriorToDecodeIterator(reverseCurrentSampleDTS);
@@ -256,7 +257,7 @@ DecodeOrderSampleMap::iterator DecodeOrderSampleMap::findSyncSampleAfterPresenta
     if (currentSamplePTS == m_presentationOrder.end())
         return end();
 
-    const auto& sample = currentSamplePTS->second;
+    const RefPtr<MediaSample>& sample = currentSamplePTS->second;
     iterator currentSampleDTS = findSampleWithDecodeKey(KeyType(sample->decodeTime(), sample->presentationTime()));
 
     MediaTime upperBound = time + threshold;
@@ -288,11 +289,11 @@ PresentationOrderSampleMap::iterator_range PresentationOrderSampleMap::findSampl
 
 PresentationOrderSampleMap::iterator_range PresentationOrderSampleMap::findSamplesBetweenPresentationTimesFromEnd(const MediaTime& beginTime, const MediaTime& endTime)
 {
-    reverse_iterator rangeEnd = std::find_if(rbegin(), rend(), [&endTime](const auto& value) {
+    reverse_iterator rangeEnd = std::find_if(rbegin(), rend(), [&endTime](auto& value) {
         return value.first < endTime;
     });
 
-    reverse_iterator rangeStart = std::find_if(rangeEnd, rend(), [&beginTime](const auto& value) {
+    reverse_iterator rangeStart = std::find_if(rangeEnd, rend(), [&beginTime](auto& value) {
         return value.first < beginTime;
     });
 
@@ -303,9 +304,10 @@ PresentationOrderSampleMap::iterator_range PresentationOrderSampleMap::findSampl
     return { rangeStart.base(), rangeEnd.base() };
 }
 
-DecodeOrderSampleMap::reverse_iterator_range DecodeOrderSampleMap::findDependentSamples(const MediaSample& sample)
+DecodeOrderSampleMap::reverse_iterator_range DecodeOrderSampleMap::findDependentSamples(MediaSample* sample)
 {
-    reverse_iterator currentDecodeIter = reverseFindSampleWithDecodeKey(KeyType(sample.decodeTime(), sample.presentationTime()));
+    ASSERT(sample);
+    reverse_iterator currentDecodeIter = reverseFindSampleWithDecodeKey(KeyType(sample->decodeTime(), sample->presentationTime()));
     reverse_iterator nextSyncSample = findSyncSamplePriorToDecodeIterator(currentDecodeIter);
     return reverse_iterator_range(currentDecodeIter, nextSyncSample);
 }

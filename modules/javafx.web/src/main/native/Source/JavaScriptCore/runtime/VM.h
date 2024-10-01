@@ -68,16 +68,12 @@
 #include <wtf/Forward.h>
 #include <wtf/Gigacage.h>
 #include <wtf/HashMap.h>
-#include <wtf/LazyRef.h>
-#include <wtf/LazyUniqueRef.h>
 #include <wtf/SetForScope.h>
 #include <wtf/StackPointer.h>
 #include <wtf/Stopwatch.h>
-#include <wtf/TZoneMalloc.h>
 #include <wtf/ThreadSafeRefCounted.h>
 #include <wtf/ThreadSafeWeakHashSet.h>
 #include <wtf/UniqueArray.h>
-#include <wtf/text/AdaptiveStringSearcher.h>
 #include <wtf/text/SymbolImpl.h>
 #include <wtf/text/SymbolRegistry.h>
 
@@ -110,7 +106,6 @@ class BuiltinExecutables;
 class BytecodeIntrinsicRegistry;
 class CallFrame;
 enum class CallMode;
-enum class CommonJITThunkID : uint8_t;
 struct CheckpointOSRExitSideState;
 class CodeBlock;
 class CodeCache;
@@ -178,7 +173,7 @@ struct EntryFrame;
 
 class MicrotaskQueue;
 class QueuedTask {
-    WTF_MAKE_TZONE_ALLOCATED(QueuedTask);
+    WTF_MAKE_FAST_ALLOCATED;
     friend class MicrotaskQueue;
 public:
     static constexpr unsigned maxArguments = 4;
@@ -201,7 +196,7 @@ private:
 };
 
 class MicrotaskQueue {
-    WTF_MAKE_TZONE_ALLOCATED(MicrotaskQueue);
+    WTF_MAKE_FAST_ALLOCATED;
     WTF_MAKE_NONCOPYABLE(MicrotaskQueue);
 public:
     MicrotaskQueue() = default;
@@ -274,7 +269,11 @@ struct ScratchBuffer {
         size_t m_activeLength;
         double pad; // Make sure m_buffer is double aligned.
     } u;
+#if CPU(MIPS) && (defined WTF_MIPS_ARCH_REV && WTF_MIPS_ARCH_REV == 2)
+    alignas(8) void* m_buffer[0];
+#else
     void* m_buffer[0];
+#endif
 };
 #if COMPILER(MSVC)
 #pragma warning(pop)
@@ -321,13 +320,11 @@ public:
     static Ref<VM> createContextGroup(HeapType = HeapType::Small);
     JS_EXPORT_PRIVATE ~VM();
 
-    Watchdog* watchdog() { return m_watchdog.getIfExists(); }
-    Watchdog& ensureWatchdog() { return m_watchdog.get(*this); }
+    Watchdog& ensureWatchdog();
+    Watchdog* watchdog() { return m_watchdog.get(); }
 
-    HeapProfiler* heapProfiler() { return m_heapProfiler.getIfExists(); }
-    HeapProfiler& ensureHeapProfiler() { return m_heapProfiler.get(*this); }
-
-    AdaptiveStringSearcherTables& adaptiveStringSearcherTables() { return m_stringSearcherTables.get(*this); }
+    HeapProfiler* heapProfiler() const { return m_heapProfiler.get(); }
+    JS_EXPORT_PRIVATE HeapProfiler& ensureHeapProfiler();
 
     bool isAnalyzingHeap() const { return m_activeHeapAnalyzer; }
     HeapAnalyzer* activeHeapAnalyzer() const { return m_activeHeapAnalyzer; }
@@ -356,9 +353,6 @@ public:
     WeakRandom& random() { return m_random; }
     WeakRandom& heapRandom() { return m_heapRandom; }
     Integrity::Random& integrityRandom() { return m_integrityRandom; }
-
-    template<typename Type, typename Functor>
-    Type& ensureSideData(void* key, const Functor&);
 
     bool hasTerminationRequest() const { return m_hasTerminationRequest; }
     void clearHasTerminationRequest()
@@ -426,31 +420,18 @@ public:
         m_entryScopeServices.add(service);
     }
 
-    enum class SchedulerOptions : uint8_t {
-        HasImminentlyScheduledWork = 1 << 0,
-    };
-    JS_EXPORT_PRIVATE void performOpportunisticallyScheduledTasks(MonotonicTime deadline, OptionSet<SchedulerOptions>);
+    JS_EXPORT_PRIVATE void performOpportunisticallyScheduledTasks(MonotonicTime deadline);
+
+private:
+    VMIdentifier m_identifier;
+    RefPtr<JSLock> m_apiLock;
+    Ref<WTF::RunLoop> m_runLoop;
 
     // Keep super frequently accessed fields top in VM.
-    unsigned disallowVMEntryCount { 0 };
-private:
     void* m_softStackLimit { nullptr };
     Exception* m_exception { nullptr };
     Exception* m_terminationException { nullptr };
     Exception* m_lastException { nullptr };
-public:
-    // NOTE: When throwing an exception while rolling back the call frame, this may be equal to
-    // topEntryFrame.
-    // FIXME: This should be a void*, because it might not point to a CallFrame.
-    // https://bugs.webkit.org/show_bug.cgi?id=160441
-    CallFrame* topCallFrame { nullptr };
-    EntryFrame* topEntryFrame { nullptr };
-private:
-    OptionSet<EntryScopeService> m_entryScopeServices;
-
-    VMIdentifier m_identifier;
-    RefPtr<JSLock> m_apiLock;
-    Ref<WTF::RunLoop> m_runLoop;
 
     WeakRandom m_random;
     WeakRandom m_heapRandom;
@@ -458,6 +439,8 @@ private:
 #if PLATFORM(JAVA)
     bool existingWindowProxy = true;
 #endif
+
+    OptionSet<EntryScopeService> m_entryScopeServices;
 
     bool hasEntryScopeServiceRequest(EntryScopeService service)
     {
@@ -518,8 +501,13 @@ public:
     ALWAYS_INLINE GCClient::IsoSubspace& unlinkedFunctionExecutableSpace() { return clientHeap.unlinkedFunctionExecutableSpace; }
 
     VMType vmType;
-    bool m_mightBeExecutingTaintedCode { false };
     ClientData* clientData { nullptr };
+    EntryFrame* topEntryFrame { nullptr };
+    // NOTE: When throwing an exception while rolling back the call frame, this may be equal to
+    // topEntryFrame.
+    // FIXME: This should be a void*, because it might not point to a CallFrame.
+    // https://bugs.webkit.org/show_bug.cgi?id=160441
+    CallFrame* topCallFrame { nullptr };
 #if ENABLE(WEBASSEMBLY)
     Wasm::Context wasmContext;
 #endif
@@ -598,10 +586,6 @@ public:
     StringSplitCache stringSplitCache;
     Vector<unsigned> stringSplitIndice;
     StringReplaceCache stringReplaceCache;
-
-    bool mightBeExecutingTaintedCode() const { return m_mightBeExecutingTaintedCode; }
-    bool* addressOfMightBeExecutingTaintedCode() { return &m_mightBeExecutingTaintedCode; }
-    void setMightBeExecutingTaintedCode(bool value = true) { m_mightBeExecutingTaintedCode = value; }
 
     AtomStringTable* atomStringTable() const { return m_atomStringTable; }
     WTF::SymbolRegistry& symbolRegistry() { return m_symbolRegistry; }
@@ -685,7 +669,6 @@ public:
 #if ENABLE(JIT)
     std::unique_ptr<JITThunks> jitStubs;
     MacroAssemblerCodeRef<JITThunkPtrTag> getCTIStub(ThunkGenerator);
-    MacroAssemblerCodeRef<JITThunkPtrTag> getCTIStub(CommonJITThunkID);
     std::unique_ptr<SharedJITStubSet> m_sharedJITStubs;
 #endif
 #if ENABLE(FTL_JIT)
@@ -699,6 +682,7 @@ public:
     NativeExecutable* getRemoteFunction(bool isJSFunction);
 
     CodePtr<JSEntryPtrTag> getCTIInternalFunctionTrampolineFor(CodeSpecializationKind);
+    MacroAssemblerCodeRef<JSEntryPtrTag> getCTILinkCall();
     MacroAssemblerCodeRef<JSEntryPtrTag> getCTIThrowExceptionFromCallSlowPath();
     MacroAssemblerCodeRef<JITStubRoutinePtrTag> getCTIVirtualCall(CallMode);
 
@@ -791,8 +775,6 @@ public:
     void* targetMachinePCForThrow;
     void* targetMachinePCAfterCatch;
     JSOrWasmInstruction targetInterpreterPCForThrow;
-    uintptr_t targetInterpreterMetadataPCForThrow;
-    uint32_t targetTryDepthForThrow;
 
     unsigned varargsLength;
     uint32_t osrExitIndex;
@@ -825,6 +807,7 @@ public:
     void scanSideState(ConservativeRoots&) const;
 
     Interpreter interpreter;
+    unsigned disallowVMEntryCount { 0 };
     VMEntryScope* entryScope { nullptr };
 
     JSObject* stringRecursionCheckFirstObject { nullptr };
@@ -850,13 +833,19 @@ public:
 
     Ref<CompactTDZEnvironmentMap> m_compactVariableMap;
 
-    LazyUniqueRef<VM, HasOwnPropertyCache> m_hasOwnPropertyCache;
-    ALWAYS_INLINE HasOwnPropertyCache* hasOwnPropertyCache() { return m_hasOwnPropertyCache.getIfExists(); }
-    HasOwnPropertyCache& ensureHasOwnPropertyCache() { return m_hasOwnPropertyCache.get(*this); }
+    std::unique_ptr<HasOwnPropertyCache> m_hasOwnPropertyCache;
+    ALWAYS_INLINE HasOwnPropertyCache* hasOwnPropertyCache() { return m_hasOwnPropertyCache.get(); }
+    HasOwnPropertyCache& ensureHasOwnPropertyCache();
 
-    LazyUniqueRef<VM, MegamorphicCache> m_megamorphicCache;
-    ALWAYS_INLINE MegamorphicCache* megamorphicCache() { return m_megamorphicCache.getIfExists(); }
-    MegamorphicCache& ensureMegamorphicCache() { return m_megamorphicCache.get(*this); }
+    std::unique_ptr<MegamorphicCache> m_megamorphicCache;
+    ALWAYS_INLINE MegamorphicCache* megamorphicCache() { return m_megamorphicCache.get(); }
+    JS_EXPORT_PRIVATE void ensureMegamorphicCacheSlow();
+    MegamorphicCache& ensureMegamorphicCache()
+    {
+        if (UNLIKELY(!m_megamorphicCache))
+            ensureMegamorphicCacheSlow();
+        return *m_megamorphicCache;
+    }
 
     enum class StructureChainIntegrityEvent : uint8_t {
         Add,
@@ -938,12 +927,7 @@ public:
     void queueMicrotask(QueuedTask&&);
     JS_EXPORT_PRIVATE void drainMicrotasks();
     void setOnEachMicrotaskTick(WTF::Function<void(VM&)>&& func) { m_onEachMicrotaskTick = WTFMove(func); }
-    void finalizeSynchronousJSExecution()
-    {
-        ASSERT(currentThreadIsHoldingAPILock());
-        m_currentWeakRefVersion++;
-        setMightBeExecutingTaintedCode(false);
-    }
+    void finalizeSynchronousJSExecution() { ASSERT(currentThreadIsHoldingAPILock()); m_currentWeakRefVersion++; }
     uintptr_t currentWeakRefVersion() const { return m_currentWeakRefVersion; }
 
     void setGlobalConstRedeclarationShouldThrow(bool globalConstRedeclarationThrow) { m_globalConstRedeclarationShouldThrow = globalConstRedeclarationThrow; }
@@ -954,8 +938,8 @@ public:
 
     BytecodeIntrinsicRegistry& bytecodeIntrinsicRegistry() { return *m_bytecodeIntrinsicRegistry; }
 
-    ShadowChicken* shadowChicken() { return m_shadowChicken.getIfExists(); }
-    ShadowChicken& ensureShadowChicken() { return m_shadowChicken.get(*this); }
+    ShadowChicken* shadowChicken() { return m_shadowChicken.get(); }
+    void ensureShadowChicken();
 
     template<typename Func>
     void logEvent(CodeBlock*, const char* summary, const Func& func);
@@ -1024,9 +1008,6 @@ public:
 #if ENABLE(WEBASSEMBLY)
     void registerWasmInstance(Wasm::Instance&);
 #endif
-
-    void notifyDebuggerHookInjected() { m_isDebuggerHookInjected = true; }
-    bool isDebuggerHookInjected() const { return m_isDebuggerHookInjected; }
 
 private:
     VM(VMType, HeapType, WTF::RunLoop* = nullptr, bool* success = nullptr);
@@ -1124,14 +1105,13 @@ private:
     MicrotaskQueue m_microtaskQueue;
     MallocPtr<EncodedJSValue, VMMalloc> m_exceptionFuzzBuffer;
     VMTraps m_traps;
-    LazyRef<VM, Watchdog> m_watchdog;
-    LazyUniqueRef<VM, HeapProfiler> m_heapProfiler;
-    LazyUniqueRef<VM, AdaptiveStringSearcherTables> m_stringSearcherTables;
+    RefPtr<Watchdog> m_watchdog;
+    std::unique_ptr<HeapProfiler> m_heapProfiler;
 #if ENABLE(SAMPLING_PROFILER)
     RefPtr<SamplingProfiler> m_samplingProfiler;
 #endif
     std::unique_ptr<FuzzerAgent> m_fuzzerAgent;
-    LazyUniqueRef<VM, ShadowChicken> m_shadowChicken;
+    std::unique_ptr<ShadowChicken> m_shadowChicken;
     std::unique_ptr<BytecodeIntrinsicRegistry> m_bytecodeIntrinsicRegistry;
     uint64_t m_drainMicrotaskDelayScopeCount { 0 };
 
@@ -1141,11 +1121,9 @@ private:
     WTF::Function<void(VM&)> m_onEachMicrotaskTick;
     uintptr_t m_currentWeakRefVersion { 0 };
 
-    bool m_hasSideData { false };
     bool m_hasTerminationRequest { false };
     bool m_executionForbidden { false };
     bool m_executionForbiddenOnTermination { false };
-    bool m_isDebuggerHookInjected { false };
 
     Lock m_loopHintExecutionCountLock;
     HashMap<const JSInstruction*, std::pair<unsigned, std::unique_ptr<uintptr_t>>> m_loopHintExecutionCounts;

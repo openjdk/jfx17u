@@ -28,7 +28,6 @@
 #include "CSSValueKeywords.h"
 #include "CalcOperator.h"
 #include "CalculationCategory.h"
-#include <wtf/WeakRef.h>
 
 namespace WebCore {
 
@@ -57,7 +56,7 @@ private:
     bool parseCalcValue(CSSParserTokenRange&, CSSValueID, int depth, RefPtr<CSSCalcExpressionNode>&);
 
     CalculationCategory m_destinationCategory;
-    SingleThreadWeakRef<const CSSCalcSymbolTable> m_symbolTable;
+    const CSSCalcSymbolTable& m_symbolTable;
 };
 
 }

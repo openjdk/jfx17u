@@ -63,11 +63,11 @@ ExceptionOr<CryptoKeyPair> CryptoKeyEC::generatePair(CryptoAlgorithmIdentifier i
 {
     auto namedCurve = toNamedCurve(curve);
     if (!namedCurve || !platformSupportedCurve(*namedCurve))
-        return Exception { ExceptionCode::NotSupportedError };
+        return Exception { NotSupportedError };
 
     auto result = platformGeneratePair(identifier, *namedCurve, extractable, usages);
     if (!result)
-        return Exception { ExceptionCode::OperationError };
+        return Exception { OperationError };
 
     return WTFMove(*result);
 }
@@ -137,11 +137,11 @@ RefPtr<CryptoKeyEC> CryptoKeyEC::importPkcs8(CryptoAlgorithmIdentifier identifie
 ExceptionOr<Vector<uint8_t>> CryptoKeyEC::exportRaw() const
 {
     if (type() != CryptoKey::Type::Public)
-        return Exception { ExceptionCode::InvalidAccessError };
+        return Exception { InvalidAccessError };
 
     auto&& result = platformExportRaw();
     if (result.isEmpty())
-        return Exception { ExceptionCode::OperationError };
+        return Exception { OperationError };
     return WTFMove(result);
 }
 
@@ -163,29 +163,29 @@ ExceptionOr<JsonWebKey> CryptoKeyEC::exportJwk() const
     result.key_ops = usages();
     result.ext = extractable();
     if (!platformAddFieldElements(result))
-        return Exception { ExceptionCode::OperationError };
+        return Exception { OperationError };
     return result;
 }
 
 ExceptionOr<Vector<uint8_t>> CryptoKeyEC::exportSpki() const
 {
     if (type() != CryptoKey::Type::Public)
-        return Exception { ExceptionCode::InvalidAccessError };
+        return Exception { InvalidAccessError };
 
     auto&& result = platformExportSpki();
     if (result.isEmpty())
-        return Exception { ExceptionCode::OperationError };
+        return Exception { OperationError };
     return WTFMove(result);
 }
 
 ExceptionOr<Vector<uint8_t>> CryptoKeyEC::exportPkcs8() const
 {
     if (type() != CryptoKey::Type::Private)
-        return Exception { ExceptionCode::InvalidAccessError };
+        return Exception { InvalidAccessError };
 
     auto&& result = platformExportPkcs8();
     if (result.isEmpty())
-        return Exception { ExceptionCode::OperationError };
+        return Exception { OperationError };
     return WTFMove(result);
 }
 

@@ -35,7 +35,6 @@ namespace WebCore {
 
 class DataTransfer;
 class Element;
-class Frame;
 class Image;
 class LocalFrame;
 
@@ -53,7 +52,7 @@ public:
     virtual void didConcludeEditDrag() { }
     virtual OptionSet<DragSourceAction> dragSourceActionMaskForPoint(const IntPoint& rootViewPoint) = 0;
 
-    virtual void startDrag(DragItem, DataTransfer&, Frame&) = 0;
+    virtual void startDrag(DragItem, DataTransfer&, LocalFrame&) = 0;
     virtual void dragEnded() { }
 
     virtual void beginDrag(DragItem, LocalFrame&, const IntPoint&, const IntPoint&, DataTransfer&, DragSourceAction) { }

@@ -98,7 +98,7 @@ public:
 
         for (auto& name : names) {
             if (auto node = getNamedNode(name))
-                nodes.append(node.releaseNonNull());
+            nodes.uncheckedAppend(node.releaseNonNull());
             else if (!isSourceName(name))
                 return std::nullopt;
         }

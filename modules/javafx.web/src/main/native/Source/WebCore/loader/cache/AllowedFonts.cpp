@@ -25,7 +25,6 @@
 
 #include "config.h"
 #include "AllowedFonts.h"
-#include "Logging.h"
 
 #include <pal/crypto/CryptoDigest.h>
 #include <wtf/NeverDestroyed.h>
@@ -852,10 +851,7 @@ bool isFontBinaryAllowed(const void* data, size_t size, DownloadableBinaryFontAl
         return false;
     case DownloadableBinaryFontAllowedTypes::Restricted: {
         auto sha = hashForFontData(data, size);
-        auto allowedFontHashes = allowedFontHashesInLockdownMode().contains(sha);
-        if (!allowedFontHashes)
-            RELEASE_LOG(Fonts, "[Lockdown Mode] A font with a forbidden type has been blocked.");
-        return allowedFontHashes;
+        return allowedFontHashesInLockdownMode().contains(sha);
     }
     }
     ASSERT_NOT_REACHED();

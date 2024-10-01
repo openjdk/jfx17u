@@ -33,7 +33,6 @@
 #include "HiddenInputType.h"
 
 #include "DOMFormData.h"
-#include "ElementInlines.h"
 #include "FormController.h"
 #include "HTMLInputElement.h"
 #include "HTMLNames.h"
@@ -99,18 +98,10 @@ bool HiddenInputType::appendFormData(DOMFormData& formData) const
         formData.append(name, String::fromLatin1(formData.encoding().name()));
         return true;
     }
-    InputType::appendFormData(formData);
-    if (auto& dirname = element()->attributeWithoutSynchronization(dirnameAttr); !dirname.isNull())
-        formData.append(dirname, element()->directionForFormData());
-    return true;
+    return InputType::appendFormData(formData);
 }
 
 bool HiddenInputType::shouldRespectHeightAndWidthAttributes()
-{
-    return true;
-}
-
-bool HiddenInputType::dirAutoUsesValue() const
 {
     return true;
 }

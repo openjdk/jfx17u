@@ -150,12 +150,6 @@ void RenderLineBoxList::dirtyLineBoxes()
         curr->dirtyLineBoxes();
 }
 
-void RenderLineBoxList::shiftLinesBy(LayoutUnit shiftX, LayoutUnit shiftY)
-{
-    for (auto* box = firstLineBox(); box; box = box->nextLineBox())
-        box->adjustPosition(shiftX, shiftY);
-}
-
 // FIXME: This should take a RenderBoxModelObject&.
 bool RenderLineBoxList::rangeIntersectsRect(RenderBoxModelObject* renderer, LayoutUnit logicalTop, LayoutUnit logicalBottom, const LayoutRect& rect, const LayoutPoint& offset) const
 {
@@ -163,8 +157,8 @@ bool RenderLineBoxList::rangeIntersectsRect(RenderBoxModelObject* renderer, Layo
     LayoutUnit physicalEnd = logicalBottom;
     if (renderer->view().frameView().hasFlippedBlockRenderers()) {
         RenderBox* block;
-        if (auto* box = dynamicDowncast<RenderBox>(*renderer))
-            block = box;
+        if (is<RenderBox>(*renderer))
+            block = downcast<RenderBox>(renderer);
         else
             block = renderer->containingBlock();
         physicalStart = block->flipForWritingMode(logicalTop);
@@ -228,7 +222,7 @@ void RenderLineBoxList::paint(RenderBoxModelObject* renderer, PaintInfo& paintIn
         return;
 
     PaintInfo info(paintInfo);
-    SingleThreadWeakListHashSet<RenderInline> outlineObjects;
+    ListHashSet<RenderInline*> outlineObjects;
     info.outlineObjects = &outlineObjects;
 
     // See if our root lines intersect with the dirty rect.  If so, then we paint
@@ -269,10 +263,10 @@ void RenderLineBoxList::paint(RenderBoxModelObject* renderer, PaintInfo& paintIn
     }
 
     if (info.phase == PaintPhase::Outline || info.phase == PaintPhase::SelfOutline || info.phase == PaintPhase::ChildOutlines) {
-        auto end = info.outlineObjects->end();
-        for (auto it = info.outlineObjects->begin(); it != end; ++it) {
-            RenderInline& flow = *it;
-            flow.paintOutline(info, paintOffset);
+        ListHashSet<RenderInline*>::iterator end = info.outlineObjects->end();
+        for (ListHashSet<RenderInline*>::iterator it = info.outlineObjects->begin(); it != end; ++it) {
+            RenderInline* flow = *it;
+            flow->paintOutline(info, paintOffset);
         }
         info.outlineObjects->clear();
     }
@@ -342,14 +336,14 @@ void RenderLineBoxList::dirtyLinesFromChangedChild(RenderBoxModelObject& contain
         if (current->isReplacedOrInlineBlock()) {
             if (auto wrapper = downcast<RenderBox>(*current).inlineBoxWrapper())
                 box = &wrapper->root();
-        } if (auto* lineBreak = dynamicDowncast<RenderLineBreak>(*current)) {
-            if (auto wrapper = lineBreak->inlineBoxWrapper())
+        } if (is<RenderLineBreak>(*current)) {
+            if (auto wrapper = downcast<RenderLineBreak>(*current).inlineBoxWrapper())
                 box = &wrapper->root();
-        } else if (auto* textRenderer = dynamicDowncast<RenderText>(*current)) {
-            if (auto* textBox = textRenderer->lastTextBox())
+        } else if (is<RenderText>(*current)) {
+            if (LegacyInlineTextBox* textBox = downcast<RenderText>(*current).lastTextBox())
                 box = &textBox->root();
-        } else if (auto* renderInline = dynamicDowncast<RenderInline>(*current)) {
-            auto* lastSiblingBox = renderInline->lastLineBox();
+        } else if (is<RenderInline>(*current)) {
+            LegacyInlineBox* lastSiblingBox = downcast<RenderInline>(*current).lastLineBox();
             if (lastSiblingBox)
                 box = &lastSiblingBox->root();
         }
@@ -381,7 +375,7 @@ void RenderLineBoxList::dirtyLinesFromChangedChild(RenderBoxModelObject& contain
             // Dedicated linebox for floats may be added as the last rootbox. If this occurs with BRs inside inlines that propagte their lineboxes to
             // the parent flow, we need to invalidate it explicitly.
             // FIXME: We should be able to figure out the actual "changed child" even when we are calling through empty inlines recursively.
-            if (auto* renderInline = dynamicDowncast<RenderInline>(child); renderInline && !renderInline->firstLineBox()) {
+            if (is<RenderInline>(child) && !downcast<RenderInline>(child).firstLineBox()) {
                 auto* lastRootBox = nextBox->blockFlow().lastRootBox();
                 if (lastRootBox->isForTrailingFloats() && !lastRootBox->isDirty())
                     lastRootBox->markDirty();

@@ -26,18 +26,16 @@
 #pragma once
 
 #include "WebGLExtension.h"
-#include "WebGLRenderingContextBase.h"
-#include <wtf/IsoMalloc.h>
-#include <wtf/Noncopyable.h>
 
 namespace WebCore {
 
-class WebGLPolygonMode final : public WebGLExtension<WebGLRenderingContextBase> {
+class WebGLPolygonMode final : public WebGLExtension {
     WTF_MAKE_ISO_ALLOCATED(WebGLPolygonMode);
-    WTF_MAKE_NONCOPYABLE(WebGLPolygonMode);
 public:
     explicit WebGLPolygonMode(WebGLRenderingContextBase&);
-    ~WebGLPolygonMode();
+    virtual ~WebGLPolygonMode();
+
+    ExtensionName getName() const override;
 
     static bool supported(GraphicsContextGL&);
 

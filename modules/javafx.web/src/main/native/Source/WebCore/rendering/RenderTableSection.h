@@ -165,6 +165,8 @@ private:
 
     bool canHaveChildren() const override { return true; }
 
+    bool isTableSection() const override { return true; }
+
     void willBeRemovedFromTree(IsInternalMove) override;
 
     void layout() override;
@@ -191,7 +193,7 @@ private:
     void distributeExtraLogicalHeightToAutoRows(LayoutUnit& extraLogicalHeight, unsigned autoRowsCount);
     void distributeRemainingExtraLogicalHeight(LayoutUnit& extraLogicalHeight);
 
-    bool hasOverflowingCell() const { return m_overflowingCells.computeSize() || m_forceSlowPaintPathWithOverflowingCell; }
+    bool hasOverflowingCell() const { return m_overflowingCells.size() || m_forceSlowPaintPathWithOverflowingCell; }
     void computeOverflowFromCells(unsigned totalRows, unsigned nEffCols);
 
     CellSpan fullTableRowSpan() const;
@@ -232,7 +234,7 @@ private:
     // This HashSet holds the overflowing cells for faster painting.
     // If we have more than gMaxAllowedOverflowingCellRatio * total cells, it will be empty
     // and m_forceSlowPaintPathWithOverflowingCell will be set to save memory.
-    SingleThreadWeakHashSet<RenderTableCell> m_overflowingCells;
+    HashSet<RenderTableCell*> m_overflowingCells;
 
     // This map holds the collapsed border values for cells with collapsed borders.
     // It is held at RenderTableSection level to spare memory consumption by table cells.
@@ -299,4 +301,4 @@ inline RenderPtr<RenderBox> RenderTableSection::createAnonymousBoxWithSameTypeAs
 
 } // namespace WebCore
 
-SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderTableSection, isRenderTableSection())
+SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderTableSection, isTableSection())

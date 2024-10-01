@@ -64,11 +64,9 @@ public:
     bool isPositionedNodeNicosia() const { return isPositionedNode(); }
     bool isOverflowScrollProxyNodeNicosia() const { return isOverflowScrollProxyNode(); }
 #endif
-    bool isScrollingNode() const { return isFrameScrollingNode() || isOverflowScrollingNode() || isPluginScrollingNode(); }
+    bool isScrollingNode() const { return isFrameScrollingNode() || isOverflowScrollingNode(); }
     bool isFrameScrollingNode() const { return nodeType() == ScrollingNodeType::MainFrame || nodeType() == ScrollingNodeType::Subframe; }
     bool isFrameHostingNode() const { return nodeType() == ScrollingNodeType::FrameHosting; }
-    bool isPluginScrollingNode() const { return nodeType() == ScrollingNodeType::PluginScrolling; }
-    bool isPluginHostingNode() const { return nodeType() == ScrollingNodeType::PluginHosting; }
     bool isOverflowScrollingNode() const { return nodeType() == ScrollingNodeType::Overflow; }
     bool isOverflowScrollProxyNode() const { return nodeType() == ScrollingNodeType::OverflowProxy; }
 

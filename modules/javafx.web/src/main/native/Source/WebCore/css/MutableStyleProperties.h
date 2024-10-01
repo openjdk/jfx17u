@@ -46,8 +46,6 @@ public:
 
     WEBCORE_EXPORT ~MutableStyleProperties();
 
-    Ref<ImmutableStyleProperties> immutableCopy() const;
-
     unsigned propertyCount() const { return m_propertyVector.size(); }
     bool isEmpty() const { return !propertyCount(); }
     PropertyReference propertyAt(unsigned index) const;

@@ -53,8 +53,6 @@ namespace WebCore {
 
 class CanvasRenderingContext;
 class DeferredPromise;
-class GPU;
-class GPUCanvasContext;
 class HTMLCanvasElement;
 class ImageBitmap;
 class ImageBitmapRenderingContext;
@@ -69,7 +67,6 @@ using OffscreenRenderingContext = std::variant<
     RefPtr<WebGLRenderingContext>,
     RefPtr<WebGL2RenderingContext>,
 #endif
-    RefPtr<GPUCanvasContext>,
     RefPtr<ImageBitmapRenderingContext>,
     RefPtr<OffscreenCanvasRenderingContext2D>
 >;
@@ -102,7 +99,7 @@ private:
 };
 
 class OffscreenCanvas final : public ActiveDOMObject, public RefCounted<OffscreenCanvas>, public CanvasBase, public EventTarget {
-    WTF_MAKE_ISO_ALLOCATED_EXPORT(OffscreenCanvas, WEBCORE_EXPORT);
+    WTF_MAKE_ISO_ALLOCATED(OffscreenCanvas);
 public:
 
     struct ImageEncodeOptions {
@@ -114,8 +111,7 @@ public:
         _2d,
         Webgl,
         Webgl2,
-        Bitmaprenderer,
-        Webgpu
+        Bitmaprenderer
     };
 
     static bool enabledForContext(ScriptExecutionContext&);
@@ -123,7 +119,7 @@ public:
     static Ref<OffscreenCanvas> create(ScriptExecutionContext&, unsigned width, unsigned height);
     static Ref<OffscreenCanvas> create(ScriptExecutionContext&, std::unique_ptr<DetachedOffscreenCanvas>&&);
     static Ref<OffscreenCanvas> create(ScriptExecutionContext&, HTMLCanvasElement&);
-    WEBCORE_EXPORT virtual ~OffscreenCanvas();
+    virtual ~OffscreenCanvas();
 
     unsigned width() const final;
     unsigned height() const final;
@@ -158,7 +154,6 @@ public:
     void dispatchEvent(Event&) final;
     using RefCounted::ref;
     using RefCounted::deref;
-    bool isDetached() const { return m_detached; };
 
 private:
     OffscreenCanvas(ScriptExecutionContext&, unsigned width, unsigned height);
@@ -176,6 +171,10 @@ private:
     void derefCanvasBase() final { deref(); }
 
     void setSize(const IntSize&) final;
+
+#if ENABLE(WEBGL)
+    void createContextWebGL(RenderingContextType, WebGLContextAttributes&& = { });
+#endif
 
     void createImageBuffer() const final;
     std::unique_ptr<SerializedImageBuffer> takeImageBuffer() const;
@@ -197,7 +196,7 @@ private:
 
     bool m_hasScheduledCommit { false };
 
-    class PlaceholderData : public ThreadSafeRefCounted<PlaceholderData, WTF::DestructionThread::Main> {
+    class PlaceholderData : public ThreadSafeRefCounted<PlaceholderData> {
     public:
         static Ref<PlaceholderData> create()
         {

@@ -22,7 +22,6 @@
 
 #include "CSSStyleDeclaration.h"
 #include "ComputedStyleExtractor.h"
-#include "PseudoElementIdentifier.h"
 #include "RenderStyleConstants.h"
 #include <wtf/FixedVector.h>
 #include <wtf/IsoMalloc.h>
@@ -37,11 +36,7 @@ class MutableStyleProperties;
 class CSSComputedStyleDeclaration final : public CSSStyleDeclaration, public RefCounted<CSSComputedStyleDeclaration> {
     WTF_MAKE_ISO_ALLOCATED_EXPORT(CSSComputedStyleDeclaration, WEBCORE_EXPORT);
 public:
-    enum class AllowVisited : bool { No, Yes };
-    WEBCORE_EXPORT static Ref<CSSComputedStyleDeclaration> create(Element&, AllowVisited);
-    static Ref<CSSComputedStyleDeclaration> create(Element&, const std::optional<Style::PseudoElementIdentifier>&);
-    static Ref<CSSComputedStyleDeclaration> createEmpty(Element&);
-
+    WEBCORE_EXPORT static Ref<CSSComputedStyleDeclaration> create(Element&, bool allowVisitedStyle = false, StringView pseudoElementName = StringView { });
     WEBCORE_EXPORT virtual ~CSSComputedStyleDeclaration();
 
     void ref() final { RefCounted::ref(); }
@@ -50,10 +45,7 @@ public:
     String getPropertyValue(CSSPropertyID) const;
 
 private:
-    enum class IsEmpty : bool { No, Yes };
-    CSSComputedStyleDeclaration(Element&, AllowVisited);
-    CSSComputedStyleDeclaration(Element&, IsEmpty);
-    CSSComputedStyleDeclaration(Element&, const std::optional<Style::PseudoElementIdentifier>&);
+    CSSComputedStyleDeclaration(Element&, bool allowVisitedStyle, StringView);
 
     // CSSOM functions. Don't make these public.
     CSSRule* parentRule() const final;
@@ -79,9 +71,8 @@ private:
     const FixedVector<CSSPropertyID>& exposedComputedCSSPropertyIDs() const;
 
     mutable Ref<Element> m_element;
-    std::optional<Style::PseudoElementIdentifier> m_pseudoElementIdentifier { std::nullopt };
-    bool m_isEmpty { false };
-    bool m_allowVisitedStyle { false };
+    PseudoId m_pseudoElementSpecifier;
+    bool m_allowVisitedStyle;
 };
 
 } // namespace WebCore

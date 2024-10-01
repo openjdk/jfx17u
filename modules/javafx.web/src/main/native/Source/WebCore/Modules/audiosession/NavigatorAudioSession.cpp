@@ -60,9 +60,9 @@ NavigatorAudioSession* NavigatorAudioSession::from(Navigator& navigator)
     return supplement;
 }
 
-ASCIILiteral NavigatorAudioSession::supplementName()
+const char* NavigatorAudioSession::supplementName()
 {
-    return "NavigatorAudioSession"_s;
+    return "NavigatorAudioSession";
 }
 
 }

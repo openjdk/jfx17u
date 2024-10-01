@@ -51,9 +51,11 @@ ResourceUsageOverlay::ResourceUsageOverlay(Page& page)
 ResourceUsageOverlay::~ResourceUsageOverlay()
 {
     platformDestroy();
+    if (auto* localMainFrame = dynamicDowncast<LocalFrame>(m_page.mainFrame())) {
     // FIXME: This is a hack so we don't try to uninstall the PageOverlay during Page destruction.
-    if (m_page.mainFrame().page())
+        if (localMainFrame->page())
         m_page.pageOverlayController().uninstallPageOverlay(*m_overlay, PageOverlay::FadeMode::DoNotFade);
+    }
 }
 
 void ResourceUsageOverlay::initialize()
@@ -81,7 +83,7 @@ void ResourceUsageOverlay::initialize()
 
 bool ResourceUsageOverlay::mouseEvent(PageOverlay&, const PlatformMouseEvent& event)
 {
-    if (event.button() != MouseButton::Left)
+    if (event.button() != LeftButton)
         return false;
 
     switch (event.type()) {
@@ -112,7 +114,10 @@ bool ResourceUsageOverlay::mouseEvent(PageOverlay&, const PlatformMouseEvent& ev
                 newFrame.setX(0);
             if (newFrame.y() < m_page.topContentInset())
                 newFrame.setY(m_page.topContentInset());
-            auto& frameView = *m_page.mainFrame().virtualView();
+            auto* localMainFrame = dynamicDowncast<LocalFrame>(m_page.mainFrame());
+            if (!localMainFrame)
+                break;
+            auto& frameView = *localMainFrame->view();
             if (newFrame.maxX() > frameView.width())
                 newFrame.setX(frameView.width() - newFrame.width());
             if (newFrame.maxY() > frameView.height())

@@ -41,7 +41,7 @@ const double HTMLProgressElement::IndeterminatePosition = -1;
 const double HTMLProgressElement::InvalidPosition = -2;
 
 HTMLProgressElement::HTMLProgressElement(const QualifiedName& tagName, Document& document)
-    : HTMLElement(tagName, document, TypeFlag::HasCustomStyleResolveCallbacks)
+    : HTMLElement(tagName, document, CreateHTMLProgressElement)
     , m_value(0)
     , m_isDeterminate(false)
 {
@@ -72,8 +72,8 @@ bool HTMLProgressElement::childShouldCreateRenderer(const Node& child) const
 
 RenderProgress* HTMLProgressElement::renderProgress() const
 {
-    if (auto* renderProgress = dynamicDowncast<RenderProgress>(renderer()))
-        return renderProgress;
+    if (is<RenderProgress>(renderer()))
+        return downcast<RenderProgress>(renderer());
     return downcast<RenderProgress>(descendantsOfType<Element>(*userAgentShadowRoot()).first()->renderer());
 }
 
@@ -129,7 +129,7 @@ void HTMLProgressElement::updateDeterminateState()
     bool newIsDeterminate = hasAttributeWithoutSynchronization(valueAttr);
     if (m_isDeterminate == newIsDeterminate)
         return;
-    Style::PseudoClassChangeInvalidation styleInvalidation(*this, CSSSelector::PseudoClass::Indeterminate, !newIsDeterminate);
+    Style::PseudoClassChangeInvalidation styleInvalidation(*this, CSSSelector::PseudoClassType::Indeterminate, !newIsDeterminate);
     m_isDeterminate = newIsDeterminate;
 }
 
@@ -159,7 +159,7 @@ void HTMLProgressElement::didAddUserAgentShadowRoot(ShadowRoot& root)
     inner->appendChild(bar);
 }
 
-bool HTMLProgressElement::matchesIndeterminatePseudoClass() const
+bool HTMLProgressElement::shouldAppearIndeterminate() const
 {
     return !isDeterminate();
 }

@@ -73,7 +73,11 @@ public:
         return Range(std::numeric_limits<Type>::min(), std::numeric_limits<Type>::max());
     }
 
-    friend bool operator==(const Range&, const Range&) = default;
+    bool operator==(const Range& other) const
+    {
+        return m_begin == other.m_begin
+            && m_end == other.m_end;
+    }
 
     explicit operator bool() const { return m_begin != m_end; }
 

@@ -26,6 +26,8 @@
 #include "config.h"
 #include "ServiceWorkerInspectorProxy.h"
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "SWContextManager.h"
 #include "ScriptExecutionContext.h"
 #include "ServiceWorkerGlobalScope.h"
@@ -97,3 +99,5 @@ void ServiceWorkerInspectorProxy::sendMessageFromWorkerToFrontend(String&& messa
 }
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

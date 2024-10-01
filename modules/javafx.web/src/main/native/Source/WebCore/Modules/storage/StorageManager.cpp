@@ -62,29 +62,29 @@ struct ConnectionInfo {
 static ExceptionOr<ConnectionInfo> connectionInfo(NavigatorBase* navigator)
 {
     if (!navigator)
-        return Exception { ExceptionCode::InvalidStateError, "Navigator does not exist"_s };
+        return Exception { InvalidStateError, "Navigator does not exist"_s };
 
-    RefPtr context = navigator->scriptExecutionContext();
+    auto context = navigator->scriptExecutionContext();
     if (!context)
-        return Exception { ExceptionCode::InvalidStateError, "Context is invalid"_s };
+        return Exception { InvalidStateError, "Context is invalid"_s };
 
     if (context->canAccessResource(ScriptExecutionContext::ResourceType::StorageManager) == ScriptExecutionContext::HasResourceAccess::No)
-        return Exception { ExceptionCode::TypeError, "Context not access storage"_s };
+        return Exception { TypeError, "Context not access storage"_s };
 
-    RefPtr origin = context->securityOrigin();
+    auto* origin = context->securityOrigin();
     ASSERT(origin);
 
-    if (RefPtr document = dynamicDowncast<Document>(context)) {
-        if (RefPtr connection = document->storageConnection())
-            return ConnectionInfo { *connection, { document->topOrigin().data(), origin->data() } };
+    if (is<Document>(context)) {
+        if (auto* connection = downcast<Document>(context)->storageConnection())
+            return ConnectionInfo { *connection, { context->topOrigin().data(), origin->data() } };
 
-        return Exception { ExceptionCode::InvalidStateError, "Connection is invalid"_s };
+        return Exception { InvalidStateError, "Connection is invalid"_s };
     }
 
-    if (RefPtr globalScope = dynamicDowncast<WorkerGlobalScope>(context))
-        return ConnectionInfo { globalScope->storageConnection(), { globalScope->topOrigin().data(), origin->data() } };
+    if (is<WorkerGlobalScope>(context))
+        return ConnectionInfo { downcast<WorkerGlobalScope>(context)->storageConnection(), { context->topOrigin().data(), origin->data() } };
 
-    return Exception { ExceptionCode::NotSupportedError };
+    return Exception { NotSupportedError };
 }
 
 void StorageManager::persisted(DOMPromiseDeferred<IDLBoolean>&& promise)
@@ -118,7 +118,7 @@ void StorageManager::estimate(DOMPromiseDeferred<IDLDictionary<StorageEstimate>>
         return promise.reject(connectionInfoOrException.releaseException());
 
     auto connectionInfo = connectionInfoOrException.releaseReturnValue();
-    connectionInfo.connection.getEstimate(WTFMove(connectionInfo.origin), [promise = WTFMove(promise)](ExceptionOr<StorageEstimate>&& result) mutable {
+    connectionInfo.connection.getEstimate(WTFMove(connectionInfo.origin), [promise = WTFMove(promise)](auto&& result) mutable {
         promise.settle(WTFMove(result));
     });
 }
@@ -135,10 +135,10 @@ void StorageManager::fileSystemAccessGetDirectory(DOMPromiseDeferred<IDLInterfac
             return promise.reject(result.releaseException());
 
         auto [identifier, connection] = result.releaseReturnValue();
-        RefPtr context = weakNavigator ? weakNavigator->scriptExecutionContext() : nullptr;
+        auto* context = weakNavigator ? weakNavigator->scriptExecutionContext() : nullptr;
         if (!context) {
             connection->closeHandle(identifier);
-            return promise.reject(Exception { ExceptionCode::InvalidStateError, "Context has stopped"_s });
+            return promise.reject(Exception { InvalidStateError, "Context has stopped"_s });
         }
 
         promise.resolve(FileSystemDirectoryHandle::create(*context, { }, identifier, Ref { *connection }));

@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "BackgroundFetchRecordIdentifier.h"
 #include "FetchHeadersGuard.h"
 #include "FetchOptions.h"
@@ -47,3 +49,5 @@ struct BackgroundFetchRecordInformation {
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

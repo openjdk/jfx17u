@@ -30,35 +30,6 @@
 
 namespace WGSL {
 
-// https://www.w3.org/TR/WGSL/#keyword-summary
-#define FOREACH_KEYWORD(F) \
-    F(alias,        Alias) \
-    F(break,        Break) \
-    F(case,         Case) \
-    F(const,        Const) \
-    F(const_assert, ConstAssert) \
-    F(continue,     Continue) \
-    F(continuing,   Continuing) \
-    F(default,      Default) \
-    F(diagnostic,   Diagnostic) \
-    F(discard,      Discard) \
-    F(else,         Else) \
-    F(enable,       Enable) \
-    F(false,        False) \
-    F(fn,           Fn) \
-    F(for,          For) \
-    F(if,           If) \
-    F(let,          Let) \
-    F(loop,         Loop) \
-    F(override,     Override) \
-    F(requires,     Requires) \
-    F(return,       Return) \
-    F(struct,       Struct) \
-    F(switch,       Switch) \
-    F(true,         True) \
-    F(var,          Var) \
-    F(while,        While)
-
 enum class TokenType: uint32_t {
     // Instead of having this type, we could have a std::optional<Token> everywhere that we currently have a Token.
     // I made this choice for two reasons:
@@ -74,15 +45,38 @@ enum class TokenType: uint32_t {
     IntegerLiteralSigned,
     IntegerLiteralUnsigned,
     FloatLiteral,
-    HalfLiteral,
 
     Identifier,
 
     ReservedWord,
-
-#define ENUM_ENTRY(_, name) Keyword##name,
-FOREACH_KEYWORD(ENUM_ENTRY)
-#undef ENUM_ENTRY
+    KeywordArray,
+    KeywordBreak,
+    KeywordConst,
+    KeywordContinue,
+    KeywordElse,
+    KeywordFn,
+    KeywordFor,
+    KeywordFunction,
+    KeywordIf,
+    KeywordLet,
+    KeywordOverride,
+    KeywordPrivate,
+    KeywordRead,
+    KeywordReadWrite,
+    KeywordReturn,
+    KeywordStorage,
+    KeywordStruct,
+    KeywordUniform,
+    KeywordVar,
+    KeywordWorkgroup,
+    KeywordWrite,
+    KeywordI32,
+    KeywordU32,
+    KeywordF32,
+    KeywordBool,
+    LiteralTrue,
+    LiteralFalse,
+    // FIXME: add all the other keywords: see #keyword-summary in the WGSL spec
 
     And,
     AndAnd,
@@ -130,10 +124,7 @@ FOREACH_KEYWORD(ENUM_ENTRY)
     Underbar,
     Xor,
     XorEq,
-
-    Placeholder,
-    TemplateArgsLeft,
-    TemplateArgsRight,
+    // FIXME: add all the other special tokens
 };
 
 String toString(TokenType);
@@ -155,8 +146,7 @@ struct Token {
             && type != TokenType::IntegerLiteral
             && type != TokenType::IntegerLiteralSigned
             && type != TokenType::IntegerLiteralUnsigned
-            && type != TokenType::FloatLiteral
-            && type != TokenType::HalfLiteral);
+            && type != TokenType::FloatLiteral);
     }
 
     Token(TokenType type, SourcePosition position, unsigned length, double literalValue)
@@ -168,8 +158,7 @@ struct Token {
             || type == TokenType::IntegerLiteral
             || type == TokenType::IntegerLiteralSigned
             || type == TokenType::IntegerLiteralUnsigned
-            || type == TokenType::FloatLiteral
-            || type == TokenType::HalfLiteral);
+            || type == TokenType::FloatLiteral);
     }
 
     Token(TokenType type, SourcePosition position, unsigned length, String&& ident)
@@ -199,32 +188,6 @@ struct Token {
         case TokenType::IntegerLiteralSigned:
         case TokenType::IntegerLiteralUnsigned:
         case TokenType::FloatLiteral:
-        case TokenType::HalfLiteral:
-            literalValue = other.literalValue;
-            break;
-        default:
-            break;
-        }
-
-        return *this;
-    }
-
-    Token& operator=(const Token& other)
-    {
-        type = other.type;
-        span = other.span;
-
-        switch (other.type) {
-        case TokenType::Identifier:
-            new (NotNull, &ident) String();
-            ident = other.ident;
-            break;
-        case TokenType::AbstractFloatLiteral:
-        case TokenType::IntegerLiteral:
-        case TokenType::IntegerLiteralSigned:
-        case TokenType::IntegerLiteralUnsigned:
-        case TokenType::FloatLiteral:
-        case TokenType::HalfLiteral:
             literalValue = other.literalValue;
             break;
         default:
@@ -248,7 +211,6 @@ struct Token {
         case TokenType::IntegerLiteralSigned:
         case TokenType::IntegerLiteralUnsigned:
         case TokenType::FloatLiteral:
-        case TokenType::HalfLiteral:
             literalValue = other.literalValue;
             break;
         default:

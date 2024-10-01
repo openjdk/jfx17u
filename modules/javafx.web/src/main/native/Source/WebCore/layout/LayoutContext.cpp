@@ -28,6 +28,10 @@
 
 #include "BlockFormattingContext.h"
 #include "BlockFormattingState.h"
+#include "FlexFormattingContext.h"
+#include "FlexFormattingState.h"
+#include "InlineFormattingContext.h"
+#include "InlineFormattingState.h"
 #include "LayoutBox.h"
 #include "LayoutBoxGeometry.h"
 #include "LayoutElementBox.h"
@@ -62,7 +66,7 @@ void LayoutContext::layout(const LayoutSize& rootContentBoxSize)
     boxGeometry.setVerticalMargin({ });
     boxGeometry.setBorder({ });
     boxGeometry.setPadding({ });
-    boxGeometry.setTopLeft({ });
+    boxGeometry.setLogicalTopLeft({ });
     boxGeometry.setContentBoxHeight(rootContentBoxSize.height());
     boxGeometry.setContentBoxWidth(rootContentBoxSize.width());
 
@@ -73,12 +77,35 @@ void LayoutContext::layout(const LayoutSize& rootContentBoxSize)
 
 void LayoutContext::layoutFormattingContextSubtree(const ElementBox& formattingContextRoot)
 {
-    UNUSED_PARAM(formattingContextRoot);
+    RELEASE_ASSERT(formattingContextRoot.establishesFormattingContext());
+    if (!formattingContextRoot.hasChild())
+        return;
+
+    auto formattingContext = createFormattingContext(formattingContextRoot, layoutState());
+    auto& boxGeometry = layoutState().geometryForBox(formattingContextRoot);
+
+    if (formattingContextRoot.hasInFlowOrFloatingChild()) {
+        auto constraintsForInFlowContent = ConstraintsForInFlowContent { { boxGeometry.contentBoxLeft(), boxGeometry.contentBoxWidth() }, boxGeometry.contentBoxTop() };
+        formattingContext->layoutInFlowContent(constraintsForInFlowContent);
+    }
+
+    // FIXME: layoutFormattingContextSubtree() does not perform layout on the root, rather it lays out the root's content.
+    // It constructs an FC for descendant boxes and runs layout on them. The formattingContextRoot is laid out in the FC in which it lives (parent formatting context).
+    // It also means that the formattingContextRoot has to have a valid/clean geometry at this point.
+    {
+        auto constraints = ConstraintsForOutOfFlowContent { { boxGeometry.paddingBoxLeft(), boxGeometry.paddingBoxWidth() },
+            { boxGeometry.paddingBoxTop(), boxGeometry.paddingBoxHeight() }, boxGeometry.contentBoxWidth() };
+        formattingContext->layoutOutOfFlowContent(constraints);
+    }
 }
 
 std::unique_ptr<FormattingContext> LayoutContext::createFormattingContext(const ElementBox& formattingContextRoot, LayoutState& layoutState)
 {
     ASSERT(formattingContextRoot.establishesFormattingContext());
+    if (formattingContextRoot.establishesInlineFormattingContext()) {
+        auto& inlineFormattingState = layoutState.ensureInlineFormattingState(formattingContextRoot);
+        return makeUnique<InlineFormattingContext>(formattingContextRoot, inlineFormattingState);
+    }
 
     if (formattingContextRoot.establishesBlockFormattingContext()) {
         ASSERT(!formattingContextRoot.establishesInlineFormattingContext());
@@ -86,6 +113,11 @@ std::unique_ptr<FormattingContext> LayoutContext::createFormattingContext(const 
         if (formattingContextRoot.isTableWrapperBox())
             return makeUnique<TableWrapperBlockFormattingContext>(formattingContextRoot, blockFormattingState);
         return makeUnique<BlockFormattingContext>(formattingContextRoot, blockFormattingState);
+    }
+
+    if (formattingContextRoot.establishesFlexFormattingContext()) {
+        auto& flexFormattingState = layoutState.ensureFlexFormattingState(formattingContextRoot);
+        return makeUnique<FlexFormattingContext>(formattingContextRoot, flexFormattingState);
     }
 
     if (formattingContextRoot.establishesTableFormattingContext()) {

@@ -36,7 +36,6 @@ TextStream& operator<<(TextStream& ts, const GraphicsDropShadow& dropShadow)
     ts.dumpProperty("radius", dropShadow.radius);
     ts.dumpProperty("color", dropShadow.color);
     ts.dumpProperty("shadows-use-legacy-radius", dropShadow.radiusMode == ShadowRadiusMode::Legacy);
-    ts.dumpProperty("opacity", dropShadow.opacity);
     return ts;
 }
 

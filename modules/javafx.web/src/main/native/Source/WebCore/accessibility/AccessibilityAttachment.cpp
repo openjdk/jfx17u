@@ -68,7 +68,10 @@ float AccessibilityAttachment::valueForRange() const
 HTMLAttachmentElement* AccessibilityAttachment::attachmentElement() const
 {
     ASSERT(is<HTMLAttachmentElement>(node()));
-    return dynamicDowncast<HTMLAttachmentElement>(node());
+    if (!is<HTMLAttachmentElement>(node()))
+        return nullptr;
+
+    return downcast<HTMLAttachmentElement>(node());
 }
 
 String AccessibilityAttachment::roleDescription() const
@@ -83,7 +86,7 @@ bool AccessibilityAttachment::computeAccessibilityIsIgnored() const
 
 void AccessibilityAttachment::accessibilityText(Vector<AccessibilityText>& textOrder) const
 {
-    RefPtr attachmentElement = this->attachmentElement();
+    HTMLAttachmentElement* attachmentElement = this->attachmentElement();
     if (!attachmentElement)
         return;
 

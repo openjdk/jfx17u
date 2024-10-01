@@ -24,6 +24,7 @@
  */
 
 [
+    EnabledBySetting=TransformStreamAPIEnabled,
     Exposed=*,
     JSBuiltin,
 ] interface TextDecoderStream {

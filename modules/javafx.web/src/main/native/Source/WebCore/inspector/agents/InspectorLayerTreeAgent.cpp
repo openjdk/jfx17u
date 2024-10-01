@@ -201,9 +201,9 @@ Ref<Protocol::LayerTree::Layer> InspectorLayerTreeAgent::buildObjectForLayer(Ren
     if (isAnonymous && !renderer->isRenderView()) {
         layerObject->setIsAnonymous(true);
         const RenderStyle& style = renderer->style();
-        if (style.pseudoElementType() == PseudoId::FirstLetter)
+        if (style.styleType() == PseudoId::FirstLetter)
             layerObject->setPseudoElement("first-letter"_s);
-        else if (style.pseudoElementType() == PseudoId::FirstLine)
+        else if (style.styleType() == PseudoId::FirstLine)
             layerObject->setPseudoElement("first-line"_s);
     }
 
@@ -324,9 +324,6 @@ Protocol::ErrorStringOr<Ref<Protocol::LayerTree::CompositingReasons>> InspectorL
 
     if (reasons.contains(CompositingReason::Root))
         compositingReasons->setRoot(true);
-
-    if (reasons.contains(CompositingReason::BackdropRoot))
-        compositingReasons->setBackdropRoot(true);
 
     return compositingReasons;
 }

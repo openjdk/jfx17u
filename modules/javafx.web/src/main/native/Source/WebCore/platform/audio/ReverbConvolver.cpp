@@ -156,7 +156,11 @@ void ReverbConvolver::backgroundThreadEntry()
         // Process all of the stages until their read indices reach the input buffer's write index
         int writeIndex = m_inputBuffer.writeIndex();
 
-        while (m_backgroundStages[0]->inputReadIndex() != writeIndex) { // FIXME: do better to detect buffer overrun...
+        // Even though it doesn't seem like every stage needs to maintain its own version of readIndex
+        // we do this in case we want to run in more than one background thread.
+        int readIndex;
+
+        while ((readIndex = m_backgroundStages[0]->inputReadIndex()) != writeIndex) { // FIXME: do better to detect buffer overrun...
             // The ReverbConvolverStages need to process in amounts which evenly divide half the FFT size
             const int SliceSize = MinFFTSize / 2;
 

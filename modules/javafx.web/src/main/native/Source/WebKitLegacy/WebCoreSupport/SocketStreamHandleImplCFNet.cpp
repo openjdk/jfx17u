@@ -36,7 +36,6 @@
 #include <WebCore/Credential.h>
 #include <WebCore/CredentialStorage.h>
 #include <WebCore/DeprecatedGlobalSettings.h>
-#include <WebCore/HTTPStatusCodes.h>
 #include <WebCore/Logging.h>
 #include <WebCore/NetworkStorageSession.h>
 #include <WebCore/ProtectionSpace.h>
@@ -332,6 +331,7 @@ void SocketStreamHandleImpl::createStreams()
     }
 
     if (shouldUseSSL()) {
+        // FIXME: rdar://86641948 Remove shouldAcceptInsecureCertificatesForWebSockets once HAVE(NSURLSESSION_WEBSOCKET) is supported on all Cocoa platforms.
         CFBooleanRef validateCertificateChain = DeprecatedGlobalSettings::allowsAnySSLCertificate() || m_shouldAcceptInsecureCertificates ? kCFBooleanFalse : kCFBooleanTrue;
         const void* keys[] = {
             kCFStreamSSLPeerName,
@@ -530,10 +530,10 @@ void SocketStreamHandleImpl::readStreamCallback(CFStreamEventType type)
 
                 CFIndex proxyResponseCode = CFHTTPMessageGetResponseStatusCode(proxyResponse.get());
                 switch (proxyResponseCode) {
-                case httpStatus200OK:
+                case 200:
                     // Successful connection.
                     break;
-                case httpStatus407ProxyAuthenticationRequired:
+                case 407:
                     addCONNECTCredentials(proxyResponse.get());
                     return;
                 default:
@@ -614,7 +614,7 @@ void SocketStreamHandleImpl::writeStreamCallback(CFStreamEventType type)
                 // Don't write anything until read stream callback has dealt with CONNECT credentials.
                 // The order of callbacks is not defined, so this can be called before readStreamCallback's kCFStreamEventHasBytesAvailable.
                 CFIndex proxyResponseCode = CFHTTPMessageGetResponseStatusCode(proxyResponse.get());
-                if (proxyResponseCode != httpStatus200OK)
+                if (proxyResponseCode != 200)
                     return;
             }
             m_connectingSubstate = Connected;

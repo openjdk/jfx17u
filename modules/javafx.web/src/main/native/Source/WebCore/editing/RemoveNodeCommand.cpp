@@ -43,17 +43,16 @@ RemoveNodeCommand::RemoveNodeCommand(Ref<Node>&& node, ShouldAssumeContentIsAlwa
 
 void RemoveNodeCommand::doApply()
 {
-    auto node = protectedNode();
-    RefPtr parent = node->parentNode();
+    ContainerNode* parent = m_node->parentNode();
     if (!parent || (m_shouldAssumeContentIsAlwaysEditable == DoNotAssumeContentIsAlwaysEditable
         && !isEditableNode(*parent) && parent->renderer()))
         return;
     ASSERT(isEditableNode(*parent) || !parent->renderer());
 
-    m_parent = WTFMove(parent);
-    m_refChild = node->nextSibling();
+    m_parent = parent;
+    m_refChild = m_node->nextSibling();
 
-    node->remove();
+    m_node->remove();
 }
 
 void RemoveNodeCommand::doUnapply()
@@ -63,7 +62,7 @@ void RemoveNodeCommand::doUnapply()
     if (!parent || !parent->hasEditableStyle())
         return;
 
-    parent->insertBefore(protectedNode(), WTFMove(refChild));
+    parent->insertBefore(m_node, refChild.get());
 }
 
 #ifndef NDEBUG

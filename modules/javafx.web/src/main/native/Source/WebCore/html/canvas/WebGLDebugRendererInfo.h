@@ -26,13 +26,10 @@
 #pragma once
 
 #include "WebGLExtension.h"
-#include "WebGLRenderingContextBase.h"
-#include <wtf/IsoMalloc.h>
-#include <wtf/Noncopyable.h>
 
 namespace WebCore {
 
-class WebGLDebugRendererInfo final : public WebGLExtension<WebGLRenderingContextBase> {
+class WebGLDebugRendererInfo final : public WebGLExtension {
     WTF_MAKE_ISO_ALLOCATED(WebGLDebugRendererInfo);
 public:
     enum EnumType {
@@ -41,7 +38,9 @@ public:
     };
 
     explicit WebGLDebugRendererInfo(WebGLRenderingContextBase&);
-    ~WebGLDebugRendererInfo();
+    virtual ~WebGLDebugRendererInfo();
+
+    ExtensionName getName() const override;
 };
 
 } // namespace WebCore

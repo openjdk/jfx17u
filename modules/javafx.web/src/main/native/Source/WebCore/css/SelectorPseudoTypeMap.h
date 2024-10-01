@@ -30,11 +30,11 @@
 namespace WebCore {
 
 struct PseudoClassOrCompatibilityPseudoElement {
-    std::optional<CSSSelector::PseudoClass> pseudoClass;
-    std::optional<CSSSelector::PseudoElement> compatibilityPseudoElement;
+    CSSSelector::PseudoClassType pseudoClass;
+    CSSSelector::PseudoElementType compatibilityPseudoElement;
 };
 
-PseudoClassOrCompatibilityPseudoElement findPseudoClassAndCompatibilityElementName(StringView);
-std::optional<CSSSelector::PseudoElement> findPseudoElementName(StringView);
+PseudoClassOrCompatibilityPseudoElement parsePseudoClassAndCompatibilityElementString(StringView pseudoTypeString);
+CSSSelector::PseudoElementType parsePseudoElementString(StringView pseudoTypeString);
 
 } // namespace WebCore

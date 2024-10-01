@@ -38,7 +38,7 @@ public:
     virtual ~PaintingEngineBasic();
 
 private:
-    void paint(WebCore::GraphicsLayer&, Buffer&, const WebCore::IntRect&, const WebCore::IntRect&, const WebCore::IntRect&, float) override;
+    bool paint(WebCore::GraphicsLayer&, Ref<Buffer>&&, const WebCore::IntRect&, const WebCore::IntRect&, const WebCore::IntRect&, float) override;
 };
 
 } // namespace Nicosia

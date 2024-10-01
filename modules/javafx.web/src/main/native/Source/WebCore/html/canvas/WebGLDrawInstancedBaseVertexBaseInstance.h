@@ -26,17 +26,16 @@
 #pragma once
 
 #include "WebGLExtension.h"
-#include "WebGLRenderingContextBase.h"
-#include <wtf/IsoMalloc.h>
-#include <wtf/Noncopyable.h>
 
 namespace WebCore {
 
-class WebGLDrawInstancedBaseVertexBaseInstance final : public WebGLExtension<WebGLRenderingContextBase> {
+class WebGLDrawInstancedBaseVertexBaseInstance final : public WebGLExtension {
     WTF_MAKE_ISO_ALLOCATED(WebGLDrawInstancedBaseVertexBaseInstance);
 public:
     explicit WebGLDrawInstancedBaseVertexBaseInstance(WebGLRenderingContextBase&);
-    ~WebGLDrawInstancedBaseVertexBaseInstance();
+    virtual ~WebGLDrawInstancedBaseVertexBaseInstance();
+
+    ExtensionName getName() const override;
 
     static bool supported(GraphicsContextGL&);
 

@@ -30,7 +30,6 @@
 #include "ImageBuffer.h"
 #include "NativeImage.h"
 #include "NicosiaPlatformLayer.h"
-#include "TextureMapperFlags.h"
 #include "TextureMapperPlatformLayerBuffer.h"
 #include "TextureMapperPlatformLayerProxyGL.h"
 
@@ -46,12 +45,12 @@ using namespace WebCore;
 
 NicosiaImageBufferPipeSource::NicosiaImageBufferPipeSource()
 {
-    m_nicosiaLayer = Nicosia::ContentLayer::create(*this);
+    m_nicosiaLayer = Nicosia::ContentLayer::create(Nicosia::ContentLayerTextureMapperImpl::createFactory(*this));
 }
 
 NicosiaImageBufferPipeSource::~NicosiaImageBufferPipeSource()
 {
-    m_nicosiaLayer->invalidateClient();
+    downcast<Nicosia::ContentLayerTextureMapperImpl>(m_nicosiaLayer->impl()).invalidateClient();
 }
 
 void NicosiaImageBufferPipeSource::handle(ImageBuffer& buffer)
@@ -65,13 +64,14 @@ void NicosiaImageBufferPipeSource::handle(ImageBuffer& buffer)
     if (!m_imageBuffer) {
         auto proxyOperation = [this] (TextureMapperPlatformLayerProxy& proxy) mutable {
             return downcast<TextureMapperPlatformLayerProxyGL>(proxy).scheduleUpdateOnCompositorThread([this] () mutable {
-                auto& proxy = m_nicosiaLayer->proxy();
+                auto& proxy = downcast<Nicosia::ContentLayerTextureMapperImpl>(m_nicosiaLayer->impl()).proxy();
                 Locker locker { proxy.lock() };
 
                 if (!proxy.isActive())
                     return;
 
-                RefPtr<BitmapTexture> texture;
+                auto texture = BitmapTextureGL::create(TextureMapperContextAttributes::get());
+
                 {
                     Locker locker { m_imageBufferLock };
 
@@ -83,10 +83,8 @@ void NicosiaImageBufferPipeSource::handle(ImageBuffer& buffer)
                         return;
 
                     auto size = nativeImage->size();
-                    OptionSet<BitmapTexture::Flags> flags;
-                    if (nativeImage->hasAlpha())
-                        flags.add(BitmapTexture::Flags::SupportsAlpha);
-                    texture = BitmapTexture::create(size, flags);
+
+                    texture->reset(size, nativeImage->hasAlpha() ? BitmapTexture::SupportsAlpha : BitmapTexture::NoFlag);
 #if USE(CAIRO)
                     auto* surface = nativeImage->platformImage().get();
                     auto* imageData = cairo_image_surface_get_data(surface);
@@ -97,11 +95,11 @@ void NicosiaImageBufferPipeSource::handle(ImageBuffer& buffer)
                 }
 
                 auto layerBuffer = makeUnique<TextureMapperPlatformLayerBuffer>(WTFMove(texture));
-                layerBuffer->setExtraFlags(TextureMapperFlags::ShouldBlend);
+                layerBuffer->setExtraFlags(TextureMapperGL::ShouldBlend);
                 downcast<TextureMapperPlatformLayerProxyGL>(proxy).pushNextBuffer(WTFMove(layerBuffer));
             });
         };
-        proxyOperation(m_nicosiaLayer->proxy());
+        proxyOperation(downcast<Nicosia::ContentLayerTextureMapperImpl>(m_nicosiaLayer->impl()).proxy());
     }
 
     m_imageBuffer = WTFMove(clone);

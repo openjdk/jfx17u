@@ -26,6 +26,7 @@
 #pragma once
 
 #include <cstdint>
+#include <wtf/EnumTraits.h>
 
 namespace WebCore::WebGPU {
 
@@ -35,3 +36,15 @@ enum class DeviceLostReason : uint8_t {
 };
 
 } // namespace WebCore::WebGPU
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::WebGPU::DeviceLostReason> {
+    using values = EnumValues<
+        WebCore::WebGPU::DeviceLostReason,
+        WebCore::WebGPU::DeviceLostReason::Destroyed,
+        WebCore::WebGPU::DeviceLostReason::Unknown
+    >;
+};
+
+} // namespace WTF

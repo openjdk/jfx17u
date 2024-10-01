@@ -202,8 +202,7 @@ template <typename T> using TypeOrExceptionOrUnderlyingType = typename TypeOrExc
 
 namespace WTF {
 template<typename T> struct CrossThreadCopierBase<false, false, WebCore::ExceptionOr<T> > {
-    using Type = WebCore::ExceptionOr<T>;
-    static constexpr bool IsNeeded = true;
+    typedef WebCore::ExceptionOr<T> Type;
     static Type copy(const Type& source)
     {
         if (source.hasException())
@@ -219,8 +218,7 @@ template<typename T> struct CrossThreadCopierBase<false, false, WebCore::Excepti
 };
 
 template<> struct CrossThreadCopierBase<false, false, WebCore::ExceptionOr<void> > {
-    using Type = WebCore::ExceptionOr<void>;
-    static constexpr bool IsNeeded = true;
+    typedef WebCore::ExceptionOr<void> Type;
     static Type copy(const Type& source)
     {
         if (source.hasException())

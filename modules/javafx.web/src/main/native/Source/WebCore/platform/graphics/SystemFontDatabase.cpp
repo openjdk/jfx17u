@@ -25,7 +25,6 @@
 
 #include "config.h"
 #include "SystemFontDatabase.h"
-#include "WebKitFontFamilyNames.h"
 
 namespace WebCore {
 

@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "Supplementable.h"
 #include <wtf/Forward.h>
 
@@ -44,10 +46,12 @@ public:
 
 private:
     static ServiceWorkerRegistrationPushAPI* from(ServiceWorkerRegistration&);
-    static ASCIILiteral supplementName();
+    static const char* supplementName();
 
     ServiceWorkerRegistration& m_serviceWorkerRegistration;
     std::unique_ptr<PushManager> m_pushManager;
 };
 
 }
+
+#endif // ENABLE(SERVICE_WORKER)

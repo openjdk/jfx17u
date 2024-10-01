@@ -28,6 +28,8 @@
 
 #include <wtf/IsoMallocInlines.h>
 
+#if ENABLE(SERVICE_WORKER)
+
 namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(BackgroundFetchEvent);
@@ -54,3 +56,7 @@ RefPtr<BackgroundFetchRegistration> BackgroundFetchEvent::registration() const
 }
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)
+
+

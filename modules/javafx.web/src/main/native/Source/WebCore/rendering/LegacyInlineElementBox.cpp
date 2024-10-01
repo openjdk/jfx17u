@@ -41,10 +41,10 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(LegacyInlineElementBox);
 void LegacyInlineElementBox::deleteLine()
 {
     if (!extracted()) {
-        if (CheckedPtr box = dynamicDowncast<RenderBox>(renderer()))
-            box->setInlineBoxWrapper(nullptr);
-        else if (CheckedPtr lineBreak = dynamicDowncast<RenderLineBreak>(renderer()))
-            lineBreak->setInlineBoxWrapper(nullptr);
+        if (is<RenderBox>(renderer()))
+            downcast<RenderBox>(renderer()).setInlineBoxWrapper(nullptr);
+        else if (is<RenderLineBreak>(renderer()))
+            downcast<RenderLineBreak>(renderer()).setInlineBoxWrapper(nullptr);
     }
     delete this;
 }
@@ -52,19 +52,19 @@ void LegacyInlineElementBox::deleteLine()
 void LegacyInlineElementBox::extractLine()
 {
     setExtracted(true);
-    if (CheckedPtr box = dynamicDowncast<RenderBox>(renderer()))
-        box->setInlineBoxWrapper(nullptr);
-    else if (CheckedPtr lineBreak = dynamicDowncast<RenderLineBreak>(renderer()))
-        lineBreak->setInlineBoxWrapper(nullptr);
+    if (is<RenderBox>(renderer()))
+        downcast<RenderBox>(renderer()).setInlineBoxWrapper(nullptr);
+    else if (is<RenderLineBreak>(renderer()))
+        downcast<RenderLineBreak>(renderer()).setInlineBoxWrapper(nullptr);
 }
 
 void LegacyInlineElementBox::attachLine()
 {
     setExtracted(false);
-    if (CheckedPtr box = dynamicDowncast<RenderBox>(renderer()))
-        box->setInlineBoxWrapper(this);
-    else if (CheckedPtr lineBreak = dynamicDowncast<RenderLineBreak>(renderer()))
-        lineBreak->setInlineBoxWrapper(this);
+    if (is<RenderBox>(renderer()))
+        downcast<RenderBox>(renderer()).setInlineBoxWrapper(this);
+    else if (is<RenderLineBreak>(renderer()))
+        downcast<RenderLineBreak>(renderer()).setInlineBoxWrapper(this);
 }
 
 void LegacyInlineElementBox::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset, LayoutUnit /* lineTop */, LayoutUnit /*lineBottom*/)
@@ -76,8 +76,8 @@ void LegacyInlineElementBox::paint(PaintInfo& paintInfo, const LayoutPoint& pain
         return;
 
     LayoutPoint childPoint = paintOffset;
-    if (auto* box = dynamicDowncast<RenderBox>(renderer()); box && parent()->renderer().style().isFlippedBlocksWritingMode()) // Faster than calling containingBlock().
-        childPoint = renderer().containingBlock()->flipForWritingModeForChild(*box, childPoint);
+    if (is<RenderBox>(renderer()) && parent()->renderer().style().isFlippedBlocksWritingMode()) // Faster than calling containingBlock().
+        childPoint = renderer().containingBlock()->flipForWritingModeForChild(downcast<RenderBox>(renderer()), childPoint);
 
     renderer().paintAsInlineBlock(paintInfo, childPoint);
 }
@@ -89,8 +89,8 @@ bool LegacyInlineElementBox::nodeAtPoint(const HitTestRequest& request, HitTestR
     // own stacking context.  (See Appendix E.2, section 6.4 on inline block/table elements in the CSS2.1
     // specification.)
     LayoutPoint childPoint = accumulatedOffset;
-    if (auto* box = dynamicDowncast<RenderBox>(renderer()); box && parent()->renderer().style().isFlippedBlocksWritingMode()) // Faster than calling containingBlock().
-        childPoint = renderer().containingBlock()->flipForWritingModeForChild(*box, childPoint);
+    if (is<RenderBox>(renderer()) && parent()->renderer().style().isFlippedBlocksWritingMode()) // Faster than calling containingBlock().
+        childPoint = renderer().containingBlock()->flipForWritingModeForChild(downcast<RenderBox>(renderer()), childPoint);
 
     return renderer().hitTest(request, result, locationInContainer, childPoint);
 }

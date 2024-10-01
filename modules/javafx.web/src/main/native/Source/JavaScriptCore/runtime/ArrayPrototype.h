@@ -38,7 +38,10 @@ public:
 
     DECLARE_EXPORT_INFO;
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        return Structure::create(vm, globalObject, prototype, TypeInfo(DerivedArrayType, StructureFlags), info(), ArrayClass);
+    }
 
 private:
     ArrayPrototype(VM&, Structure*);
@@ -50,6 +53,5 @@ JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncToString);
 JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncValues);
 JSC_DECLARE_HOST_FUNCTION(arrayProtoPrivateFuncConcatMemcpy);
 JSC_DECLARE_HOST_FUNCTION(arrayProtoPrivateFuncAppendMemcpy);
-JSC_DECLARE_HOST_FUNCTION(arrayProtoPrivateFuncFromFast);
 
 } // namespace JSC

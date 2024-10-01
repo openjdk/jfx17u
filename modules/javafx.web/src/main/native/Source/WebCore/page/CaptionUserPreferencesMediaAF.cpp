@@ -35,8 +35,8 @@
 #include "HTMLMediaElement.h"
 #include "LocalizedStrings.h"
 #include "Logging.h"
+#include "ShadowPseudoIds.h"
 #include "TextTrackList.h"
-#include "UserAgentParts.h"
 #include "UserStyleSheetTypes.h"
 #include <algorithm>
 #include <wtf/Language.h>
@@ -132,7 +132,7 @@ CaptionUserPreferencesMediaAF::CaptionUserPreferencesMediaAF(PageGroup& group)
             return;
 
         beginBlockingNotifications();
-        CaptionUserPreferences::setCaptionDisplayMode(CaptionDisplayMode::Manual);
+        CaptionUserPreferences::setCaptionDisplayMode(Manual);
         setUserPrefersCaptions(false);
         setUserPrefersSubtitles(false);
         setUserPrefersTextDescriptions(false);
@@ -158,7 +158,7 @@ CaptionUserPreferencesMediaAF::~CaptionUserPreferencesMediaAF()
 CaptionUserPreferences::CaptionDisplayMode CaptionUserPreferencesMediaAF::captionDisplayMode() const
 {
     CaptionDisplayMode internalMode = CaptionUserPreferences::captionDisplayMode();
-    if (internalMode == CaptionDisplayMode::Manual || testingMode() || !MediaAccessibilityLibrary())
+    if (internalMode == Manual || testingMode() || !MediaAccessibilityLibrary())
         return internalMode;
 
     if (cachedCaptionDisplayMode().has_value())
@@ -171,13 +171,13 @@ void CaptionUserPreferencesMediaAF::platformSetCaptionDisplayMode(CaptionDisplay
 {
     MACaptionAppearanceDisplayType displayType = kMACaptionAppearanceDisplayTypeForcedOnly;
     switch (mode) {
-    case CaptionDisplayMode::Automatic:
+    case Automatic:
         displayType = kMACaptionAppearanceDisplayTypeAutomatic;
         break;
-    case CaptionDisplayMode::ForcedOnly:
+    case ForcedOnly:
         displayType = kMACaptionAppearanceDisplayTypeForcedOnly;
         break;
-    case CaptionDisplayMode::AlwaysOn:
+    case AlwaysOn:
         displayType = kMACaptionAppearanceDisplayTypeAlwaysOn;
         break;
     default:
@@ -195,7 +195,7 @@ void CaptionUserPreferencesMediaAF::setCaptionDisplayMode(CaptionUserPreferences
         return;
     }
 
-    if (captionDisplayMode() == CaptionDisplayMode::Manual)
+    if (captionDisplayMode() == Manual)
         return;
 
     if (captionPreferencesDelegate()) {
@@ -211,17 +211,17 @@ CaptionUserPreferences::CaptionDisplayMode CaptionUserPreferencesMediaAF::platfo
     MACaptionAppearanceDisplayType displayType = MACaptionAppearanceGetDisplayType(kMACaptionAppearanceDomainUser);
     switch (displayType) {
     case kMACaptionAppearanceDisplayTypeForcedOnly:
-        return CaptionDisplayMode::ForcedOnly;
+        return ForcedOnly;
 
     case kMACaptionAppearanceDisplayTypeAutomatic:
-        return CaptionDisplayMode::Automatic;
+        return Automatic;
 
     case kMACaptionAppearanceDisplayTypeAlwaysOn:
-        return CaptionDisplayMode::AlwaysOn;
+        return AlwaysOn;
     }
 
     ASSERT_NOT_REACHED();
-    return CaptionDisplayMode::ForcedOnly;
+    return ForcedOnly;
 }
 
 void CaptionUserPreferencesMediaAF::setCachedCaptionDisplayMode(CaptionDisplayMode captionDisplayMode)
@@ -505,7 +505,7 @@ void CaptionUserPreferencesMediaAF::platformSetPreferredLanguage(const String& l
 
 void CaptionUserPreferencesMediaAF::setPreferredLanguage(const String& language)
 {
-    if (CaptionUserPreferences::captionDisplayMode() == CaptionDisplayMode::Manual)
+    if (CaptionUserPreferences::captionDisplayMode() == Manual)
         return;
 
     if (testingMode() || !MediaAccessibilityLibrary()) {
@@ -590,14 +590,13 @@ String CaptionUserPreferencesMediaAF::captionsStyleSheetOverride() const
     String edgeStyle = captionsTextEdgeCSS();
     String fontName = captionsDefaultFontCSS();
     String background = captionsBackgroundCSS();
-    if (!background.isEmpty() || !captionsColor.isEmpty() || !edgeStyle.isEmpty() || !fontName.isEmpty()) {
-        captionsOverrideStyleSheet.append(" ::", UserAgentParts::cue(), '{', background, captionsColor, edgeStyle, fontName, '}');
-        captionsOverrideStyleSheet.append(" ::", UserAgentParts::cue(), "(rt) {", background, captionsColor, edgeStyle, fontName, '}');
-    }
+    if (!background.isEmpty() || !captionsColor.isEmpty() || !edgeStyle.isEmpty() || !fontName.isEmpty())
+        captionsOverrideStyleSheet.append(" ::", ShadowPseudoIds::cue(), '{', background, captionsColor, edgeStyle, fontName, '}');
+
     String windowColor = captionsWindowCSS();
     String windowCornerRadius = windowRoundedCornerRadiusCSS();
     if (!windowColor.isEmpty() || !windowCornerRadius.isEmpty())
-        captionsOverrideStyleSheet.append(" ::", UserAgentParts::webkitMediaTextTrackDisplayBackdrop(), '{', windowColor, windowCornerRadius, '}');
+        captionsOverrideStyleSheet.append(" ::", ShadowPseudoIds::webkitMediaTextTrackDisplayBackdrop(), '{', windowColor, windowCornerRadius, '}');
 #endif // HAVE(MEDIA_ACCESSIBILITY_FRAMEWORK)
 
     LOG(Media, "CaptionUserPreferencesMediaAF::captionsStyleSheetOverrideSetting style to:\n%s", captionsOverrideStyleSheet.toString().utf8().data());
@@ -848,7 +847,7 @@ Vector<RefPtr<TextTrack>> CaptionUserPreferencesMediaAF::sortedTrackListForMenu(
 
         String language = displayNameForLanguageLocale(track->validBCP47Language());
 
-        if (displayMode == CaptionDisplayMode::Manual) {
+        if (displayMode == Manual) {
             LOG(Media, "CaptionUserPreferencesMediaAF::sortedTrackListForMenu - adding '%s' track with language '%s' because selection mode is 'manual'", track->kindKeyword().string().utf8().data(), language.utf8().data());
             tracksForMenu.append(track);
             continue;

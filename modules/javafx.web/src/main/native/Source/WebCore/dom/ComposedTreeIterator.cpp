@@ -59,8 +59,9 @@ ComposedTreeIterator::ComposedTreeIterator(ContainerNode& root, FirstChildTag)
 {
     ASSERT(!is<ShadowRoot>(root));
 
-    if (auto* slot = dynamicDowncast<HTMLSlotElement>(root)) {
-        if (auto* assignedNodes = slot->assignedNodes()) {
+    if (is<HTMLSlotElement>(root)) {
+        auto& slot = downcast<HTMLSlotElement>(root);
+        if (auto* assignedNodes = slot.assignedNodes()) {
             initializeContextStack(root, *assignedNodes->at(0));
             return;
         }
@@ -71,7 +72,7 @@ ComposedTreeIterator::ComposedTreeIterator(ContainerNode& root, FirstChildTag)
         return;
     }
 
-    m_contextStack.append(Context(root, FirstChild));
+    m_contextStack.uncheckedAppend(Context(root, FirstChild));
 }
 
 ComposedTreeIterator::ComposedTreeIterator(ContainerNode& root, Node& current)
@@ -84,7 +85,7 @@ ComposedTreeIterator::ComposedTreeIterator(ContainerNode& root, Node& current)
     if (mayNeedShadowStack)
         initializeContextStack(root, current);
     else
-        m_contextStack.append(Context(root, current));
+        m_contextStack.uncheckedAppend(Context(root, current));
 }
 
 void ComposedTreeIterator::initializeContextStack(ContainerNode& root, Node& current)
@@ -100,11 +101,12 @@ void ComposedTreeIterator::initializeContextStack(ContainerNode& root, Node& cur
             *this = { };
             return;
         }
-        if (auto* shadowRoot = dynamicDowncast<ShadowRoot>(*parent)) {
-            m_contextStack.append(Context(*shadowRoot, *contextCurrent));
+        if (is<ShadowRoot>(*parent)) {
+            auto& shadowRoot = downcast<ShadowRoot>(*parent);
+            m_contextStack.append(Context(shadowRoot, *contextCurrent));
             m_contextStack.last().slotNodeIndex = currentSlotNodeIndex;
 
-            node = shadowRoot->host();
+            node = shadowRoot.host();
             contextCurrent = node;
             currentSlotNodeIndex = notFound;
             continue;
@@ -159,8 +161,9 @@ void ComposedTreeIterator::traverseNextInShadowTree()
 {
     ASSERT(m_contextStack.size() > 1 || m_rootIsInShadowTree);
 
-    if (auto* slot = dynamicDowncast<HTMLSlotElement>(current())) {
-        if (auto* assignedNodes = slot->assignedNodes()) {
+    if (is<HTMLSlotElement>(current())) {
+        auto& slot = downcast<HTMLSlotElement>(current());
+        if (auto* assignedNodes = slot.assignedNodes()) {
             context().slotNodeIndex = 0;
             auto* assignedNode = assignedNodes->at(0).get();
             ASSERT(assignedNode);

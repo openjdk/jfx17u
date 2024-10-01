@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2024 Apple Inc. All rights reserved.
+ * Copyright (C) 2009, 2013-2017 Apple Inc. All rights reserved.
  * Copyright (C) 2010 Peter Varga (pvarga@inf.u-szeged.hu), University of Szeged
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,13 +36,9 @@
 #include <wtf/CheckedArithmetic.h>
 #include <wtf/DataLog.h>
 #include <wtf/StackCheck.h>
-#include <wtf/TZoneMallocInlines.h>
 #include <wtf/text/WTFString.h>
 
 namespace JSC { namespace Yarr {
-
-WTF_MAKE_TZONE_ALLOCATED_IMPL(BytecodePattern);
-WTF_MAKE_TZONE_ALLOCATED_IMPL(ByteDisjunction);
 
 class ByteTermDumper {
 public:
@@ -76,7 +72,6 @@ template<typename CharType>
 class Interpreter {
 public:
     static constexpr bool verbose = false;
-    static constexpr char32_t errorCodePoint = 0xFFFFFFFFu;
 
     struct ParenthesesDisjunctionContext;
 
@@ -266,102 +261,108 @@ public:
             pos -= amount;
         }
 
-        char32_t read()
+        int read()
         {
             ASSERT(pos < length);
             if (pos < length)
                 return input[pos];
-            return errorCodePoint;
+            return -1;
         }
 
-        char32_t readChecked(unsigned negativePositionOffest)
+        int readChecked(unsigned negativePositionOffest)
         {
             RELEASE_ASSERT(pos >= negativePositionOffest);
             unsigned p = pos - negativePositionOffest;
             ASSERT(p < length);
-            auto result = input[p];
+            int result = input[p];
             if (U16_IS_LEAD(result) && decodeSurrogatePairs && p + 1 < length && U16_IS_TRAIL(input[p + 1])) {
                 if (atEnd())
-                    return errorCodePoint;
+                    return -1;
+
+                result = U16_GET_SUPPLEMENTARY(result, input[p + 1]);
                 next();
-                return U16_GET_SUPPLEMENTARY(result, input[p + 1]);
             }
             return result;
         }
 
-        char32_t readCheckedDontAdvance(unsigned negativePositionOffest)
+        int readCheckedDontAdvance(unsigned negativePositionOffest)
         {
             RELEASE_ASSERT(pos >= negativePositionOffest);
             unsigned p = pos - negativePositionOffest;
             ASSERT(p < length);
-            auto result = input[p];
+            int result = input[p];
             if (U16_IS_LEAD(result) && decodeSurrogatePairs && p + 1 < length && U16_IS_TRAIL(input[p + 1])) {
                 if (atEnd())
-                    return errorCodePoint;
-                return U16_GET_SUPPLEMENTARY(result, input[p + 1]);
+                    return -1;
+
+                result = U16_GET_SUPPLEMENTARY(result, input[p + 1]);
             }
             return result;
         }
 
         // readForCharacterDump() is only for use by the DUMP_CURR_CHAR macro.
         // We don't want any side effects like the next() in readChecked() above.
-        char32_t readForCharacterDump(unsigned negativePositionOffest)
+        int readForCharacterDump(unsigned negativePositionOffest)
         {
             RELEASE_ASSERT(pos >= negativePositionOffest);
             unsigned p = pos - negativePositionOffest;
             ASSERT(p < length);
-            auto result = input[p];
+            int result = input[p];
             if (U16_IS_LEAD(result) && decodeSurrogatePairs && p + 1 < length && U16_IS_TRAIL(input[p + 1])) {
                 if (atEnd())
-                    return errorCodePoint;
-                return U16_GET_SUPPLEMENTARY(result, input[p + 1]);
+                    return -1;
+
+                result = U16_GET_SUPPLEMENTARY(result, input[p + 1]);
             }
             return result;
         }
 
-        char32_t tryReadBackward(unsigned negativePositionOffest)
+        int tryReadBackward(unsigned negativePositionOffest)
         {
             if (pos < negativePositionOffest)
-                return errorCodePoint;
+                return -1;
+
             unsigned p = pos - negativePositionOffest;
             ASSERT(p < length);
-            auto result = input[p];
+            int result = input[p];
             if (U16_IS_TRAIL(result) && decodeSurrogatePairs && p > 0 && U16_IS_LEAD(input[p - 1])) {
+                result = U16_GET_SUPPLEMENTARY(input[p - 1], result);
                 rewind(1);
-                return U16_GET_SUPPLEMENTARY(input[p - 1], result);
             }
             return result;
         }
 
-        char32_t readSurrogatePairChecked(unsigned negativePositionOffset)
+        int readSurrogatePairChecked(unsigned negativePositionOffset)
         {
             RELEASE_ASSERT(pos >= negativePositionOffset);
             unsigned p = pos - negativePositionOffset;
             ASSERT(p < length);
             if (p + 1 >= length)
-                return errorCodePoint;
-            auto first = input[p];
-            auto second = input[p + 1];
+                return -1;
+
+            int first = input[p];
+            int second = input[p + 1];
             if (U16_IS_LEAD(first) && U16_IS_TRAIL(second))
                 return U16_GET_SUPPLEMENTARY(first, second);
-            return errorCodePoint;
+
+            return -1;
         }
 
-        char32_t reread(unsigned from)
+        int reread(unsigned from)
         {
             ASSERT(from < length);
-            auto result = input[from];
+            int result = input[from];
             if (U16_IS_LEAD(result) && decodeSurrogatePairs && from + 1 < length && U16_IS_TRAIL(input[from + 1]))
-                return U16_GET_SUPPLEMENTARY(result, input[from + 1]);
+                result = U16_GET_SUPPLEMENTARY(result, input[from + 1]);
             return result;
         }
 
-        char32_t prev()
+        int prev()
         {
             ASSERT(!(pos > length));
             if (pos && length)
                 return input[pos - 1];
-            return errorCodePoint;
+            return -1;
         }
 
         unsigned getPos()
@@ -453,9 +454,9 @@ public:
         bool decodeSurrogatePairs;
     };
 
-    bool testCharacterClass(CharacterClass* characterClass, char32_t ch)
+    bool testCharacterClass(CharacterClass* characterClass, int ch)
     {
-        auto linearSearchMatches = [ch](const Vector<char32_t>& matches) {
+        auto linearSearchMatches = [&ch](const Vector<UChar32>& matches) {
             for (unsigned i = 0; i < matches.size(); ++i) {
                 if (ch == matches[i])
                     return true;
@@ -464,7 +465,7 @@ public:
             return false;
         };
 
-        auto binarySearchMatches = [ch](const Vector<char32_t>& matches) {
+        auto binarySearchMatches = [&ch](const Vector<UChar32>& matches) {
             size_t low = 0;
             size_t high = matches.size() - 1;
 
@@ -484,7 +485,7 @@ public:
             return false;
         };
 
-        auto linearSearchRanges = [ch](const Vector<CharacterRange>& ranges) {
+        auto linearSearchRanges = [&ch](const Vector<CharacterRange>& ranges) {
             for (unsigned i = 0; i < ranges.size(); ++i) {
                 if ((ch >= ranges[i].begin) && (ch <= ranges[i].end))
                     return true;
@@ -493,7 +494,7 @@ public:
             return false;
         };
 
-        auto binarySearchRanges = [ch](const Vector<CharacterRange>& ranges) {
+        auto binarySearchRanges = [&ch](const Vector<CharacterRange>& ranges) {
             size_t low = 0;
             size_t high = ranges.size() - 1;
 
@@ -559,21 +560,21 @@ public:
     {
         ASSERT(term.isCharacterType());
         if (term.matchDirection() == Forward)
-            return term.atom.patternCharacter == static_cast<char32_t>(input.readChecked(negativeInputOffset));
+            return term.atom.patternCharacter == input.readChecked(negativeInputOffset);
 
-        return term.atom.patternCharacter == static_cast<char32_t>(input.tryReadBackward(negativeInputOffset));
+        return term.atom.patternCharacter == input.tryReadBackward(negativeInputOffset);
     }
 
     bool checkSurrogatePair(ByteTerm& term, unsigned negativeInputOffset)
     {
         ASSERT(term.isCharacterType());
-        return term.atom.patternCharacter == static_cast<char32_t>(input.readSurrogatePairChecked(negativeInputOffset));
+        return term.atom.patternCharacter == input.readSurrogatePairChecked(negativeInputOffset);
     }
 
     bool checkCasedCharacter(ByteTerm& term, unsigned negativeInputOffset)
     {
         ASSERT(term.isCasedCharacterType());
-        char32_t ch = term.matchDirection() == Forward ? input.readChecked(negativeInputOffset) : input.tryReadBackward(negativeInputOffset);
+        int ch = term.matchDirection() == Forward ? input.readChecked(negativeInputOffset) : input.tryReadBackward(negativeInputOffset);
         return (term.atom.casedCharacter.lo == ch) || (term.atom.casedCharacter.hi == ch);
     }
 
@@ -581,11 +582,11 @@ public:
     {
         ASSERT(term.isCharacterClass());
 
-        auto inputChar = term.matchDirection() == Forward ? input.readChecked(negativeInputOffset) : input.tryReadBackward(negativeInputOffset);
-        if (inputChar == errorCodePoint)
+        int inputChar = term.matchDirection() == Forward ? input.readChecked(negativeInputOffset) : input.tryReadBackward(negativeInputOffset);
+        if (inputChar < 0)
             return false;
 
-        bool match = testCharacterClass(term.atom.characterClass, static_cast<char32_t>(inputChar));
+        bool match = testCharacterClass(term.atom.characterClass, inputChar);
         return term.invert() ? !match : match;
     }
 
@@ -597,12 +598,12 @@ public:
         if (term.matchDirection() == Backward && negativeInputOffset > input.getPos())
             return false;
 
-        auto readCharacter = characterClass->hasOnlyNonBMPCharacters() ? input.readSurrogatePairChecked(negativeInputOffset) :  input.readChecked(negativeInputOffset);
+        int readCharacter = characterClass->hasOnlyNonBMPCharacters() ? input.readSurrogatePairChecked(negativeInputOffset) :  input.readChecked(negativeInputOffset);
 
-        if (readCharacter == errorCodePoint)
+        if (readCharacter < 0)
             return false;
 
-        return testCharacterClass(characterClass, static_cast<char32_t>(readCharacter));
+        return testCharacterClass(characterClass, readCharacter);
     }
 
     bool tryConsumeBackReference(int matchBegin, int matchEnd, ByteTerm& term)
@@ -763,11 +764,6 @@ public:
                 break;
             }
             // matchDirection Backward
-            unsigned position = input.getPos();
-
-            if (position < term.inputPosition)
-                break;
-
             if ((backTrack->matchAmount < term.atom.quantityMaxCount) && input.tryUncheckInput(1)) {
                 ++backTrack->matchAmount;
                 if (checkCasedCharacter(term, term.inputPosition))
@@ -1310,15 +1306,15 @@ public:
         ASSERT(term.type == ByteTerm::Type::ParentheticalAssertionBegin);
         ASSERT(term.atom.quantityMaxCount == 1);
 
-        if (term.matchDirection() == Backward) {
-            BackTrackInfoParentheticalAssertion* backTrack = reinterpret_cast<BackTrackInfoParentheticalAssertion*>(context->frame + term.frameLocation);
-            input.setPos(backTrack->begin);
-        }
-
         // We've failed to match parens; if they are inverted, this is win!
         if (term.invert()) {
             context->term += term.atom.parenthesesWidth;
             return true;
+        }
+
+        if (term.matchDirection() == Backward) {
+            BackTrackInfoParentheticalAssertion* backTrack = reinterpret_cast<BackTrackInfoParentheticalAssertion*>(context->frame + term.frameLocation);
+            input.setPos(backTrack->begin);
         }
 
         return false;
@@ -1642,10 +1638,10 @@ public:
         if (currentTerm().matchDirection() == Backward && currentTerm().atom.quantityType == QuantifierType::FixedCount) \
             offset -= currentTerm().atom.quantityMaxCount - 1; \
         dataLog(" off:", offset, " got:'"); \
-        char32_t ch = errorCodePoint; \
+        int ch = -1; \
         if (input.isValidNegativeInputOffset(offset)) \
             ch = input.readForCharacterDump(offset); \
-        if (ch == errorCodePoint) \
+        if (ch == -1) \
             dataLog("<illegal>"); \
         else if (ch < 0x10000 && (ch < 0xd800 || ch > 0xdfff))\
             dataLog(static_cast<char16_t>(ch)); \
@@ -2267,11 +2263,11 @@ public:
         m_bodyDisjunction->terms.append(ByteTerm::WordBoundary(invert, matchDirection, inputPosition));
     }
 
-    void atomPatternCharacter(char32_t ch, MatchDirection matchDirection, unsigned inputPosition, unsigned frameLocation, Checked<unsigned> quantityMaxCount, QuantifierType quantityType)
+    void atomPatternCharacter(UChar32 ch, MatchDirection matchDirection, unsigned inputPosition, unsigned frameLocation, Checked<unsigned> quantityMaxCount, QuantifierType quantityType)
     {
         if (m_pattern.ignoreCase()) {
-            char32_t lo = u_tolower(ch);
-            char32_t hi = u_toupper(ch);
+            UChar32 lo = u_tolower(ch);
+            UChar32 hi = u_toupper(ch);
 
             if (lo != hi) {
                 m_bodyDisjunction->terms.append(ByteTerm(lo, hi, inputPosition, frameLocation, quantityMaxCount, quantityType));
@@ -2627,17 +2623,16 @@ public:
 
             if (matchDirection == Forward)
                 countToCheck = minimumSize - parenthesesInputCountAlreadyChecked;
-            else if (minimumSize > parenthesesInputCountAlreadyChecked) {
+            else if (minimumSize > parenthesesInputCountAlreadyChecked)
                 countToCheck = minimumSize - parenthesesInputCountAlreadyChecked;
-                haveCheckedInput(minimumSize);
-            } else if (minimumSize > disjunction->m_minimumSize) {
-                countToCheck = minimumSize - disjunction->m_minimumSize;
-                haveCheckedInput(currentCountAlreadyChecked);
-            }
 
             if (countToCheck) {
                 if (matchDirection == Forward)
                 checkInput(countToCheck);
+                else {
+                    // Check that we have enough input for this alternative.
+                    haveCheckedInput(minimumSize);
+                }
 
                 currentCountAlreadyChecked += countToCheck;
                 if (currentCountAlreadyChecked.hasOverflowed())

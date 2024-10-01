@@ -27,6 +27,7 @@
 #include "FontCascade.h"
 #include "GraphicsContext.h"
 #include "HTMLAnchorElement.h"
+#include "HTMLFontElement.h"
 #include "InlineIteratorLineBox.h"
 #include "InlineTextBoxStyle.h"
 #include "RenderBlock.h"
@@ -66,9 +67,6 @@ namespace WebCore {
  */
 static void strokeWavyTextDecoration(GraphicsContext& context, const FloatRect& rect, WavyStrokeParameters wavyStrokeParameters)
 {
-    if (rect.isEmpty() || !wavyStrokeParameters.step)
-        return;
-
     FloatPoint p1 = rect.minXMinYCorner();
     FloatPoint p2 = rect.maxXMinYCorner();
 
@@ -283,9 +281,10 @@ void TextDecorationPainter::paintBackgroundDecorations(const RenderStyle& style,
         };
         applyShadowIfNeeded();
 
-        if (decorationType.contains(TextDecorationLine::Underline) && !underlineRect.isEmpty())
+        // FIXME: Add support to handle left/right case
+        if (decorationType.contains(TextDecorationLine::Underline))
             paintDecoration(TextDecorationLine::Underline, decorationStyle.underline.decorationStyle, decorationStyle.underline.color, underlineRect);
-        if (decorationType.contains(TextDecorationLine::Overline) && !overlineRect.isEmpty())
+        if (decorationType.contains(TextDecorationLine::Overline))
             paintDecoration(TextDecorationLine::Overline, decorationStyle.overline.decorationStyle, decorationStyle.overline.color, overlineRect);
         // We only want to paint the shadow, hence the transparent color, not the actual line-through,
         // which will be painted in paintForegroundDecorations().
@@ -296,7 +295,7 @@ void TextDecorationPainter::paintBackgroundDecorations(const RenderStyle& style,
     if (clipping)
         m_context.restore();
     else if (m_shadow)
-        m_context.clearDropShadow();
+        m_context.clearShadow();
 }
 
 void TextDecorationPainter::paintForegroundDecorations(const ForegroundDecorationGeometry& foregroundDecorationGeometry, const Styles& decorationStyle)
@@ -348,8 +347,8 @@ static void collectStylesForRenderer(TextDecorationPainter::Styles& result, cons
 
     auto styleForRenderer = [&] (const RenderObject& renderer) -> const RenderStyle& {
         if (pseudoId != PseudoId::None && renderer.style().hasPseudoStyle(pseudoId)) {
-            if (auto textRenderer = dynamicDowncast<RenderText>(renderer))
-                return *textRenderer->getCachedPseudoStyle(pseudoId);
+            if (is<RenderText>(renderer))
+                return *downcast<RenderText>(renderer).getCachedPseudoStyle(pseudoId);
             return *downcast<RenderElement>(renderer).getCachedPseudoStyle(pseudoId);
         }
         return firstLineStyle ? renderer.firstLineStyle() : renderer.style();
@@ -360,20 +359,17 @@ static void collectStylesForRenderer(TextDecorationPainter::Styles& result, cons
         const auto& style = styleForRenderer(*current);
         extractDecorations(style, style.textDecorationLine());
 
-        if (current->isRenderRubyText() || current->style().display() == DisplayType::RubyAnnotation)
+        if (current->isRubyText())
             return;
 
         current = current->parent();
-        if (current && current->isAnonymousBlock()) {
-            auto& currentBlock = downcast<RenderBlock>(*current);
-            if (auto* continuation = currentBlock.continuation())
-                current = continuation;
-        }
+        if (current && current->isAnonymousBlock() && downcast<RenderBlock>(*current).continuation())
+            current = downcast<RenderBlock>(*current).continuation();
 
         if (remainingDecorations.isEmpty())
             break;
 
-    } while (current && !is<HTMLAnchorElement>(current->node()));
+    } while (current && !is<HTMLAnchorElement>(current->node()) && !is<HTMLFontElement>(current->node()));
 
     // If we bailed out, use the element we bailed out at (typically a <font> or <a> element).
     if (!remainingDecorations.isEmpty() && current)

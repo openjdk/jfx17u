@@ -50,11 +50,6 @@ ScrollingCoordinatorNicosia::~ScrollingCoordinatorNicosia()
     ASSERT(!scrollingTree());
 }
 
-void ScrollingCoordinatorNicosia::didCompletePlatformRenderingUpdate()
-{
-    downcast<ThreadedScrollingTree>(scrollingTree())->didCompleteRenderingUpdate();
-}
-
 } // namespace WebCore
 
 #endif // ENABLE(ASYNC_SCROLLING) && USE(NICOSIA)

@@ -25,8 +25,11 @@
 // EGL symbols required by openxr_platform.h
 #if USE(LIBEPOXY)
 #define __GBM__ 1
-#include <epoxy/egl.h>
+#include "EpoxyEGL.h"
 #else
+#if PLATFORM(WAYLAND)
+#include <wayland-egl.h>
+#endif
 #include <EGL/egl.h>
 #endif
 
@@ -84,18 +87,18 @@ inline String resultToString(XrResult value, XrInstance instance)
         LOG(XR, "%s %s: %s\n", __func__, call, resultToString(result, instance).utf8().data());
 
 
-inline FrameData::Pose XrPosefToPose(XrPosef pose)
+inline Device::FrameData::Pose XrPosefToPose(XrPosef pose)
 {
-    FrameData::Pose result;
+    Device::FrameData::Pose result;
     result.orientation = { pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w };
     result.position = { pose.position.x, pose.position.y, pose.position.z };
     return result;
 }
 
-inline FrameData::View xrViewToPose(XrView view)
+inline Device::FrameData::View xrViewToPose(XrView view)
 {
-    FrameData::View pose;
-    pose.projection = FrameData::Fov { std::abs(view.fov.angleUp), std::abs(view.fov.angleDown), std::abs(view.fov.angleLeft), std::abs(view.fov.angleRight) };
+    Device::FrameData::View pose;
+    pose.projection = Device::FrameData::Fov { std::abs(view.fov.angleUp), std::abs(view.fov.angleDown), std::abs(view.fov.angleLeft), std::abs(view.fov.angleRight) };
     pose.offset = XrPosefToPose(view.pose);
     return pose;
 }

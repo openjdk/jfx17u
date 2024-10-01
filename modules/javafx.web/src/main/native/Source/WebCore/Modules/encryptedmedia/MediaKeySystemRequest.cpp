@@ -63,13 +63,13 @@ MediaKeySystemRequest::~MediaKeySystemRequest()
 
 SecurityOrigin* MediaKeySystemRequest::topLevelDocumentOrigin() const
 {
-    RefPtr context = scriptExecutionContext();
+    auto* context = scriptExecutionContext();
     return context ? &context->topOrigin() : nullptr;
 }
 
 void MediaKeySystemRequest::start()
 {
-    RefPtr context = scriptExecutionContext();
+    auto* context = scriptExecutionContext();
     ASSERT(context);
     if (!context) {
         deny();
@@ -102,7 +102,7 @@ void MediaKeySystemRequest::deny(const String& message)
     if (!scriptExecutionContext())
         return;
 
-    ExceptionCode code = ExceptionCode::NotSupportedError;
+    ExceptionCode code = NotSupportedError;
     if (!message.isEmpty())
         m_promise->reject(code, message);
     else

@@ -44,15 +44,10 @@ namespace WebCore {
 class VideoFrame;
 
 class MediaPlayerPrivateInterface {
+    WTF_MAKE_NONCOPYABLE(MediaPlayerPrivateInterface); WTF_MAKE_FAST_ALLOCATED;
 public:
     WEBCORE_EXPORT MediaPlayerPrivateInterface();
     WEBCORE_EXPORT virtual ~MediaPlayerPrivateInterface();
-
-    // MediaPlayerPrivateInterface subclasses should be ref-counted, but each subclass may choose whether
-    // to be RefCounted or ThreadSafeRefCounted. Therefore, each subclass must implement a pair of
-    // virtual ref()/deref() methods. See NullMediaPlayerPrivate for an example.
-    virtual void ref() = 0;
-    virtual void deref() = 0;
 
     virtual void load(const String&) { }
     virtual void load(const URL& url, const ContentType&, const String&) { load(url.string()); }
@@ -90,8 +85,8 @@ public:
     using LayerHostingContextIDCallback = CompletionHandler<void(LayerHostingContextID)>;
     virtual void requestHostingContextID(LayerHostingContextIDCallback&& completionHandler) { completionHandler({ }); }
     virtual LayerHostingContextID hostingContextID() const { return 0; }
-    virtual FloatSize videoLayerSize() const { return { }; }
-    virtual void setVideoLayerSizeFenced(const FloatSize&, WTF::MachSendRight&&) { }
+    virtual FloatSize videoInlineSize() const { return { }; }
+    virtual void setVideoInlineSizeFenced(const FloatSize&, WTF::MachSendRight&&) { }
 
 #if PLATFORM(IOS_FAMILY)
     virtual NSArray *timedMetadata() const { return nil; }
@@ -117,7 +112,7 @@ public:
     virtual bool hasVideo() const = 0;
     virtual bool hasAudio() const = 0;
 
-    virtual void setPageIsVisible(bool, String&& sceneIdentifier = ""_s) = 0;
+    virtual void setPageIsVisible(bool) = 0;
     virtual void setVisibleForCanvas(bool visible) { setPageIsVisible(visible); }
     virtual void setVisibleInViewport(bool) { }
 
@@ -134,7 +129,11 @@ public:
 
     virtual MediaTime getStartDate() const { return MediaTime::createWithDouble(std::numeric_limits<double>::quiet_NaN()); }
 
-    virtual void seekToTarget(const SeekTarget&) = 0;
+    virtual void seek(float) { }
+    virtual void seekDouble(double time) { seek(time); }
+    virtual void seek(const MediaTime& time) { seekDouble(time.toDouble()); }
+    virtual void seekWithTolerance(const MediaTime& time, const MediaTime&, const MediaTime&) { seek(time); }
+
     virtual bool seeking() const = 0;
 
     virtual MediaTime startTime() const { return MediaTime::zeroTime(); }
@@ -308,8 +307,6 @@ public:
     virtual bool ended() const { return false; }
 
     virtual std::optional<VideoPlaybackQualityMetrics> videoPlaybackQualityMetrics() { return std::nullopt; }
-    using VideoPlaybackQualityMetricsPromise = MediaPlayer::VideoPlaybackQualityMetricsPromise;
-    WEBCORE_EXPORT virtual Ref<VideoPlaybackQualityMetricsPromise> asyncVideoPlaybackQualityMetrics();
 
     virtual void notifyTrackModeChanged() { }
 
@@ -353,12 +350,8 @@ public:
 
     virtual void isLoopingChanged() { }
 
-    virtual void setShouldCheckHardwareSupport(bool value) { m_shouldCheckHardwareSupport = value; }
-    bool shouldCheckHardwareSupport() const { return m_shouldCheckHardwareSupport; }
-
 protected:
     mutable PlatformTimeRanges m_seekable;
-    bool m_shouldCheckHardwareSupport { false };
 };
 
 }

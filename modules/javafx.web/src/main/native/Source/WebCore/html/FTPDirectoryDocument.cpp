@@ -304,11 +304,12 @@ bool FTPDirectoryDocumentParser::loadDocumentTemplate()
     RefPtr foundElement = document.getElementById(StringView { "ftpDirectoryTable"_s });
     if (!foundElement)
         LOG_ERROR("Unable to find element by id \"ftpDirectoryTable\" in the template document.");
-    else if (RefPtr tableElement = dynamicDowncast<HTMLTableElement>(*foundElement)) {
-        m_tableElement = WTFMove(tableElement);
-        return true;
-    } else
+    else if (!is<HTMLTableElement>(foundElement))
         LOG_ERROR("Element of id \"ftpDirectoryTable\" is not a table element");
+    else {
+        m_tableElement = downcast<HTMLTableElement>(foundElement.get());
+        return true;
+    }
 
     m_tableElement = HTMLTableElement::create(document);
     m_tableElement->setAttributeWithoutSynchronization(HTMLNames::idAttr, "ftpDirectoryTable"_s);
@@ -338,7 +339,7 @@ void FTPDirectoryDocumentParser::createBasicDocument()
 
     bodyElement->appendChild(*m_tableElement);
 
-    document.processViewport("width=device-width"_s, ViewportArguments::Type::ViewportMeta);
+    document.processViewport("width=device-width"_s, ViewportArguments::ViewportMeta);
 }
 
 void FTPDirectoryDocumentParser::append(RefPtr<StringImpl>&& inputSource)

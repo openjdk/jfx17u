@@ -28,7 +28,7 @@
 #if ENABLE(WEBGL)
 
 #include "ContextDestructionObserver.h"
-#include "WebGLObject.h"
+#include "WebGLSharedObject.h"
 #include <wtf/HashMap.h>
 #include <wtf/HashFunctions.h>
 #include <wtf/Lock.h>
@@ -48,9 +48,9 @@ class ScriptExecutionContext;
 class WebGLRenderingContextBase;
 class WebGLShader;
 
-class WebGLProgram final : public WebGLObject, public ContextDestructionObserver {
+class WebGLProgram final : public WebGLSharedObject, public ContextDestructionObserver {
 public:
-    static RefPtr<WebGLProgram> create(WebGLRenderingContextBase&);
+    static Ref<WebGLProgram> create(WebGLRenderingContextBase&);
     virtual ~WebGLProgram();
 
     static HashMap<WebGLProgram*, WebGLRenderingContextBase*>& instances() WTF_REQUIRES_LOCK(instancesLock());
@@ -64,6 +64,7 @@ public:
     bool isUsingVertexAttrib0();
 
     bool getLinkStatus();
+    void setLinkStatus(bool);
 
     unsigned getLinkCount() const { return m_linkCount; }
 
@@ -89,11 +90,8 @@ public:
 
     void addMembersToOpaqueRoots(const AbstractLocker&, JSC::AbstractSlotVisitor&);
 
-    bool isUsable() const { return object(); }
-    bool isInitialized() const { return true; }
-
 private:
-    WebGLProgram(WebGLRenderingContextBase&, PlatformGLObject);
+    WebGLProgram(WebGLRenderingContextBase&);
 
     void deleteObjectImpl(const AbstractLocker&, GraphicsContextGL*, PlatformGLObject) override;
 

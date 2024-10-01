@@ -26,9 +26,9 @@
 #pragma once
 
 #include "DOMHighResTimeStamp.h"
+#include <wtf/MonotonicTime.h>
 #include <wtf/Ref.h>
 #include <wtf/RefCounted.h>
-#include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
@@ -36,22 +36,20 @@ class Document;
 
 class IdleDeadline final : public RefCounted<IdleDeadline> {
 public:
-
-    enum class DidTimeout : bool { No, Yes };
-    static Ref<IdleDeadline> create(DidTimeout didTimeout)
+    static Ref<IdleDeadline> create(MonotonicTime deadline)
     {
-        return adoptRef(*new IdleDeadline(didTimeout));
+        return adoptRef(*new IdleDeadline(deadline));
     }
 
     DOMHighResTimeStamp timeRemaining(Document&) const;
-    bool didTimeout(Document&) const { return m_didTimeout == DidTimeout::Yes; }
+    bool didTimeout(Document&) const;
 
 private:
-    IdleDeadline(DidTimeout didTimeout)
-        : m_didTimeout(didTimeout)
+    IdleDeadline(MonotonicTime deadline)
+        : m_deadline(deadline)
     { }
 
-    const DidTimeout m_didTimeout;
+    const MonotonicTime m_deadline;
 };
 
 } // namespace WebCore

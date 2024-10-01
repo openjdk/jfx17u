@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "ExtendableEvent.h"
 #include "FetchIdentifier.h"
 #include "JSDOMPromiseDeferredForward.h"
@@ -115,3 +117,5 @@ inline void FetchEvent::setNavigationPreloadIdentifier(FetchIdentifier identifie
 }
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

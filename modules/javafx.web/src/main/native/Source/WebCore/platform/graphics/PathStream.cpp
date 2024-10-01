@@ -30,58 +30,81 @@
 
 namespace WebCore {
 
-Ref<PathStream> PathStream::create()
+UniqueRef<PathStream> PathStream::create()
 {
-    return adoptRef(*new PathStream);
+    return makeUniqueRef<PathStream>();
 }
 
-Ref<PathStream> PathStream::create(PathSegment&& segment)
+UniqueRef<PathStream> PathStream::create(const PathStream& pathStream)
 {
-    return adoptRef(*new PathStream(WTFMove(segment)));
+    return makeUniqueRef<PathStream>(pathStream);
 }
 
-Ref<PathStream> PathStream::create(Vector<PathSegment>&& segments)
+UniqueRef<PathStream> PathStream::create(PathSegment&& segment)
 {
-    return adoptRef(*new PathStream(WTFMove(segments)));
+    return makeUniqueRef<PathStream>(WTFMove(segment));
 }
 
-Ref<PathStream> PathStream::create(const Vector<PathSegment>& segments)
+UniqueRef<PathStream> PathStream::create(Vector<PathSegment>&& segments)
 {
-    return adoptRef(*new PathStream(segments));
+    return makeUniqueRef<PathStream>(WTFMove(segments));
 }
 
-Ref<PathStream> PathStream::create(const Vector<FloatPoint>& points)
+UniqueRef<PathStream> PathStream::create(const Vector<PathSegment>& segments)
+{
+    return makeUniqueRef<PathStream>(segments);
+}
+
+UniqueRef<PathStream> PathStream::create(const Vector<FloatPoint>& points)
 {
     auto stream = PathStream::create();
     if (points.size() < 2)
         return stream;
 
-    stream->add(PathMoveTo { points[0] });
+    stream->moveTo(points[0]);
     for (size_t i = 1; i < points.size(); ++i)
-        stream->add(PathLineTo { points[i] });
+        stream->addLineTo(points[i]);
 
-    stream->add(PathCloseSubpath { });
+    stream->closeSubpath();
     return stream;
 }
 
+PathStream::PathStream()
+    : m_segmentsData(SegmentsData::create())
+{
+}
+
 PathStream::PathStream(Vector<PathSegment>&& segments)
-    : m_segments(WTFMove(segments))
+    : m_segmentsData(SegmentsData::create(WTFMove(segments)))
 {
 }
 
 PathStream::PathStream(const Vector<PathSegment>& segments)
-    : m_segments(segments)
+    : m_segmentsData(SegmentsData::create(segments))
+{
+}
+
+PathStream::PathStream(const PathStream& pathStream)
+    : m_segmentsData(pathStream.m_segmentsData)
 {
 }
 
 PathStream::PathStream(PathSegment&& segment)
-    : m_segments({ WTFMove(segment) })
+    : m_segmentsData(SegmentsData::create(WTFMove(segment)))
 {
 }
 
-Ref<PathImpl> PathStream::copy() const
+UniqueRef<PathImpl> PathStream::clone() const
 {
-    return create(m_segments);
+    return create(*this);
+}
+
+bool PathStream::operator==(const PathImpl& other) const
+{
+    if (!is<PathStream>(other))
+        return false;
+
+    return m_segmentsData == downcast<PathStream>(other).m_segmentsData;
 }
 
 const PathMoveTo* PathStream::lastIfMoveTo() const
@@ -89,95 +112,95 @@ const PathMoveTo* PathStream::lastIfMoveTo() const
     if (isEmpty())
         return nullptr;
 
-    return std::get_if<PathMoveTo>(&m_segments.last().data());
+    return std::get_if<PathMoveTo>(&m_segmentsData->segments.last().data());
 }
 
-void PathStream::add(PathMoveTo moveTo)
+void PathStream::moveTo(const FloatPoint& point)
 {
-    segments().append(moveTo);
+    segments().append(PathMoveTo { point });
 }
 
-void PathStream::add(PathLineTo lineTo)
-{
-    if (const auto* moveTo = lastIfMoveTo())
-        segments().last() = { PathDataLine { moveTo->point, lineTo.point } };
-    else
-        segments().append(lineTo);
-}
-
-void PathStream::add(PathQuadCurveTo quadTo)
+void PathStream::addLineTo(const FloatPoint& point)
 {
     if (const auto* moveTo = lastIfMoveTo())
-        segments().last() = { PathDataQuadCurve { moveTo->point, quadTo.controlPoint, quadTo.endPoint } };
+        segments().last() = { PathDataLine { moveTo->point, point } };
     else
-        segments().append(quadTo);
+        segments().append(PathLineTo { point });
 }
 
-void PathStream::add(PathBezierCurveTo bezierTo)
+void PathStream::addQuadCurveTo(const FloatPoint& controlPoint, const FloatPoint& endPoint)
 {
     if (const auto* moveTo = lastIfMoveTo())
-        segments().last() = { PathDataBezierCurve { moveTo->point, bezierTo.controlPoint1, bezierTo.controlPoint2, bezierTo.endPoint } };
+        segments().last() = { PathDataQuadCurve { moveTo->point, controlPoint, endPoint } };
     else
-        segments().append(bezierTo);
+        segments().append(PathQuadCurveTo { controlPoint, endPoint });
 }
 
-void PathStream::add(PathArcTo arcTo)
+void PathStream::addBezierCurveTo(const FloatPoint& controlPoint1, const FloatPoint& controlPoint2, const FloatPoint& endPoint)
 {
     if (const auto* moveTo = lastIfMoveTo())
-        segments().last() = { PathDataArc { moveTo->point, arcTo.controlPoint1, arcTo.controlPoint2, arcTo.radius } };
+        segments().last() = { PathDataBezierCurve { moveTo->point, controlPoint1, controlPoint2, endPoint } };
     else
-        segments().append(arcTo);
+        segments().append(PathBezierCurveTo { controlPoint1, controlPoint2, endPoint });
 }
 
-void PathStream::add(PathArc arc)
+void PathStream::addArcTo(const FloatPoint& point1, const FloatPoint& point2, float radius)
 {
-    segments().append(arc);
+    if (const auto* moveTo = lastIfMoveTo())
+        segments().last() = { PathDataArc { moveTo->point, point1, point2, radius } };
+    else
+        segments().append(PathArcTo { point1, point2, radius });
 }
 
-void PathStream::add(PathClosedArc closedArc)
+void PathStream::addArc(const FloatPoint& point, float radius, float startAngle, float endAngle, RotationDirection direction)
 {
-    segments().append(closedArc);
+    segments().append(PathArc { point, radius, startAngle, endAngle, direction });
 }
 
-void PathStream::add(PathRect rect)
+void PathStream::addRect(const FloatRect& rect)
 {
-    segments().append(rect);
+    segments().append(PathRect { rect });
 }
 
-void PathStream::add(PathEllipse ellipse)
+void PathStream::addEllipse(const FloatPoint& point, float radiusX, float radiusY, float rotation, float startAngle, float endAngle, RotationDirection direction)
 {
-    segments().append(ellipse);
+    segments().append(PathEllipse { point, radiusX, radiusY, rotation, startAngle, endAngle, direction });
 }
 
-void PathStream::add(PathEllipseInRect ellipseInRect)
+void PathStream::addEllipseInRect(const FloatRect& rect)
 {
-    segments().append(ellipseInRect);
+    segments().append(PathEllipseInRect { rect });
 }
 
-void PathStream::add(PathRoundedRect roundedRect)
+void PathStream::addRoundedRect(const FloatRoundedRect& roundedRect, PathRoundedRect::Strategy strategy)
 {
-    segments().append(roundedRect);
+    segments().append(PathRoundedRect { roundedRect, strategy });
 }
 
-void PathStream::add(PathCloseSubpath)
+void PathStream::closeSubpath()
 {
     segments().append(PathCloseSubpath { });
 }
 
+const Vector<PathSegment>& PathStream::segments() const
+{
+    return m_segmentsData->segments;
+}
+
 void PathStream::applySegments(const PathSegmentApplier& applier) const
 {
-    for (auto& segment : m_segments)
+    for (auto& segment : m_segmentsData->segments)
         applier(segment);
 }
 
 bool PathStream::applyElements(const PathElementApplier& applier) const
 {
-    for (auto& segment : m_segments) {
+    for (auto& segment : m_segmentsData->segments) {
         if (!segment.canApplyElements())
             return false;
     }
 
-    for (auto& segment : m_segments)
+    for (auto& segment : m_segmentsData->segments)
         segment.applyElements(applier);
 
     return true;
@@ -185,12 +208,12 @@ bool PathStream::applyElements(const PathElementApplier& applier) const
 
 bool PathStream::transform(const AffineTransform& transform)
 {
-    for (auto& segment : m_segments) {
+    for (auto& segment : m_segmentsData->segments) {
         if (!segment.canTransform())
             return false;
     }
 
-    for (auto& segment : m_segments)
+    for (auto& segment : m_segmentsData.access().segments)
         segment.transform(transform);
 
     return true;
@@ -198,10 +221,10 @@ bool PathStream::transform(const AffineTransform& transform)
 
 std::optional<PathSegment> PathStream::singleSegment() const
 {
-    if (m_segments.size() != 1)
+    if (m_segmentsData->segments.size() != 1)
         return std::nullopt;
 
-    return m_segments.first();
+    return m_segmentsData->segments.first();
 }
 
 template<class DataType>
@@ -226,11 +249,6 @@ std::optional<PathArc> PathStream::singleArc() const
     return singleDataType<PathArc>();
 }
 
-std::optional<PathClosedArc> PathStream::singleClosedArc() const
-{
-    return singleDataType<PathClosedArc>();
-}
-
 std::optional<PathDataQuadCurve> PathStream::singleQuadCurve() const
 {
     return singleDataType<PathDataQuadCurve>();
@@ -246,21 +264,15 @@ bool PathStream::isClosed() const
     if (isEmpty())
         return false;
 
-    return m_segments.last().closesSubpath();
+    return m_segmentsData->segments.last().isCloseSubPath();
 }
 
 FloatPoint PathStream::currentPoint() const
 {
-    if (m_segments.isEmpty())
-        return { };
-
-    if (auto result = m_segments.last().tryGetEndPointWithoutContext())
-        return result.value();
-
     FloatPoint lastMoveToPoint;
     FloatPoint currentPoint;
 
-    for (auto& segment : m_segments)
+    for (auto& segment : m_segmentsData->segments)
         currentPoint = segment.calculateEndPoint(currentPoint, lastMoveToPoint);
 
     return currentPoint;
@@ -283,33 +295,9 @@ FloatRect PathStream::computeFastBoundingRect(std::span<const PathSegment> segme
     return boundingRect;
 }
 
-bool PathStream::computeHasSubpaths(std::span<const PathSegment> segments)
-{
-    FloatPoint lastMoveToPoint;
-    FloatPoint currentPoint;
-    FloatRect boundingRect = FloatRect::smallestRect();
-
-    for (auto& segment : segments) {
-        segment.extendFastBoundingRect(currentPoint, lastMoveToPoint, boundingRect);
-        if (!boundingRect.isSmallest() && (boundingRect.height() || boundingRect.width()))
-            return true;
-        currentPoint = segment.calculateEndPoint(currentPoint, lastMoveToPoint);
-    }
-
-    if (boundingRect.isSmallest())
-        boundingRect.extend(currentPoint);
-
-    return boundingRect.height() || boundingRect.width();
-}
-
-bool PathStream::hasSubpaths() const
-{
-    return computeHasSubpaths(m_segments.span());
-}
-
 FloatRect PathStream::fastBoundingRect() const
 {
-    return computeFastBoundingRect(m_segments.span());
+    return computeFastBoundingRect(m_segmentsData->segments.span());
 }
 
 FloatRect PathStream::computeBoundingRect(std::span<const PathSegment> segments)
@@ -331,7 +319,7 @@ FloatRect PathStream::computeBoundingRect(std::span<const PathSegment> segments)
 
 FloatRect PathStream::boundingRect() const
 {
-    return computeBoundingRect(m_segments.span());
+    return computeBoundingRect(m_segmentsData->segments.span());
 }
 
 } // namespace WebCore

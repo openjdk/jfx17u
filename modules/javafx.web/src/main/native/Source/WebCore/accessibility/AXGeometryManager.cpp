@@ -36,7 +36,6 @@
 #endif
 
 namespace WebCore {
-DEFINE_ALLOCATOR_WITH_HEAP_IDENTIFIER(AXGeometryManager);
 
 AXGeometryManager::AXGeometryManager(AXObjectCache& owningCache)
     : m_cache(owningCache)
@@ -112,12 +111,6 @@ void AXGeometryManager::willUpdateObjectRegions()
 {
     if (m_updateObjectRegionsTimer.isActive())
         m_updateObjectRegionsTimer.stop();
-
-    if (!m_cache)
-        return;
-
-    if (RefPtr tree = AXIsolatedTree::treeForPageID(m_cache->pageID()))
-        tree->updateRootScreenRelativePosition();
 }
 
 void AXGeometryManager::scheduleRenderingUpdate()

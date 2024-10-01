@@ -50,7 +50,7 @@ public:
 
     static std::optional<PaymentMerchantSession> fromJS(JSC::JSGlobalObject&, JSC::JSValue, String& errorMessage);
 
-    RetainPtr<PKPaymentMerchantSession> pkPaymentMerchantSession() const { return m_pkPaymentMerchantSession; }
+    PKPaymentMerchantSession *pkPaymentMerchantSession() const { return m_pkPaymentMerchantSession.get(); }
 
 private:
     RetainPtr<PKPaymentMerchantSession> m_pkPaymentMerchantSession;

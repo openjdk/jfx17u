@@ -118,7 +118,7 @@ ExceptionOr<void> MediaList::deleteMedium(const String& value)
     return { };
         }
     }
-    return Exception { ExceptionCode::NotFoundError };
+    return Exception { NotFoundError };
 }
 
 void MediaList::appendMedium(const String& value)

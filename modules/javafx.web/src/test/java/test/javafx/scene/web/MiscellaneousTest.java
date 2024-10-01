@@ -46,7 +46,6 @@ import javafx.concurrent.Worker.State;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import netscape.javascript.JSObject;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.w3c.dom.Document;
 
@@ -227,8 +226,7 @@ public class MiscellaneousTest extends TestBase {
         }
     }
 
-
-    @Test public void testCookieEnabled() throws Exception {
+    @Test public void testCookieEnabled() {
         final WebEngine webEngine = createWebEngine();
         String location = new File("src/test/resources/test/html/cookie.html")
                 .toURI().toASCIIString().replaceAll("^file:/", "file:///");

@@ -59,9 +59,8 @@ private:
 
     static void handleLoadingFailure(DocumentThreadableLoader&, unsigned long, const ResourceError&);
     static void validatePreflightResponse(DocumentThreadableLoader&, ResourceRequest&&, ResourceLoaderIdentifier, const ResourceResponse&);
-    Ref<DocumentThreadableLoader> protectedLoader() const;
 
-    SingleThreadWeakRef<DocumentThreadableLoader> m_loader;
+    DocumentThreadableLoader& m_loader;
     CachedResourceHandle<CachedRawResource> m_resource;
     ResourceRequest m_request;
 };

@@ -89,7 +89,7 @@ Ref<CSSFontFaceSrcResourceValue> CSSFontFaceSrcResourceValue::create(ResolvedURL
 std::unique_ptr<FontLoadRequest> CSSFontFaceSrcResourceValue::fontLoadRequest(ScriptExecutionContext& context, bool isInitiatingElementInUserAgentShadowTree)
 {
     if (m_cachedFont)
-        return makeUnique<CachedFontLoadRequest>(*m_cachedFont, context);
+        return makeUnique<CachedFontLoadRequest>(*m_cachedFont);
 
     bool isFormatSVG;
     if (m_format.isEmpty()) {
@@ -123,24 +123,9 @@ bool CSSFontFaceSrcResourceValue::customTraverseSubresources(const Function<bool
     return m_cachedFont && handler(*m_cachedFont);
 }
 
-void CSSFontFaceSrcResourceValue::customSetReplacementURLForSubresources(const HashMap<String, String>& replacementURLStrings)
-{
-    auto replacementURLString = replacementURLStrings.get(m_location.resolvedURL.string());
-    if (!replacementURLString.isNull())
-        m_replacementURLString = replacementURLString;
-}
-
-void CSSFontFaceSrcResourceValue::customClearReplacementURLForSubresources()
-{
-    m_replacementURLString = { };
-}
-
 String CSSFontFaceSrcResourceValue::customCSSText() const
 {
     StringBuilder builder;
-    if (!m_replacementURLString.isEmpty())
-        builder.append(serializeURL(m_replacementURLString));
-    else
     builder.append(serializeURL(m_location.specifiedURLString));
     if (!m_format.isEmpty())
         builder.append(" format(", serializeString(m_format), ')');
@@ -158,10 +143,7 @@ String CSSFontFaceSrcResourceValue::customCSSText() const
 
 bool CSSFontFaceSrcResourceValue::equals(const CSSFontFaceSrcResourceValue& other) const
 {
-    return m_location == other.m_location
-        && m_format == other.m_format
-        && m_technologies == other.m_technologies
-        && m_loadedFromOpaqueSource == other.m_loadedFromOpaqueSource;
+    return m_location.specifiedURLString == m_location.specifiedURLString && m_format == other.m_format && m_technologies == other.m_technologies;
 }
 
 }

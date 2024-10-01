@@ -57,13 +57,18 @@ struct FontPlatformDataCacheKey {
     FontDescriptionKey descriptionKey;
     FontFamilyName family;
     FontCreationContext fontCreationContext;
-
-    friend bool operator==(const FontPlatformDataCacheKey&, const FontPlatformDataCacheKey&) = default;
 };
 
 inline void add(Hasher& hasher, const FontPlatformDataCacheKey& key)
 {
     add(hasher, key.descriptionKey, key.family, key.fontCreationContext);
+}
+
+static bool operator==(const FontPlatformDataCacheKey& a, const FontPlatformDataCacheKey& b)
+{
+    return a.descriptionKey == b.descriptionKey
+        && a.family == b.family
+        && a.fontCreationContext == b.fontCreationContext;
 }
 
 struct FontPlatformDataCacheKeyHash {
@@ -317,11 +322,12 @@ void FontCache::purgeInactiveFontData(unsigned purgeCount)
         }
     };
 
-    auto keysToRemove = WTF::compactMap(m_fontDataCaches->platformData, [&](auto& entry) -> std::optional<FontPlatformDataCacheKey> {
+    Vector<FontPlatformDataCacheKey> keysToRemove;
+    keysToRemove.reserveInitialCapacity(m_fontDataCaches->platformData.size());
+    for (auto& entry : m_fontDataCaches->platformData) {
         if (entry.value && !m_fontDataCaches->data.contains(*entry.value))
-            return entry.key;
-        return std::nullopt;
-    });
+            keysToRemove.uncheckedAppend(entry.key);
+    }
 
     LOG(Fonts, " removing %lu keys", keysToRemove.size());
 
@@ -414,8 +420,9 @@ static void dispatchToAllFontCaches(F function)
 
     function(FontCache::forCurrentThread());
 
-    for (auto& thread : WorkerOrWorkletThread::workerOrWorkletThreads()) {
-        thread.runLoop().postTask([function](ScriptExecutionContext&) {
+    Locker locker { WorkerOrWorkletThread::workerOrWorkletThreadsLock() };
+    for (auto thread : WorkerOrWorkletThread::workerOrWorkletThreads()) {
+        thread->runLoop().postTask([function](ScriptExecutionContext&) {
             if (auto fontCache = FontCache::forCurrentThreadIfExists())
                 function(*fontCache);
         });

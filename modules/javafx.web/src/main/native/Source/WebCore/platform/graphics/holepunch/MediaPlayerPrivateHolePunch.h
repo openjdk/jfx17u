@@ -24,12 +24,11 @@
 
 #include "MediaPlayerPrivate.h"
 #include "PlatformLayer.h"
-#include <wtf/RefCounted.h>
 #include <wtf/RunLoop.h>
 #include <wtf/WeakPtr.h>
 
 #if USE(NICOSIA)
-#include "NicosiaContentLayer.h"
+#include "NicosiaContentLayerTextureMapperImpl.h"
 #else
 #include "TextureMapperPlatformLayerProxyProvider.h"
 #endif
@@ -38,12 +37,9 @@ namespace WebCore {
 
 class TextureMapperPlatformLayerProxy;
 
-class MediaPlayerPrivateHolePunch
-    : public MediaPlayerPrivateInterface
-    , public CanMakeWeakPtr<MediaPlayerPrivateHolePunch>
-    , public RefCounted<MediaPlayerPrivateHolePunch>
+class MediaPlayerPrivateHolePunch : public MediaPlayerPrivateInterface, public CanMakeWeakPtr<MediaPlayerPrivateHolePunch>
 #if USE(NICOSIA)
-    , public Nicosia::ContentLayer::Client
+    , public Nicosia::ContentLayerTextureMapperImpl::Client
 #else
     , public PlatformLayer
 #endif
@@ -52,9 +48,6 @@ class MediaPlayerPrivateHolePunch
 public:
     MediaPlayerPrivateHolePunch(MediaPlayer*);
     ~MediaPlayerPrivateHolePunch();
-
-    void ref() final { RefCounted::ref(); }
-    void deref() final { RefCounted::deref(); }
 
     static void registerMediaEngine(MediaEngineRegistrar);
 
@@ -77,10 +70,9 @@ public:
     bool hasVideo() const final { return false; };
     bool hasAudio() const final { return false; };
 
-    void setPageIsVisible(bool, String&&) final { };
+    void setPageIsVisible(bool) final { };
 
     bool seeking() const final { return false; }
-    void seekToTarget(const SeekTarget&) final { }
 
     bool paused() const final { return false; };
 
@@ -108,10 +100,9 @@ public:
     RefPtr<TextureMapperPlatformLayerProxy> proxy() const final;
 #endif
 
-    static void getSupportedTypes(HashSet<String>&);
-
 private:
     friend class MediaPlayerFactoryHolePunch;
+    static void getSupportedTypes(HashSet<String, ASCIICaseInsensitiveHash>&);
     static MediaPlayer::SupportsType supportsType(const MediaEngineSupportParameters&);
 
     void notifyReadyState();
@@ -120,7 +111,7 @@ private:
     IntSize m_size;
     RunLoop::Timer m_readyTimer;
     MediaPlayer::NetworkState m_networkState;
-#if USE(TEXTURE_MAPPER)
+#if USE(TEXTURE_MAPPER_GL)
 #if USE(NICOSIA)
     Ref<Nicosia::ContentLayer> m_nicosiaLayer;
 #else

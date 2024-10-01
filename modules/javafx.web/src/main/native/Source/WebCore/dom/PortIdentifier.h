@@ -29,7 +29,7 @@
 
 namespace WebCore {
 
-enum class PortIdentifierType { };
+enum PortIdentifierType { };
 using PortIdentifier = AtomicObjectIdentifier<PortIdentifierType>;
 
 }

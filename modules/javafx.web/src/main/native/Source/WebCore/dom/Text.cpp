@@ -46,14 +46,12 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(Text);
 
 Ref<Text> Text::create(Document& document, String&& data)
 {
-    return adoptRef(*new Text(document, WTFMove(data), TEXT_NODE, { }));
+    return adoptRef(*new Text(document, WTFMove(data), CreateText));
 }
 
 Ref<Text> Text::createEditingText(Document& document, String&& data)
 {
-    auto node = adoptRef(*new Text(document, WTFMove(data), TEXT_NODE, { TypeFlag::IsSpecialInternalNode }));
-    ASSERT(node->isEditingText());
-    return node;
+    return adoptRef(*new Text(document, WTFMove(data), CreateEditingText));
 }
 
 Text::~Text() = default;
@@ -61,22 +59,22 @@ Text::~Text() = default;
 ExceptionOr<Ref<Text>> Text::splitText(unsigned offset)
 {
     if (offset > length())
-        return Exception { ExceptionCode::IndexSizeError };
+        return Exception { IndexSizeError };
 
     EventQueueScope scope;
     auto oldData = data();
-    Ref newText = virtualCreate(oldData.substring(offset));
+    auto newText = virtualCreate(oldData.substring(offset));
     setDataWithoutUpdate(oldData.left(offset));
 
     dispatchModifiedEvent(oldData);
 
-    if (RefPtr parent = parentNode()) {
-        auto insertResult = parent->insertBefore(newText, protectedNextSibling());
+    if (auto* parent = parentNode()) {
+        auto insertResult = parent->insertBefore(newText, nextSibling());
         if (insertResult.hasException())
             return insertResult.releaseException();
     }
 
-    protectedDocument()->textNodeSplit(*this);
+    document().textNodeSplit(*this);
 
     updateRendererAfterContentChange(0, oldData.length());
 
@@ -87,10 +85,9 @@ static const Text* earliestLogicallyAdjacentTextNode(const Text* text)
 {
     const Node* node = text;
     while ((node = node->previousSibling())) {
-        if (auto* maybeText = dynamicDowncast<Text>(*node))
-            text = maybeText;
-        else
+        if (!is<Text>(*node))
             break;
+        text = downcast<Text>(node);
     }
     return text;
 }
@@ -99,10 +96,9 @@ static const Text* latestLogicallyAdjacentTextNode(const Text* text)
 {
     const Node* node = text;
     while ((node = node->nextSibling())) {
-        if (auto* maybeText = dynamicDowncast<Text>(*node))
-            text = maybeText;
-        else
+        if (!is<Text>(*node))
             break;
+        text = downcast<Text>(node);
     }
     return text;
 }
@@ -128,7 +124,7 @@ void Text::replaceWholeText(const String& newText)
 
     RefPtr parent = parentNode(); // Protect against mutation handlers moving this node during traversal
     for (RefPtr<Node> node = WTFMove(startText); is<Text>(node) && node != this && node->parentNode() == parent;) {
-        Ref nodeToRemove = node.releaseNonNull();
+        auto nodeToRemove = node.releaseNonNull();
         node = nodeToRemove->nextSibling();
         parent->removeChild(nodeToRemove);
     }
@@ -136,7 +132,7 @@ void Text::replaceWholeText(const String& newText)
     if (this != endText) {
         RefPtr nodePastEndText = endText->nextSibling();
         for (RefPtr node = nextSibling(); is<Text>(node) && node != nodePastEndText && node->parentNode() == parent;) {
-            Ref nodeToRemove = node.releaseNonNull();
+            auto nodeToRemove = node.releaseNonNull();
             node = nodeToRemove->nextSibling();
             parent->removeChild(nodeToRemove);
         }
@@ -156,6 +152,11 @@ String Text::nodeName() const
     return "#text"_s;
 }
 
+Node::NodeType Text::nodeType() const
+{
+    return TEXT_NODE;
+}
+
 Ref<Node> Text::cloneNodeInternal(Document& targetDocument, CloningOperation)
 {
     return create(targetDocument, String { data() });
@@ -163,16 +164,16 @@ Ref<Node> Text::cloneNodeInternal(Document& targetDocument, CloningOperation)
 
 static bool isSVGShadowText(const Text& text)
 {
-    ASSERT(text.parentNode());
-    auto* parentShadowRoot = dynamicDowncast<ShadowRoot>(*text.parentNode());
-    return parentShadowRoot && parentShadowRoot->host()->hasTagName(SVGNames::trefTag);
+    auto* parentNode = text.parentNode();
+    ASSERT(parentNode);
+    return is<ShadowRoot>(*parentNode) && downcast<ShadowRoot>(*parentNode).host()->hasTagName(SVGNames::trefTag);
 }
 
 static bool isSVGText(const Text& text)
 {
-    ASSERT(text.parentNode());
-    auto* parentElement = dynamicDowncast<SVGElement>(*text.parentNode());
-    return parentElement && !parentElement->hasTagName(SVGNames::foreignObjectTag);
+    auto* parentNode = text.parentNode();
+    ASSERT(parentNode);
+    return is<SVGElement>(*parentNode) && !downcast<SVGElement>(*parentNode).hasTagName(SVGNames::foreignObjectTag);
 }
 
 RenderPtr<RenderText> Text::createTextRenderer(const RenderStyle& style)
@@ -183,12 +184,12 @@ RenderPtr<RenderText> Text::createTextRenderer(const RenderStyle& style)
     if (style.hasTextCombine())
         return createRenderer<RenderCombineText>(*this, data());
 
-    return createRenderer<RenderText>(RenderObject::Type::Text, *this, data());
+    return createRenderer<RenderText>(*this, data());
 }
 
 Ref<Text> Text::virtualCreate(String&& data)
 {
-    return create(protectedDocument(), WTFMove(data));
+    return create(document(), WTFMove(data));
 }
 
 void Text::updateRendererAfterContentChange(unsigned offsetOfReplacedData, unsigned lengthOfReplacedData)
@@ -196,10 +197,10 @@ void Text::updateRendererAfterContentChange(unsigned offsetOfReplacedData, unsig
     if (!isConnected())
         return;
 
-    if (hasInvalidRenderer())
+    if (styleValidity() >= Style::Validity::SubtreeAndRenderersInvalid)
         return;
 
-    protectedDocument()->updateTextRenderer(*this, offsetOfReplacedData, lengthOfReplacedData);
+    document().updateTextRenderer(*this, offsetOfReplacedData, lengthOfReplacedData);
 }
 
 static void appendTextRepresentation(StringBuilder& builder, const Text& text)
@@ -244,8 +245,7 @@ void Text::setDataAndUpdate(const String& newData, unsigned offsetOfReplacedData
 
     // FIXME: Does not seem correct to do this for 0 offset only.
     if (!offsetOfReplacedData) {
-        Ref document = this->document();
-        CheckedPtr textManipulationController = document->textManipulationControllerIfExists();
+        auto* textManipulationController = document().textManipulationControllerIfExists();
         if (UNLIKELY(textManipulationController && oldData != newData))
             textManipulationController->didUpdateContentForNode(*this);
     }

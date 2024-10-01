@@ -26,8 +26,6 @@
 #include "CSSRule.h"
 #include "CSSStyleSheet.h"
 #include "CustomElementReactionQueue.h"
-#include "Document.h"
-#include "DocumentInlines.h"
 #include "HTMLNames.h"
 #include "InspectorInstrumentation.h"
 #include "JSDOMGlobalObject.h"

@@ -118,6 +118,7 @@ public:
     GCGLint64 getInteger64i(GCGLenum pname, GCGLuint index) final;
     GCGLint getProgrami(PlatformGLObject program, GCGLenum pname) final;
     String getProgramInfoLog(PlatformGLObject) final;
+    String getUnmangledInfoLog(PlatformGLObject[2], GCGLsizei, const String&);
     GCGLint getRenderbufferParameteri(GCGLenum target, GCGLenum pname) final;
     GCGLint getShaderi(PlatformGLObject, GCGLenum pname) final;
     String getShaderInfoLog(PlatformGLObject) final;
@@ -344,12 +345,14 @@ public:
     void deleteShader(PlatformGLObject) final;
     void deleteTexture(PlatformGLObject) final;
     void simulateEventForTesting(SimulatedEventForTesting) override;
-    void drawSurfaceBufferToImageBuffer(SurfaceBuffer, ImageBuffer&) override;
-    RefPtr<PixelBuffer> drawingBufferToPixelBuffer(FlipY) override;
+    void paintRenderingResultsToCanvas(ImageBuffer&) override;
+    RefPtr<PixelBuffer> paintRenderingResultsToPixelBuffer(FlipY) override;
+    void paintCompositedResultsToCanvas(ImageBuffer&) override;
 
     RefPtr<PixelBuffer> readRenderingResultsForPainting();
 
-    virtual void withBufferAsNativeImage(SurfaceBuffer, Function<void(NativeImage&)>);
+    virtual void withDrawingBufferAsNativeImage(Function<void(NativeImage&)>);
+    virtual void withDisplayBufferAsNativeImage(Function<void(NativeImage&)>);
 
     // Reads pixels from positive pixel coordinates with tight packing.
     // Returns columns, rows of executed read on success.
@@ -368,10 +371,8 @@ protected:
     bool initialize();
     // Called first by initialize(). Subclasses should override to instantiate the platform specific bits of EGLContext.
     // FIXME: Currently platforms do not share the context creation. They should.
-    virtual bool platformInitializeContext() = 0;
-    // Called by initialize(). Subclasses should override to enable platform specific extensions.
-    virtual bool platformInitializeExtensions();
-    // Called by initialize(). Subclasses should override to instantiate platform specific state that depend on
+    virtual bool platformInitializeContext();
+    // Called last by initialize(). Subclasses should override to instantiate platform specific state that depend on
     // the shared state.
     virtual bool platformInitialize();
 
@@ -392,7 +393,7 @@ protected:
     RefPtr<PixelBuffer> readPixelsForPaintResults();
 
     bool reshapeFBOs(const IntSize&);
-    void prepareTexture();
+    virtual void prepareTexture();
     void resolveMultisamplingIfNecessary(const IntRect& = IntRect());
     void attachDepthAndStencilBufferIfNeeded(GCGLuint internalDepthStencilFormat, int width, int height);
 #if PLATFORM(COCOA)
@@ -403,13 +404,10 @@ protected:
     static void platformReleaseThreadResources();
 
     virtual void invalidateKnownTextureContent(GCGLuint);
-    bool enableExtension(const String&) WARN_UNUSED_RETURN;
-    void requestExtension(const String&);
 
     // Only for non-WebGL 2.0 contexts.
     GCGLenum adjustWebGL1TextureInternalFormat(GCGLenum internalformat, GCGLenum format, GCGLenum type);
     void setPackParameters(GCGLint alignment, GCGLint rowLength);
-    bool validateClearBufferv(GCGLenum buffer, size_t valuesSize);
 
     HashSet<String> m_availableExtensions;
     HashSet<String> m_requestableExtensions;

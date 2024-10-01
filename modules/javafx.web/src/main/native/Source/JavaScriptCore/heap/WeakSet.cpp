@@ -36,7 +36,7 @@ WeakSet::~WeakSet()
     if (isOnList())
         remove();
 
-    JSC::Heap& heap = *this->heap();
+    Heap& heap = *this->heap();
     WeakBlock* next = nullptr;
     for (WeakBlock* block = m_blocks.head(); block; block = next) {
         next = block->next();

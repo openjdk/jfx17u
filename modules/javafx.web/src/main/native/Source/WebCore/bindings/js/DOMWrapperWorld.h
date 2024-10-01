@@ -23,7 +23,6 @@
 
 #include "JSDOMGlobalObject.h"
 #include <wtf/Forward.h>
-#include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
@@ -31,7 +30,7 @@ class WindowProxy;
 
 typedef HashMap<void*, JSC::Weak<JSC::JSObject>> DOMObjectWrapperMap;
 
-class DOMWrapperWorld : public RefCounted<DOMWrapperWorld>, public CanMakeSingleThreadWeakPtr<DOMWrapperWorld> {
+class DOMWrapperWorld : public RefCounted<DOMWrapperWorld> {
 public:
     enum class Type {
         Normal,   // Main (e.g. Page)

@@ -287,14 +287,9 @@ ALWAYS_INLINE bool HashMapImpl<HashMapBucketType>::removeNormalized(JSGlobalObje
 
     VM& vm = getVM(globalObject);
     HashMapBucketType* impl = *bucket;
-    HashMapBucketType* prev = impl->prev();
-    // If this bucket is the last one in the chain, then we just mark it as deleted.
-    // It is even possible that this one is in m_tail, but it is OK: we handle it when inserting a new entry.
-    if (impl->next()) {
-        impl->next()->setPrev(vm, prev);
-        prev->setNext(vm, impl->next());
-    }
-    impl->makeDeleted();
+    impl->next()->setPrev(vm, impl->prev());
+    impl->prev()->setNext(vm, impl->next());
+    impl->makeDeleted(vm);
 
     *bucket = deletedValue();
 
@@ -315,15 +310,16 @@ ALWAYS_INLINE void HashMapImpl<HashMapBucketType>::clear(VM& vm)
     m_deleteCount = 0;
     HashMapBucketType* head = m_head.get();
     HashMapBucketType* bucket = m_head->next();
-    while (bucket) {
+    HashMapBucketType* tail = m_tail.get();
+    while (bucket != tail) {
         HashMapBucketType* next = bucket->next();
         // We restart each iterator by pointing it to the head of the list.
         bucket->setNext(vm, head);
-        bucket->makeDeleted();
+        bucket->makeDeleted(vm);
         bucket = next;
     }
-    head->clearNext();
-    m_tail.set(vm, this, head);
+    m_head->setNext(vm, m_tail.get());
+    m_tail->setPrev(vm, m_head.get());
     m_buffer.clear();
     m_capacity = 0;
     checkConsistency();
@@ -332,12 +328,13 @@ ALWAYS_INLINE void HashMapImpl<HashMapBucketType>::clear(VM& vm)
 template <typename HashMapBucketType>
 ALWAYS_INLINE void HashMapImpl<HashMapBucketType>::setUpHeadAndTail(VM& vm)
 {
-    auto* head = HashMapBucketType::create(vm);
-    m_head.set(vm, this, head);
-    m_tail.set(vm, this, head);
-    ASSERT(!m_head->prev());
-    ASSERT(!m_head->next());
+    m_head.set(vm, this, HashMapBucketType::create(vm));
+    m_tail.set(vm, this, HashMapBucketType::create(vm));
+
+    m_head->setNext(vm, m_tail.get());
+    m_tail->setPrev(vm, m_head.get());
     ASSERT(m_head->deleted());
+    ASSERT(m_tail->deleted());
 }
 
 template <typename HashMapBucketType>
@@ -416,27 +413,19 @@ ALWAYS_INLINE HashMapBucketType* HashMapImpl<HashMapBucketType>::addNormalizedIn
             index = (index + 1) & mask;
     }
 
-    auto* oldTail = m_tail.get();
+    HashMapBucketType* newEntry = m_tail.get();
+    buffer[index] = newEntry;
+    newEntry->setKey(vm, key);
+    newEntry->setValue(vm, value);
+    ASSERT(!newEntry->deleted());
     HashMapBucketType* newTail = HashMapBucketType::create(vm);
-    newTail->setKey(vm, key);
-    newTail->setValue(vm, value);
-    ASSERT(!newTail->deleted());
-    buffer[index] = newTail;
-    oldTail->setNext(vm, newTail);
-
-    if (!oldTail->deleted() || oldTail == m_head.get())
-        newTail->setPrev(vm, oldTail);
-    else {
-        auto* prev = oldTail->prev();
-        ASSERT(prev);
-        newTail->setPrev(vm, prev);
-        prev->setNext(vm, newTail);
-    }
     m_tail.set(vm, this, newTail);
-    ASSERT(!newTail->next());
+    newTail->setPrev(vm, newEntry);
+    ASSERT(newTail->deleted());
+    newEntry->setNext(vm, newTail);
 
     ++m_keyCount;
-    return newTail;
+    return newEntry;
 }
 
 template <typename HashMapBucketType>
@@ -482,11 +471,11 @@ void HashMapImpl<HashMapBucketType>::rehash(JSGlobalObject* globalObject, Rehash
     }
 
     HashMapBucketType* iter = m_head->next();
+    HashMapBucketType* end = m_tail.get();
     const uint32_t mask = m_capacity - 1;
     RELEASE_ASSERT(!(m_capacity & (m_capacity - 1)));
     HashMapBucketType** buffer = this->buffer();
-    while (iter) {
-        if (!iter->deleted()) {
+    while (iter != end) {
         uint32_t index = jsMapHashForAlreadyHashedValue(globalObject, vm, iter->key()) & mask;
         EXCEPTION_ASSERT_WITH_MESSAGE(!scope.exception(), "All keys should already be hashed before, so this should not throw because it won't resolve ropes.");
         {
@@ -497,7 +486,6 @@ void HashMapImpl<HashMapBucketType>::rehash(JSGlobalObject* globalObject, Rehash
             }
         }
         buffer[index] = iter;
-        }
         iter = iter->next();
     }
 
@@ -511,9 +499,9 @@ ALWAYS_INLINE void HashMapImpl<HashMapBucketType>::checkConsistency() const
 {
     if (ASSERT_ENABLED) {
         HashMapBucketType* iter = m_head->next();
+        HashMapBucketType* end = m_tail.get();
         uint32_t size = 0;
-        while (iter) {
-            if (!iter->deleted())
+        while (iter != end) {
             ++size;
             iter = iter->next();
         }
@@ -544,12 +532,6 @@ ALWAYS_INLINE void HashMapImpl<HashMapBucketType>::assertBufferIsEmpty(HashMapBu
     for (unsigned i = 0; i < capacity; i++)
         ASSERT(isEmpty(buffer[i]));
 #endif
-}
-
-template <typename Data>
-inline Structure* HashMapBucket<Data>::createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
-{
-    return Structure::create(vm, globalObject, prototype, TypeInfo(CellType, StructureFlags), info());
 }
 
 } // namespace JSC

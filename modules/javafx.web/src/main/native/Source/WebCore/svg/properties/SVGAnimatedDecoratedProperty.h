@@ -55,7 +55,7 @@ public:
     ExceptionOr<void> setBaseVal(const DecorationType& baseVal)
     {
         if (!m_baseVal->setValue(baseVal))
-            return Exception { ExceptionCode::TypeError };
+            return Exception { TypeError };
         commitPropertyChange(nullptr);
         return { };
     }

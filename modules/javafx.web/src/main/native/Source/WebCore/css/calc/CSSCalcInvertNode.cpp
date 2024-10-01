@@ -33,13 +33,13 @@ namespace WebCore {
 
 std::unique_ptr<CalcExpressionNode> CSSCalcInvertNode::createCalcExpression(const CSSToLengthConversionData& conversionData) const
 {
-    auto childNode = protectedChild()->createCalcExpression(conversionData);
+    auto childNode = m_child->createCalcExpression(conversionData);
     return makeUnique<CalcExpressionInversion>(WTFMove(childNode));
 }
 
 double CSSCalcInvertNode::doubleValue(CSSUnitType unitType) const
 {
-    auto childValue = protectedChild()->doubleValue(unitType);
+    auto childValue = m_child->doubleValue(unitType);
     if (!childValue)
         return std::numeric_limits<double>::infinity();
     return 1.0 / childValue;
@@ -47,7 +47,7 @@ double CSSCalcInvertNode::doubleValue(CSSUnitType unitType) const
 
 double CSSCalcInvertNode::computeLengthPx(const CSSToLengthConversionData& conversionData) const
 {
-    auto childValue = protectedChild()->computeLengthPx(conversionData);
+    auto childValue = m_child->computeLengthPx(conversionData);
     if (!childValue)
         return std::numeric_limits<double>::infinity();
     return 1.0 / childValue;

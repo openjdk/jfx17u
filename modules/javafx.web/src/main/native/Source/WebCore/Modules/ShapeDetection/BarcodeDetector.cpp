@@ -43,22 +43,23 @@ namespace WebCore {
 
 ExceptionOr<Ref<BarcodeDetector>> BarcodeDetector::create(ScriptExecutionContext& scriptExecutionContext, const BarcodeDetectorOptions& barcodeDetectorOptions)
 {
-    if (RefPtr document = dynamicDowncast<Document>(scriptExecutionContext)) {
-        RefPtr page = document->page();
+    if (is<Document>(scriptExecutionContext)) {
+        const auto& document = downcast<Document>(scriptExecutionContext);
+        const auto* page = document.page();
         if (!page)
-            return Exception { ExceptionCode::AbortError };
+            return Exception { AbortError };
         auto backing = page->chrome().createBarcodeDetector(barcodeDetectorOptions.convertToBacking());
         if (!backing)
-            return Exception { ExceptionCode::AbortError };
+            return Exception { AbortError };
         return adoptRef(*new BarcodeDetector(backing.releaseNonNull()));
     }
 
     if (is<WorkerGlobalScope>(scriptExecutionContext)) {
         // FIXME: https://bugs.webkit.org/show_bug.cgi?id=255380 Make the Shape Detection API work in Workers
-        return Exception { ExceptionCode::AbortError };
+        return Exception { AbortError };
     }
 
-    return Exception { ExceptionCode::AbortError };
+    return Exception { AbortError };
 }
 
 
@@ -71,10 +72,11 @@ BarcodeDetector::~BarcodeDetector() = default;
 
 ExceptionOr<void> BarcodeDetector::getSupportedFormats(ScriptExecutionContext& scriptExecutionContext, GetSupportedFormatsPromise&& promise)
 {
-    if (RefPtr document = dynamicDowncast<Document>(scriptExecutionContext)) {
-        RefPtr page = document->page();
+    if (is<Document>(scriptExecutionContext)) {
+        const auto& document = downcast<Document>(scriptExecutionContext);
+        const auto* page = document.page();
         if (!page)
-            return Exception { ExceptionCode::AbortError };
+            return Exception { AbortError };
         page->chrome().getBarcodeDetectorSupportedFormats(([promise = WTFMove(promise)](Vector<ShapeDetection::BarcodeFormat>&& barcodeFormats) mutable {
             promise.resolve(barcodeFormats.map([](auto format) {
                 return convertFromBacking(format);
@@ -85,10 +87,10 @@ ExceptionOr<void> BarcodeDetector::getSupportedFormats(ScriptExecutionContext& s
 
     if (is<WorkerGlobalScope>(scriptExecutionContext)) {
         // FIXME: https://bugs.webkit.org/show_bug.cgi?id=255380 Make the Shape Detection API work in Workers
-        return Exception { ExceptionCode::AbortError };
+        return Exception { AbortError };
     }
 
-    return Exception { ExceptionCode::AbortError };
+    return Exception { AbortError };
 }
 
 void BarcodeDetector::detect(ScriptExecutionContext& scriptExecutionContext, ImageBitmap::Source&& source, DetectPromise&& promise)

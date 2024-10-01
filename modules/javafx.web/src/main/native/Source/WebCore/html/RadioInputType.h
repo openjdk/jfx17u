@@ -35,8 +35,6 @@
 
 namespace WebCore {
 
-enum class WasSetByJavaScript : bool;
-
 class RadioInputType final : public BaseCheckableInputType {
 public:
     static Ref<RadioInputType> create(HTMLInputElement& element)
@@ -64,7 +62,7 @@ private:
     void willDispatchClick(InputElementClickState&) final;
     void didDispatchClick(Event&, const InputElementClickState&) final;
     bool matchesIndeterminatePseudoClass() const final;
-    void willUpdateCheckedness(bool /* nowChecked */, WasSetByJavaScript) final;
+    void willUpdateCheckedness(bool nowChecked) final;
 };
 
 } // namespace WebCore

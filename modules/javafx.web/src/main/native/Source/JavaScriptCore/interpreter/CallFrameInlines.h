@@ -26,7 +26,7 @@
 #pragma once
 
 #include "CallFrame.h"
-#include "JSCalleeInlines.h"
+#include "JSCallee.h"
 #include "RegisterInlines.h"
 
 namespace JSC {
@@ -46,19 +46,19 @@ inline Register& CallFrame::uncheckedR(VirtualRegister reg)
 
 inline JSValue CallFrame::guaranteedJSValueCallee() const
 {
-    ASSERT(!callee().isNativeCallee());
+    ASSERT(!callee().isWasm());
     return this[static_cast<int>(CallFrameSlot::callee)].jsValue();
 }
 
 inline JSObject* CallFrame::jsCallee() const
 {
-    ASSERT(!callee().isNativeCallee());
+    ASSERT(!callee().isWasm());
     return this[static_cast<int>(CallFrameSlot::callee)].object();
 }
 
 inline CodeBlock* CallFrame::codeBlock() const
 {
-    ASSERT(!callee().isNativeCallee());
+    ASSERT(!callee().isWasm());
     return this[static_cast<int>(CallFrameSlot::codeBlock)].Register::codeBlock();
 }
 
@@ -69,36 +69,32 @@ inline SUPPRESS_ASAN CodeBlock* CallFrame::unsafeCodeBlock() const
 
 inline JSGlobalObject* CallFrame::lexicalGlobalObject(VM& vm) const
 {
-    if (callee().isNativeCallee())
-        return lexicalGlobalObjectFromNativeCallee(vm);
+    UNUSED_PARAM(vm);
+#if ENABLE(WEBASSEMBLY)
+    if (callee().isWasm())
+        return lexicalGlobalObjectFromWasmCallee(vm);
+#endif
     return jsCallee()->globalObject();
 }
 
 #if ENABLE(WEBASSEMBLY)
 inline Wasm::Instance* CallFrame::wasmInstance() const
 {
-    ASSERT(callee().isNativeCallee());
+    ASSERT(callee().isWasm());
     return bitwise_cast<Wasm::Instance*>(const_cast<CallFrame*>(this)->uncheckedR(CallFrameSlot::codeBlock).asanUnsafePointer());
 }
 #endif
 
-inline JSCell* CallFrame::codeOwnerCell() const
+inline bool CallFrame::isStackOverflowFrame() const
 {
-    if (callee().isNativeCallee())
-        return codeOwnerCellSlow();
-    return codeBlock();
-}
-
-inline bool CallFrame::isPartiallyInitializedFrame() const
-{
-    if (callee().isNativeCallee())
+    if (callee().isWasm())
         return false;
-    return jsCallee() == jsCallee()->globalObject()->partiallyInitializedFrameCallee();
+    return jsCallee() == jsCallee()->globalObject()->stackOverflowFrameCallee();
 }
 
-inline bool CallFrame::isNativeCalleeFrame() const
+inline bool CallFrame::isWasmFrame() const
 {
-    return callee().isNativeCallee();
+    return callee().isWasm();
 }
 
 inline void CallFrame::setCallee(JSObject* callee)
@@ -127,11 +123,6 @@ inline Register* CallFrame::topOfFrame()
     if (!codeBlock())
         return registers();
     return topOfFrameInternal();
-}
-
-SUPPRESS_ASAN ALWAYS_INLINE void CallFrame::setCallSiteIndex(CallSiteIndex callSiteIndex)
-{
-    this[static_cast<int>(CallFrameSlot::argumentCountIncludingThis)].tag() = callSiteIndex.bits();
 }
 
 } // namespace JSC

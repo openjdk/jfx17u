@@ -48,8 +48,6 @@ private:
     void getNodesInCommand(HashSet<Ref<Node>>&) override;
 #endif
 
-    Ref<Node> protectedInsertChild() const { return m_insertChild; }
-
     Ref<Node> m_insertChild;
     Ref<Node> m_refChild;
     ShouldAssumeContentIsAlwaysEditable m_shouldAssumeContentIsAlwaysEditable;

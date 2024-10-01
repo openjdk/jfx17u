@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2011-2021 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,7 +42,6 @@
 #include "StructureStubInfo.h"
 #include "ValueRecovery.h"
 #include "VirtualRegister.h"
-#include <wtf/TZoneMalloc.h>
 
 namespace JSC { namespace DFG {
 
@@ -985,7 +984,7 @@ public:
 
     void prepareForExternalCall()
     {
-#if !defined(NDEBUG) && !CPU(ARM_THUMB2)
+#if !defined(NDEBUG) && !CPU(ARM_THUMB2) && !CPU(MIPS)
         // We're about to call out to a "native" helper function. The helper
         // function is expected to set topCallFrame itself with the CallFrame
         // that is passed to it.
@@ -1317,8 +1316,6 @@ public:
     void compileNumberToStringWithValidRadixConstant(Node*, int32_t radix);
     void compileNewStringObject(Node*);
     void compileNewSymbol(Node*);
-    void compileNewMap(Node*);
-    void compileNewSet(Node*);
 
     void emitNewTypedArrayWithSizeInRegister(Node*, TypedArrayType, RegisteredStructure, GPRReg sizeGPR);
     void compileNewTypedArrayWithSize(Node*);
@@ -1347,8 +1344,6 @@ public:
     void compileCallDOMGetter(Node*);
     void compileCallDOM(Node*);
     void compileCheckJSCast(Node*);
-    void compileCallCustomAccessorGetter(Node*);
-    void compileCallCustomAccessorSetter(Node*);
     void compileNormalizeMapKey(Node*);
     void compileGetMapBucketHead(Node*);
     void compileGetMapBucketNext(Node*);
@@ -1638,8 +1633,6 @@ public:
     void compileDateSet(Node*);
     void compileGlobalIsNaN(Node*);
     void compileNumberIsNaN(Node*);
-    void compileToIntegerOrInfinity(Node*);
-    void compileToLength(Node*);
 
     template<typename JSClass, typename Operation>
     void compileCreateInternalFieldObject(Node*, Operation);
@@ -1822,7 +1815,7 @@ public:
     template<bool strict>
     GPRReg fillSpeculateInt32Internal(Edge, DataFormat& returnFormat);
 
-    void cageTypedArrayStorage(GPRReg, GPRReg);
+    void cageTypedArrayStorage(GPRReg, GPRReg, bool validateAuth = true);
 
     void recordSetLocal(
         Operand bytecodeReg, VirtualRegister machineReg, DataFormat format)
@@ -1915,7 +1908,7 @@ public:
 // in order to make space available for another.
 
 class JSValueOperand {
-    WTF_MAKE_TZONE_ALLOCATED(JSValueOperand);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit JSValueOperand(SpeculativeJIT* jit, Edge edge, OperandSpeculationMode mode = AutomaticOperandSpeculation)
         : m_jit(jit)
@@ -2073,7 +2066,7 @@ private:
 };
 
 class StorageOperand {
-    WTF_MAKE_TZONE_ALLOCATED(StorageOperand);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     StorageOperand() = default;
 
@@ -2141,7 +2134,7 @@ private:
 enum ReuseTag { Reuse };
 
 class GPRTemporary {
-    WTF_MAKE_TZONE_ALLOCATED(GPRTemporary);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     GPRTemporary();
     GPRTemporary(SpeculativeJIT*);
@@ -2212,7 +2205,7 @@ private:
 };
 
 class JSValueRegsTemporary {
-    WTF_MAKE_TZONE_ALLOCATED(JSValueRegsTemporary);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     JSValueRegsTemporary();
     JSValueRegsTemporary(SpeculativeJIT*);
@@ -2261,7 +2254,7 @@ JSValueRegsTemporary::JSValueRegsTemporary(SpeculativeJIT* jit, ReuseTag, T& ope
 #endif
 
 class FPRTemporary {
-    WTF_MAKE_TZONE_ALLOCATED(FPRTemporary);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     FPRTemporary(FPRTemporary&&);
     FPRTemporary(SpeculativeJIT*);
@@ -2333,7 +2326,7 @@ private:
 };
 
 class JSValueRegsFlushedCallResult {
-    WTF_MAKE_TZONE_ALLOCATED(JSValueRegsFlushedCallResult);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     JSValueRegsFlushedCallResult(SpeculativeJIT* jit)
 #if USE(JSVALUE64)
@@ -2375,7 +2368,7 @@ private:
 // a bail-out to the non-speculative path will be taken.
 
 class SpeculateInt32Operand {
-    WTF_MAKE_TZONE_ALLOCATED(SpeculateInt32Operand);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit SpeculateInt32Operand(SpeculativeJIT* jit, Edge edge, OperandSpeculationMode mode = AutomaticOperandSpeculation)
         : m_jit(jit)
@@ -2434,7 +2427,7 @@ private:
 };
 
 class SpeculateStrictInt32Operand {
-    WTF_MAKE_TZONE_ALLOCATED(SpeculateStrictInt32Operand);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit SpeculateStrictInt32Operand(SpeculativeJIT* jit, Edge edge, OperandSpeculationMode mode = AutomaticOperandSpeculation)
         : m_jit(jit)
@@ -2483,7 +2476,7 @@ private:
 
 // Gives you a canonical Int52 (i.e. it's left-shifted by 12, low bits zero).
 class SpeculateInt52Operand {
-    WTF_MAKE_TZONE_ALLOCATED(SpeculateInt52Operand);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit SpeculateInt52Operand(SpeculativeJIT* jit, Edge edge)
         : m_jit(jit)
@@ -2531,7 +2524,7 @@ private:
 
 // Gives you a strict Int52 (i.e. the payload is in the low 52 bits, high 12 bits are sign-extended).
 class SpeculateStrictInt52Operand {
-    WTF_MAKE_TZONE_ALLOCATED(SpeculateStrictInt52Operand);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit SpeculateStrictInt52Operand(SpeculativeJIT* jit, Edge edge)
         : m_jit(jit)
@@ -2580,7 +2573,7 @@ private:
 enum OppositeShiftTag { OppositeShift };
 
 class SpeculateWhicheverInt52Operand {
-    WTF_MAKE_TZONE_ALLOCATED(SpeculateWhicheverInt52Operand);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit SpeculateWhicheverInt52Operand(SpeculativeJIT* jit, Edge edge)
         : m_jit(jit)
@@ -2658,7 +2651,7 @@ private:
 };
 
 class SpeculateDoubleOperand {
-    WTF_MAKE_TZONE_ALLOCATED(SpeculateDoubleOperand);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit SpeculateDoubleOperand(SpeculativeJIT* jit, Edge edge)
         : m_jit(jit)
@@ -2706,7 +2699,7 @@ private:
 };
 
 class SpeculateCellOperand {
-    WTF_MAKE_TZONE_ALLOCATED(SpeculateCellOperand);
+    WTF_MAKE_FAST_ALLOCATED;
 
 public:
     explicit SpeculateCellOperand(SpeculativeJIT* jit, Edge edge, OperandSpeculationMode mode = AutomaticOperandSpeculation)
@@ -2771,7 +2764,7 @@ private:
 };
 
 class SpeculateBooleanOperand {
-    WTF_MAKE_TZONE_ALLOCATED(SpeculateBooleanOperand);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit SpeculateBooleanOperand(SpeculativeJIT* jit, Edge edge, OperandSpeculationMode mode = AutomaticOperandSpeculation)
         : m_jit(jit)
@@ -2820,7 +2813,7 @@ private:
 
 #if USE(BIGINT32)
 class SpeculateBigInt32Operand {
-    WTF_MAKE_TZONE_ALLOCATED(SpeculateBigInt32Operand);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit SpeculateBigInt32Operand(SpeculativeJIT* jit, Edge edge, OperandSpeculationMode mode = AutomaticOperandSpeculation)
         : m_jit(jit)

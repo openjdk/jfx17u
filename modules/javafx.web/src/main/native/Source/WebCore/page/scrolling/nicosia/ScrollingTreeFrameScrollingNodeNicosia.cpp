@@ -33,7 +33,7 @@
 
 #include "LocalFrameView.h"
 #include "Logging.h"
-#include "NicosiaCompositionLayer.h"
+#include "NicosiaPlatformLayer.h"
 #include "ScrollingStateFrameScrollingNode.h"
 #include "ScrollingTreeScrollingNodeDelegateNicosia.h"
 #include "ThreadedScrollingTree.h"
@@ -117,9 +117,7 @@ void ScrollingTreeFrameScrollingNodeNicosia::currentScrollPositionChanged(Scroll
 void ScrollingTreeFrameScrollingNodeNicosia::repositionScrollingLayers()
 {
     auto* scrollLayer = static_cast<Nicosia::PlatformLayer*>(scrolledContentsLayer());
-    if (!scrollLayer)
-        return;
-
+    ASSERT(scrollLayer);
     auto& compositionLayer = downcast<Nicosia::CompositionLayer>(*scrollLayer);
 
     auto scrollPosition = currentScrollPosition();

@@ -78,8 +78,7 @@ static void callDefaultEventHandlersInBubblingOrder(Event& event, const EventPat
 
 static bool isInShadowTree(EventTarget* target)
 {
-    auto* node = dynamicDowncast<Node>(target);
-    return node && node->isInShadowTree();
+    return is<Node>(target) && downcast<Node>(*target).isInShadowTree();
 }
 
 static void dispatchEventInDOM(Event& event, const EventPath& path)
@@ -117,19 +116,21 @@ static bool shouldSuppressEventDispatchInDOM(Node& node, Event& event)
     if (!event.isTrusted())
         return false;
 
-    RefPtr frame = node.document().frame();
+    auto frame = node.document().frame();
     if (!frame)
         return false;
 
-    RefPtr localFrame = dynamicDowncast<LocalFrame>(frame->mainFrame());
+    auto* localFrame = dynamicDowncast<LocalFrame>(frame->mainFrame());
     if (!localFrame)
         return false;
 
-    if (!localFrame->checkedLoader()->shouldSuppressTextInputFromEditing())
+    if (!localFrame->loader().shouldSuppressTextInputFromEditing())
         return false;
 
-    if (auto* textEvent = dynamicDowncast<TextEvent>(event))
-        return textEvent->isKeyboard() || textEvent->isComposition();
+    if (is<TextEvent>(event)) {
+        auto& textEvent = downcast<TextEvent>(event);
+        return textEvent.isKeyboard() || textEvent.isComposition();
+    }
 
     return is<CompositionEvent>(event) || is<InputEvent>(event) || is<KeyboardEvent>(event);
 }
@@ -138,30 +139,11 @@ static HTMLInputElement* findInputElementInEventPath(const EventPath& path)
 {
     size_t size = path.size();
     for (size_t i = 0; i < size; ++i) {
-        auto& eventContext = path.contextAt(i);
-        if (auto* inputElement = dynamicDowncast<HTMLInputElement>(eventContext.currentTarget()))
-            return inputElement;
+        const EventContext& eventContext = path.contextAt(i);
+        if (is<HTMLInputElement>(eventContext.currentTarget()))
+            return downcast<HTMLInputElement>(eventContext.currentTarget());
     }
     return nullptr;
-}
-
-static bool hasRelevantEventListener(Document& document, const Event& event)
-{
-    if (document.hasEventListenersOfType(event.type()))
-        return true;
-
-    auto legacyType = EventTarget::legacyTypeForEvent(event);
-    if (!legacyType.isNull() && document.hasEventListenersOfType(legacyType))
-        return true;
-
-    return false;
-}
-
-static void resetAfterDispatchInShadowTree(Event& event)
-{
-    event.setTarget(nullptr);
-    event.setRelatedTarget(nullptr);
-    // FIXME: We should also clear the event's touch target list.
 }
 
 void EventDispatcher::dispatchEvent(Node& node, Event& event)
@@ -173,22 +155,10 @@ void EventDispatcher::dispatchEvent(Node& node, Event& event)
     Ref protectedNode { node };
     RefPtr protectedView { node.document().view() };
 
-    auto typeInfo = eventNames().typeInfoForEvent(event.type());
-    bool shouldDispatchEventToScripts = hasRelevantEventListener(node.document(), event);
-
-    bool targetOrRelatedTargetIsInShadowTree = node.isInShadowTree() || isInShadowTree(event.relatedTarget());
-    // FIXME: We should also check touch target list.
-    bool hasNoEventListnerOrDefaultEventHandler = !shouldDispatchEventToScripts && !typeInfo.hasDefaultEventHandler() && !node.document().hasConnectedPluginElements();
-    if (hasNoEventListnerOrDefaultEventHandler && !targetOrRelatedTargetIsInShadowTree) {
-        event.resetBeforeDispatch();
-        event.setTarget(RefPtr { EventPath::eventTargetRespectingTargetRules(node) });
-        return;
-    }
-
     EventPath eventPath { node, event };
 
     if (node.document().settings().sendMouseEventsToDisabledFormControlsEnabled() && event.isTrusted() && event.isMouseEvent()
-        && (typeInfo.type() == EventType::mousedown || typeInfo.type() == EventType::mouseup || typeInfo.type() == EventType::click || typeInfo.type() == EventType::dblclick)) {
+        && (event.type() == eventNames().mousedownEvent || event.type() == eventNames().mouseupEvent || event.type() == eventNames().clickEvent)) {
         eventPath.adjustForDisabledFormControl();
     }
 
@@ -203,11 +173,7 @@ void EventDispatcher::dispatchEvent(Node& node, Event& event)
         }
     }
 
-    if (hasNoEventListnerOrDefaultEventHandler) {
-        if (shouldClearTargetsAfterDispatch)
-            resetAfterDispatchInShadowTree(event);
-        return;
-    }
+    ChildNodesLazySnapshot::takeChildNodesLazySnapshot();
 
     event.resetBeforeDispatch();
 
@@ -216,17 +182,14 @@ void EventDispatcher::dispatchEvent(Node& node, Event& event)
         return;
 
     InputElementClickState clickHandlingState;
-    clickHandlingState.trusted = event.isTrusted();
 
     RefPtr inputForLegacyPreActivationBehavior = dynamicDowncast<HTMLInputElement>(node);
     if (!inputForLegacyPreActivationBehavior && event.bubbles() && event.type() == eventNames().clickEvent)
         inputForLegacyPreActivationBehavior = findInputElementInEventPath(eventPath);
-    if (inputForLegacyPreActivationBehavior
-        && (!event.isTrusted() || !inputForLegacyPreActivationBehavior->isDisabledFormControl())) {
+    if (inputForLegacyPreActivationBehavior)
         inputForLegacyPreActivationBehavior->willDispatchEvent(event, clickHandlingState);
-    }
 
-    if (!event.propagationStopped() && !eventPath.isEmpty() && !shouldSuppressEventDispatchInDOM(node, event) && shouldDispatchEventToScripts) {
+    if (!event.propagationStopped() && !eventPath.isEmpty() && !shouldSuppressEventDispatchInDOM(node, event)) {
         event.setEventPath(eventPath);
         dispatchEventInDOM(event, eventPath);
     }
@@ -239,7 +202,7 @@ void EventDispatcher::dispatchEvent(Node& node, Event& event)
     // Call default event handlers. While the DOM does have a concept of preventing
     // default handling, the detail of which handlers are called is an internal
     // implementation detail and not part of the DOM.
-    if (typeInfo.hasDefaultEventHandler() && !event.defaultPrevented() && !event.defaultHandled() && !event.isDefaultEventHandlerIgnored()) {
+    if (!event.defaultPrevented() && !event.defaultHandled() && !event.isDefaultEventHandlerIgnored()) {
         // FIXME: Not clear why we need to reset the target for the default event handlers.
         // We should research this, and remove this code if possible.
         RefPtr finalTarget = event.target();
@@ -248,8 +211,11 @@ void EventDispatcher::dispatchEvent(Node& node, Event& event)
         event.setTarget(WTFMove(finalTarget));
     }
 
-    if (shouldClearTargetsAfterDispatch)
-        resetAfterDispatchInShadowTree(event);
+    if (shouldClearTargetsAfterDispatch) {
+        event.setTarget(nullptr);
+        event.setRelatedTarget(nullptr);
+        // FIXME: We should also clear the event's touch target list.
+    }
 }
 
 template<typename T>

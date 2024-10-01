@@ -36,7 +36,9 @@ namespace WebCore {
 
 struct BlendingContext;
 
-enum class TransformOperationType : uint8_t {
+class TransformOperation : public RefCounted<TransformOperation> {
+public:
+    enum class Type : uint8_t {
         ScaleX,
         ScaleY,
         Scale,
@@ -60,11 +62,7 @@ enum class TransformOperationType : uint8_t {
         Perspective,
         Identity,
         None
-};
-
-class TransformOperation : public RefCounted<TransformOperation> {
-public:
-    using Type = TransformOperationType;
+    };
 
     TransformOperation(Type type)
         : m_type(type)
@@ -157,6 +155,39 @@ WTF::TextStream& operator<<(WTF::TextStream&, TransformOperation::Type);
 WTF::TextStream& operator<<(WTF::TextStream&, const TransformOperation&);
 
 } // namespace WebCore
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::TransformOperation::Type> {
+    using values = EnumValues<
+        WebCore::TransformOperation::Type,
+        WebCore::TransformOperation::Type::ScaleX,
+        WebCore::TransformOperation::Type::ScaleY,
+        WebCore::TransformOperation::Type::Scale,
+        WebCore::TransformOperation::Type::TranslateX,
+        WebCore::TransformOperation::Type::TranslateY,
+        WebCore::TransformOperation::Type::Translate,
+        WebCore::TransformOperation::Type::RotateX,
+        WebCore::TransformOperation::Type::RotateY,
+        WebCore::TransformOperation::Type::Rotate,
+        WebCore::TransformOperation::Type::SkewX,
+        WebCore::TransformOperation::Type::SkewY,
+        WebCore::TransformOperation::Type::Skew,
+        WebCore::TransformOperation::Type::Matrix,
+        WebCore::TransformOperation::Type::ScaleZ,
+        WebCore::TransformOperation::Type::Scale3D,
+        WebCore::TransformOperation::Type::TranslateZ,
+        WebCore::TransformOperation::Type::Translate3D,
+        WebCore::TransformOperation::Type::RotateZ,
+        WebCore::TransformOperation::Type::Rotate3D,
+        WebCore::TransformOperation::Type::Matrix3D,
+        WebCore::TransformOperation::Type::Perspective,
+        WebCore::TransformOperation::Type::Identity,
+        WebCore::TransformOperation::Type::None
+    >;
+};
+
+} // namespace WTF
 
 #define SPECIALIZE_TYPE_TRAITS_TRANSFORMOPERATION(ToValueTypeName, predicate) \
 SPECIALIZE_TYPE_TRAITS_BEGIN(ToValueTypeName) \

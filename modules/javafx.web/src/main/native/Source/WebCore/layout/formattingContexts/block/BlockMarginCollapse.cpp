@@ -29,12 +29,13 @@
 #include "BlockFormattingQuirks.h"
 #include "BlockFormattingState.h"
 #include "BorderValue.h"
+#include "FloatingState.h"
+#include "InlineFormattingState.h"
 #include "LayoutBox.h"
 #include "LayoutContainingBlockChainIterator.h"
 #include "LayoutElementBox.h"
 #include "LayoutInitialContainingBlock.h"
 #include "LayoutUnit.h"
-#include "PlacedFloats.h"
 #include "RenderStyleInlines.h"
 
 namespace WebCore {
@@ -402,8 +403,12 @@ bool BlockMarginCollapse::marginsCollapseThrough(const ElementBox& layoutBox) co
 
     if (layoutBox.establishesFormattingContext()) {
         if (layoutBox.establishesInlineFormattingContext()) {
-            // FIXME: If we get here through margin estimation, we don't necessarily have an actual state for this layout box since
+            auto& layoutState = this->layoutState();
+            // If we get here through margin estimation, we don't necessarily have an actual state for this layout box since
             // we haven't started laying it out yet.
+            if (!layoutState.hasInlineFormattingState(layoutBox))
+                return false;
+
             auto isConsideredEmpty = [&] {
                 // FIXME: Check for non-empty inline formatting context if applicable.
                 // FIXME: Any float box in this formatting context prevents collapsing through.

@@ -45,3 +45,4 @@
 #include "JSDOMConvertSerializedScriptValue.h"
 #include "JSDOMConvertStrings.h"
 #include "JSDOMConvertUnion.h"
+#include "JSDOMConvertWebGL.h"

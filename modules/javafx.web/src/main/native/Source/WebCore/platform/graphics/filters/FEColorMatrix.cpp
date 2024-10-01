@@ -35,13 +35,13 @@
 
 namespace WebCore {
 
-Ref<FEColorMatrix> FEColorMatrix::create(ColorMatrixType type, Vector<float>&& values, DestinationColorSpace colorSpace)
+Ref<FEColorMatrix> FEColorMatrix::create(ColorMatrixType type, Vector<float>&& values)
 {
-    return adoptRef(*new FEColorMatrix(type, WTFMove(values), colorSpace));
+    return adoptRef(*new FEColorMatrix(type, WTFMove(values)));
 }
 
-FEColorMatrix::FEColorMatrix(ColorMatrixType type, Vector<float>&& values, DestinationColorSpace colorSpace)
-    : FilterEffect(FilterEffect::Type::FEColorMatrix, colorSpace)
+FEColorMatrix::FEColorMatrix(ColorMatrixType type, Vector<float>&& values)
+    : FilterEffect(FilterEffect::Type::FEColorMatrix)
     , m_type(type)
     , m_values(WTFMove(values))
 {
@@ -114,7 +114,7 @@ Vector<float> FEColorMatrix::normalizedFloats(const Vector<float>& values)
 
 bool FEColorMatrix::resultIsAlphaImage(const FilterImageVector&) const
 {
-    return m_type == ColorMatrixType::FECOLORMATRIX_TYPE_LUMINANCETOALPHA;
+    return m_type == FECOLORMATRIX_TYPE_LUMINANCETOALPHA;
 }
 
 OptionSet<FilterRenderingMode> FEColorMatrix::supportedFilterRenderingModes() const
@@ -125,7 +125,7 @@ OptionSet<FilterRenderingMode> FEColorMatrix::supportedFilterRenderingModes() co
         modes.add(FilterRenderingMode::Accelerated);
 #endif
 #if HAVE(CGSTYLE_COLORMATRIX_BLUR)
-    if (m_type == ColorMatrixType::FECOLORMATRIX_TYPE_MATRIX)
+    if (m_type == FECOLORMATRIX_TYPE_MATRIX)
         modes.add(FilterRenderingMode::GraphicsContext);
 #endif
     return modes;
@@ -155,19 +155,19 @@ std::optional<GraphicsStyle> FEColorMatrix::createGraphicsStyle(const Filter&) c
 static TextStream& operator<<(TextStream& ts, const ColorMatrixType& type)
 {
     switch (type) {
-    case ColorMatrixType::FECOLORMATRIX_TYPE_UNKNOWN:
+    case FECOLORMATRIX_TYPE_UNKNOWN:
         ts << "UNKNOWN";
         break;
-    case ColorMatrixType::FECOLORMATRIX_TYPE_MATRIX:
+    case FECOLORMATRIX_TYPE_MATRIX:
         ts << "MATRIX";
         break;
-    case ColorMatrixType::FECOLORMATRIX_TYPE_SATURATE:
+    case FECOLORMATRIX_TYPE_SATURATE:
         ts << "SATURATE";
         break;
-    case ColorMatrixType::FECOLORMATRIX_TYPE_HUEROTATE:
+    case FECOLORMATRIX_TYPE_HUEROTATE:
         ts << "HUEROTATE";
         break;
-    case ColorMatrixType::FECOLORMATRIX_TYPE_LUMINANCETOALPHA:
+    case FECOLORMATRIX_TYPE_LUMINANCETOALPHA:
         ts << "LUMINANCETOALPHA";
         break;
     }

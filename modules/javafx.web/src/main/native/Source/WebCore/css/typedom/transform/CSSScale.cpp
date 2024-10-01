@@ -65,7 +65,7 @@ ExceptionOr<Ref<CSSScale>> CSSScale::create(CSSNumberish x, CSSNumberish y, std:
 
     // https://drafts.css-houdini.org/css-typed-om/#dom-cssscale-cssscale
     if (!isValidScaleCoord(rectifiedX) || !isValidScaleCoord(rectifiedY) || !isValidScaleCoord(rectifiedZ))
-        return Exception { ExceptionCode::TypeError };
+        return Exception { TypeError };
 
     return adoptRef(*new CSSScale(z ? Is2D::No : Is2D::Yes, WTFMove(rectifiedX), WTFMove(rectifiedY), WTFMove(rectifiedZ)));
 }
@@ -78,17 +78,16 @@ ExceptionOr<Ref<CSSScale>> CSSScale::create(CSSFunctionValue& cssFunctionValue)
             auto valueOrException = CSSStyleValueFactory::reifyValue(componentCSSValue, std::nullopt);
             if (valueOrException.hasException())
                 return valueOrException.releaseException();
-            RefPtr numericValue = dynamicDowncast<CSSNumericValue>(valueOrException.releaseReturnValue());
-            if (!numericValue)
-                return Exception { ExceptionCode::TypeError, "Expected a CSSNumericValue."_s };
-            components.append(WTFMove(numericValue));
+            if (!is<CSSNumericValue>(valueOrException.returnValue()))
+                return Exception { TypeError, "Expected a CSSNumericValue."_s };
+            components.append(downcast<CSSNumericValue>(valueOrException.releaseReturnValue().ptr()));
         }
         if (!maxNumberOfComponents)
             maxNumberOfComponents = minNumberOfComponents;
         auto numberOfComponents = components.size();
         if (numberOfComponents < minNumberOfComponents || numberOfComponents > maxNumberOfComponents) {
             ASSERT_NOT_REACHED();
-            return Exception { ExceptionCode::TypeError, "Unexpected number of values."_s };
+            return Exception { TypeError, "Unexpected number of values."_s };
         }
         return create(WTFMove(components));
     };
@@ -159,17 +158,14 @@ void CSSScale::serialize(StringBuilder& builder) const
 
 ExceptionOr<Ref<DOMMatrix>> CSSScale::toMatrix()
 {
-    auto* xUnitValue = dynamicDowncast<CSSUnitValue>(m_x.get());
-    auto* yUnitValue = dynamicDowncast<CSSUnitValue>(m_y.get());
-    auto* zUnitValue = dynamicDowncast<CSSUnitValue>(m_z.get());
-    if (!xUnitValue || !yUnitValue || !zUnitValue)
-        return Exception { ExceptionCode::TypeError };
+    if (!is<CSSUnitValue>(m_x) || !is<CSSUnitValue>(m_y) || !is<CSSUnitValue>(m_z))
+        return Exception { TypeError };
 
     TransformationMatrix matrix { };
 
-    auto x = xUnitValue->value();
-    auto y = yUnitValue->value();
-    auto z = zUnitValue->value();
+    auto x = downcast<CSSUnitValue>(m_x.get()).value();
+    auto y = downcast<CSSUnitValue>(m_y.get()).value();
+    auto z = downcast<CSSUnitValue>(m_z.get()).value();
 
     if (is2D())
         matrix.scaleNonUniform(x, y);

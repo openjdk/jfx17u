@@ -28,7 +28,7 @@
 #include "MatchResult.h"
 #include "RenderStyle.h"
 #include "Timer.h"
-#include <wtf/WeakRef.h>
+#include <wtf/CheckedRef.h>
 
 namespace WebCore {
 
@@ -43,7 +43,7 @@ public:
     ~MatchedDeclarationsCache();
 
     static bool isCacheable(const Element&, const RenderStyle&, const RenderStyle& parentStyle);
-    static unsigned computeHash(const MatchResult&, const StyleCustomPropertyData& inheritedCustomProperties);
+    static unsigned computeHash(const MatchResult&);
 
     struct Entry {
         MatchResult matchResult;
@@ -54,7 +54,7 @@ public:
         bool isUsableAfterHighPriorityProperties(const RenderStyle&) const;
     };
 
-    const Entry* find(unsigned hash, const MatchResult&, const StyleCustomPropertyData& inheritedCustomProperties);
+    const Entry* find(unsigned hash, const MatchResult&);
     void add(const RenderStyle&, const RenderStyle& parentStyle, const RenderStyle* userAgentAppearanceStyle, unsigned hash, const MatchResult&);
     void remove(unsigned hash);
 
@@ -69,7 +69,7 @@ public:
 private:
     void sweep();
 
-    SingleThreadWeakRef<const Resolver> m_owner;
+    CheckedRef<const Resolver> m_owner;
     HashMap<unsigned, Entry, AlreadyHashed> m_entries;
     Timer m_sweepTimer;
     unsigned m_additionsSinceLastSweep { 0 };

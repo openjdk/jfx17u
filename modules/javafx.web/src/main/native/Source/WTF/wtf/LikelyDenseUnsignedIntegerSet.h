@@ -210,7 +210,10 @@ public:
                 [](const typename Set::iterator& it) -> IndexType { return *it; });
         }
 
-        friend bool operator==(const iterator&, const iterator&) = default;
+        bool operator==(const iterator& other) const
+        {
+            return m_underlying == other.m_underlying && m_shift == other.m_shift;
+        }
 
     private:
         std::variant<BitVector::iterator, typename Set::iterator> m_underlying;

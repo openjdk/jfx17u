@@ -44,13 +44,6 @@ FloatPoint PathSegment::calculateEndPoint(const FloatPoint& currentPoint, FloatP
     });
 }
 
-std::optional<FloatPoint> PathSegment::tryGetEndPointWithoutContext() const
-{
-    return WTF::switchOn(m_data, [&](auto& data) {
-        return data.tryGetEndPointWithoutContext();
-    });
-}
-
 void PathSegment::extendFastBoundingRect(const FloatPoint& currentPoint, const FloatPoint& lastMoveToPoint, FloatRect& boundingRect) const
 {
     WTF::switchOn(m_data, [&](auto& data) {
@@ -62,6 +55,13 @@ void PathSegment::extendBoundingRect(const FloatPoint& currentPoint, const Float
 {
     WTF::switchOn(m_data, [&](auto& data) {
         data.extendBoundingRect(currentPoint, lastMoveToPoint, boundingRect);
+    });
+}
+
+void PathSegment::addToImpl(PathImpl& impl) const
+{
+    WTF::switchOn(m_data, [&](auto& data) {
+        data.addToImpl(impl);
     });
 }
 

@@ -41,13 +41,15 @@ namespace WTF {
 #define URL_PARSER_LOG(...)
 #endif
 
-ALWAYS_INLINE static void appendCodePoint(Vector<UChar>& destination, char32_t codePoint)
+ALWAYS_INLINE static void appendCodePoint(Vector<UChar>& destination, UChar32 codePoint)
 {
     if (U_IS_BMP(codePoint)) {
         destination.append(static_cast<UChar>(codePoint));
         return;
     }
-    destination.appendList({ U16_LEAD(codePoint), U16_TRAIL(codePoint) });
+    destination.reserveCapacity(destination.size() + 2);
+    destination.uncheckedAppend(U16_LEAD(codePoint));
+    destination.uncheckedAppend(U16_TRAIL(codePoint));
 }
 
 enum URLCharacterClass {
@@ -396,7 +398,7 @@ ALWAYS_INLINE bool URLParser::isWindowsDriveLetter(CodePointIterator<CharacterTy
     return iterator.atEnd() || *iterator == '/' || *iterator == '\\' || *iterator == '?' || *iterator == '#';
 }
 
-ALWAYS_INLINE void URLParser::appendToASCIIBuffer(char32_t codePoint)
+ALWAYS_INLINE void URLParser::appendToASCIIBuffer(UChar32 codePoint)
 {
     ASSERT(isASCII(codePoint));
     if (UNLIKELY(m_didSeeSyntaxViolation))
@@ -486,11 +488,11 @@ void URLParser::percentEncodeByte(uint8_t byte)
 const char replacementCharacterUTF8PercentEncoded[10] = "%EF%BF%BD";
 const size_t replacementCharacterUTF8PercentEncodedLength = sizeof(replacementCharacterUTF8PercentEncoded) - 1;
 
-template<bool(*isInCodeSet)(char32_t), typename CharacterType>
+template<bool(*isInCodeSet)(UChar32), typename CharacterType>
 ALWAYS_INLINE void URLParser::utf8PercentEncode(const CodePointIterator<CharacterType>& iterator)
 {
     ASSERT(!iterator.atEnd());
-    char32_t codePoint = *iterator;
+    UChar32 codePoint = *iterator;
     if (LIKELY(isASCII(codePoint))) {
         if (UNLIKELY(isInCodeSet(codePoint))) {
             syntaxViolation(iterator);
@@ -518,7 +520,7 @@ template<typename CharacterType>
 ALWAYS_INLINE void URLParser::utf8QueryEncode(const CodePointIterator<CharacterType>& iterator)
 {
     ASSERT(!iterator.atEnd());
-    char32_t codePoint = *iterator;
+    UChar32 codePoint = *iterator;
     if (LIKELY(isASCII(codePoint))) {
         if (UNLIKELY(shouldPercentEncodeQueryByte(codePoint, m_urlIsSpecial))) {
             syntaxViolation(iterator);
@@ -738,9 +740,7 @@ std::optional<String> URLParser::maybeCanonicalizeScheme(StringView scheme)
         return std::nullopt;
     }
 
-    return scheme.convertToASCIILowercase().removeCharacters([](auto character) {
-        return isTabOrNewline(character);
-    });
+    return scheme.convertToASCIILowercase();
 }
 
 bool URLParser::isSpecialScheme(StringView schemeArg)
@@ -878,7 +878,7 @@ void URLParser::copyURLPartsUntil(const URL& base, URLPart part, const CodePoint
     ASSERT_NOT_REACHED();
 }
 
-constexpr uint8_t dotASCIICode[2] = { '2', 'e' };
+static const char dotASCIICode[2] = {'2', 'e'};
 
 template<typename CharacterType>
 ALWAYS_INLINE bool URLParser::isSingleDotPathSegment(CodePointIterator<CharacterType> c)
@@ -897,7 +897,7 @@ ALWAYS_INLINE bool URLParser::isSingleDotPathSegment(CodePointIterator<Character
     advance<CharacterType, ReportSyntaxViolation::No>(c);
     if (c.atEnd())
         return false;
-    if (isASCIIAlphaCaselessEqual(*c, dotASCIICode[1])) {
+    if (toASCIILower(*c) == dotASCIICode[1]) {
         advance<CharacterType, ReportSyntaxViolation::No>(c);
         return c.atEnd() || isSlashQuestionOrHash(*c);
     }
@@ -921,7 +921,7 @@ ALWAYS_INLINE bool URLParser::isDoubleDotPathSegment(CodePointIterator<Character
     advance<CharacterType, ReportSyntaxViolation::No>(c);
     if (c.atEnd())
         return false;
-    if (isASCIIAlphaCaselessEqual(*c, dotASCIICode[1])) {
+    if (toASCIILower(*c) == dotASCIICode[1]) {
         advance<CharacterType, ReportSyntaxViolation::No>(c);
         return isSingleDotPathSegment(c);
     }
@@ -945,7 +945,7 @@ void URLParser::consumeSingleDotPathSegment(CodePointIterator<CharacterType>& c)
         advance(c);
         ASSERT(*c == dotASCIICode[0]);
         advance(c);
-        ASSERT(isASCIIAlphaCaselessEqual(*c, dotASCIICode[1]));
+        ASSERT(toASCIILower(*c) == dotASCIICode[1]);
         advance(c);
         if (!c.atEnd()) {
             if (*c == '/' || *c == '\\')
@@ -967,7 +967,7 @@ void URLParser::consumeDoubleDotPathSegment(CodePointIterator<CharacterType>& c)
         advance(c);
         ASSERT(*c == dotASCIICode[0]);
         advance(c);
-        ASSERT(isASCIIAlphaCaselessEqual(*c, dotASCIICode[1]));
+        ASSERT(toASCIILower(*c) == dotASCIICode[1]);
         advance(c);
     }
     consumeSingleDotPathSegment(c);
@@ -1012,10 +1012,11 @@ void URLParser::syntaxViolation(const CodePointIterator<CharacterType>& iterator
     ASSERT(m_asciiBuffer.isEmpty());
     size_t codeUnitsToCopy = iterator.codeUnitsSince(reinterpret_cast<const CharacterType*>(m_inputBegin));
     RELEASE_ASSERT(codeUnitsToCopy <= m_inputString.length());
-    if (m_inputString.is8Bit())
-        m_asciiBuffer.append(m_inputString.characters8(), codeUnitsToCopy);
-    else
-        m_asciiBuffer.append(m_inputString.characters16(), codeUnitsToCopy);
+    m_asciiBuffer.reserveCapacity(m_inputString.length());
+    for (size_t i = 0; i < codeUnitsToCopy; ++i) {
+        ASSERT(isASCII(m_inputString[i]));
+        m_asciiBuffer.uncheckedAppend(m_inputString[i]);
+    }
 }
 
 void URLParser::failure()
@@ -1025,7 +1026,7 @@ void URLParser::failure()
 }
 
 template<typename CharacterType>
-bool URLParser::checkLocalhostCodePoint(CodePointIterator<CharacterType>& iterator, char32_t codePoint)
+bool URLParser::checkLocalhostCodePoint(CodePointIterator<CharacterType>& iterator, UChar32 codePoint)
 {
     if (iterator.atEnd() || toASCIILower(*iterator) != codePoint)
         return false;
@@ -1501,8 +1502,7 @@ void URLParser::parse(const CharacterType* input, const unsigned length, const U
         case State::Host:
             do {
                 LOG_STATE("Host");
-                bool isSlash = *c == '/' || (m_urlIsSpecial && *c == '\\');
-                if (isSlash || *c == '?' || *c == '#') {
+                if (*c == '/' || *c == '?' || *c == '#') {
                     if (parseHostAndPort(CodePointIterator<CharacterType>(authorityOrHostBegin, c)) == HostParsingResult::InvalidHost) {
                         failure();
                         return;
@@ -2499,16 +2499,16 @@ URLParser::LCharBuffer URLParser::percentDecode(const LChar* input, size_t lengt
     for (size_t i = 0; i < length; ++i) {
         uint8_t byte = input[i];
         if (byte != '%')
-            output.append(byte);
+            output.uncheckedAppend(byte);
         else if (length > 2 && i < length - 2) {
             if (isASCIIHexDigit(input[i + 1]) && isASCIIHexDigit(input[i + 2])) {
                 syntaxViolation(iteratorForSyntaxViolationPosition);
-                output.append(toASCIIHexValue(input[i + 1], input[i + 2]));
+                output.uncheckedAppend(toASCIIHexValue(input[i + 1], input[i + 2]));
                 i += 2;
             } else
-                output.append(byte);
+                output.uncheckedAppend(byte);
         } else
-            output.append(byte);
+            output.uncheckedAppend(byte);
     }
     return output;
 }
@@ -2521,15 +2521,15 @@ URLParser::LCharBuffer URLParser::percentDecode(const LChar* input, size_t lengt
     for (size_t i = 0; i < length; ++i) {
         uint8_t byte = input[i];
         if (byte != '%')
-            output.append(byte);
+            output.uncheckedAppend(byte);
         else if (length > 2 && i < length - 2) {
             if (isASCIIHexDigit(input[i + 1]) && isASCIIHexDigit(input[i + 2])) {
-                output.append(toASCIIHexValue(input[i + 1], input[i + 2]));
+                output.uncheckedAppend(toASCIIHexValue(input[i + 1], input[i + 2]));
                 i += 2;
             } else
-                output.append(byte);
+                output.uncheckedAppend(byte);
         } else
-            output.append(byte);
+            output.uncheckedAppend(byte);
     }
     return output;
 }
@@ -2561,18 +2561,20 @@ template<typename CharacterType> std::optional<URLParser::LCharBuffer> URLParser
         size_t length = domain.length();
         if (domain.is8Bit()) {
             const LChar* characters = domain.characters8();
-            ascii.appendUsingFunctor(length, [&](size_t i) {
+            ascii.reserveInitialCapacity(length);
+            for (size_t i = 0; i < length; ++i) {
                 if (UNLIKELY(isASCIIUpper(characters[i])))
                     syntaxViolation(iteratorForSyntaxViolationPosition);
-                return toASCIILower(characters[i]);
-            });
+                ascii.uncheckedAppend(toASCIILower(characters[i]));
+            }
         } else {
             const UChar* characters = domain.characters16();
-            ascii.appendUsingFunctor(length, [&](size_t i) {
+            ascii.reserveInitialCapacity(length);
+            for (size_t i = 0; i < length; ++i) {
                 if (UNLIKELY(isASCIIUpper(characters[i])))
                     syntaxViolation(iteratorForSyntaxViolationPosition);
-                return toASCIILower(characters[i]);
-            });
+                ascii.uncheckedAppend(toASCIILower(characters[i]));
+            }
         }
         return ascii;
     }

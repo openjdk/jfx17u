@@ -25,7 +25,6 @@
 
 // https://wicg.github.io/speech-api/#speechsynthesisutterance
 [
-    ActiveDOMObject,
     EnabledBySetting=SpeechSynthesisAPIEnabled,
     Conditional=SPEECH_SYNTHESIS,
     ExportMacro=WEBCORE_EXPORT,

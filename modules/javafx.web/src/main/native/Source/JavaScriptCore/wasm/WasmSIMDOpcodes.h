@@ -27,7 +27,7 @@
 
 #include <wtf/PrintStream.h>
 
-#if ENABLE(WEBASSEMBLY)
+#if ENABLE(WEBASSEMBLY) && ENABLE(B3_JIT)
 
 namespace JSC {
 

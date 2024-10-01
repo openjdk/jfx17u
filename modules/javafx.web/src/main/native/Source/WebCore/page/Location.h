@@ -29,21 +29,18 @@
 #pragma once
 
 #include "DOMStringList.h"
-#include "EventTarget.h"
 #include "ExceptionOr.h"
+#include "LocalDOMWindowProperty.h"
 #include "ScriptWrappable.h"
-#include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
-class DOMWindow;
-class Frame;
 class LocalDOMWindow;
 
-class Location final : public ScriptWrappable, public RefCounted<Location> {
+class Location final : public ScriptWrappable, public RefCounted<Location>, public LocalDOMWindowProperty {
     WTF_MAKE_ISO_ALLOCATED(Location);
 public:
-    static Ref<Location> create(DOMWindow& window) { return adoptRef(*new Location(window)); }
+    static Ref<Location> create(LocalDOMWindow& window) { return adoptRef(*new Location(window)); }
 
     ExceptionOr<void> setHref(LocalDOMWindow& incumbentWindow, LocalDOMWindow& firstWindow, const String&);
     String href() const;
@@ -72,24 +69,17 @@ public:
 
     Ref<DOMStringList> ancestorOrigins() const;
 
-    DOMWindow* window() { return m_window.get(); }
-    RefPtr<DOMWindow> protectedWindow();
 #if PLATFORM(JAVA)
     /* check of custom protocol handler or url schema */
     bool handleCustomProtocol(const std::string& url);
 #endif
 
-    const URL& url() const;
-
 private:
-    explicit Location(DOMWindow&);
+    explicit Location(LocalDOMWindow&);
 
     ExceptionOr<void> setLocation(LocalDOMWindow& incumbentWindow, LocalDOMWindow& firstWindow, const String&);
 
-    Frame* frame();
-    const Frame* frame() const;
-
-    WeakPtr<DOMWindow, WeakPtrImplWithEventTargetData> m_window;
+    const URL& url() const;
 };
 
 } // namespace WebCore

@@ -41,13 +41,13 @@ static ExceptionOr<JSC::JSValue> invokeWritableStreamFunction(JSC::JSGlobalObjec
     auto scope = DECLARE_CATCH_SCOPE(vm);
 
     auto function = globalObject.get(&globalObject, identifier);
-    RETURN_IF_EXCEPTION(scope, Exception { ExceptionCode::ExistingExceptionError });
+    RETURN_IF_EXCEPTION(scope, Exception { ExistingExceptionError });
     ASSERT(function.isCallable());
 
     auto callData = JSC::getCallData(function);
 
     auto result = call(&globalObject, function, callData, JSC::jsUndefined(), arguments);
-    RETURN_IF_EXCEPTION(scope, Exception { ExceptionCode::ExistingExceptionError });
+    RETURN_IF_EXCEPTION(scope, Exception { ExistingExceptionError });
 
     return result;
 }
@@ -117,7 +117,7 @@ void InternalWritableStream::lock()
         scope.clearException();
 }
 
-JSC::JSValue InternalWritableStream::abortForBindings(JSC::JSGlobalObject& globalObject, JSC::JSValue reason)
+JSC::JSValue InternalWritableStream::abort(JSC::JSGlobalObject& globalObject, JSC::JSValue reason)
 {
     auto* clientData = static_cast<JSVMClientData*>(globalObject.vm().clientData);
     auto& privateName = clientData->builtinFunctions().writableStreamInternalsBuiltins().writableStreamAbortForBindingsPrivateName();
@@ -134,7 +134,7 @@ JSC::JSValue InternalWritableStream::abortForBindings(JSC::JSGlobalObject& globa
     return result.returnValue();
 }
 
-JSC::JSValue InternalWritableStream::closeForBindings(JSC::JSGlobalObject& globalObject)
+JSC::JSValue InternalWritableStream::close(JSC::JSGlobalObject& globalObject)
 {
     auto* clientData = static_cast<JSVMClientData*>(globalObject.vm().clientData);
     auto& privateName = clientData->builtinFunctions().writableStreamInternalsBuiltins().writableStreamCloseForBindingsPrivateName();
@@ -148,26 +148,6 @@ JSC::JSValue InternalWritableStream::closeForBindings(JSC::JSGlobalObject& globa
         return { };
 
     return result.returnValue();
-}
-
-void InternalWritableStream::closeIfPossible()
-{
-    auto* globalObject = this->globalObject();
-    if (!globalObject)
-        return;
-
-    auto scope = DECLARE_CATCH_SCOPE(globalObject->vm());
-
-    auto* clientData = static_cast<JSVMClientData*>(globalObject->vm().clientData);
-    auto& privateName = clientData->builtinFunctions().writableStreamInternalsBuiltins().writableStreamCloseIfPossiblePrivateName();
-
-    JSC::MarkedArgumentBuffer arguments;
-    arguments.append(guardedObject());
-    ASSERT(!arguments.hasOverflowed());
-
-    invokeWritableStreamFunction(*globalObject, privateName, arguments);
-    if (UNLIKELY(scope.exception()))
-        scope.clearException();
 }
 
 JSC::JSValue InternalWritableStream::getWriter(JSC::JSGlobalObject& globalObject)

@@ -63,14 +63,14 @@ ExceptionOr<URL> AbstractWorker::resolveURL(const String& url)
     // FIXME: This should use the dynamic global scope (bug #27887).
     URL scriptURL = context.completeURL(url);
     if (!scriptURL.isValid())
-        return Exception { ExceptionCode::SyntaxError };
+        return Exception { SyntaxError };
 
     if (!context.securityOrigin()->canRequest(scriptURL, OriginAccessPatternsForWebProcess::singleton()) && !scriptURL.protocolIsData())
-        return Exception { ExceptionCode::SecurityError };
+        return Exception { SecurityError };
 
     ASSERT(context.contentSecurityPolicy());
-    if (!context.checkedContentSecurityPolicy()->allowWorkerFromSource(scriptURL))
-        return Exception { ExceptionCode::SecurityError };
+    if (!context.contentSecurityPolicy()->allowWorkerFromSource(scriptURL))
+        return Exception { SecurityError };
 
     return scriptURL;
 }

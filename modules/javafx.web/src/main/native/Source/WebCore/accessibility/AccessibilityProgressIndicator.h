@@ -37,7 +37,7 @@ public:
     bool isIndeterminate() const final;
 
 private:
-    AccessibilityRole determineAccessibilityRole() final;
+    AccessibilityRole roleValue() const override;
 
     String valueDescription() const override;
     String gaugeRegionValueDescription() const;

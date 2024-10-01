@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2011 Google Inc. All rights reserved.
- * Copyright (C) 2015-2021 Apple Inc. All rights reserved.
+ * Copyright (C) 2015-2017 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -426,7 +426,7 @@ Protocol::ErrorStringOr<void> InspectorPageAgent::navigate(const String& url)
     if (!localMainFrame)
         return { };
 
-    UserGestureIndicator indicator { IsProcessingUserGesture::Yes, localMainFrame->document() };
+    UserGestureIndicator indicator { ProcessingUserGesture, localMainFrame->document() };
 
     ResourceRequest resourceRequest { localMainFrame->document()->completeURL(url) };
     FrameLoadRequest frameLoadRequest { *localMainFrame->document(), localMainFrame->document()->securityOrigin(), WTFMove(resourceRequest), selfTargetFrameName(), InitiatedByMainFrame::Unknown };
@@ -985,7 +985,11 @@ void InspectorPageAgent::defaultUserPreferencesDidChange()
 {
     auto defaultUserPreferences = JSON::ArrayOf<Protocol::Page::UserPreference>::create();
 
+#if USE(NEW_THEME)
     bool prefersReducedMotion = Theme::singleton().userPrefersReducedMotion();
+#else
+    bool prefersReducedMotion = false;
+#endif
 
     auto prefersReducedMotionUserPreference = Protocol::Page::UserPreference::create()
         .setName(Protocol::Page::UserPreferenceName::PrefersReducedMotion)
@@ -994,7 +998,11 @@ void InspectorPageAgent::defaultUserPreferencesDidChange()
 
     defaultUserPreferences->addItem(WTFMove(prefersReducedMotionUserPreference));
 
+#if USE(NEW_THEME)
     bool prefersContrast = Theme::singleton().userPrefersContrast();
+#else
+    bool prefersContrast = false;
+#endif
 
     auto prefersContrastUserPreference = Protocol::Page::UserPreference::create()
         .setName(Protocol::Page::UserPreferenceName::PrefersContrast)
@@ -1030,7 +1038,7 @@ void InspectorPageAgent::didClearWindowObjectInWorld(LocalFrame& frame, DOMWrapp
     if (m_bootstrapScript.isEmpty())
         return;
 
-    frame.script().evaluateIgnoringException(ScriptSourceCode(m_bootstrapScript, JSC::SourceTaintedOrigin::Untainted, URL { "web-inspector://bootstrap.js"_str }));
+    frame.script().evaluateIgnoringException(ScriptSourceCode(m_bootstrapScript, URL { "web-inspector://bootstrap.js"_str }));
 }
 
 void InspectorPageAgent::didPaint(RenderObject& renderer, const LayoutRect& rect)
@@ -1042,10 +1050,13 @@ void InspectorPageAgent::didPaint(RenderObject& renderer, const LayoutRect& rect
     auto* view = renderer.document().view();
 
     LayoutRect rootRect = absoluteRect;
-    Ref localFrame = view->frame();
-    if (!localFrame->isMainFrame()) {
+    auto* localFrame = dynamicDowncast<LocalFrame>(view->frame());
+    if (localFrame && !localFrame->isMainFrame()) {
         IntRect rootViewRect = view->contentsToRootView(snappedIntRect(absoluteRect));
-        rootRect = localFrame->mainFrame().virtualView()->rootViewToContents(rootViewRect);
+        auto* localMainFrame = dynamicDowncast<LocalFrame>(localFrame->mainFrame());
+        if (!localMainFrame)
+            return;
+        rootRect = localMainFrame->view()->rootViewToContents(rootViewRect);
     }
 
     if (m_client->overridesShowPaintRects()) {

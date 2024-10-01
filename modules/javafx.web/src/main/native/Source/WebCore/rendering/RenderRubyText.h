@@ -51,6 +51,7 @@ public:
 
 private:
     ASCIILiteral renderName() const override { return "RenderRubyText"_s; }
+    bool isRubyText() const override { return true; }
 
     bool avoidsFloats() const override;
 
@@ -60,4 +61,4 @@ private:
 
 } // namespace WebCore
 
-SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderRubyText, isRenderRubyText())
+SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderRubyText, isRubyText())

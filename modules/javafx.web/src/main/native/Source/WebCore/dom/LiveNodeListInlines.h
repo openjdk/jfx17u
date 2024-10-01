@@ -112,7 +112,7 @@ bool CachedLiveNodeList<NodeListType>::collectionCanTraverseBackward() const
 template <class NodeListType>
 void CachedLiveNodeList<NodeListType>::willValidateIndexCache() const
 {
-    protectedDocument()->registerNodeListForInvalidation(const_cast<CachedLiveNodeList&>(*this));
+    document().registerNodeListForInvalidation(const_cast<CachedLiveNodeList&>(*this));
 }
 
 template <class NodeListType>

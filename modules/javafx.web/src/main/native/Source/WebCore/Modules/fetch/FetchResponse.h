@@ -30,7 +30,6 @@
 
 #include "FetchBodyOwner.h"
 #include "FetchHeaders.h"
-#include "HTTPStatusCodes.h"
 #include "ReadableStreamSink.h"
 #include "ResourceResponse.h"
 #include <JavaScriptCore/TypedArrays.h>
@@ -54,7 +53,7 @@ public:
     using Type = ResourceResponse::Type;
 
     struct Init {
-        unsigned short status { httpStatus200OK };
+        unsigned short status { 200 };
         AtomString statusText;
         std::optional<FetchHeaders::Init> headers;
     };

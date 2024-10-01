@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2020 Igalia S.L. All rights reserved.
- * Copyright (C) 2022-2023 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,8 +45,8 @@ class GraphicsContextGL;
 class FakeXRView final : public RefCounted<FakeXRView> {
 public:
     static Ref<FakeXRView> create(XREye eye) { return adoptRef(*new FakeXRView(eye)); }
-    using Pose = PlatformXR::FrameData::Pose;
-    using Fov = PlatformXR::FrameData::Fov;
+    using Pose = PlatformXR::Device::FrameData::Pose;
+    using Fov = PlatformXR::Device::FrameData::Fov;
 
     XREye eye() const { return m_eye; }
     const Pose& offset() const { return m_offset; }
@@ -74,11 +73,11 @@ class SimulatedXRDevice final : public PlatformXR::Device {
     WTF_MAKE_FAST_ALLOCATED;
 public:
     SimulatedXRDevice();
-    virtual ~SimulatedXRDevice();
-    void setViews(Vector<PlatformXR::FrameData::View>&&);
+    ~SimulatedXRDevice();
+    void setViews(Vector<FrameData::View>&&);
     void setNativeBoundsGeometry(const Vector<FakeXRBoundsPoint>&);
-    void setViewerOrigin(const std::optional<PlatformXR::FrameData::Pose>&);
-    void setFloorOrigin(std::optional<PlatformXR::FrameData::Pose>&& origin) { m_frameData.floorTransform = WTFMove(origin); }
+    void setViewerOrigin(const std::optional<FrameData::Pose>&);
+    void setFloorOrigin(std::optional<FrameData::Pose>&& origin) { m_frameData.floorTransform = WTFMove(origin); }
     void setEmulatedPosition(bool emulated) { m_frameData.isPositionEmulated = emulated; }
     void setSupportsShutdownNotification(bool supportsShutdownNotification) { m_supportsShutdownNotification = supportsShutdownNotification; }
     void setVisibilityState(XRVisibilityState);
@@ -99,7 +98,7 @@ private:
     void stopTimer();
     void frameTimerFired();
 
-    PlatformXR::FrameData m_frameData;
+    PlatformXR::Device::FrameData m_frameData;
     bool m_supportsShutdownNotification { false };
     Timer m_frameTimer;
     RequestFrameCallback m_FrameCallback;
@@ -116,11 +115,11 @@ public:
     void setViews(const Vector<FakeXRViewInit>&);
     void disconnect(DOMPromiseDeferred<void>&&);
     void setViewerOrigin(FakeXRRigidTransformInit origin, bool emulatedPosition = false);
-    void clearViewerOrigin() { m_device->setViewerOrigin(std::nullopt); }
+    void clearViewerOrigin() { m_device.setViewerOrigin(std::nullopt); }
     void simulateVisibilityChange(XRVisibilityState);
-    void setBoundsGeometry(Vector<FakeXRBoundsPoint>&& bounds) { m_device->setNativeBoundsGeometry(WTFMove(bounds)); }
+    void setBoundsGeometry(Vector<FakeXRBoundsPoint>&& bounds) { m_device.setNativeBoundsGeometry(WTFMove(bounds)); }
     void setFloorOrigin(FakeXRRigidTransformInit);
-    void clearFloorOrigin() { m_device->setFloorOrigin(std::nullopt); }
+    void clearFloorOrigin() { m_device.setFloorOrigin(std::nullopt); }
     void simulateResetPose();
     Ref<WebFakeXRInputController> simulateInputSourceConnection(const FakeXRInputSourceInit&);
     static ExceptionOr<Ref<FakeXRView>> parseView(const FakeXRViewInit&);
@@ -128,12 +127,12 @@ public:
     void setSupportsShutdownNotification();
     void simulateShutdown();
 
-    static ExceptionOr<PlatformXR::FrameData::Pose> parseRigidTransform(const FakeXRRigidTransformInit&);
+    static ExceptionOr<PlatformXR::Device::FrameData::Pose> parseRigidTransform(const FakeXRRigidTransformInit&);
 
 private:
     WebFakeXRDevice();
 
-    Ref<SimulatedXRDevice> m_device;
+    SimulatedXRDevice m_device;
     PlatformXR::InputSourceHandle mInputSourceHandleIndex { 0 };
 };
 

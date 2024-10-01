@@ -22,6 +22,7 @@
 #include "FilterOperations.h"
 #include "FloatRect.h"
 #include "NicosiaAnimation.h"
+#include "TextureMapper.h"
 #include "TextureMapperSolidColorLayer.h"
 #include <wtf/WeakPtr.h>
 
@@ -32,7 +33,6 @@
 namespace WebCore {
 
 class Region;
-class TextureMapper;
 class TextureMapperPaintOptions;
 class TextureMapperPlatformLayer;
 
@@ -86,17 +86,9 @@ public:
     {
         return !m_currentFilters.isEmpty();
     }
-#if PLATFORM(JAVA)
+
     void setDebugVisuals(bool showDebugBorders, const Color& debugBorderColor, float debugBorderWidth);
     void setRepaintCounter(bool showRepaintCounter, int repaintCount);
-#else
-    void setShowDebugBorder(bool showDebugBorder) { m_state.showDebugBorders = showDebugBorder; }
-    void setDebugBorderColor(Color debugBorderColor) { m_state.debugBorderColor = debugBorderColor; }
-    void setDebugBorderWidth(float debugBorderWidth) { m_state.debugBorderWidth = debugBorderWidth; }
-
-    void setShowRepaintCounter(bool showRepaintCounter) { m_state.showRepaintCounter = showRepaintCounter; }
-    void setRepaintCount(int repaintCount) { m_state.repaintCount = repaintCount; }
-#endif
     void setContentsLayer(TextureMapperPlatformLayer*);
     void setAnimations(const Nicosia::Animations&);
     void setBackingStore(TextureMapperBackingStore*);

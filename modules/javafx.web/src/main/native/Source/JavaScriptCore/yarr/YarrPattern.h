@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2009, 2013-2017 Apple Inc. All rights reserved.
  * Copyright (C) 2010 Peter Varga (pvarga@inf.u-szeged.hu), University of Szeged
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,6 @@
 #include <wtf/HashMap.h>
 #include <wtf/OptionSet.h>
 #include <wtf/PrintStream.h>
-#include <wtf/TZoneMalloc.h>
 #include <wtf/Vector.h>
 #include <wtf/text/StringHash.h>
 
@@ -49,10 +48,10 @@ enum class CompileMode : uint8_t {
 };
 
 struct CharacterRange {
-    char32_t begin { 0 };
-    char32_t end { UCHAR_MAX_VALUE };
+    UChar32 begin { 0 };
+    UChar32 end { UCHAR_MAX_VALUE };
 
-    CharacterRange(char32_t begin, char32_t end)
+    CharacterRange(UChar32 begin, UChar32 end)
         : begin(begin)
         , end(end)
     {
@@ -83,7 +82,7 @@ inline CharacterClassWidths& operator|=(CharacterClassWidths& lhs, CharacterClas
 }
 
 struct CharacterClass {
-    WTF_MAKE_TZONE_ALLOCATED(CharacterClass);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     // All CharacterClass instances have to have the full set of matches and ranges,
     // they may have an optional m_table for faster lookups (which must match the
@@ -103,7 +102,7 @@ public:
     {
     }
 
-    CharacterClass(std::initializer_list<char32_t> matches, std::initializer_list<CharacterRange> ranges, std::initializer_list<char32_t> matchesUnicode, std::initializer_list<CharacterRange> rangesUnicode, CharacterClassWidths widths)
+    CharacterClass(std::initializer_list<UChar32> matches, std::initializer_list<CharacterRange> ranges, std::initializer_list<UChar32> matchesUnicode, std::initializer_list<CharacterRange> rangesUnicode, CharacterClassWidths widths)
         : m_matches(matches)
         , m_ranges(ranges)
         , m_matchesUnicode(matchesUnicode)
@@ -115,7 +114,7 @@ public:
     {
     }
 
-    CharacterClass(std::initializer_list<Vector<char32_t>> strings, std::initializer_list<char32_t> matches, std::initializer_list<CharacterRange> ranges, std::initializer_list<char32_t> matchesUnicode, std::initializer_list<CharacterRange> rangesUnicode, CharacterClassWidths widths, bool inCanonicalForm)
+    CharacterClass(std::initializer_list<Vector<UChar32>> strings, std::initializer_list<UChar32> matches, std::initializer_list<CharacterRange> ranges, std::initializer_list<UChar32> matchesUnicode, std::initializer_list<CharacterRange> rangesUnicode, CharacterClassWidths widths, bool inCanonicalForm)
         : m_strings(strings)
         , m_matches(matches)
         , m_ranges(ranges)
@@ -136,10 +135,10 @@ public:
     bool hasStrings() const { return !m_strings.isEmpty(); }
     bool hasSingleCharacters() const { return !m_matches.isEmpty() || !m_ranges.isEmpty() || !m_matchesUnicode.isEmpty() || !m_rangesUnicode.isEmpty(); }
 
-    Vector<Vector<char32_t>> m_strings;
-    Vector<char32_t> m_matches;
+    Vector<Vector<UChar32>> m_strings;
+    Vector<UChar32> m_matches;
     Vector<CharacterRange> m_ranges;
-    Vector<char32_t> m_matchesUnicode;
+    Vector<UChar32> m_matchesUnicode;
     Vector<CharacterRange> m_rangesUnicode;
 
     const char* m_table;
@@ -150,7 +149,7 @@ public:
 };
 
 struct ClassSet : public CharacterClass {
-    WTF_MAKE_TZONE_ALLOCATED(ClassSet);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     ClassSet()
         : CharacterClass()
@@ -164,26 +163,26 @@ public:
     {
     }
 
-    ClassSet(std::initializer_list<char32_t> matches, std::initializer_list<CharacterRange> ranges, std::initializer_list<char32_t> matchesUnicode, std::initializer_list<CharacterRange> rangesUnicode, CharacterClassWidths widths)
+    ClassSet(std::initializer_list<UChar32> matches, std::initializer_list<CharacterRange> ranges, std::initializer_list<UChar32> matchesUnicode, std::initializer_list<CharacterRange> rangesUnicode, CharacterClassWidths widths)
         : CharacterClass(matches, ranges, matchesUnicode, rangesUnicode, widths)
         , m_inCanonicalForm(true)
     {
     }
 
-    ClassSet(std::initializer_list<Vector<char32_t>> strings, std::initializer_list<char32_t> matches, std::initializer_list<CharacterRange> ranges, std::initializer_list<char32_t> matchesUnicode, std::initializer_list<CharacterRange> rangesUnicode, CharacterClassWidths widths)
+    ClassSet(std::initializer_list<Vector<UChar32>> strings, std::initializer_list<UChar32> matches, std::initializer_list<CharacterRange> ranges, std::initializer_list<UChar32> matchesUnicode, std::initializer_list<CharacterRange> rangesUnicode, CharacterClassWidths widths)
         : CharacterClass(matches, ranges, matchesUnicode, rangesUnicode, widths)
         , m_strings(strings)
         , m_inCanonicalForm(true)
     {
     }
 
-    ClassSet(std::initializer_list<Vector<char32_t>> strings, bool inCanonicalForm)
+    ClassSet(std::initializer_list<Vector<UChar32>> strings, bool inCanonicalForm)
         : m_strings(strings)
         , m_inCanonicalForm(inCanonicalForm)
     {
     }
 
-    Vector<Vector<char32_t>> m_strings;
+    Vector<Vector<UChar32>> m_strings;
     bool m_inCanonicalForm : 1;
 };
 
@@ -220,7 +219,7 @@ struct PatternTerm {
     Checked<unsigned> quantityMinCount;
     Checked<unsigned> quantityMaxCount;
     union {
-        char32_t patternCharacter;
+        UChar32 patternCharacter;
         CharacterClass* characterClass;
         unsigned backReferenceSubpatternId;
         struct {
@@ -238,7 +237,7 @@ struct PatternTerm {
     unsigned inputPosition;
     unsigned frameLocation;
 
-    PatternTerm(char32_t ch, MatchDirection matchDirection = Forward)
+    PatternTerm(UChar32 ch, MatchDirection matchDirection = Forward)
         : type(PatternTerm::Type::PatternCharacter)
         , m_capture(false)
         , m_invert(false)
@@ -364,7 +363,7 @@ struct PatternTerm {
     {
         ASSERT(this->type == Type::ParenthesesSubpattern
             || this->type == Type::ParentheticalAssertion);
-        return parentheses.lastSubpatternId && parentheses.lastSubpatternId >= parentheses.subpatternId;
+        return parentheses.lastSubpatternId >= parentheses.subpatternId;
     }
 
     void quantify(unsigned count, QuantifierType type)
@@ -389,7 +388,7 @@ struct PatternTerm {
 };
 
 struct PatternAlternative {
-    WTF_MAKE_TZONE_ALLOCATED(PatternAlternative);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     PatternAlternative(PatternDisjunction* disjunction, unsigned firstSubpatternId, MatchDirection matchDirection = Forward)
         : m_parent(disjunction)
@@ -468,7 +467,7 @@ public:
 };
 
 struct PatternDisjunction {
-    WTF_MAKE_TZONE_ALLOCATED(PatternDisjunction);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     PatternDisjunction(PatternAlternative* parent = nullptr)
         : m_parent(parent)
@@ -738,7 +737,7 @@ private:
 };
 
     void indentForNestingLevel(PrintStream&, unsigned);
-    void dumpUChar32(PrintStream&, char32_t);
+    void dumpUChar32(PrintStream&, UChar32);
     void dumpCharacterClass(PrintStream&, YarrPattern*, CharacterClass*);
 
     struct BackTrackInfoPatternCharacter {

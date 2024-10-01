@@ -29,35 +29,29 @@
 
 namespace WGSL::AST {
 
-struct WorkgroupSize {
-    Expression::Ptr x;
-    Expression::Ptr y;
-    Expression::Ptr z;
-};
-
 class WorkgroupSizeAttribute final : public Attribute {
     WGSL_AST_BUILDER_NODE(WorkgroupSizeAttribute);
-
 public:
     NodeKind kind() const override;
+    Expression& x() { return m_x.get(); }
+    Expression* maybeY() { return m_y; }
+    Expression* maybeZ() { return m_z; }
 
-    Expression& x() { return *m_workgroupSize.x; }
-    Expression* maybeY() { return m_workgroupSize.y; }
-    Expression* maybeZ() { return m_workgroupSize.z; }
-
-    const Expression& x() const { return *m_workgroupSize.x; }
-    const Expression* maybeY() const { return m_workgroupSize.y; }
-    const Expression* maybeZ() const { return m_workgroupSize.z; }
-
-    const WorkgroupSize& workgroupSize() const { return m_workgroupSize; }
+    const Expression& x() const { return m_x.get(); }
+    const Expression* maybeY() const { return m_y; }
+    const Expression* maybeZ() const { return m_z; }
 
 private:
     WorkgroupSizeAttribute(SourceSpan span, Expression::Ref&& x, Expression::Ptr maybeY, Expression::Ptr maybeZ)
         : Attribute(span)
-        , m_workgroupSize({ &x.get(), maybeY, maybeZ })
+        , m_x(WTFMove(x))
+        , m_y(maybeY)
+        , m_z(maybeZ)
     { }
 
-    WorkgroupSize m_workgroupSize;
+    Expression::Ref m_x;
+    Expression::Ptr m_y;
+    Expression::Ptr m_z;
 };
 
 } // namespace WGSL::AST

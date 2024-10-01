@@ -23,11 +23,6 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-enum RenderingMode {
-    "Unaccelerated",
-    "Accelerated",
-};
-
 // https://html.spec.whatwg.org/multipage/canvas.html#canvasrenderingcontext2dsettings
 [
     JSGenerateToJSObject,
@@ -36,5 +31,4 @@ enum RenderingMode {
     // boolean alpha = true;
     boolean desynchronized = false;
     [EnabledBySetting=CanvasColorSpaceEnabled] PredefinedColorSpace colorSpace = "srgb";
-    [EnabledBySetting=DOMTestingAPIsEnabled] RenderingMode? renderingModeForTesting;
 };

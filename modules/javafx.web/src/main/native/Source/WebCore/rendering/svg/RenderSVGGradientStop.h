@@ -45,12 +45,13 @@ private:
     // These overrides are needed to prevent ASSERTs on <svg><stop /></svg>
     // RenderObject's default implementations ASSERT_NOT_REACHED()
     // https://bugs.webkit.org/show_bug.cgi?id=20400
-    RepaintRects localRectsForRepaint(RepaintOutlineBounds) const override { return { }; }
-    FloatRect objectBoundingBox() const override { return { }; }
-    FloatRect strokeBoundingBox() const override { return { }; }
-    FloatRect repaintRectInLocalCoordinates(RepaintRectCalculation) const override { return { }; }
+    LayoutRect clippedOverflowRect(const RenderLayerModelObject*, VisibleRectContext) const override { return LayoutRect(); }
+    FloatRect objectBoundingBox() const override { return FloatRect(); }
+    FloatRect strokeBoundingBox() const override { return FloatRect(); }
+    FloatRect repaintRectInLocalCoordinates() const override { return FloatRect(); }
     bool nodeAtFloatPoint(const HitTestRequest&, HitTestResult&, const FloatPoint&, HitTestAction) override { return false; }
 
+    bool isSVGGradientStop() const override { return true; }
     ASCIILiteral renderName() const override { return "RenderSVGGradientStop"_s; }
 
     bool canHaveChildren() const override { return false; }
@@ -61,4 +62,4 @@ private:
 
 } // namespace WebCore
 
-SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderSVGGradientStop, isRenderSVGGradientStop())
+SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderSVGGradientStop, isSVGGradientStop())

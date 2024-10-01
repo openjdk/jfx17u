@@ -49,7 +49,7 @@ public:
     IDBFactory* indexedDB();
 
 private:
-    static ASCIILiteral supplementName() { return "DOMWindowIndexedDatabase"_s; }
+    static const char* supplementName() { return "DOMWindowIndexedDatabase"; }
 
     RefPtr<IDBFactory> m_idbFactory;
 };
@@ -64,7 +64,7 @@ public:
     IDBFactory* indexedDB();
 
 private:
-    static ASCIILiteral supplementName() { return "WorkerGlobalScopeIndexedDatabase"_s; }
+    static const char* supplementName() { return "WorkerGlobalScopeIndexedDatabase"; }
 
     RefPtr<IDBFactory> m_idbFactory;
     Ref<IDBClient::IDBConnectionProxy> m_connectionProxy;
@@ -93,11 +93,11 @@ IDBFactory* DOMWindowIndexedDatabase::indexedDB()
 #if PLATFORM(JAVA)
     return nullptr;
 #else /* PLATFORM(JAVA) */
-    RefPtr window = this->window();
+    auto* window = this->window();
     if (!window)
         return nullptr;
 
-    RefPtr document = window->document();
+    auto* document = window->document();
     if (!document)
         return nullptr;
 

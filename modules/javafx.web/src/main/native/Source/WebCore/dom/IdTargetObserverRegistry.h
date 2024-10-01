@@ -26,45 +26,45 @@
 #pragma once
 
 #include <memory>
-#include <wtf/CheckedPtr.h>
 #include <wtf/Forward.h>
 #include <wtf/HashMap.h>
 #include <wtf/HashSet.h>
 #include <wtf/text/AtomString.h>
-#include <wtf/text/AtomStringHash.h>
 
 namespace WebCore {
 
 class IdTargetObserver;
 
-class IdTargetObserverRegistry : public CanMakeCheckedPtr {
+class IdTargetObserverRegistry {
     WTF_MAKE_FAST_ALLOCATED;
     friend class IdTargetObserver;
 public:
-    IdTargetObserverRegistry();
-    ~IdTargetObserverRegistry();
+    IdTargetObserverRegistry() { }
 
     void notifyObservers(const AtomString& id);
+    void notifyObservers(const AtomStringImpl& id);
 
 private:
-    void addObserver(const AtomString& id, IdTargetObserver&);
-    void removeObserver(const AtomString& id, IdTargetObserver&);
-    void notifyObserversInternal(const AtomString& id);
+    void addObserver(const AtomString& id, IdTargetObserver*);
+    void removeObserver(const AtomString& id, IdTargetObserver*);
+    void notifyObserversInternal(const AtomStringImpl& id);
 
-    struct ObserverSet : public CanMakeCheckedPtr {
-        WTF_MAKE_STRUCT_FAST_ALLOCATED;
-        HashSet<CheckedRef<IdTargetObserver>> observers;
-    };
-
-    using IdToObserverSetMap = HashMap<AtomString, std::unique_ptr<ObserverSet>>;
+    typedef HashSet<IdTargetObserver*> ObserverSet;
+    typedef HashMap<const AtomStringImpl*, std::unique_ptr<ObserverSet>> IdToObserverSetMap;
     IdToObserverSetMap m_registry;
-    CheckedPtr<ObserverSet> m_notifyingObserversInSet;
+    ObserverSet* m_notifyingObserversInSet { nullptr };
 };
 
 inline void IdTargetObserverRegistry::notifyObservers(const AtomString& id)
 {
-    ASSERT(!id.isEmpty());
+    if (!id.isEmpty())
+        return notifyObservers(*id.impl());
+}
+
+inline void IdTargetObserverRegistry::notifyObservers(const AtomStringImpl& id)
+{
     ASSERT(!m_notifyingObserversInSet);
+    ASSERT(id.length());
     if (m_registry.isEmpty())
         return;
     IdTargetObserverRegistry::notifyObserversInternal(id);

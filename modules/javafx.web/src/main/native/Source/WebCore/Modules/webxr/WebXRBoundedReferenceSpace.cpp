@@ -77,11 +77,11 @@ const Vector<Ref<DOMPointReadOnly>>& WebXRBoundedReferenceSpace::boundsGeometry(
 ExceptionOr<Ref<WebXRReferenceSpace>> WebXRBoundedReferenceSpace::getOffsetReferenceSpace(const WebXRRigidTransform& offsetTransform)
 {
     if (!m_session)
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
 
-    RefPtr document = downcast<Document>(scriptExecutionContext());
+    auto* document = downcast<Document>(scriptExecutionContext());
     if (!document)
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
 
     // https://immersive-web.github.io/webxr/#dom-xrreferencespace-getoffsetreferencespace
     // Set offsetSpace’s origin offset to the result of multiplying base’s origin offset by originOffset in the relevant realm of base.

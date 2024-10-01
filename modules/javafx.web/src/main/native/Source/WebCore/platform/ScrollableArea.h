@@ -28,11 +28,9 @@
 #include "KeyboardScroll.h"
 #include "RectEdges.h"
 #include "ScrollAlignment.h"
-#include "ScrollAnchoringController.h"
 #include "ScrollSnapOffsetsInfo.h"
 #include "ScrollTypes.h"
 #include "Scrollbar.h"
-#include "ScrollbarColor.h"
 #include <wtf/CheckedPtr.h>
 #include <wtf/Forward.h>
 #include <wtf/WeakPtr.h>
@@ -53,11 +51,9 @@ class ScrollAnimator;
 class ScrollbarsController;
 class GraphicsLayer;
 class TiledBacking;
-class Element;
 
 enum class WheelScrollGestureState : uint8_t;
 
-struct ScrollbarColor;
 struct ScrollbarGutter;
 
 inline int offsetForOrientation(ScrollOffset offset, ScrollbarOrientation orientation)
@@ -147,8 +143,6 @@ public:
     virtual OverscrollBehavior horizontalOverscrollBehavior() const { return OverscrollBehavior::Auto; }
     virtual OverscrollBehavior verticalOverscrollBehavior() const { return OverscrollBehavior::Auto; }
 
-    WEBCORE_EXPORT virtual Color scrollbarThumbColorStyle() const;
-    WEBCORE_EXPORT virtual Color scrollbarTrackColorStyle() const;
     WEBCORE_EXPORT virtual ScrollbarGutter scrollbarGutterStyle() const;
     virtual ScrollbarWidth scrollbarWidthStyle() const { return ScrollbarWidth::Auto; }
 
@@ -246,11 +240,11 @@ public:
     Scrollbar* scrollbarForDirection(ScrollDirection direction) const
     {
         switch (direction) {
-        case ScrollDirection::ScrollUp:
-        case ScrollDirection::ScrollDown:
+        case ScrollUp:
+        case ScrollDown:
             return verticalScrollbar();
-        case ScrollDirection::ScrollLeft:
-        case ScrollDirection::ScrollRight:
+        case ScrollLeft:
+        case ScrollRight:
             return horizontalScrollbar();
         }
         return nullptr;
@@ -412,9 +406,6 @@ public:
     FloatSize deltaForPropagation(const FloatSize&) const;
     WEBCORE_EXPORT virtual float adjustVerticalPageScrollStepForFixedContent(float step);
     virtual bool needsAnimatedScroll() const { return false; }
-    virtual void updateScrollAnchoringElement() { }
-    virtual void updateScrollPositionForScrollAnchoringController() { }
-    virtual void invalidateScrollAnchoringElement() { }
 
 protected:
     WEBCORE_EXPORT ScrollableArea();
@@ -435,7 +426,7 @@ protected:
     bool hasLayerForScrollCorner() const;
 
     WEBCORE_EXPORT virtual void createScrollbarsController();
-    WEBCORE_EXPORT void setScrollbarsController(std::unique_ptr<ScrollbarsController>&&);
+    void setScrollbarsController(std::unique_ptr<ScrollbarsController>&&);
 
     LayoutRect getRectToExposeForScrollIntoView(const LayoutRect& visibleBounds, const LayoutRect& exposeRect, const ScrollAlignment& alignX, const ScrollAlignment& alignY, const std::optional<LayoutRect> = std::nullopt) const;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2003, 2008, 2009 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,13 +27,12 @@
 
 #include "YarrFlags.h"
 #include <wtf/OptionSet.h>
-#include <wtf/TZoneMalloc.h>
 #include <wtf/text/WTFString.h>
 
 namespace JSC { namespace Yarr {
 
 class JS_EXPORT_PRIVATE RegularExpression {
-    WTF_MAKE_TZONE_ALLOCATED(RegularExpression);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit RegularExpression(StringView, OptionSet<Flags> = { });
     ~RegularExpression();

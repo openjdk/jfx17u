@@ -44,7 +44,7 @@ public:
 #endif // PLATFORM(IOS_FAMILY)
 
 private:
-    static ASCIILiteral supplementName();
+    static const char* supplementName();
 
     mutable RefPtr<Geolocation> m_geolocation;
     Navigator& m_navigator;

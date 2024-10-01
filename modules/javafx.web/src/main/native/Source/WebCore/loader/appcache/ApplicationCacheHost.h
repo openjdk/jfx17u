@@ -31,7 +31,6 @@
 
 #pragma once
 
-#include "LoaderMalloc.h"
 #include <wtf/CheckedRef.h>
 #include <wtf/Deque.h>
 #include <wtf/URL.h>
@@ -56,7 +55,7 @@ class SubstituteData;
 class WeakPtrImplWithEventTargetData;
 
 class ApplicationCacheHost {
-    WTF_MAKE_NONCOPYABLE(ApplicationCacheHost); WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Loader);
+    WTF_MAKE_NONCOPYABLE(ApplicationCacheHost); WTF_MAKE_FAST_ALLOCATED;
 public:
     // The Status numeric values are specified in the HTML5 spec.
     enum Status {
@@ -153,7 +152,7 @@ private:
     bool maybeLoadFallbackForMainError(const ResourceRequest&, const ResourceError&);
 
     WeakPtr<DOMApplicationCache, WeakPtrImplWithEventTargetData> m_domApplicationCache;
-    SingleThreadWeakRef<DocumentLoader> m_documentLoader;
+    CheckedRef<DocumentLoader> m_documentLoader;
 
     bool m_defersEvents { true }; // Events are deferred until after document onload.
     Vector<DeferredEvent> m_deferredEvents;

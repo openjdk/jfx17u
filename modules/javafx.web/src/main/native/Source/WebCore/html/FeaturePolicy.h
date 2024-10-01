@@ -44,7 +44,6 @@ public:
         Microphone,
         SpeakerSelection,
         DisplayCapture,
-        Gamepad,
         Geolocation,
         Payment,
         ScreenWakeLock,
@@ -62,7 +61,6 @@ public:
 #if ENABLE(WEBXR)
         XRSpatialTracking,
 #endif
-        PrivateToken,
     };
     bool allows(Type, const SecurityOriginData&) const;
 
@@ -79,7 +77,6 @@ private:
     AllowRule m_microphoneRule;
     AllowRule m_speakerSelectionRule;
     AllowRule m_displayCaptureRule;
-    AllowRule m_gamepadRule;
     AllowRule m_geolocationRule;
     AllowRule m_paymentRule;
     AllowRule m_syncXHRRule;
@@ -98,7 +95,6 @@ private:
 #if ENABLE(WEBXR)
     AllowRule m_xrSpatialTrackingRule;
 #endif
-    AllowRule m_privateTokenRule;
 };
 
 enum class LogFeaturePolicyFailure : bool { No, Yes };

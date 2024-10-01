@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2021 Apple Inc. All rights reserved.
  * Copyright (C) 2021 Igalia S.A. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,14 +29,13 @@
 #include "CacheableIdentifier.h"
 #include "StructureSet.h"
 #include <wtf/Box.h>
-#include <wtf/TZoneMalloc.h>
 
 namespace JSC {
 
 class CheckPrivateBrandStatus;
 
 class CheckPrivateBrandVariant {
-    WTF_MAKE_TZONE_ALLOCATED(CheckPrivateBrandVariant);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     CheckPrivateBrandVariant(CacheableIdentifier, const StructureSet& = StructureSet());
 

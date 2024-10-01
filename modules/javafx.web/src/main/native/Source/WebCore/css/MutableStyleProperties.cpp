@@ -29,7 +29,6 @@
 #include "CSSCustomPropertyValue.h"
 #include "CSSParser.h"
 #include "CSSValuePool.h"
-#include "ImmutableStyleProperties.h"
 #include "PropertySetCSSStyleDeclaration.h"
 #include "StylePropertiesInlines.h"
 #include "StylePropertyShorthand.h"
@@ -54,8 +53,8 @@ MutableStyleProperties::~MutableStyleProperties() = default;
 MutableStyleProperties::MutableStyleProperties(const StyleProperties& other)
     : StyleProperties(other.cssParserMode())
 {
-    if (auto* mutableProperties = dynamicDowncast<MutableStyleProperties>(other))
-        m_propertyVector = mutableProperties->m_propertyVector;
+    if (is<MutableStyleProperties>(other))
+        m_propertyVector = downcast<MutableStyleProperties>(other).m_propertyVector;
     else {
         m_propertyVector = WTF::map(downcast<ImmutableStyleProperties>(other), [](auto property) {
             return property.toCSSProperty();
@@ -81,11 +80,6 @@ Ref<MutableStyleProperties> MutableStyleProperties::create(Vector<CSSProperty>&&
 Ref<MutableStyleProperties> MutableStyleProperties::createEmpty()
 {
     return adoptRef(*new MutableStyleProperties({ }));
-}
-
-Ref<ImmutableStyleProperties> MutableStyleProperties::immutableCopy() const
-{
-    return ImmutableStyleProperties::createDeduplicating(m_propertyVector.data(), m_propertyVector.size(), cssParserMode());
 }
 
 // FIXME: Change StylePropertyShorthand::properties to return a Span and delete this.
@@ -300,7 +294,7 @@ int MutableStyleProperties::findPropertyIndex(CSSPropertyID propertyID) const
     // Convert here propertyID into an uint16_t to compare it with the metadata's m_propertyID to avoid
     // the compiler converting it to an int multiple times in the loop.
     auto* properties = m_propertyVector.data();
-    uint16_t id = enumToUnderlyingType(propertyID);
+    uint16_t id = static_cast<uint16_t>(propertyID);
     for (int n = m_propertyVector.size() - 1 ; n >= 0; --n) {
         if (properties[n].metadata().m_propertyID == id)
             return n;

@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "ServiceWorkerTypes.h"
 #include "ServiceWorkerUpdateViaCache.h"
 
@@ -77,3 +79,5 @@ struct ImportedScriptAttributes {
 };
 
 }
+
+#endif // ENABLE(SERVICE_WORKER)

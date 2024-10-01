@@ -134,7 +134,7 @@ inline void add(Hasher& hasher, const FontCreationContext& fontCreationContext)
 {
     if (fontCreationContext.fontFaceFeatures())
         add(hasher, *fontCreationContext.fontFaceFeatures());
-    add(hasher, fontCreationContext.fontFaceCapabilities());
+    add(hasher, fontCreationContext.fontFaceCapabilities().tied());
     if (fontCreationContext.fontPaletteValues())
         add(hasher, *fontCreationContext.fontPaletteValues());
     if (fontCreationContext.fontFeatureValues())

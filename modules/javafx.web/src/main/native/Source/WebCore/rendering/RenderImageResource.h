@@ -28,7 +28,6 @@
 #include "CachedImage.h"
 #include "CachedResourceHandle.h"
 #include "StyleImage.h"
-#include <wtf/CheckedPtr.h>
 #include <wtf/IsoMalloc.h>
 #include <wtf/WeakPtr.h>
 
@@ -37,7 +36,7 @@ namespace WebCore {
 class CachedImage;
 class RenderElement;
 
-class RenderImageResource : public CanMakeCheckedPtr {
+class RenderImageResource {
     WTF_MAKE_NONCOPYABLE(RenderImageResource); WTF_MAKE_ISO_ALLOCATED(RenderImageResource);
 public:
     RenderImageResource();
@@ -71,7 +70,7 @@ protected:
 private:
     virtual LayoutSize imageSize(float multiplier, CachedImage::SizeType) const;
 
-    SingleThreadWeakPtr<RenderElement> m_renderer;
+    WeakPtr<RenderElement> m_renderer;
     CachedResourceHandle<CachedImage> m_cachedImage;
     bool m_cachedImageRemoveClientIsNeeded { true };
 };

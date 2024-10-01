@@ -28,7 +28,6 @@
 #include <wtf/Algorithms.h>
 #include <wtf/HashMap.h>
 #include <wtf/ThreadSafeWeakPtr.h>
-#include <wtf/Vector.h>
 
 namespace WTF {
 
@@ -109,12 +108,7 @@ public:
     {
         Locker locker { m_lock };
         amortizedCleanupIfNeeded();
-        auto it = m_map.find(static_cast<const T*>(&value));
-        if (it == m_map.end())
-            return false;
-        bool wasDeleted = it->value && it->value->objectHasStartedDeletion();
-        bool result = m_map.remove(it);
-        return !wasDeleted && result;
+        return m_map.remove(static_cast<const T*>(&value));
     }
 
     void clear()
@@ -129,10 +123,7 @@ public:
     {
         Locker locker { m_lock };
         amortizedCleanupIfNeeded();
-        auto it = m_map.find(static_cast<const T*>(&value));
-        if (it == m_map.end())
-            return false;
-        return it->value && !it->value->objectHasStartedDeletion();
+        return m_map.contains(static_cast<const T*>(&value));
     }
 
     bool isEmptyIgnoringNullReferences() const
@@ -151,30 +142,19 @@ public:
         Vector<Ref<T>> strongReferences;
         {
             Locker locker { m_lock };
-            bool hasNullReferences = false;
-            strongReferences = compactMap(m_map, [&hasNullReferences](auto& pair) -> RefPtr<T> {
-                if (RefPtr strongReference = pair.value->template makeStrongReferenceIfPossible<T>(pair.key))
-                    return strongReference;
-                hasNullReferences = true;
-                return nullptr;
+            strongReferences.reserveInitialCapacity(m_map.size());
+            m_map.removeIf([&] (auto& pair) {
+                auto& controlBlock = pair.value;
+                auto* objectOfCorrectType = pair.key;
+                if (auto refPtr = controlBlock->template makeStrongReferenceIfPossible<T>(objectOfCorrectType)) {
+                    strongReferences.uncheckedAppend(refPtr.releaseNonNull());
+                    return false;
+                }
+                return true;
             });
-            if (hasNullReferences)
-                m_map.removeIf([](auto& pair) { return pair.value->objectHasStartedDeletion(); });
             cleanupHappened();
         }
         return strongReferences;
-    }
-
-    Vector<ThreadSafeWeakPtr<T>> weakValues() const
-    {
-        Vector<ThreadSafeWeakPtr<T>> weakReferences;
-        {
-            Locker locker { m_lock };
-            weakReferences = WTF::map(m_map, [](auto& pair) {
-                return ThreadSafeWeakPtr { *pair.value, *pair.key };
-            });
-        }
-        return weakReferences;
     }
 
     template<typename Functor>

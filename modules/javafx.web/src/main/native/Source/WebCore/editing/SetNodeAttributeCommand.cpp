@@ -42,21 +42,21 @@ SetNodeAttributeCommand::SetNodeAttributeCommand(Ref<Element>&& element, const Q
 
 void SetNodeAttributeCommand::doApply()
 {
-    auto element = protectedElement();
-    m_oldValue = element->getAttribute(m_attribute);
-    element->setAttribute(m_attribute, m_value);
+    m_oldValue = m_element->getAttribute(m_attribute);
+    m_element->setAttribute(m_attribute, m_value);
 }
 
 void SetNodeAttributeCommand::doUnapply()
 {
-    protectedElement()->setAttribute(m_attribute, m_oldValue);
-    m_oldValue = { };
+    m_element->setAttribute(m_attribute, m_oldValue);
+    AtomStringImpl* nullString = nullptr;
+    m_oldValue = nullString;
 }
 
 #ifndef NDEBUG
 void SetNodeAttributeCommand::getNodesInCommand(HashSet<Ref<Node>>& nodes)
 {
-    addNodeAndDescendants(protectedElement().ptr(), nodes);
+    addNodeAndDescendants(m_element.ptr(), nodes);
 }
 #endif
 

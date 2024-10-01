@@ -48,13 +48,6 @@ TrackListBase::~TrackListBase()
 {
 }
 
-void TrackListBase::didMoveToNewDocument(Document& newDocument)
-{
-    ActiveDOMObject::didMoveToNewDocument(newDocument);
-    for (RefPtr track : m_inbandTracks)
-        track->didMoveToNewDocument(newDocument);
-}
-
 WebCoreOpaqueRoot TrackListBase::opaqueRoot()
 {
     if (auto* rootObserver = m_opaqueRootObserver.get())

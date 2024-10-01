@@ -35,10 +35,6 @@
 #include <arpa/inet.h>
 #endif
 
-#if OS(QNX)
-#include <sys/socket.h>
-#endif
-
 namespace WebCore {
 
 void prefetchDNS(const String& hostname)

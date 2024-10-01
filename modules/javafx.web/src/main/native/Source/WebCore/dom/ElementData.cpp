@@ -42,10 +42,10 @@ DEFINE_ALLOCATOR_WITH_HEAP_IDENTIFIER(ShareableElementData);
 
 void ElementData::destroy()
 {
-    if (auto* uniqueData = dynamicDowncast<UniqueElementData>(*this))
-        delete uniqueData;
+    if (is<UniqueElementData>(*this))
+        delete downcast<UniqueElementData>(this);
     else
-        delete uncheckedDowncast<ShareableElementData>(this);
+        delete downcast<ShareableElementData>(this);
 }
 
 ElementData::ElementData()

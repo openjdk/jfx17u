@@ -287,55 +287,31 @@ void WTFReportBacktraceWithPrefix(const char* prefix)
     WTFReportBacktraceWithPrefixAndPrintStream(out, prefix);
 }
 
-static constexpr int kDefaultFramesToShow = 31;
-static constexpr int kDefaultFramesToSkip = 2;
-
-void WTFReportBacktraceWithStackDepth(int framesToShow)
-{
-    WTFReportBacktraceWithPrefixAndStackDepth("", framesToShow);
-}
-
-void WTFReportBacktraceWithPrefixAndStackDepth(const char* prefix, int framesToShow)
-{
-    int frames = framesToShow + kDefaultFramesToSkip;
-    Vector<void*> samples;
-    samples.reserveInitialCapacity(frames);
-
-    WTFGetBacktrace(samples.data(), &frames);
-    CrashLogPrintStream out;
-    if (frames > kDefaultFramesToSkip)
-        WTFPrintBacktraceWithPrefixAndPrintStream(out, samples.data() + kDefaultFramesToSkip, framesToShow, prefix);
-    else
-        out.print("%sno stacktrace available", prefix);
-}
-
 void WTFReportBacktraceWithPrefixAndPrintStream(PrintStream& out, const char* prefix)
 {
-    void* samples[kDefaultFramesToShow + kDefaultFramesToSkip];
-    int frames = kDefaultFramesToShow + kDefaultFramesToSkip;
+    static constexpr int framesToShow = 31;
+    static constexpr int framesToSkip = 2;
+    void* samples[framesToShow + framesToSkip];
+    int frames = framesToShow + framesToSkip;
 
     WTFGetBacktrace(samples, &frames);
-    if (frames > kDefaultFramesToSkip)
-        WTFPrintBacktraceWithPrefixAndPrintStream(out, samples + kDefaultFramesToSkip, frames - kDefaultFramesToSkip, prefix);
-    else
-        out.print("%sno stacktrace available", prefix);
+    WTFPrintBacktraceWithPrefixAndPrintStream(out, samples + framesToSkip, frames - framesToSkip, prefix);
 }
 
 void WTFReportBacktrace()
 {
-    void* samples[kDefaultFramesToShow + kDefaultFramesToSkip];
-    int frames = kDefaultFramesToShow + kDefaultFramesToSkip;
+    static constexpr int framesToShow = 31;
+    static constexpr int framesToSkip = 2;
+    void* samples[framesToShow + framesToSkip];
+    int frames = framesToShow + framesToSkip;
 
     WTFGetBacktrace(samples, &frames);
-    if (frames > kDefaultFramesToSkip)
-        WTFPrintBacktrace(samples + kDefaultFramesToSkip, frames - kDefaultFramesToSkip);
-    else
-        CrashLogPrintStream { }.print("no stacktrace available");
+    WTFPrintBacktrace(samples + framesToSkip, frames - framesToSkip);
 }
 
 void WTFPrintBacktraceWithPrefixAndPrintStream(PrintStream& out, void** stack, int size, const char* prefix)
 {
-    out.print(StackTracePrinter { { stack, static_cast<size_t>(std::max(0, size)) }, prefix });
+    out.print(StackTracePrinter { { stack, static_cast<size_t>(size) }, prefix });
 }
 
 void WTFPrintBacktrace(void** stack, int size)
@@ -356,7 +332,7 @@ void WTFCrash()
 #else
     *(int *)(uintptr_t)0xbbadbeef = 0;
     // More reliable, but doesn't say BBADBEEF.
-#if COMPILER(GCC) || COMPILER(CLANG)
+#if COMPILER(GCC_COMPATIBLE)
     __builtin_trap();
 #else
     ((void(*)())nullptr)();
@@ -629,8 +605,10 @@ void WTFInitializeLogChannelStatesFromString(WTFLogChannel* channels[], size_t c
 #if !RELEASE_LOG_DISABLED
 void WTFReleaseLogStackTrace(WTFLogChannel* channel)
 {
-    void* stack[kDefaultFramesToShow + kDefaultFramesToSkip];
-    int frames = kDefaultFramesToShow + kDefaultFramesToSkip;
+    static constexpr int framesToShow = 32;
+    static constexpr int framesToSkip = 2;
+    void* stack[framesToShow + framesToSkip];
+    int frames = framesToShow + framesToSkip;
     WTFGetBacktrace(stack, &frames);
     StackTraceSymbolResolver { { stack, static_cast<size_t>(frames) } }.forEach([&](int frameNumber, void* stackFrame, const char* name) {
 #if USE(OS_LOG)
@@ -679,11 +657,11 @@ void WTFReleaseLogStackTrace(WTFLogChannel* channel)
 // See comment above on the ordering.
 #define CRASH_GPR0 "x16"
 #define CRASH_GPR1 "x17"
-#define CRASH_GPR2 "x19" // We skip x18, which is reserved on ARM64 for platform use.
-#define CRASH_GPR3 "x20"
-#define CRASH_GPR4 "x21"
-#define CRASH_GPR5 "x22"
-#define CRASH_GPR6 "x23"
+#define CRASH_GPR2 "x18"
+#define CRASH_GPR3 "x19"
+#define CRASH_GPR4 "x20"
+#define CRASH_GPR5 "x21"
+#define CRASH_GPR6 "x22"
 
 #endif // CPU(ARM64)
 

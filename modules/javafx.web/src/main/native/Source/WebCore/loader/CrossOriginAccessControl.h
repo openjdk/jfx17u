@@ -70,8 +70,7 @@ enum class HTTPHeadersToKeepFromCleaning : uint8_t {
     Origin = 1 << 2,
     UserAgent = 1 << 3,
     AcceptEncoding = 1 << 4,
-    CacheControl = 1 << 5,
-    Pragma = 1 << 6
+    CacheControl = 1 << 5
 };
 
 OptionSet<HTTPHeadersToKeepFromCleaning> httpHeadersToKeepFromCleaning(const HTTPHeaderMap&);
@@ -97,3 +96,19 @@ std::optional<ResourceError> validateRangeRequestedFlag(const ResourceRequest&, 
 String validateCrossOriginRedirectionURL(const URL&);
 
 } // namespace WebCore
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::HTTPHeadersToKeepFromCleaning> {
+    using values = EnumValues<
+        WebCore::HTTPHeadersToKeepFromCleaning,
+        WebCore::HTTPHeadersToKeepFromCleaning::ContentType,
+        WebCore::HTTPHeadersToKeepFromCleaning::Referer,
+        WebCore::HTTPHeadersToKeepFromCleaning::Origin,
+        WebCore::HTTPHeadersToKeepFromCleaning::UserAgent,
+        WebCore::HTTPHeadersToKeepFromCleaning::AcceptEncoding,
+        WebCore::HTTPHeadersToKeepFromCleaning::CacheControl
+    >;
+};
+
+} // namespace WTF

@@ -26,7 +26,6 @@
 #pragma once
 
 #include <wtf/MallocPtr.h>
-#include <wtf/NeverDestroyed.h>
 #include <wtf/Noncopyable.h>
 #include <wtf/Nonmovable.h>
 #include <wtf/Vector.h>
@@ -49,7 +48,7 @@ namespace AST {
 
 class Node;
 
-DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER_AND_EXPORT(WGSLAST, WTF_INTERNAL);
+DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(WGSLAST);
 
 class Builder {
     WTF_MAKE_NONCOPYABLE(Builder);

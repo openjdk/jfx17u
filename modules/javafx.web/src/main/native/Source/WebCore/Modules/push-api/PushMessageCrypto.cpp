@@ -26,6 +26,8 @@
 #include "config.h"
 #include "PushMessageCrypto.h"
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "PushCrypto.h"
 #include <wtf/ByteOrder.h>
 #include <wtf/CryptographicallyRandomNumber.h>
@@ -299,3 +301,5 @@ std::optional<Vector<uint8_t>> decryptAESGCMPayload(const ClientKeys& clientKeys
 }
 
 } // namespace WebCore::PushCrypto
+
+#endif // ENABLE(SERVICE_WORKER)

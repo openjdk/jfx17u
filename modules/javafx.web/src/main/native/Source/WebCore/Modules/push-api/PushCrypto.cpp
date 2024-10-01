@@ -26,6 +26,8 @@
 #include "config.h"
 #include "PushCrypto.h"
 
+#if ENABLE(SERVICE_WORKER)
+
 #include <wtf/Scope.h>
 
 namespace WebCore::PushCrypto {
@@ -60,3 +62,5 @@ std::optional<Vector<uint8_t>> decryptAES128GCM(std::span<const uint8_t>, std::s
 #endif // !PLATFORM(COCOA)
 
 } // namespace WebCore::PushCrypto
+
+#endif // ENABLE(SERVICE_WORKER)

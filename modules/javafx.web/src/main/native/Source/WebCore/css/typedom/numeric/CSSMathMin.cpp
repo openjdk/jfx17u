@@ -45,11 +45,11 @@ ExceptionOr<Ref<CSSMathMin>> CSSMathMin::create(FixedVector<CSSNumberish>&& numb
 ExceptionOr<Ref<CSSMathMin>> CSSMathMin::create(Vector<Ref<CSSNumericValue>>&& values)
 {
     if (values.isEmpty())
-        return Exception { ExceptionCode::SyntaxError };
+        return Exception { SyntaxError };
 
     auto type = CSSNumericType::addTypes(values);
     if (!type)
-        return Exception { ExceptionCode::TypeError };
+        return Exception { TypeError };
 
     return adoptRef(*new CSSMathMin(WTFMove(values), WTFMove(*type)));
 }

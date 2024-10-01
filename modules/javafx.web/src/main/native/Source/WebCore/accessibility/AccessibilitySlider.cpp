@@ -112,12 +112,12 @@ const AtomString& AccessibilitySlider::getAttribute(const QualifiedName& attribu
     return nullAtom();
 }
 
-AccessibilityObject* AccessibilitySlider::elementAccessibilityHitTest(const IntPoint& point) const
+AXCoreObject* AccessibilitySlider::elementAccessibilityHitTest(const IntPoint& point) const
 {
     if (m_children.size()) {
         ASSERT(m_children.size() == 1);
         if (m_children[0]->elementRect().contains(point))
-            return dynamicDowncast<AccessibilityObject>(m_children[0].get());
+            return m_children[0].get();
     }
 
     return axObjectCache()->getOrCreate(renderer());
@@ -176,7 +176,7 @@ LayoutRect AccessibilitySliderThumb::elementRect() const
         return LayoutRect();
 
     RenderObject* sliderRenderer = m_parent->renderer();
-    if (!sliderRenderer || !sliderRenderer->isRenderSlider())
+    if (!sliderRenderer || !sliderRenderer->isSlider())
         return LayoutRect();
     if (auto* thumbRenderer = downcast<RenderSlider>(*sliderRenderer).element().sliderThumbElement()->renderer())
         return thumbRenderer->absoluteBoundingBoxRect();

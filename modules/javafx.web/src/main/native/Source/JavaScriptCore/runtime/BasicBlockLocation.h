@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2014 Apple Inc. All rights reserved.
  * Copyright (C) 2014 Saam Barati. <saambarati1@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,6 @@
 
 #include "CPU.h"
 #include "MacroAssembler.h"
-#include <wtf/TZoneMalloc.h>
 #include <wtf/Vector.h>
 
 namespace JSC {
@@ -37,7 +36,7 @@ class CCallHelpers;
 class LLIntOffsetsExtractor;
 
 class BasicBlockLocation {
-    WTF_MAKE_TZONE_ALLOCATED(BasicBlockLocation);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     typedef std::pair<int, int> Gap;
 

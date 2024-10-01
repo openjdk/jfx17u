@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2024 Apple Inc. All rights reserved.
+ * Copyright (C) 2005-2019 Apple Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -110,7 +110,6 @@ public:
 
     unsigned size() const;
     unsigned capacity() const;
-    size_t byteSize() const;
     bool isEmpty() const;
 
     void reserveInitialCapacity(unsigned keyCount) { m_impl.reserveInitialCapacity(keyCount); }
@@ -134,7 +133,6 @@ public:
     const_iterator find(const KeyType&) const;
     bool contains(const KeyType&) const;
     MappedPeekType get(const KeyType&) const;
-    std::optional<MappedType> getOptional(const KeyType&) const;
 
     // Same as get(), but aggressively inlined.
     MappedPeekType inlineGet(const KeyType&) const;
@@ -167,8 +165,6 @@ public:
     void clear();
 
     MappedTakeType take(const KeyType&); // efficient combination of get with remove
-    MappedTakeType take(iterator);
-    MappedTakeType takeFirst();
 
     // An alternate version of find() that finds the object by hashing and comparing
     // with some other type, to avoid the cost of type conversion. HashTranslator
@@ -191,22 +187,13 @@ public:
     template<typename HashTranslator, typename K, typename V> AddResult add(K&&, V&&);
 
     // Overloads for smart pointer keys that take the raw pointer type as the parameter.
-    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value, iterator>::type find(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>*);
-    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value, const_iterator>::type find(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>*) const;
-    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value, bool>::type contains(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>*) const;
-    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value, MappedPeekType>::type inlineGet(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>*) const;
-    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value, MappedPeekType>::type get(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>*) const;
-    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value, bool>::type remove(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>*);
-    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value, MappedTakeType>::type take(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>*);
-
-    // Overloads for non-nullable smart pointer values that take the raw reference type as the parameter.
-    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value && !IsSmartPtr<K>::isNullable, iterator>::type find(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>&);
-    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value && !IsSmartPtr<K>::isNullable, const_iterator>::type find(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>&) const;
-    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value && !IsSmartPtr<K>::isNullable, bool>::type contains(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>&) const;
-    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value && !IsSmartPtr<K>::isNullable, MappedPeekType>::type inlineGet(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>&) const;
-    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value && !IsSmartPtr<K>::isNullable, MappedPeekType>::type get(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>&) const;
-    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value && !IsSmartPtr<K>::isNullable, bool>::type remove(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>&);
-    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value && !IsSmartPtr<K>::isNullable, MappedTakeType>::type take(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>&);
+    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value, iterator>::type find(typename GetPtrHelper<K>::PtrType);
+    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value, const_iterator>::type find(typename GetPtrHelper<K>::PtrType) const;
+    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value, bool>::type contains(typename GetPtrHelper<K>::PtrType) const;
+    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value, MappedPeekType>::type inlineGet(typename GetPtrHelper<K>::PtrType) const;
+    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value, MappedPeekType>::type get(typename GetPtrHelper<K>::PtrType) const;
+    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value, bool>::type remove(typename GetPtrHelper<K>::PtrType);
+    template<typename K = KeyType> typename std::enable_if<IsSmartPtr<K>::value, MappedTakeType>::type take(typename GetPtrHelper<K>::PtrType);
 
     void checkConsistency() const;
 
@@ -286,12 +273,6 @@ template<typename T, typename U, typename V, typename W, typename X, typename Y>
 inline unsigned HashMap<T, U, V, W, X, Y>::capacity() const
 {
     return m_impl.capacity();
-}
-
-template<typename T, typename U, typename V, typename W, typename X, typename Y>
-inline size_t HashMap<T, U, V, W, X, Y>::byteSize() const
-{
-    return m_impl.byteSize();
 }
 
 template<typename T, typename U, typename V, typename W, typename X, typename Y>
@@ -489,15 +470,6 @@ inline auto HashMap<T, U, V, W, X, Y>::get(const KeyType& key) const -> MappedPe
     return get<IdentityTranslatorType>(key);
 }
 
-template<typename T, typename U, typename V, typename W, typename X, typename Y>
-inline auto HashMap<T, U, V, W, X, Y>::getOptional(const KeyType& key) const -> std::optional<MappedType>
-{
-    auto* entry = const_cast<HashTableType&>(m_impl).template lookup<IdentityTranslatorType>(key);
-    if (!entry)
-        return { };
-    return { entry->value };
-}
-
 template<typename T, typename U, typename V, typename W, typename MappedTraits, typename Y>
 ALWAYS_INLINE auto HashMap<T, U, V, W, MappedTraits, Y>::inlineGet(const KeyType& key) const -> MappedPeekType
 {
@@ -539,74 +511,6 @@ inline void HashMap<T, U, V, W, X, Y>::clear()
 template<typename T, typename U, typename V, typename W, typename MappedTraits, typename Y>
 auto HashMap<T, U, V, W, MappedTraits, Y>::take(const KeyType& key) -> MappedTakeType
 {
-    return take(find(key));
-}
-
-template<typename T, typename U, typename V, typename W, typename MappedTraits, typename Y>
-auto HashMap<T, U, V, W, MappedTraits, Y>::take(iterator it) -> MappedTakeType
-{
-    if (it == end())
-        return MappedTraits::take(MappedTraits::emptyValue());
-    auto value = MappedTraits::take(WTFMove(it->value));
-    remove(it);
-    return value;
-}
-
-template<typename T, typename U, typename V, typename W, typename MappedTraits, typename Y>
-auto HashMap<T, U, V, W, MappedTraits, Y>::takeFirst() -> MappedTakeType
-{
-    return take(begin());
-}
-
-template<typename T, typename U, typename V, typename W, typename X, typename Y>
-template<typename K>
-inline auto HashMap<T, U, V, W, X, Y>::find(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>* key) -> typename std::enable_if<IsSmartPtr<K>::value, iterator>::type
-{
-    return m_impl.template find<HashMapTranslator<KeyValuePairTraits, HashFunctions>>(key);
-}
-
-template<typename T, typename U, typename V, typename W, typename X, typename Y>
-template<typename K>
-inline auto HashMap<T, U, V, W, X, Y>::find(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>* key) const -> typename std::enable_if<IsSmartPtr<K>::value, const_iterator>::type
-{
-    return m_impl.template find<HashMapTranslator<KeyValuePairTraits, HashFunctions>>(key);
-}
-
-template<typename T, typename U, typename V, typename W, typename X, typename Y>
-template<typename K>
-inline auto HashMap<T, U, V, W, X, Y>::contains(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>* key) const -> typename std::enable_if<IsSmartPtr<K>::value, bool>::type
-{
-    return m_impl.template contains<HashMapTranslator<KeyValuePairTraits, HashFunctions>>(key);
-}
-
-template<typename T, typename U, typename V, typename W, typename X, typename Y>
-template<typename K>
-inline auto HashMap<T, U, V, W, X, Y>::inlineGet(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>* key) const -> typename std::enable_if<IsSmartPtr<K>::value, MappedPeekType>::type
-{
-    KeyValuePairType* entry = const_cast<HashTableType&>(m_impl).template inlineLookup<HashMapTranslator<KeyValuePairTraits, HashFunctions>>(key);
-    if (!entry)
-        return MappedTraits::peek(MappedTraits::emptyValue());
-    return MappedTraits::peek(entry->value);
-}
-
-template<typename T, typename U, typename V, typename W, typename X, typename Y>
-template<typename K>
-auto HashMap<T, U, V, W, X, Y>::get(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>* key) const -> typename std::enable_if<IsSmartPtr<K>::value, MappedPeekType>::type
-{
-    return inlineGet(key);
-}
-
-template<typename T, typename U, typename V, typename W, typename X, typename Y>
-template<typename K>
-inline auto HashMap<T, U, V, W, X, Y>::remove(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>* key) -> typename std::enable_if<IsSmartPtr<K>::value, bool>::type
-{
-    return remove(find(key));
-}
-
-template<typename T, typename U, typename V, typename W, typename X, typename Y>
-template<typename K>
-inline auto HashMap<T, U, V, W, X, Y>::take(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>* key) -> typename std::enable_if<IsSmartPtr<K>::value, MappedTakeType>::type
-{
     iterator it = find(key);
     if (it == end())
         return MappedTraits::take(MappedTraits::emptyValue());
@@ -617,51 +521,59 @@ inline auto HashMap<T, U, V, W, X, Y>::take(std::add_const_t<typename GetPtrHelp
 
 template<typename T, typename U, typename V, typename W, typename X, typename Y>
 template<typename K>
-inline auto HashMap<T, U, V, W, X, Y>::find(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>& key) -> typename std::enable_if<IsSmartPtr<K>::value && !IsSmartPtr<K>::isNullable, iterator>::type
+inline auto HashMap<T, U, V, W, X, Y>::find(typename GetPtrHelper<K>::PtrType key) -> typename std::enable_if<IsSmartPtr<K>::value, iterator>::type
 {
-    return find(&key);
+    return m_impl.template find<HashMapTranslator<KeyValuePairTraits, HashFunctions>>(key);
 }
 
 template<typename T, typename U, typename V, typename W, typename X, typename Y>
 template<typename K>
-inline auto HashMap<T, U, V, W, X, Y>::find(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>& key) const -> typename std::enable_if<IsSmartPtr<K>::value && !IsSmartPtr<K>::isNullable, const_iterator>::type
+inline auto HashMap<T, U, V, W, X, Y>::find(typename GetPtrHelper<K>::PtrType key) const -> typename std::enable_if<IsSmartPtr<K>::value, const_iterator>::type
 {
-    return find(&key);
+    return m_impl.template find<HashMapTranslator<KeyValuePairTraits, HashFunctions>>(key);
 }
 
 template<typename T, typename U, typename V, typename W, typename X, typename Y>
 template<typename K>
-inline auto HashMap<T, U, V, W, X, Y>::contains(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>& key) const -> typename std::enable_if<IsSmartPtr<K>::value && !IsSmartPtr<K>::isNullable, bool>::type
+inline auto HashMap<T, U, V, W, X, Y>::contains(typename GetPtrHelper<K>::PtrType key) const -> typename std::enable_if<IsSmartPtr<K>::value, bool>::type
 {
-    return contains(&key);
+    return m_impl.template contains<HashMapTranslator<KeyValuePairTraits, HashFunctions>>(key);
 }
 
 template<typename T, typename U, typename V, typename W, typename X, typename Y>
 template<typename K>
-inline auto HashMap<T, U, V, W, X, Y>::inlineGet(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>& key) const -> typename std::enable_if<IsSmartPtr<K>::value && !IsSmartPtr<K>::isNullable, MappedPeekType>::type
+inline auto HashMap<T, U, V, W, X, Y>::inlineGet(typename GetPtrHelper<K>::PtrType key) const -> typename std::enable_if<IsSmartPtr<K>::value, MappedPeekType>::type
 {
-    return inlineGet(&key);
+    KeyValuePairType* entry = const_cast<HashTableType&>(m_impl).template inlineLookup<HashMapTranslator<KeyValuePairTraits, HashFunctions>>(key);
+    if (!entry)
+        return MappedTraits::peek(MappedTraits::emptyValue());
+    return MappedTraits::peek(entry->value);
 }
 
 template<typename T, typename U, typename V, typename W, typename X, typename Y>
 template<typename K>
-auto HashMap<T, U, V, W, X, Y>::get(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>& key) const -> typename std::enable_if<IsSmartPtr<K>::value && !IsSmartPtr<K>::isNullable, MappedPeekType>::type
+auto HashMap<T, U, V, W, X, Y>::get(typename GetPtrHelper<K>::PtrType key) const -> typename std::enable_if<IsSmartPtr<K>::value, MappedPeekType>::type
 {
-    return inlineGet(&key);
+    return inlineGet(key);
 }
 
 template<typename T, typename U, typename V, typename W, typename X, typename Y>
 template<typename K>
-inline auto HashMap<T, U, V, W, X, Y>::remove(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>& key) -> typename std::enable_if<IsSmartPtr<K>::value && !IsSmartPtr<K>::isNullable, bool>::type
+inline auto HashMap<T, U, V, W, X, Y>::remove(typename GetPtrHelper<K>::PtrType key) -> typename std::enable_if<IsSmartPtr<K>::value, bool>::type
 {
-    return remove(&key);
+    return remove(find(key));
 }
 
 template<typename T, typename U, typename V, typename W, typename X, typename Y>
 template<typename K>
-inline auto HashMap<T, U, V, W, X, Y>::take(std::add_const_t<typename GetPtrHelper<K>::UnderlyingType>& key) -> typename std::enable_if<IsSmartPtr<K>::value && !IsSmartPtr<K>::isNullable, MappedTakeType>::type
+inline auto HashMap<T, U, V, W, X, Y>::take(typename GetPtrHelper<K>::PtrType key) -> typename std::enable_if<IsSmartPtr<K>::value, MappedTakeType>::type
 {
-    return take(&key);
+    iterator it = find(key);
+    if (it == end())
+        return MappedTraits::take(MappedTraits::emptyValue());
+    auto value = MappedTraits::take(WTFMove(it->value));
+    remove(it);
+    return value;
 }
 
 template<typename T, typename U, typename V, typename W, typename X, typename Y>

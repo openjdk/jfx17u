@@ -55,13 +55,13 @@ using namespace HTMLNames;
 
 static JSValue createNewElementWrapper(JSDOMGlobalObject* globalObject, Ref<Element>&& element)
 {
-    if (auto* htmlElement = dynamicDowncast<HTMLElement>(element.get()))
-        return createJSHTMLWrapper(globalObject, *htmlElement);
-    if (auto* svgElement = dynamicDowncast<SVGElement>(element.get()))
-        return createJSSVGWrapper(globalObject, *svgElement);
+    if (is<HTMLElement>(element))
+        return createJSHTMLWrapper(globalObject, static_reference_cast<HTMLElement>(WTFMove(element)));
+    if (is<SVGElement>(element))
+        return createJSSVGWrapper(globalObject, static_reference_cast<SVGElement>(WTFMove(element)));
 #if ENABLE(MATHML)
-    if (auto* mathmlElement = dynamicDowncast<MathMLElement>(element.get()))
-        return createJSMathMLWrapper(globalObject, *mathmlElement);
+    if (is<MathMLElement>(element))
+        return createJSMathMLWrapper(globalObject, static_reference_cast<MathMLElement>(WTFMove(element)));
 #endif
     return createWrapper<Element>(globalObject, WTFMove(element));
 }

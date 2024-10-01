@@ -41,10 +41,6 @@ namespace WebCore {
 
     class IntSize;
 
-#if PLATFORM(COCOA)
-    WEBCORE_EXPORT String truncatedStringForMenuItem(const String&);
-#endif
-
     String inputElementAltText();
     String resetButtonDefaultLabel();
     String searchableIndexIntroduction();
@@ -71,7 +67,7 @@ namespace WebCore {
     String contextMenuItemTagDownloadImageToDisk();
     String contextMenuItemTagCopyImageToClipboard();
 #if PLATFORM(GTK)
-    String contextMenuItemTagCopyImageURLToClipboard();
+    String contextMenuItemTagCopyImageUrlToClipboard();
 #endif
     String contextMenuItemTagOpenFrameInNewWindow();
     String contextMenuItemTagCopy();
@@ -174,20 +170,15 @@ namespace WebCore {
 #if HAVE(TRANSLATION_UI_SERVICES)
     String contextMenuItemTagTranslate(const String& selectedString);
 #endif
-#if ENABLE(UNIFIED_PDF)
-    WEBCORE_EXPORT String contextMenuItemPDFOpenWithPreview();
-#endif
-#if ENABLE(PDFJS) || ENABLE(UNIFIED_PDF)
-    WEBCORE_EXPORT String contextMenuItemPDFSinglePage();
-    WEBCORE_EXPORT String contextMenuItemPDFSinglePageContinuous();
-    WEBCORE_EXPORT String contextMenuItemPDFTwoPages();
-    WEBCORE_EXPORT String contextMenuItemPDFTwoPagesContinuous();
-    WEBCORE_EXPORT String contextMenuItemPDFZoomIn();
-    WEBCORE_EXPORT String contextMenuItemPDFZoomOut();
-    WEBCORE_EXPORT String contextMenuItemPDFActualSize();
-#endif
 #if ENABLE(PDFJS)
     String contextMenuItemPDFAutoSize();
+    String contextMenuItemPDFZoomIn();
+    String contextMenuItemPDFZoomOut();
+    String contextMenuItemPDFActualSize();
+    String contextMenuItemPDFSinglePage();
+    String contextMenuItemPDFSinglePageContinuous();
+    String contextMenuItemPDFTwoPages();
+    String contextMenuItemPDFTwoPagesContinuous();
     String contextMenuItemPDFNextPage();
     String contextMenuItemPDFPreviousPage();
 #endif
@@ -240,8 +231,8 @@ namespace WebCore {
     String AXButtonActionVerb();
     String AXRadioButtonActionVerb();
     String AXTextFieldActionVerb();
-    String AXCheckedCheckboxActionVerb();
-    String AXUncheckedCheckboxActionVerb();
+    String AXCheckedCheckBoxActionVerb();
+    String AXUncheckedCheckBoxActionVerb();
     String AXMenuListActionVerb();
     String AXMenuListPopupActionVerb();
     String AXLinkActionVerb();
@@ -279,8 +270,6 @@ namespace WebCore {
     String AXAutoFillLoadingLabel();
     String autoFillStrongPasswordLabel();
 
-    String AXProcessingPage();
-
     String missingPluginText();
     String crashedPluginText();
     String blockedPluginByContentSecurityPolicyText();
@@ -290,6 +279,12 @@ namespace WebCore {
 
     WEBCORE_EXPORT String multipleFileUploadText(unsigned numberOfFiles);
     String unknownFileSizeText();
+
+#if PLATFORM(COCOA)
+    WEBCORE_EXPORT String postScriptDocumentTypeDescription();
+    String keygenMenuItem2048();
+    WEBCORE_EXPORT String keygenKeychainItemName(const String& host);
+#endif
 
 #if PLATFORM(IOS_FAMILY)
     String htmlSelectMultipleItems(size_t num);
@@ -315,7 +310,6 @@ namespace WebCore {
     String validationMessageValueMissingForMultipleFileText();
     String validationMessageValueMissingForRadioText();
     String validationMessageValueMissingForSelectText();
-    String validationMessageValueMissingForSwitchText();
     String validationMessageTypeMismatchText();
     String validationMessageTypeMismatchForEmailText();
     String validationMessageTypeMismatchForMultipleEmailText();

@@ -37,7 +37,6 @@ class JSArray : public JSNonFinalObject {
     friend class LLIntOffsetsExtractor;
     friend class Walker;
     friend class JIT;
-    WTF_ALLOW_COMPACT_POINTERS;
 
 public:
     typedef JSNonFinalObject Base;
@@ -149,7 +148,10 @@ public:
 
     JS_EXPORT_PRIVATE bool isIteratorProtocolFastAndNonObservable();
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue, IndexingType);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype, IndexingType indexingType)
+    {
+        return Structure::create(vm, globalObject, prototype, TypeInfo(ArrayType, StructureFlags), info(), indexingType);
+    }
 
 protected:
 #if ASSERT_ENABLED
@@ -290,7 +292,5 @@ inline bool isJSArray(JSValue v) { return v.isCell() && isJSArray(v.asCell()); }
 JS_EXPORT_PRIVATE JSArray* constructArray(JSGlobalObject*, Structure*, const ArgList& values);
 JS_EXPORT_PRIVATE JSArray* constructArray(JSGlobalObject*, Structure*, const JSValue* values, unsigned length);
 JS_EXPORT_PRIVATE JSArray* constructArrayNegativeIndexed(JSGlobalObject*, Structure*, const JSValue* values, unsigned length);
-
-ALWAYS_INLINE uint64_t toLength(JSGlobalObject*, JSObject*);
 
 } // namespace JSC

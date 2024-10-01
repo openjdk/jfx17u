@@ -48,7 +48,7 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(HTMLDataListElement);
 
 inline HTMLDataListElement::HTMLDataListElement(const QualifiedName& tagName, Document& document)
-    : HTMLElement(tagName, document, TypeFlag::HasDidMoveToNewDocument)
+    : HTMLElement(tagName, document)
 {
     document.incrementDataListElementCount();
 }
@@ -75,19 +75,9 @@ Ref<HTMLCollection> HTMLDataListElement::options()
     return ensureRareData().ensureNodeLists().addCachedCollection<GenericCachedHTMLCollection<CollectionTypeTraits<CollectionType::DataListOptions>::traversalType>>(*this, CollectionType::DataListOptions);
 }
 
-void HTMLDataListElement::childrenChanged(const ChildChange& change)
-{
-    HTMLElement::childrenChanged(change);
-    if (change.source == ChildChange::Source::API)
-        optionElementChildrenChanged();
-}
-
 void HTMLDataListElement::optionElementChildrenChanged()
 {
-    if (auto& id = getIdAttribute(); !id.isEmpty()) {
-        if (CheckedPtr observerRegistry = treeScope().idTargetObserverRegistryIfExists())
-            observerRegistry->notifyObservers(id);
-    }
+    treeScope().idTargetObserverRegistry().notifyObservers(getIdAttribute());
 }
 
 auto HTMLDataListElement::suggestions() const -> SuggestionRange

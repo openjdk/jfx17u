@@ -33,7 +33,9 @@
 namespace WebCore {
 
 struct WorkerInitializationData {
+#if ENABLE(SERVICE_WORKER)
     std::optional<ServiceWorkerData> serviceWorkerData;
+#endif
     std::optional<ScriptExecutionContextIdentifier> clientIdentifier;
     String userAgent;
 
@@ -43,7 +45,9 @@ struct WorkerInitializationData {
 inline WorkerInitializationData WorkerInitializationData::isolatedCopy() const
 {
     return {
+#if ENABLE(SERVICE_WORKER)
         crossThreadCopy(serviceWorkerData),
+#endif
         clientIdentifier,
         userAgent.isolatedCopy()
     };

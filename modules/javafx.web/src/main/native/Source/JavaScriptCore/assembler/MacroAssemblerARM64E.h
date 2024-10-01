@@ -65,12 +65,6 @@ public:
 
     ALWAYS_INLINE void tagPtr(PtrTag tag, RegisterID target)
     {
-        if (!tag) {
-            m_assembler.pacizb(target);
-            return;
-        }
-
-        RELEASE_ASSERT(Options::allowNonSPTagging());
         auto tagGPR = getCachedDataTempRegisterIDAndInvalidate();
         move(TrustedImm64(tag), tagGPR);
         m_assembler.pacib(target, tagGPR);
@@ -82,17 +76,11 @@ public:
             m_assembler.pacibsp();
             return;
         }
-        RELEASE_ASSERT(Options::allowNonSPTagging());
         m_assembler.pacib(target, tag);
     }
 
     ALWAYS_INLINE void untagPtr(PtrTag tag, RegisterID target)
     {
-        if (!tag) {
-            m_assembler.autizb(target);
-            return;
-        }
-
         auto tagGPR = getCachedDataTempRegisterIDAndInvalidate();
         move(TrustedImm64(tag), tagGPR);
         m_assembler.autib(target, tagGPR);
@@ -257,12 +245,11 @@ public:
         call(dataTempRegister, tag);
     }
 
-    template<PtrTag tag>
-    ALWAYS_INLINE void callOperation(const CodePtr<tag> operation)
+    ALWAYS_INLINE void callOperation(const CodePtr<OperationPtrTag> operation)
     {
         auto tmp = getCachedDataTempRegisterIDAndInvalidate();
         move(TrustedImmPtr(operation.taggedPtr()), tmp);
-        call(tmp, tag);
+        call(tmp, OperationPtrTag);
     }
 
     ALWAYS_INLINE Jump jump() { return MacroAssemblerARM64::jump(); }

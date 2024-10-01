@@ -27,10 +27,11 @@
 #include "AudioScheduledSourceNode.h"
 #include "OscillatorOptions.h"
 #include "OscillatorType.h"
-#include "PeriodicWave.h"
 #include <wtf/Lock.h>
 
 namespace WebCore {
+
+class PeriodicWave;
 
 // OscillatorNode is an audio generator of periodic waveforms.
 
@@ -67,7 +68,6 @@ private:
 
     bool propagatesSilence() const final;
 
-    float noiseInjectionMultiplier() const final { return 0.01; }
     // One of the waveform types defined in the enum.
     OscillatorType m_type; // Only used on the main thread.
 

@@ -26,6 +26,8 @@
 #include "config.h"
 #include "PushEvent.h"
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "PushMessageData.h"
 #include <JavaScriptCore/JSArrayBuffer.h>
 #include <JavaScriptCore/JSArrayBufferView.h>
@@ -83,3 +85,5 @@ PushEvent::~PushEvent()
 }
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

@@ -27,7 +27,7 @@
 
 namespace JSC {
 
-enum Synchronousness : uint8_t {
+enum Synchronousness {
     Async,
     Sync
 };

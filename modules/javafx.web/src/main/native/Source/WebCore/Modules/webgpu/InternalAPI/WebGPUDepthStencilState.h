@@ -36,8 +36,8 @@ namespace WebCore::WebGPU {
 struct DepthStencilState {
     TextureFormat format { TextureFormat::R8unorm };
 
-    std::optional<bool> depthWriteEnabled;
-    std::optional<CompareFunction> depthCompare;
+    bool depthWriteEnabled { false };
+    CompareFunction depthCompare { CompareFunction::Always };
 
     StencilFaceState stencilFront;
     StencilFaceState stencilBack;

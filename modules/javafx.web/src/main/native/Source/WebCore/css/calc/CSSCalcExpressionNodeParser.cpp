@@ -63,11 +63,12 @@ static constexpr int maxExpressionDepth = 100;
 RefPtr<CSSCalcExpressionNode> CSSCalcExpressionNodeParser::parseCalc(CSSParserTokenRange tokens, CSSValueID function, bool allowsNegativePercentage)
 {
     std::function<void(CSSCalcExpressionNode&)> setAllowsNegativePercentageReferenceIfNeeded = [&](CSSCalcExpressionNode& expression) {
-        if (auto* operationNode = dynamicDowncast<CSSCalcOperationNode>(expression)) {
-            if (operationNode->isMinOrMaxNode())
-                operationNode->setAllowsNegativePercentageReference();
+        if (is<CSSCalcOperationNode>(expression)) {
+            auto& operationNode = downcast<CSSCalcOperationNode>(expression);
+            if (operationNode.isMinOrMaxNode())
+                operationNode.setAllowsNegativePercentageReference();
 
-            for (Ref child : operationNode->children())
+            for (auto& child : operationNode.children())
                 setAllowsNegativePercentageReferenceIfNeeded(child);
         }
     };
@@ -314,7 +315,7 @@ bool CSSCalcExpressionNodeParser::parseValue(CSSParserTokenRange& tokens, CSSVal
     case IdentToken: {
         if (checkRoundKeyword(functionID, result, token.id()))
             return true;
-        auto value = m_symbolTable->get(token.id());
+        auto value = m_symbolTable.get(token.id());
         value = value ? value : getConstantTable().get(token.id());
         if (!value)
             return false;

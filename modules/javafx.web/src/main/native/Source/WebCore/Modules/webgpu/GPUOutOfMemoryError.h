@@ -28,15 +28,14 @@
 #include "WebGPUOutOfMemoryError.h"
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
-#include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
 class GPUOutOfMemoryError : public RefCounted<GPUOutOfMemoryError> {
 public:
-    static Ref<GPUOutOfMemoryError> create(String&& message)
+    static Ref<GPUOutOfMemoryError> create()
     {
-        return adoptRef(*new GPUOutOfMemoryError(WTFMove(message)));
+        return adoptRef(*new GPUOutOfMemoryError());
     }
 
     static Ref<GPUOutOfMemoryError> create(Ref<WebGPU::OutOfMemoryError>&& backing)
@@ -44,14 +43,11 @@ public:
         return adoptRef(*new GPUOutOfMemoryError(WTFMove(backing)));
     }
 
-    const String& message() const { return m_message; }
-
     WebGPU::OutOfMemoryError* backing() { return m_backing.get(); }
     const WebGPU::OutOfMemoryError* backing() const { return m_backing.get(); }
 
 private:
-    GPUOutOfMemoryError(String&& message)
-        : m_message(WTFMove(message))
+    GPUOutOfMemoryError()
     {
     }
 
@@ -60,7 +56,6 @@ private:
     {
     }
 
-    String m_message;
     RefPtr<WebGPU::OutOfMemoryError> m_backing;
 };
 

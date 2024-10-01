@@ -30,6 +30,7 @@ use lib $FindBin::Bin;
 
 use File::Basename;
 use File::Spec;
+use File::Find;
 use Getopt::Long;
 
 my $perl = $^X;
@@ -38,7 +39,6 @@ my @idlDirectories;
 my $outputDirectory;
 my $idlFilesList;
 my $ppIDLFilesList;
-my $idlFileNamesList;
 my $generator;
 my @generatorDependency;
 my $defines;
@@ -49,13 +49,11 @@ my @ppExtraArgs;
 my $numOfJobs = 1;
 my $idlAttributesFile;
 my $showProgress;
-my $includeDirlist = '';
 
 GetOptions('include=s@' => \@idlDirectories,
            'outputDir=s' => \$outputDirectory,
            'idlFilesList=s' => \$idlFilesList,
            'ppIDLFilesList=s' => \$ppIDLFilesList,
-           'idlFileNamesList=s' => \$idlFileNamesList,
            'generator=s' => \$generator,
            'generatorDependency=s@' => \@generatorDependency,
            'defines=s' => \$defines,
@@ -65,8 +63,7 @@ GetOptions('include=s@' => \@idlDirectories,
            'ppExtraArgs=s@' => \@ppExtraArgs,
            'idlAttributesFile=s' => \$idlAttributesFile,
            'numOfJobs=i' => \$numOfJobs,
-           'showProgress' => \$showProgress,
-           'includeDirlist=s' => \$includeDirlist);
+           'showProgress' => \$showProgress);
 
 $| = 1;
 my @idlFiles;
@@ -105,16 +102,7 @@ my @args = (File::Spec->catfile($scriptDir, 'generate-bindings.pl'),
             '--outputDir', $outputDirectory,
             '--preprocessor', $preprocessor,
             '--idlAttributesFile', $idlAttributesFile,
-            '--idlFileNamesList', $idlFileNamesList,
             '--write-dependencies');
-
-# Read --include dir list from file if passed as an argument.
-if ($includeDirlist) {
-    open(my $fh, '<', $includeDirlist) or die "Cannot open $includeDirlist";
-    @idlDirectories = map { CygwinPathIfNeeded(s/\r?\n?$//r) } <$fh>;
-    close($fh) or die;
-}
-
 push @args, map { ('--include', $_) } @idlDirectories;
 push @args, '--supplementalDependencyFile', $supplementalDependencyFile if $supplementalDependencyFile;
 
@@ -198,13 +186,11 @@ sub spawnGenerateBindingsIfNeeded
 
 sub buildDirectoryCache
 {
-    open my $fh, "<", $idlFileNamesList or die "cannot open $idlFileNamesList for reading";
-    while (<$fh>) {
-        chomp $_;
-        my $name = fileparse($_);
-        $directoryCache{$name} = $_;
-    }
-    close $fh;
+    my $wanted = sub {
+        $directoryCache{$_} = $File::Find::name;
+        $File::Find::prune = 1 unless ~/\./;
+    };
+    find($wanted, @idlDirectories);
 }
 
 sub implicitDependencies

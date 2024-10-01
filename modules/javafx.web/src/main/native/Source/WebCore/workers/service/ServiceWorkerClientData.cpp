@@ -24,6 +24,8 @@
  */
 
 #include "config.h"
+
+#if ENABLE(SERVICE_WORKER)
 #include "ServiceWorkerClientData.h"
 
 #include "Document.h"
@@ -115,3 +117,5 @@ ServiceWorkerClientData ServiceWorkerClientData::from(ScriptExecutionContext& co
 }
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

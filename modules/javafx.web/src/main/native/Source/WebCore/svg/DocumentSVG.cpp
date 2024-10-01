@@ -34,7 +34,10 @@ namespace WebCore {
 
 RefPtr<SVGSVGElement> DocumentSVG::rootElement(const Document& document)
 {
-    return dynamicDowncast<SVGSVGElement>(document.documentElement());
+    auto* element = document.documentElement();
+    if (!is<SVGSVGElement>(element))
+        return nullptr;
+    return downcast<SVGSVGElement>(element);
 }
 
 }

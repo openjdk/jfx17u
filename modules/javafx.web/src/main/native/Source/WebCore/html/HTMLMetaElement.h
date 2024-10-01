@@ -50,7 +50,7 @@ private:
     void didFinishInsertingNode();
     void removedFromAncestor(RemovalType, ContainerNode&) final;
 
-    void process(const AtomString& oldValue = nullAtom());
+    void process();
 
     std::optional<MQ::MediaQueryList> m_mediaQueryList;
 

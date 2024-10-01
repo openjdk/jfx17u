@@ -31,18 +31,17 @@
 #include "ProcessIdentifier.h"
 #include <wtf/HashSet.h>
 #include <wtf/RefCounted.h>
-#include <wtf/WeakPtr.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
 class MessagePortChannelRegistry;
 
-class MessagePortChannel : public RefCounted<MessagePortChannel>, public CanMakeWeakPtr<MessagePortChannel> {
+class MessagePortChannel : public RefCounted<MessagePortChannel> {
 public:
     static Ref<MessagePortChannel> create(MessagePortChannelRegistry&, const MessagePortIdentifier& port1, const MessagePortIdentifier& port2);
 
-    WEBCORE_EXPORT ~MessagePortChannel();
+    ~MessagePortChannel();
 
     const MessagePortIdentifier& port1() const { return m_ports[0]; }
     const MessagePortIdentifier& port2() const { return m_ports[1]; }
@@ -67,8 +66,6 @@ public:
 private:
     MessagePortChannel(MessagePortChannelRegistry&, const MessagePortIdentifier& port1, const MessagePortIdentifier& port2);
 
-    CheckedRef<MessagePortChannelRegistry> checkedRegistry() const;
-
     MessagePortIdentifier m_ports[2];
     bool m_isClosed[2] { false, false };
     std::optional<ProcessIdentifier> m_processes[2];
@@ -78,7 +75,7 @@ private:
     RefPtr<MessagePortChannel> m_pendingMessageProtectors[2];
     uint64_t m_messageBatchesInFlight { 0 };
 
-    CheckedRef<MessagePortChannelRegistry> m_registry;
+    MessagePortChannelRegistry& m_registry;
 };
 
 } // namespace WebCore

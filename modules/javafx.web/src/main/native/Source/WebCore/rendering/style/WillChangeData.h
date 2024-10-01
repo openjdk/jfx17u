@@ -48,10 +48,9 @@ public:
     bool containsContents() const;
     bool containsProperty(CSSPropertyID) const;
 
-    bool createsContainingBlockForAbsolutelyPositioned(bool isRootElement) const;
-    bool createsContainingBlockForOutOfFlowPositioned(bool isRootElement) const;
+    bool createsContainingBlockForAbsolutelyPositioned() const;
+    bool createsContainingBlockForOutOfFlowPositioned() const;
     bool canCreateStackingContext() const { return m_canCreateStackingContext; }
-    bool canBeBackdropRoot() const;
     bool canTriggerCompositing() const { return m_canTriggerCompositing; }
     bool canTriggerCompositingOnInline() const { return m_canTriggerCompositingOnInline; }
 
@@ -113,7 +112,10 @@ private:
             }
         }
 
-        friend bool operator==(const AnimatableFeature&, const AnimatableFeature&) = default;
+        bool operator==(const AnimatableFeature& other) const
+        {
+            return m_feature == other.m_feature && m_cssPropertyID == other.m_cssPropertyID;
+        }
     };
 
     Vector<AnimatableFeature, 1> m_animatableFeatures;

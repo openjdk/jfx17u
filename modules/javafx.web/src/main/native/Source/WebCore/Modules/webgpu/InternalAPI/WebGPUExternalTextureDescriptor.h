@@ -25,8 +25,6 @@
 
 #pragma once
 
-#include "MediaPlayerIdentifier.h"
-#include "VideoFrame.h"
 #include "WebGPUObjectDescriptorBase.h"
 #include "WebGPUPredefinedColorSpace.h"
 #include <wtf/Vector.h>
@@ -37,17 +35,23 @@ typedef struct __CVBuffer* CVPixelBufferRef;
 
 namespace WebCore::WebGPU {
 
-#if ENABLE(VIDEO) && PLATFORM(COCOA)
-using VideoSourceIdentifier = std::variant<WebCore::MediaPlayerIdentifier, RefPtr<WebCore::VideoFrame>, RetainPtr<CVPixelBufferRef>>;
-#elif ENABLE(VIDEO)
-using VideoSourceIdentifier = std::variant<WebCore::MediaPlayerIdentifier, RefPtr<WebCore::VideoFrame>, void*>;
-#else
-using VideoSourceIdentifier = std::variant<WebCore::MediaPlayerIdentifier, void*>;
-#endif
+struct HTMLVideoElementIdentifier {
+    uint64_t identifier;
+};
+struct WebCodecsVideoFrameIdentifier {
+    std::pair<uint64_t, uint64_t> identifier;
+};
+
+using VideoSourceIdentifier = std::variant<HTMLVideoElementIdentifier, WebCodecsVideoFrameIdentifier>;
 
 struct ExternalTextureDescriptor : public ObjectDescriptorBase {
-    VideoSourceIdentifier videoBacking;
+    VideoSourceIdentifier mediaIdentifier;
     PredefinedColorSpace colorSpace { PredefinedColorSpace::SRGB };
+#if ENABLE(VIDEO) && PLATFORM(COCOA)
+    RetainPtr<CVPixelBufferRef> pixelBuffer { nullptr };
+#else
+    void *pixelBuffer { nullptr };
+#endif
 };
 
 } // namespace WebCore::WebGPU

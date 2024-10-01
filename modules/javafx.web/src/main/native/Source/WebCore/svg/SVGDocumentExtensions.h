@@ -29,6 +29,7 @@ namespace WebCore {
 
 class Document;
 class Element;
+class RenderSVGResourceContainer;
 class SVGElement;
 class SVGFontFaceElement;
 class SVGResourcesCache;

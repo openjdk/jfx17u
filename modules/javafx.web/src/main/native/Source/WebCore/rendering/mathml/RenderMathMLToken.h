@@ -38,8 +38,8 @@ class MathMLTokenElement;
 class RenderMathMLToken : public RenderMathMLBlock {
     WTF_MAKE_ISO_ALLOCATED(RenderMathMLToken);
 public:
-    RenderMathMLToken(Type, MathMLTokenElement&, RenderStyle&&);
-    RenderMathMLToken(Type, Document&, RenderStyle&&);
+    RenderMathMLToken(MathMLTokenElement&, RenderStyle&&);
+    RenderMathMLToken(Document&, RenderStyle&&);
 
     MathMLTokenElement& element();
 
@@ -64,7 +64,7 @@ private:
         m_mathVariantGlyphDirty = true;
         setNeedsLayoutAndPrefWidthsRecalc();
     }
-    std::optional<char32_t> m_mathVariantCodePoint { std::nullopt };
+    std::optional<UChar32> m_mathVariantCodePoint { std::nullopt };
     bool m_mathVariantIsMirrored { false };
     bool m_mathVariantGlyphDirty { false };
 };

@@ -166,12 +166,13 @@ namespace WebCore {
 class MediaPlayerFactoryJava final : public MediaPlayerFactory {
 private:
     MediaPlayerEnums::MediaEngineIdentifier identifier() const final { return MediaPlayerEnums::MediaEngineIdentifier::MediaFoundation; };
-    Ref<MediaPlayerPrivateInterface> createMediaEnginePlayer(MediaPlayer* player) const final
+
+    std::unique_ptr<MediaPlayerPrivateInterface> createMediaEnginePlayer(MediaPlayer* player) const final
     {
-        return adoptRef(*new MediaPlayerPrivate(player));
+        return makeUnique<MediaPlayerPrivate>(player);
     }
 
-    void getSupportedTypes(HashSet<String>& types) const final
+    void getSupportedTypes(HashSet<String, ASCIICaseInsensitiveHash>& types) const final
     {
         return MediaPlayerPrivate::MediaEngineSupportedTypes(types);
     }
@@ -195,7 +196,7 @@ void MediaPlayerPrivate::registerMediaEngine(MediaEngineRegistrar registrar)
     registrar(makeUnique<MediaPlayerFactoryJava>());
 }
 
-void MediaPlayerPrivate::MediaEngineSupportedTypes(HashSet<String>& types)
+void MediaPlayerPrivate::MediaEngineSupportedTypes(HashSet<String, ASCIICaseInsensitiveHash>& types)
 {
     LOG_TRACE0(">>MediaEngineSupportedTypes\n");
     HashSet<String, ASCIICaseInsensitiveHash>& supportedTypes = GetSupportedTypes();
@@ -408,7 +409,7 @@ bool MediaPlayerPrivate::hasAudio() const
     return m_hasAudio;
 }
 
-void MediaPlayerPrivate::setPageIsVisible(bool visible,String&& sceneIdentifier)
+void MediaPlayerPrivate::setPageIsVisible(bool visible)
 {
     if (m_isVisible != visible) {
         PLOG_TRACE2("MediaPlayerPrivate setPageIsVisible: %d => %d\n", m_isVisible ? 1 : 0, visible ? 1 : 0);

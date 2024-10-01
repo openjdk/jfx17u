@@ -82,7 +82,11 @@ public:
 
     DECLARE_EXPORT_INFO;
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        ASSERT(globalObject);
+        return Structure::create(vm, globalObject, prototype, TypeInfo(JSCalleeType, StructureFlags), info());
+    }
 
     static inline ptrdiff_t offsetOfScopeChain()
     {

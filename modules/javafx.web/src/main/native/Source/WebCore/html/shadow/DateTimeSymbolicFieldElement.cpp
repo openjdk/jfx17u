@@ -71,6 +71,11 @@ bool DateTimeSymbolicFieldElement::hasValue() const
     return m_selectedIndex >= 0;
 }
 
+void DateTimeSymbolicFieldElement::initialize(const AtomString& pseudo)
+{
+    DateTimeFieldElement::initialize(pseudo);
+}
+
 void DateTimeSymbolicFieldElement::setEmptyValue(EventBehavior eventBehavior)
 {
     m_selectedIndex = invalidIndex;

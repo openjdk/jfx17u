@@ -60,7 +60,10 @@ bool AccessibilityMediaObject::computeAccessibilityIsIgnored() const
 
 HTMLMediaElement* AccessibilityMediaObject::mediaElement() const
 {
-    return dynamicDowncast<HTMLMediaElement>(node());
+    Node* node = this->node();
+    if (!is<HTMLMediaElement>(*node))
+        return nullptr;
+    return downcast<HTMLMediaElement>(node);
 }
 
 String AccessibilityMediaObject::stringValue() const
@@ -162,7 +165,11 @@ bool AccessibilityMediaObject::isPlayingInline() const
 
 void AccessibilityMediaObject::enterFullscreen() const
 {
-    if (RefPtr element = dynamicDowncast<HTMLVideoElement>(node()))
+    Node* node = this->node();
+    if (!is<HTMLVideoElement>(node))
+        return;
+
+    HTMLVideoElement* element = downcast<HTMLVideoElement>(node);
     element->enterFullscreen();
 }
 

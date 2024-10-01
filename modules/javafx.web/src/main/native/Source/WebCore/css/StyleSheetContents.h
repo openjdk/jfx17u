@@ -21,7 +21,6 @@
 #pragma once
 
 #include "CSSParserContext.h"
-#include <wtf/CheckedRef.h>
 #include <wtf/Function.h>
 #include <wtf/HashMap.h>
 #include <wtf/RefCounted.h>
@@ -121,7 +120,6 @@ public:
     String originalURL() const { return m_originalURL; }
     const URL& baseURL() const { return m_parserContext.baseURL; }
 
-    bool isEmpty() const { return !ruleCount(); }
     unsigned ruleCount() const;
     StyleRuleBase* ruleAt(unsigned index) const;
 
@@ -137,7 +135,6 @@ public:
     void registerClient(CSSStyleSheet*);
     void unregisterClient(CSSStyleSheet*);
     bool hasOneClient() { return m_clients.size() == 1; }
-    Vector<CSSStyleSheet*> clients() const { return m_clients; }
 
     bool isMutable() const { return m_isMutable; }
     void setMutable() { m_isMutable = true; }
@@ -164,7 +161,7 @@ private:
 
     void clearCharsetRule();
 
-    StyleRuleImport* m_ownerRule { nullptr };
+    StyleRuleImport* m_ownerRule;
 
     String m_originalURL;
 

@@ -46,7 +46,10 @@ public:
 
     static JSTemplateObjectDescriptor* create(VM&, Ref<TemplateObjectDescriptor>&&, int);
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        return Structure::create(vm, globalObject, prototype, TypeInfo(CellType, StructureFlags), info());
+    }
 
     const TemplateObjectDescriptor& descriptor() const { return m_descriptor.get(); }
 

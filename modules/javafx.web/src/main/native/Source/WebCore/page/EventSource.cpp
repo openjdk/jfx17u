@@ -37,7 +37,6 @@
 #include "ContentSecurityPolicy.h"
 #include "EventLoop.h"
 #include "EventNames.h"
-#include "HTTPStatusCodes.h"
 #include "MessageEvent.h"
 #include "ResourceError.h"
 #include "ResourceRequest.h"
@@ -69,12 +68,12 @@ ExceptionOr<Ref<EventSource>> EventSource::create(ScriptExecutionContext& contex
 {
     URL fullURL = context.completeURL(url);
     if (!fullURL.isValid())
-        return Exception { ExceptionCode::SyntaxError };
+        return Exception { SyntaxError };
 
     // FIXME: Convert this to check the isolated world's Content Security Policy once webkit.org/b/104520 is resolved.
-    if (!context.shouldBypassMainWorldContentSecurityPolicy() && !context.checkedContentSecurityPolicy()->allowConnectToSource(fullURL)) {
+    if (!context.shouldBypassMainWorldContentSecurityPolicy() && !context.contentSecurityPolicy()->allowConnectToSource(fullURL)) {
         // FIXME: Should this be throwing an exception?
-        return Exception { ExceptionCode::SecurityError };
+        return Exception { SecurityError };
     }
 
     auto source = adoptRef(*new EventSource(context, fullURL, eventSourceInit));
@@ -137,8 +136,8 @@ void EventSource::scheduleInitialConnect()
 
     auto* context = scriptExecutionContext();
     m_connectTimer = context->eventLoop().scheduleTask(0_s, TaskSource::DOMManipulation, [weakThis = WeakPtr { *this }] {
-        if (RefPtr protectedThis = weakThis.get())
-            protectedThis->connect();
+        if (RefPtr strongThis = weakThis.get())
+            strongThis->connect();
     });
 }
 
@@ -148,8 +147,8 @@ void EventSource::scheduleReconnect()
     m_state = CONNECTING;
     auto* context = scriptExecutionContext();
     m_connectTimer = context->eventLoop().scheduleTask(1_ms * m_reconnectDelay, TaskSource::DOMManipulation, [weakThis = WeakPtr { *this }] {
-        if (RefPtr protectedThis = weakThis.get())
-            protectedThis->connect();
+        if (RefPtr strongThis = weakThis.get())
+            strongThis->connect();
     });
     dispatchErrorEvent();
 }
@@ -175,7 +174,7 @@ bool EventSource::responseIsValid(const ResourceResponse& response) const
     // Logs to the console as a side effect.
 
     // To keep the signal-to-noise ratio low, we don't log anything if the status code is not 200.
-    if (response.httpStatusCode() != httpStatus200OK)
+    if (response.httpStatusCode() != 200)
         return false;
 
     if (!equalLettersIgnoringASCIICase(response.mimeType(), "text/event-stream"_s)) {

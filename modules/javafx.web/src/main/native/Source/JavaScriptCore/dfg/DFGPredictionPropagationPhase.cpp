@@ -1016,7 +1016,6 @@ private:
         case ConstructForwardVarargs:
         case TailCallForwardVarargsInlinedCaller:
         case CallWasm:
-        case CallCustomAccessorGetter:
         case GetGlobalVar:
         case GetGlobalLexicalVariable:
         case GetClosureVar:
@@ -1298,16 +1297,6 @@ private:
             break;
         }
 
-        case NewMap: {
-            setPrediction(SpecMapObject);
-            break;
-        }
-
-        case NewSet: {
-            setPrediction(SpecSetObject);
-            break;
-        }
-
         case PushWithScope:
         case CreateActivation: {
             setPrediction(SpecObjectOther);
@@ -1410,16 +1399,6 @@ private:
             // We expect this node to almost always produce an int32. However,
             // it's possible it produces NaN or integers out of int32 range. We
             // rely on the heap prediction since the parseInt() call profiled
-            // its result.
-            setPrediction(m_currentNode->getHeapPrediction());
-            break;
-        }
-
-        case ToIntegerOrInfinity:
-        case ToLength: {
-            // We expect this node to almost always produce an int32. However,
-            // it's possible it produces Infinity or integers out of int32 range. We
-            // rely on the heap prediction since the @toIntegerOrInfinity() call profiled
             // its result.
             setPrediction(m_currentNode->getHeapPrediction());
             break;
@@ -1597,7 +1576,6 @@ private:
         case PutSetterByVal:
         case DefineDataProperty:
         case DefineAccessorProperty:
-        case CallCustomAccessorSetter:
         case DFG::Jump:
         case Branch:
         case Switch:

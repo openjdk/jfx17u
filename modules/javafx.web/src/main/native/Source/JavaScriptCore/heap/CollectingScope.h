@@ -31,7 +31,7 @@ namespace JSC {
 
 class CollectingScope {
 public:
-    CollectingScope(JSC::Heap& heap)
+    CollectingScope(Heap& heap)
         : m_heap(heap)
         , m_oldState(m_heap.m_mutatorState)
     {
@@ -44,7 +44,7 @@ public:
     }
 
 private:
-    JSC::Heap& m_heap;
+    Heap& m_heap;
     MutatorState m_oldState;
 };
 

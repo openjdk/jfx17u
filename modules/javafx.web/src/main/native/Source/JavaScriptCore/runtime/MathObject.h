@@ -44,7 +44,10 @@ public:
 
     DECLARE_INFO;
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        return Structure::create(vm, globalObject, prototype, TypeInfo(ObjectType, StructureFlags), info());
+    }
 
 private:
     MathObject(VM&, Structure*);
@@ -54,5 +57,6 @@ private:
 JSC_DECLARE_HOST_FUNCTION(mathProtoFuncAbs);
 JSC_DECLARE_HOST_FUNCTION(mathProtoFuncFloor);
 JSC_DECLARE_HOST_FUNCTION(mathProtoFuncMin);
+JSC_DECLARE_HOST_FUNCTION(mathProtoFuncTrunc);
 
 } // namespace JSC

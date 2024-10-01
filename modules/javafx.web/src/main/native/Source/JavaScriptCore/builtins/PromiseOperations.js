@@ -382,13 +382,7 @@ function resolveWithoutPromiseForAsyncAwait(resolution, onFulfilled, onRejected,
     "use strict";
 
     if (@isPromise(resolution)) {
-        try {
-            var { constructor } = resolution;
-        } catch (error) {
-            onRejected(error, context);
-            return;
-        }
-
+        var constructor = resolution.constructor;
         if (constructor === @Promise || constructor === @InternalPromise)
             return @performPromiseThen(resolution, onFulfilled, onRejected, @undefined, context);
     }

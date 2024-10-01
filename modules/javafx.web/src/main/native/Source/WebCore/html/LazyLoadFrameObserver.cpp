@@ -53,9 +53,10 @@ private:
         for (auto& entry : entries) {
             if (!entry->isIntersecting())
                 continue;
-            if (RefPtr iframe = dynamicDowncast<HTMLIFrameElement>(entry->target())) {
-                iframe->lazyLoadFrameObserver().unobserve();
-                iframe->loadDeferredFrame();
+            auto* element = entry->target();
+            if (is<HTMLIFrameElement>(element)) {
+                downcast<HTMLIFrameElement>(*element).lazyLoadFrameObserver().unobserve();
+                downcast<HTMLIFrameElement>(*element).loadDeferredFrame();
             }
         }
         return { };

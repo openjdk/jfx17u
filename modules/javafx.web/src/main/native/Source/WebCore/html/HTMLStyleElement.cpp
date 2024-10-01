@@ -24,7 +24,6 @@
 #include "config.h"
 #include "HTMLStyleElement.h"
 
-#include "CSSRule.h"
 #include "CachedResource.h"
 #include "Document.h"
 #include "Event.h"
@@ -39,7 +38,6 @@
 #include "ShadowRoot.h"
 #include "StyleScope.h"
 #include "StyleSheetContents.h"
-#include "TextNodeTraversal.h"
 #include <wtf/IsoMallocInlines.h>
 #include <wtf/NeverDestroyed.h>
 

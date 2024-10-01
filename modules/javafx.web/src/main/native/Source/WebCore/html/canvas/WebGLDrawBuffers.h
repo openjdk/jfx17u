@@ -26,17 +26,16 @@
 #pragma once
 
 #include "WebGLExtension.h"
-#include "WebGLRenderingContextBase.h"
-#include <wtf/IsoMalloc.h>
-#include <wtf/Noncopyable.h>
 
 namespace WebCore {
 
-class WebGLDrawBuffers final : public WebGLExtension<WebGLRenderingContextBase> {
+class WebGLDrawBuffers final : public WebGLExtension {
     WTF_MAKE_ISO_ALLOCATED(WebGLDrawBuffers);
 public:
     explicit WebGLDrawBuffers(WebGLRenderingContextBase&);
-    ~WebGLDrawBuffers();
+    virtual ~WebGLDrawBuffers();
+
+    ExtensionName getName() const override;
 
     static bool supported(WebGLRenderingContextBase&);
 

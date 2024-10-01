@@ -26,7 +26,7 @@
 #pragma once
 
 #include "InlineFormattingContext.h"
-#include "InlineFormattingUtils.h"
+#include "InlineFormattingGeometry.h"
 
 namespace WebCore {
 namespace Layout {
@@ -48,7 +48,7 @@ private:
             std::optional<InlineLayoutUnit> bottom { };
         };
         TopAndBottomAlignedMaximumHeight topAndBottomAlignedMaximumHeight { };
-        bool hasTextEmphasis { false };
+        bool hasAnnotation { false };
     };
     LineBoxAlignmentContent computeLineBoxLogicalHeight(LineBox&) const;
     void computeRootInlineBoxVerticalPosition(LineBox&, const LineBoxAlignmentContent&) const;
@@ -56,14 +56,14 @@ private:
     InlineLayoutUnit adjustForAnnotationIfNeeded(LineBox&, InlineLayoutUnit lineBoxHeight) const;
     InlineLevelBox::AscentAndDescent layoutBoundsForInlineBoxSubtree(const LineBox::InlineLevelBoxList& nonRootInlineLevelBoxes, size_t inlineBoxIndex) const;
 
-    const InlineFormattingUtils& formattingUtils() const { return m_inlineFormattingUtils; }
+    const InlineFormattingGeometry& formattingGeometry() const { return m_inlineFormattingGeometry; }
     const InlineFormattingContext& formattingContext() const { return m_inlineFormattingContext; }
     const ElementBox& rootBox() const { return formattingContext().root(); }
-    const InlineLayoutState& layoutState() const { return formattingContext().layoutState(); }
+    const LayoutState& layoutState() const { return formattingContext().layoutState(); }
 
 private:
     const InlineFormattingContext& m_inlineFormattingContext;
-    const InlineFormattingUtils m_inlineFormattingUtils;
+    const InlineFormattingGeometry m_inlineFormattingGeometry;
 };
 
 }

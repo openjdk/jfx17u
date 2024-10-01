@@ -26,17 +26,16 @@
 #pragma once
 
 #include "WebGLExtension.h"
-#include "WebGLRenderingContextBase.h"
-#include <wtf/IsoMalloc.h>
-#include <wtf/Noncopyable.h>
 
 namespace WebCore {
 
-class KHRParallelShaderCompile final : public WebGLExtension<WebGLRenderingContextBase> {
+class KHRParallelShaderCompile final : public WebGLExtension {
     WTF_MAKE_ISO_ALLOCATED(KHRParallelShaderCompile);
 public:
     explicit KHRParallelShaderCompile(WebGLRenderingContextBase&);
-    ~KHRParallelShaderCompile();
+    virtual ~KHRParallelShaderCompile();
+
+    ExtensionName getName() const override;
 
     static bool supported(GraphicsContextGL&);
 };

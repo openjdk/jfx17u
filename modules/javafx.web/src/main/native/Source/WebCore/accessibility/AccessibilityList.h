@@ -38,6 +38,7 @@ public:
     static Ref<AccessibilityList> create(Node&);
     virtual ~AccessibilityList();
 
+    AccessibilityRole roleValue() const override;
 private:
     explicit AccessibilityList(RenderObject*);
     explicit AccessibilityList(Node&);

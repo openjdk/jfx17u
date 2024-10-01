@@ -26,9 +26,11 @@
 #pragma once
 
 #include "FlexFormattingConstraints.h"
-#include "FlexFormattingUtils.h"
+#include "FlexFormattingGeometry.h"
+#include "FlexFormattingState.h"
 #include "FlexLayout.h"
 #include "FlexRect.h"
+#include "FormattingQuirks.h"
 #include <wtf/IsoMalloc.h>
 
 namespace WebCore {
@@ -36,22 +38,16 @@ namespace Layout {
 
 // This class implements the layout logic for flex formatting contexts.
 // https://www.w3.org/TR/css-flexbox-1/
-class FlexFormattingContext {
+class FlexFormattingContext final : public FormattingContext {
     WTF_MAKE_ISO_ALLOCATED(FlexFormattingContext);
 public:
-    FlexFormattingContext(const ElementBox& flexBox, LayoutState&);
+    FlexFormattingContext(const ElementBox& formattingContextRoot, FlexFormattingState&);
 
     void layout(const ConstraintsForFlexContent&);
     IntrinsicWidthConstraints computedIntrinsicWidthConstraints();
 
-    const ElementBox& root() const { return m_flexBox; }
-    const FlexFormattingUtils& formattingUtils() const { return m_flexFormattingUtils; }
-
-    const BoxGeometry& geometryForFlexItem(const Box&) const;
-    BoxGeometry& geometryForFlexItem(const Box&);
-
-    const LayoutState& layoutState() const { return m_layoutState; }
-    LayoutState& layoutState() { return m_layoutState; }
+    const FlexFormattingGeometry& formattingGeometry() const final { return m_flexFormattingGeometry; }
+    const FormattingQuirks& formattingQuirks() const final { return m_flexFormattingQuirks; }
 
 private:
     FlexLayout::LogicalFlexItems convertFlexItemsToLogicalSpace(const ConstraintsForFlexContent&);
@@ -59,12 +55,15 @@ private:
 
     std::optional<LayoutUnit> computedAutoMarginValueForFlexItems(const ConstraintsForFlexContent&);
 
-private:
-    const ElementBox& m_flexBox;
-    LayoutState& m_layoutState;
-    const FlexFormattingUtils m_flexFormattingUtils;
+    const FlexFormattingState& formattingState() const { return downcast<FlexFormattingState>(FormattingContext::formattingState()); }
+    FlexFormattingState& formattingState() { return downcast<FlexFormattingState>(FormattingContext::formattingState()); }
+
+    const FlexFormattingGeometry m_flexFormattingGeometry;
+    const FormattingQuirks m_flexFormattingQuirks;
 };
 
 }
 }
+
+SPECIALIZE_TYPE_TRAITS_LAYOUT_FORMATTING_CONTEXT(FlexFormattingContext, isFlexFormattingContext())
 

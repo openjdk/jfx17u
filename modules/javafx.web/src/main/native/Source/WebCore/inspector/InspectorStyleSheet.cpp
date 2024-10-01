@@ -91,16 +91,11 @@ static RuleFlatteningStrategy flatteningStrategyForStyleRuleType(StyleRuleType s
     case StyleRuleType::Supports:
     case StyleRuleType::LayerBlock:
     case StyleRuleType::Container:
-    case StyleRuleType::StartingStyle:
         // These rules MUST be handled by the static `isValidRuleHeaderText`, `protocolGroupingTypeForStyleRuleType`,
         // and `asCSSRuleList` in order to provide functionality in Web Inspector. Additionally, they MUST have a CSSOM
         // representation created in `StyleRuleBase::createCSSOMWrapper`, otherwise we will end up with a mismatched
         // lists of source data and CSSOM wrappers.
         return RuleFlatteningStrategy::CommitSelfThenChildren;
-
-    // FIXME: implement support for this and move this case up.
-    // https://bugs.webkit.org/show_bug.cgi?id=264496
-    case StyleRuleType::Scope:
 
     case StyleRuleType::Unknown:
     case StyleRuleType::Charset:
@@ -182,7 +177,7 @@ static bool isValidRuleHeaderText(const String& headerText, StyleRuleType styleR
     switch (styleRuleType) {
     case StyleRuleType::Style: {
         CSSParser parser(parserContextForDocument(document));
-        return !!parser.parseSelectorList(headerText, nullptr, isNestedContext);
+        return !!parser.parseSelector(headerText, nullptr, isNestedContext);
     }
     case StyleRuleType::Media:
     case StyleRuleType::Supports:
@@ -763,7 +758,7 @@ ExceptionOr<String> InspectorStyle::text() const
     // Precondition: m_parentStyleSheet->ensureParsedDataReady() has been called successfully.
     auto sourceData = extractSourceData();
     if (!sourceData)
-        return Exception { ExceptionCode::NotFoundError };
+        return Exception { NotFoundError };
 
     auto result = m_parentStyleSheet->text();
     if (result.hasException())
@@ -1067,7 +1062,7 @@ void InspectorStyleSheet::reparseStyleSheet(const String& text)
 ExceptionOr<void> InspectorStyleSheet::setText(const String& text)
 {
     if (!m_pageStyleSheet)
-        return Exception { ExceptionCode::NotSupportedError };
+        return Exception { NotSupportedError };
 
     m_parsedStyleSheet->setText(text);
     m_flatRules.clear();
@@ -1079,14 +1074,14 @@ ExceptionOr<String> InspectorStyleSheet::ruleHeaderText(const InspectorCSSId& id
 {
     auto* rule = ruleForId(id);
     if (!rule)
-        return Exception { ExceptionCode::NotFoundError };
+        return Exception { NotFoundError };
 
     if (auto* cssStyleRule = dynamicDowncast<CSSStyleRule>(rule))
         return cssStyleRule->selectorText();
 
     auto sourceData = ruleSourceDataFor(rule);
     if (!sourceData)
-        return Exception { ExceptionCode::NotFoundError };
+        return Exception { NotFoundError };
 
     String sheetText = m_parsedStyleSheet->text();
     return sheetText.substring(sourceData->ruleHeaderRange.start, sourceData->ruleHeaderRange.length());
@@ -1105,18 +1100,18 @@ static CSSParserEnum::IsNestedContext isNestedContext(CSSRule* rule)
 ExceptionOr<void> InspectorStyleSheet::setRuleHeaderText(const InspectorCSSId& id, const String& newHeaderText)
 {
     if (!m_pageStyleSheet)
-        return Exception { ExceptionCode::NotSupportedError };
+        return Exception { NotSupportedError };
 
     auto* rule = ruleForId(id);
     if (!rule)
-        return Exception { ExceptionCode::NotFoundError };
+        return Exception { NotFoundError };
 
     if (!isValidRuleHeaderText(newHeaderText, rule->styleRuleType(), m_pageStyleSheet->ownerDocument(), isNestedContext(rule)))
-        return Exception { ExceptionCode::SyntaxError };
+        return Exception { SyntaxError };
 
     CSSStyleSheet* styleSheet = rule->parentStyleSheet();
     if (!styleSheet || !ensureParsedDataReady())
-        return Exception { ExceptionCode::NotFoundError };
+        return Exception { NotFoundError };
 
     auto correctedHeaderText = newHeaderText;
 
@@ -1127,7 +1122,7 @@ ExceptionOr<void> InspectorStyleSheet::setRuleHeaderText(const InspectorCSSId& i
 
     auto sourceData = ruleSourceDataFor(rule);
     if (!sourceData)
-        return Exception { ExceptionCode::NotFoundError };
+        return Exception { NotFoundError };
 
     String sheetText = m_parsedStyleSheet->text();
 
@@ -1161,10 +1156,10 @@ ExceptionOr<void> InspectorStyleSheet::setRuleHeaderText(const InspectorCSSId& i
 ExceptionOr<CSSStyleRule*> InspectorStyleSheet::addRule(const String& selector)
 {
     if (!m_pageStyleSheet)
-        return Exception { ExceptionCode::NotSupportedError };
+        return Exception { NotSupportedError };
 
     if (!isValidRuleHeaderText(selector, StyleRuleType::Style, m_pageStyleSheet->ownerDocument(), CSSParserEnum::IsNestedContext::No))
-        return Exception { ExceptionCode::SyntaxError };
+        return Exception { SyntaxError };
 
     auto text = this->text();
     if (text.hasException())
@@ -1201,7 +1196,7 @@ ExceptionOr<CSSStyleRule*> InspectorStyleSheet::addRule(const String& selector)
         // What we just added has to be a CSSStyleRule - we cannot handle other types of rules yet.
         // If it is not a style rule, pretend we never touched the stylesheet.
         m_pageStyleSheet->deleteRule(lastRuleIndex);
-        return Exception { ExceptionCode::SyntaxError };
+        return Exception { SyntaxError };
     }
 
     return styleRule;
@@ -1210,18 +1205,18 @@ ExceptionOr<CSSStyleRule*> InspectorStyleSheet::addRule(const String& selector)
 ExceptionOr<void> InspectorStyleSheet::deleteRule(const InspectorCSSId& id)
 {
     if (!m_pageStyleSheet)
-        return Exception { ExceptionCode::NotSupportedError };
+        return Exception { NotSupportedError };
 
     RefPtr<CSSStyleRule> rule = dynamicDowncast<CSSStyleRule>(ruleForId(id));
     if (!rule)
-        return Exception { ExceptionCode::NotFoundError };
+        return Exception { NotFoundError };
     CSSStyleSheet* styleSheet = rule->parentStyleSheet();
     if (!styleSheet || !ensureParsedDataReady())
-        return Exception { ExceptionCode::NotFoundError };
+        return Exception { NotFoundError };
 
     auto sourceData = ruleSourceDataFor(rule.get());
     if (!sourceData)
-        return Exception { ExceptionCode::NotFoundError };
+        return Exception { NotFoundError };
 
     auto deleteRuleResult = styleSheet->deleteRule(id.ordinal());
     if (deleteRuleResult.hasException())
@@ -1485,15 +1480,15 @@ ExceptionOr<void> InspectorStyleSheet::setRuleStyleText(const InspectorCSSId& id
 {
     auto* cssRule = ruleForId(id);
     if (!cssRule)
-        return Exception { ExceptionCode::NotFoundError };
+        return Exception { NotFoundError };
 
     RefPtr<CSSRuleSourceData> sourceData = ruleSourceDataFor(cssRule);
     if (!sourceData)
-        return Exception { ExceptionCode::NotFoundError };
+        return Exception { NotFoundError };
 
     RefPtr<CSSRuleSourceData> logicalContainingRuleSourceData = sourceData->isImplicitlyNested ? ruleSourceDataFor(cssRule->parentRule()) : sourceData;
     if (!logicalContainingRuleSourceData)
-        return Exception { ExceptionCode::NotFoundError };
+        return Exception { NotFoundError };
 
     unsigned bodyStart = logicalContainingRuleSourceData->ruleBodyRange.start;
     unsigned bodyEnd = logicalContainingRuleSourceData->ruleBodyRange.end;
@@ -1565,7 +1560,7 @@ ExceptionOr<void> InspectorStyleSheet::setRuleStyleText(const InspectorCSSId& id
 ExceptionOr<String> InspectorStyleSheet::text() const
 {
     if (!ensureText())
-        return Exception { ExceptionCode::NotFoundError };
+        return Exception { NotFoundError };
     return String { m_parsedStyleSheet->text() };
 }
 
@@ -1698,7 +1693,7 @@ bool InspectorStyleSheet::ensureSourceData()
         context.mode = UASheetMode;
 
     StyleSheetHandler handler(m_parsedStyleSheet->text(), m_pageStyleSheet->ownerDocument(), ruleSourceDataResult.get());
-    CSSParser::parseSheetForInspector(context, newStyleSheet, m_parsedStyleSheet->text(), handler);
+    CSSParser::parseSheetForInspector(context, newStyleSheet.ptr(), m_parsedStyleSheet->text(), handler);
     m_parsedStyleSheet->setSourceData(WTFMove(ruleSourceDataResult));
     return m_parsedStyleSheet->hasSourceData();
 }

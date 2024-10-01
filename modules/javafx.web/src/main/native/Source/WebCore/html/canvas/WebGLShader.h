@@ -27,14 +27,14 @@
 
 #if ENABLE(WEBGL)
 
-#include "WebGLObject.h"
+#include "WebGLSharedObject.h"
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
-class WebGLShader final : public WebGLObject {
+class WebGLShader final : public WebGLSharedObject {
 public:
-    static RefPtr<WebGLShader> create(WebGLRenderingContextBase&, GCGLenum);
+    static Ref<WebGLShader> create(WebGLRenderingContextBase&, GCGLenum);
     virtual ~WebGLShader();
 
     GCGLenum getType() const { return m_type; }
@@ -42,10 +42,8 @@ public:
 
     void setSource(const String& source) { m_source = source; }
 
-    bool isUsable() const { return object(); }
-    bool isInitialized() const { return true; }
 private:
-    WebGLShader(WebGLRenderingContextBase&, PlatformGLObject, GCGLenum);
+    WebGLShader(WebGLRenderingContextBase&, GCGLenum);
 
     void deleteObjectImpl(const AbstractLocker&, GraphicsContextGL*, PlatformGLObject) final;
 

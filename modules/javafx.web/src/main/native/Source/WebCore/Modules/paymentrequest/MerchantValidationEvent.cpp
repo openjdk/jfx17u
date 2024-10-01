@@ -43,15 +43,15 @@ Ref<MerchantValidationEvent> MerchantValidationEvent::create(const AtomString& t
 
 ExceptionOr<Ref<MerchantValidationEvent>> MerchantValidationEvent::create(Document& document, const AtomString& type, Init&& eventInit)
 {
-    auto validationURL = document.completeURL(eventInit.validationURL, ScriptExecutionContext::ForceUTF8::Yes);
+    URL validationURL { document.url(), eventInit.validationURL };
     if (!validationURL.isValid())
-        return Exception { ExceptionCode::TypeError };
+        return Exception { TypeError };
 
     auto methodName = WTFMove(eventInit.methodName);
     if (!methodName.isEmpty()) {
         auto validatedMethodName = convertAndValidatePaymentMethodIdentifier(methodName);
         if (!validatedMethodName)
-            return Exception { ExceptionCode::RangeError, makeString('"', methodName, "\" is an invalid payment method identifier.") };
+            return Exception { RangeError, makeString('"', methodName, "\" is an invalid payment method identifier.") };
     }
 
     return adoptRef(*new MerchantValidationEvent(type, WTFMove(methodName), WTFMove(validationURL), WTFMove(eventInit)));
@@ -83,10 +83,10 @@ EventInterface MerchantValidationEvent::eventInterface() const
 ExceptionOr<void> MerchantValidationEvent::complete(Ref<DOMPromise>&& merchantSessionPromise)
 {
     if (!isTrusted())
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
 
     if (m_isCompleted)
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
 
     auto exception = downcast<PaymentRequest>(target())->completeMerchantValidation(*this, WTFMove(merchantSessionPromise));
     if (exception.hasException())

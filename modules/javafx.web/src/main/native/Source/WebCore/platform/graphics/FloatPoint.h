@@ -57,18 +57,18 @@ class FloatRect;
 class FloatPoint {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    constexpr FloatPoint() = default;
-    constexpr FloatPoint(float x, float y) : m_x(x), m_y(y) { }
+    FloatPoint() { }
+    FloatPoint(float x, float y) : m_x(x), m_y(y) { }
     WEBCORE_EXPORT FloatPoint(const IntPoint&);
     explicit FloatPoint(const FloatSize& size) : m_x(size.width()), m_y(size.height()) { }
 
-    static constexpr FloatPoint zero() { return FloatPoint(); }
-    constexpr bool isZero() const { return !m_x && !m_y; }
+    static FloatPoint zero() { return FloatPoint(); }
+    bool isZero() const { return !m_x && !m_y; }
 
     WEBCORE_EXPORT static FloatPoint narrowPrecision(double x, double y);
 
-    constexpr float x() const { return m_x; }
-    constexpr float y() const { return m_y; }
+    float x() const { return m_x; }
+    float y() const { return m_y; }
 
     void setX(float x) { m_x = x; }
     void setY(float y) { m_y = y; }
@@ -121,21 +121,30 @@ public:
         m_y *= scaleY;
     }
 
-    constexpr FloatPoint scaled(float scale) const
+    FloatPoint scaled(float scale) const
     {
         return { m_x * scale, m_y * scale };
     }
 
-    constexpr FloatPoint scaled(float scaleX, float scaleY) const
+    FloatPoint scaled(float scaleX, float scaleY) const
     {
         return { m_x * scaleX, m_y * scaleY };
     }
 
-    void rotate(double angleInRadians, const FloatPoint& aboutPoint);
+    void rotate(double angleInRadians, const FloatPoint& aboutPoint = { })
+    {
+        auto sinAngle = sin(angleInRadians);
+        auto cosAngle = cos(angleInRadians);
+        m_x -= aboutPoint.x();
+        m_y -= aboutPoint.y();
+        auto newX = m_x * cosAngle - m_y * sinAngle + aboutPoint.x();
+        m_y = m_x * sinAngle + m_y * cosAngle + aboutPoint.y();
+        m_x = newX;
+    }
 
     WEBCORE_EXPORT void normalize();
 
-    constexpr float dot(const FloatPoint& a) const
+    float dot(const FloatPoint& a) const
     {
         return m_x * a.x() + m_y * a.y();
     }
@@ -147,7 +156,7 @@ public:
         return std::hypot(m_x, m_y);
     }
 
-    constexpr float lengthSquared() const
+    float lengthSquared() const
     {
         return m_x * m_x + m_y * m_y;
     }
@@ -156,17 +165,17 @@ public:
 
     WEBCORE_EXPORT FloatPoint constrainedWithin(const FloatRect&) const;
 
-    constexpr FloatPoint shrunkTo(const FloatPoint& other) const
+    FloatPoint shrunkTo(const FloatPoint& other) const
     {
         return { std::min(m_x, other.m_x), std::min(m_y, other.m_y) };
     }
 
-    constexpr FloatPoint expandedTo(const FloatPoint& other) const
+    FloatPoint expandedTo(const FloatPoint& other) const
     {
         return { std::max(m_x, other.m_x), std::max(m_y, other.m_y) };
     }
 
-    constexpr FloatPoint transposedPoint() const
+    FloatPoint transposedPoint() const
     {
         return { m_y, m_x };
     }
@@ -184,25 +193,8 @@ public:
     WEBCORE_EXPORT FloatPoint matrixTransform(const TransformationMatrix&) const;
     WEBCORE_EXPORT FloatPoint matrixTransform(const AffineTransform&) const;
 
-    static constexpr FloatPoint nanPoint();
-    constexpr bool isNaN() const;
-
     WEBCORE_EXPORT String toJSONString() const;
     WEBCORE_EXPORT Ref<JSON::Object> toJSONObject() const;
-
-    friend bool operator==(const FloatPoint&, const FloatPoint&) = default;
-
-    struct MarkableTraits {
-        constexpr static bool isEmptyValue(const FloatPoint& point)
-        {
-            return point.isNaN();
-        }
-
-        constexpr static FloatPoint emptyValue()
-        {
-            return FloatPoint::nanPoint();
-        }
-    };
 
 private:
     float m_x { 0 };
@@ -228,46 +220,40 @@ inline FloatPoint& operator-=(FloatPoint& a, const FloatSize& b)
     return a;
 }
 
-constexpr FloatPoint operator+(const FloatPoint& a, const FloatSize& b)
+inline FloatPoint operator+(const FloatPoint& a, const FloatSize& b)
 {
     return FloatPoint(a.x() + b.width(), a.y() + b.height());
 }
 
-constexpr FloatPoint operator+(const FloatPoint& a, const FloatPoint& b)
+inline FloatPoint operator+(const FloatPoint& a, const FloatPoint& b)
 {
     return FloatPoint(a.x() + b.x(), a.y() + b.y());
 }
 
-constexpr FloatSize operator-(const FloatPoint& a, const FloatPoint& b)
+inline FloatSize operator-(const FloatPoint& a, const FloatPoint& b)
 {
     return FloatSize(a.x() - b.x(), a.y() - b.y());
 }
 
-constexpr FloatPoint operator-(const FloatPoint& a, const FloatSize& b)
+inline FloatPoint operator-(const FloatPoint& a, const FloatSize& b)
 {
     return FloatPoint(a.x() - b.width(), a.y() - b.height());
 }
 
-constexpr FloatPoint operator-(const FloatPoint& a)
+inline FloatPoint operator-(const FloatPoint& a)
 {
     return FloatPoint(-a.x(), -a.y());
 }
 
-constexpr float operator*(const FloatPoint& a, const FloatPoint& b)
+inline bool operator==(const FloatPoint& a, const FloatPoint& b)
+{
+    return a.x() == b.x() && a.y() == b.y();
+}
+
+inline float operator*(const FloatPoint& a, const FloatPoint& b)
 {
     // dot product
     return a.dot(b);
-}
-
-inline void FloatPoint::rotate(double angleInRadians, const FloatPoint& aboutPoint = { })
-{
-    auto sinAngle = sin(angleInRadians);
-    auto cosAngle = cos(angleInRadians);
-    m_x -= aboutPoint.x();
-    m_y -= aboutPoint.y();
-    auto newX = m_x * cosAngle - m_y * sinAngle + aboutPoint.x();
-    m_y = m_x * sinAngle + m_y * cosAngle + aboutPoint.y();
-    m_x = newX;
 }
 
 inline IntSize flooredIntSize(const FloatPoint& p)
@@ -318,19 +304,6 @@ inline bool areEssentiallyEqual(const FloatPoint& a, const FloatPoint& b)
 inline void add(Hasher& hasher, const FloatPoint& point)
 {
     add(hasher, point.x(), point.y());
-}
-
-constexpr FloatPoint FloatPoint::nanPoint()
-{
-    return {
-        std::numeric_limits<float>::quiet_NaN(),
-        std::numeric_limits<float>::quiet_NaN()
-    };
-}
-
-constexpr bool FloatPoint::isNaN() const
-{
-    return isNaNConstExpr(x());
 }
 
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const FloatPoint&);

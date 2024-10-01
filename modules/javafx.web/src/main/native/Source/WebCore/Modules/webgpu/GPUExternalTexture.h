@@ -28,12 +28,11 @@
 #include "WebGPUExternalTexture.h"
 #include <wtf/Ref.h>
 #include <wtf/RefCounted.h>
-#include <wtf/WeakPtr.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
-class GPUExternalTexture : public RefCounted<GPUExternalTexture>, public CanMakeWeakPtr<GPUExternalTexture> {
+class GPUExternalTexture : public RefCounted<GPUExternalTexture> {
 public:
     static Ref<GPUExternalTexture> create(Ref<WebGPU::ExternalTexture>&& backing)
     {
@@ -45,8 +44,6 @@ public:
 
     WebGPU::ExternalTexture& backing() { return m_backing; }
     const WebGPU::ExternalTexture& backing() const { return m_backing; }
-    void destroy();
-    void undestroy();
 
 private:
     GPUExternalTexture(Ref<WebGPU::ExternalTexture>&& backing)

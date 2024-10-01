@@ -28,6 +28,7 @@
 #include "CryptoAlgorithm.h"
 
 #if ENABLE(WEB_CRYPTO)
+
 namespace WebCore {
 
 class CryptoAlgorithmEcdsaParams;
@@ -54,4 +55,5 @@ private:
 };
 
 } // namespace WebCore
+
 #endif // ENABLE(WEB_CRYPTO)

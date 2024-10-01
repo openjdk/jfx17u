@@ -61,9 +61,9 @@ NavigatorPermissions& NavigatorPermissions::from(Navigator& navigator)
     return *supplement;
 }
 
-ASCIILiteral NavigatorPermissions::supplementName()
+const char* NavigatorPermissions::supplementName()
 {
-    return "NavigatorPermissions"_s;
+    return "NavigatorPermissions";
 }
 
 } // namespace WebCore

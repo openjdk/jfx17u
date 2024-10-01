@@ -26,7 +26,6 @@
 
 #include "CSSFontSelector.h"
 #include "CSSValueKeywords.h"
-#include "DocumentInlines.h"
 #include "Font.h"
 #include "FrameSelection.h"
 #include "HTMLNames.h"
@@ -60,10 +59,9 @@ using namespace HTMLNames;
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderTextControlSingleLine);
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderTextControlInnerBlock);
 
-RenderTextControlSingleLine::RenderTextControlSingleLine(Type type, HTMLInputElement& element, RenderStyle&& style)
-    : RenderTextControl(type, element, WTFMove(style))
+RenderTextControlSingleLine::RenderTextControlSingleLine(HTMLInputElement& element, RenderStyle&& style)
+    : RenderTextControl(element, WTFMove(style))
 {
-    ASSERT(isRenderTextControlSingleLine());
 }
 
 RenderTextControlSingleLine::~RenderTextControlSingleLine() = default;
@@ -155,11 +153,11 @@ void RenderTextControlSingleLine::layout()
         oldContainerLogicalTop = containerRenderer->logicalTop();
         LayoutUnit containerLogicalHeight = containerRenderer->logicalHeight();
 
-        CheckedPtr autoFillStrongPasswordButtonRenderer = [&]() -> RenderBox* {
+        auto* autoFillStrongPasswordButtonRenderer = [&]() -> RenderBox* {
             if (!inputElement().hasAutoFillStrongPasswordButton())
                 return nullptr;
 
-            RefPtr autoFillButtonElement = inputElement().autoFillButtonElement();
+            auto* autoFillButtonElement = inputElement().autoFillButtonElement();
             if (!autoFillButtonElement)
                 return nullptr;
 
@@ -489,9 +487,8 @@ HTMLInputElement& RenderTextControlSingleLine::inputElement() const
 }
 
 RenderTextControlInnerBlock::RenderTextControlInnerBlock(Element& element, RenderStyle&& style)
-    : RenderBlockFlow(Type::TextControlInnerBlock, element, WTFMove(style))
+    : RenderBlockFlow(element, WTFMove(style))
 {
-    ASSERT(isRenderTextControlInnerBlock());
 }
 
 }

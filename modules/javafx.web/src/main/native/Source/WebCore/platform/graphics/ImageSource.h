@@ -190,7 +190,10 @@ private:
         size_t index;
         SubsamplingLevel subsamplingLevel;
         DecodingOptions decodingOptions;
-        friend bool operator==(const ImageFrameRequest&, const ImageFrameRequest&) = default;
+        bool operator==(const ImageFrameRequest& other) const
+        {
+            return index == other.index && subsamplingLevel == other.subsamplingLevel && decodingOptions == other.decodingOptions;
+        }
     };
     using FrameRequestQueue = SynchronizedFixedQueue<ImageFrameRequest, BufferSize>;
     using FrameCommitQueue = Deque<ImageFrameRequest, BufferSize>;

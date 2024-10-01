@@ -29,7 +29,6 @@
 #include "StyleFontSizeFunctions.h"
 
 #include <wtf/SortedArrayMap.h>
-#include <wtf/Vector.h>
 
 namespace WebCore {
 

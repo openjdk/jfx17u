@@ -54,8 +54,7 @@ LabelsNodeList::~LabelsNodeList()
 
 bool LabelsNodeList::elementMatches(Element& testNode) const
 {
-    auto* label = dynamicDowncast<HTMLLabelElement>(testNode);
-    return label && label->control() == &ownerNode();
+    return is<HTMLLabelElement>(testNode) && downcast<HTMLLabelElement>(testNode).control() == &ownerNode();
 }
 
 } // namespace WebCore

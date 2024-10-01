@@ -60,11 +60,15 @@ public:
 
     // DOM API exposed cross-origin.
     WindowProxy* self() const;
+    Location* location() const;
+    void close(Document&);
+    bool closed() const;
     void focus(LocalDOMWindow& incumbentWindow);
     void blur();
     unsigned length() const;
-    void setOpener(WindowProxy*);
-    void frameDetached();
+    WindowProxy* top() const;
+    WindowProxy* opener() const;
+    WindowProxy* parent() const;
     ExceptionOr<void> postMessage(JSC::JSGlobalObject&, LocalDOMWindow& incumbentWindow, JSC::JSValue message, WindowPostMessageOptions&&);
     ExceptionOr<void> postMessage(JSC::JSGlobalObject& globalObject, LocalDOMWindow& incumbentWindow, JSC::JSValue message, String&& targetOrigin, Vector<JSC::Strong<JSC::JSObject>>&& transfer)
     {
@@ -76,8 +80,6 @@ private:
 
     bool isRemoteDOMWindow() const final { return true; }
     bool isLocalDOMWindow() const final { return false; }
-    void closePage() final;
-    void setLocation(LocalDOMWindow& activeWindow, const URL& completedURL, SetLocationLocking) final;
 
     WeakPtr<RemoteFrame> m_frame;
 };

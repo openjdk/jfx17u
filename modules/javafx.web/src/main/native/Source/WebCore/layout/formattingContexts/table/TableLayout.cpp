@@ -28,7 +28,6 @@
 
 #include "LayoutBox.h"
 #include "LayoutBoxGeometry.h"
-#include "RenderStyleInlines.h"
 #include "TableFormattingGeometry.h"
 
 namespace WebCore {

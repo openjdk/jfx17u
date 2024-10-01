@@ -47,15 +47,9 @@ LibWebRTCAudioModule::LibWebRTCAudioModule()
 
 LibWebRTCAudioModule::~LibWebRTCAudioModule()
 {
-    ASSERT(!m_logTimer);
-}
-
-int32_t LibWebRTCAudioModule::Terminate()
-{
-    callOnMainThread([this, protectedThis = rtc::scoped_refptr<webrtc::AudioDeviceModule>(this)] {
+    callOnMainThreadAndWait([&] {
         m_logTimer = nullptr;
     });
-    return 0;
 }
 
 int32_t LibWebRTCAudioModule::RegisterAudioCallback(webrtc::AudioTransport* audioTransport)

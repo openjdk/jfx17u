@@ -77,7 +77,7 @@ void EllipsisBoxPainter::paint()
         context.setFillColor(textColor);
 
     if (setShadow)
-        context.clearDropShadow();
+        context.clearShadow();
 }
 
 void EllipsisBoxPainter::paintSelection()

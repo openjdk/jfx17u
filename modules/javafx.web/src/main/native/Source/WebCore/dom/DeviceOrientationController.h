@@ -54,7 +54,7 @@ public:
     RefPtr<Event> getLastEvent() override;
 #endif
 
-    static ASCIILiteral supplementName();
+    static const char* supplementName();
     static DeviceOrientationController* from(Page*);
     static bool isActiveAt(Page*);
 };

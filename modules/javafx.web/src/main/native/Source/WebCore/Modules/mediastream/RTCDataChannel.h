@@ -71,9 +71,8 @@ public:
     size_t bufferedAmountLowThreshold() const { return m_bufferedAmountLowThreshold; }
     void setBufferedAmountLowThreshold(size_t value) { m_bufferedAmountLowThreshold = value; }
 
-    enum class BinaryType : bool { Blob, Arraybuffer };
-    BinaryType binaryType() const { return m_binaryType; }
-    void setBinaryType(BinaryType);
+    const AtomString& binaryType() const;
+    ExceptionOr<void> setBinaryType(const AtomString&);
 
     ExceptionOr<void> send(const String&);
     ExceptionOr<void> send(JSC::ArrayBuffer&);
@@ -125,7 +124,8 @@ private:
     bool m_stopped { false };
     RTCDataChannelState m_readyState { RTCDataChannelState::Connecting };
 
-    BinaryType m_binaryType { BinaryType::Arraybuffer };
+    enum class BinaryType { Blob, ArrayBuffer };
+    BinaryType m_binaryType { BinaryType::ArrayBuffer };
 
     String m_label;
     RTCDataChannelInit m_options;

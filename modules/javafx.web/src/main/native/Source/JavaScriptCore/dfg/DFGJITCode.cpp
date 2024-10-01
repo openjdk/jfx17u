@@ -35,8 +35,9 @@
 
 namespace JSC { namespace DFG {
 
-JITData::JITData(unsigned stubInfoSize, unsigned poolSize, const JITCode& jitCode, ExitVector&& exits)
-    : Base(stubInfoSize, poolSize)
+JITData::JITData(const JITCode& jitCode, ExitVector&& exits)
+    : Base(jitCode.m_linkerIR.size())
+    , m_stubInfos(jitCode.m_unlinkedStubInfos.size())
     , m_callLinkInfos(jitCode.m_unlinkedCallLinkInfos.size())
     , m_exits(WTFMove(exits))
 {
@@ -59,6 +60,7 @@ JITData::JITData(unsigned stubInfoSize, unsigned poolSize, const JITCode& jitCod
             break;
         }
         case LinkerIR::Type::Invalid:
+        case LinkerIR::Type::StructureStubInfo:
         case LinkerIR::Type::CallLinkInfo:
         case LinkerIR::Type::CellPointer:
         case LinkerIR::Type::NonCellPointer:
@@ -84,94 +86,101 @@ static bool attemptToWatch(CodeBlock* codeBlock, WatchpointSet& set, CodeBlockJe
 
 bool JITData::tryInitialize(VM& vm, CodeBlock* codeBlock, const JITCode& jitCode)
 {
-    // We share the same layout for particular fields in all JITData to make our data IC assume this.
-    ASSERT(BaselineJITData::offsetOfGlobalObject() == JITData::offsetOfGlobalObject());
-    ASSERT(BaselineJITData::offsetOfStackOffset() == JITData::offsetOfStackOffset());
-
-    m_globalObject = codeBlock->globalObject();
-    m_stackOffset = codeBlock->stackPointerOffset() * sizeof(Register);
-
-    for (unsigned index = 0; index < jitCode.m_unlinkedStubInfos.size(); ++index) {
-        const UnlinkedStructureStubInfo& unlinkedStubInfo = jitCode.m_unlinkedStubInfos[index];
-        stubInfo(index).initializeFromDFGUnlinkedStructureStubInfo(unlinkedStubInfo);
-    }
-
     unsigned indexOfWatchpoints = 0;
     bool success = true;
     for (unsigned i = 0; i < jitCode.m_linkerIR.size(); ++i) {
         auto entry = jitCode.m_linkerIR.at(i);
         switch (entry.type()) {
+        case LinkerIR::Type::StructureStubInfo: {
+            unsigned index = bitwise_cast<uintptr_t>(entry.pointer());
+            const UnlinkedStructureStubInfo& unlinkedStubInfo = jitCode.m_unlinkedStubInfos[index];
+            StructureStubInfo& stubInfo = m_stubInfos[index];
+            stubInfo.initializeFromDFGUnlinkedStructureStubInfo(unlinkedStubInfo);
+            at(i) = &stubInfo;
+            break;
+        }
         case LinkerIR::Type::CallLinkInfo: {
             unsigned index = bitwise_cast<uintptr_t>(entry.pointer());
             const UnlinkedCallLinkInfo& unlinkedCallLinkInfo = jitCode.m_unlinkedCallLinkInfos[index];
             OptimizingCallLinkInfo& callLinkInfo = m_callLinkInfos[index];
-            callLinkInfo.initializeFromDFGUnlinkedCallLinkInfo(vm, unlinkedCallLinkInfo, codeBlock);
-            trailingSpan()[i] = &callLinkInfo;
+            callLinkInfo.initializeFromDFGUnlinkedCallLinkInfo(vm, unlinkedCallLinkInfo);
+            at(i) = &callLinkInfo;
             break;
         }
         case LinkerIR::Type::GlobalObject: {
-            trailingSpan()[i] = codeBlock->globalObject();
+            at(i) = codeBlock->globalObject();
             break;
         }
         case LinkerIR::Type::HavingABadTimeWatchpointSet: {
+            auto* globalObject = codeBlock->globalObject();
             auto& watchpoint = m_watchpoints[indexOfWatchpoints++];
-            success &= attemptToWatch(codeBlock, m_globalObject->havingABadTimeWatchpointSet(), watchpoint);
+            success &= attemptToWatch(codeBlock, globalObject->havingABadTimeWatchpointSet(), watchpoint);
             break;
         }
         case LinkerIR::Type::MasqueradesAsUndefinedWatchpointSet: {
+            auto* globalObject = codeBlock->globalObject();
             auto& watchpoint = m_watchpoints[indexOfWatchpoints++];
-            success &= attemptToWatch(codeBlock, m_globalObject->masqueradesAsUndefinedWatchpointSet(), watchpoint);
+            success &= attemptToWatch(codeBlock, globalObject->masqueradesAsUndefinedWatchpointSet(), watchpoint);
             break;
         }
         case LinkerIR::Type::ArrayIteratorProtocolWatchpointSet: {
+            auto* globalObject = codeBlock->globalObject();
             auto& watchpoint = m_watchpoints[indexOfWatchpoints++];
-            success &= attemptToWatch(codeBlock, m_globalObject->arrayIteratorProtocolWatchpointSet(), watchpoint);
+            success &= attemptToWatch(codeBlock, globalObject->arrayIteratorProtocolWatchpointSet(), watchpoint);
             break;
         }
         case LinkerIR::Type::NumberToStringWatchpointSet: {
+            auto* globalObject = codeBlock->globalObject();
             auto& watchpoint = m_watchpoints[indexOfWatchpoints++];
-            success &= attemptToWatch(codeBlock, m_globalObject->numberToStringWatchpointSet(), watchpoint);
+            success &= attemptToWatch(codeBlock, globalObject->numberToStringWatchpointSet(), watchpoint);
             break;
         }
         case LinkerIR::Type::StructureCacheClearedWatchpointSet: {
+            auto* globalObject = codeBlock->globalObject();
             auto& watchpoint = m_watchpoints[indexOfWatchpoints++];
-            success &= attemptToWatch(codeBlock, m_globalObject->structureCacheClearedWatchpointSet(), watchpoint);
+            success &= attemptToWatch(codeBlock, globalObject->structureCacheClearedWatchpointSet(), watchpoint);
             break;
         }
         case LinkerIR::Type::StringSymbolReplaceWatchpointSet: {
+            auto* globalObject = codeBlock->globalObject();
             auto& watchpoint = m_watchpoints[indexOfWatchpoints++];
-            success &= attemptToWatch(codeBlock, m_globalObject->stringSymbolReplaceWatchpointSet(), watchpoint);
+            success &= attemptToWatch(codeBlock, globalObject->stringSymbolReplaceWatchpointSet(), watchpoint);
             break;
         }
         case LinkerIR::Type::RegExpPrimordialPropertiesWatchpointSet: {
+            auto* globalObject = codeBlock->globalObject();
             auto& watchpoint = m_watchpoints[indexOfWatchpoints++];
-            success &= attemptToWatch(codeBlock, m_globalObject->regExpPrimordialPropertiesWatchpointSet(), watchpoint);
+            success &= attemptToWatch(codeBlock, globalObject->regExpPrimordialPropertiesWatchpointSet(), watchpoint);
             break;
         }
         case LinkerIR::Type::ArraySpeciesWatchpointSet: {
+            auto* globalObject = codeBlock->globalObject();
             auto& watchpoint = m_watchpoints[indexOfWatchpoints++];
-            success &= attemptToWatch(codeBlock, m_globalObject->arraySpeciesWatchpointSet(), watchpoint);
+            success &= attemptToWatch(codeBlock, globalObject->arraySpeciesWatchpointSet(), watchpoint);
             break;
         }
         case LinkerIR::Type::ArrayPrototypeChainIsSaneWatchpointSet: {
+            auto* globalObject = codeBlock->globalObject();
             auto& watchpoint = m_watchpoints[indexOfWatchpoints++];
-            success &= attemptToWatch(codeBlock, m_globalObject->arrayPrototypeChainIsSaneWatchpointSet(), watchpoint);
+            success &= attemptToWatch(codeBlock, globalObject->arrayPrototypeChainIsSaneWatchpointSet(), watchpoint);
             break;
         }
         case LinkerIR::Type::StringPrototypeChainIsSaneWatchpointSet: {
+            auto* globalObject = codeBlock->globalObject();
             auto& watchpoint = m_watchpoints[indexOfWatchpoints++];
-            success &= attemptToWatch(codeBlock, m_globalObject->stringPrototypeChainIsSaneWatchpointSet(), watchpoint);
+            success &= attemptToWatch(codeBlock, globalObject->stringPrototypeChainIsSaneWatchpointSet(), watchpoint);
             break;
         }
         case LinkerIR::Type::ObjectPrototypeChainIsSaneWatchpointSet: {
+            auto* globalObject = codeBlock->globalObject();
             auto& watchpoint = m_watchpoints[indexOfWatchpoints++];
-            success &= attemptToWatch(codeBlock, m_globalObject->objectPrototypeChainIsSaneWatchpointSet(), watchpoint);
+            success &= attemptToWatch(codeBlock, globalObject->objectPrototypeChainIsSaneWatchpointSet(), watchpoint);
             break;
         }
         case LinkerIR::Type::Invalid:
         case LinkerIR::Type::CellPointer:
         case LinkerIR::Type::NonCellPointer: {
-            trailingSpan()[i] = entry.pointer();
+            at(i) = entry.pointer();
             break;
         }
     }
@@ -190,11 +199,6 @@ JITCode::~JITCode()
 }
 
 CommonData* JITCode::dfgCommon()
-{
-    return &common;
-}
-
-const CommonData* JITCode::dfgCommon() const
 {
     return &common;
 }

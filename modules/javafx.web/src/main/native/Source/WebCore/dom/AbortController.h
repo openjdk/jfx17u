@@ -47,7 +47,6 @@ public:
     ~AbortController();
 
     AbortSignal& signal();
-    Ref<AbortSignal> protectedSignal() const;
     void abort(JSDOMGlobalObject&, JSC::JSValue reason);
 
     WebCoreOpaqueRoot opaqueRoot();

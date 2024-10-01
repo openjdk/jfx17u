@@ -153,11 +153,6 @@ String createVersion4UUIDString()
     return makeString(UUID::createVersion4());
 }
 
-String createVersion4UUIDStringWeak()
-{
-    return makeString(UUID::createVersion4Weak());
-}
-
 String bootSessionUUIDString()
 {
 #if OS(DARWIN)

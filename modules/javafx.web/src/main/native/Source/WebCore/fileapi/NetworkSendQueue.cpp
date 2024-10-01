@@ -98,7 +98,7 @@ void NetworkSendQueue::processMessages()
             data->forEachSegment(m_writeRawData);
         }, [this, &shouldStopProcessing](UniqueRef<BlobLoader>& loader) {
             auto errorCode = loader->errorCode();
-            if (loader->isLoading() || (errorCode && errorCode.value() == ExceptionCode::AbortError)) {
+            if (loader->isLoading() || (errorCode && errorCode.value() == AbortError)) {
                 shouldStopProcessing = true;
                 return;
             }

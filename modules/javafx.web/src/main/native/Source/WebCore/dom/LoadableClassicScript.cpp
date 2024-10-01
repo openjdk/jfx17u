@@ -27,7 +27,6 @@
 #include "LoadableClassicScript.h"
 
 #include "DefaultResourceLoadPriority.h"
-#include "Element.h"
 #include "FetchIdioms.h"
 #include "LoadableImportMap.h"
 #include "LoadableScriptError.h"
@@ -48,8 +47,8 @@ LoadableNonModuleScriptBase::LoadableNonModuleScriptBase(const AtomString& nonce
 
 LoadableNonModuleScriptBase::~LoadableNonModuleScriptBase()
 {
-    if (CachedResourceHandle cachedScript = m_cachedScript)
-        cachedScript->removeClient(*this);
+    if (m_cachedScript)
+        m_cachedScript->removeClient(*this);
 }
 
 bool LoadableNonModuleScriptBase::isLoaded() const
@@ -64,7 +63,10 @@ bool LoadableNonModuleScriptBase::hasError() const
     if (m_error)
         return true;
 
-    return m_cachedScript->errorOccurred();
+    if (m_cachedScript->errorOccurred())
+        return true;
+
+    return false;
 }
 
 std::optional<LoadableScript::Error> LoadableNonModuleScriptBase::takeError()
@@ -101,26 +103,25 @@ void LoadableNonModuleScriptBase::notifyFinished(CachedResource& resource, const
         };
     }
 
-    CachedResourceHandle cachedScript = m_cachedScript;
-    if (!m_error && !isScriptAllowedByNosniff(cachedScript->response())) {
+    if (!m_error && !isScriptAllowedByNosniff(m_cachedScript->response())) {
         m_error = Error {
             ErrorType::Nosniff,
             ConsoleMessage {
                 MessageSource::Security,
                 MessageLevel::Error,
-                makeString("Refused to execute ", cachedScript->url().stringCenterEllipsizedToLength(), " as script because \"X-Content-Type-Options: nosniff\" was given and its Content-Type is not a script MIME type.")
+                makeString("Refused to execute ", m_cachedScript->url().stringCenterEllipsizedToLength(), " as script because \"X-Content-Type-Options: nosniff\" was given and its Content-Type is not a script MIME type.")
             },
             { }
         };
     }
 
-    if (!m_error && shouldBlockResponseDueToMIMEType(cachedScript->response(), cachedScript->options().destination)) {
+    if (!m_error && shouldBlockResponseDueToMIMEType(m_cachedScript->response(), m_cachedScript->options().destination)) {
         m_error = Error {
             ErrorType::MIMEType,
             ConsoleMessage {
                 MessageSource::Security,
                 MessageLevel::Error,
-                makeString("Refused to execute ", cachedScript->url().stringCenterEllipsizedToLength(), " as script because ", cachedScript->response().mimeType(), " is not a script MIME type.")
+                makeString("Refused to execute ", m_cachedScript->url().stringCenterEllipsizedToLength(), " as script because ", m_cachedScript->response().mimeType(), " is not a script MIME type.")
             },
             { }
         };
@@ -148,12 +149,11 @@ bool LoadableNonModuleScriptBase::load(Document& document, const URL& sourceURL)
         return { };
     };
 
-    m_weakDocument = document;
-    CachedResourceHandle cachedScript = requestScriptWithCache(document, sourceURL, crossOriginMode(), String { integrity() }, priority());
-    m_cachedScript = cachedScript;
-    if (!cachedScript)
+    m_weakDocument = &document;
+    m_cachedScript = requestScriptWithCache(document, sourceURL, crossOriginMode(), String { integrity() }, priority());
+    if (!m_cachedScript)
         return false;
-    cachedScript->addClient(*this);
+    m_cachedScript->addClient(*this);
     return true;
 }
 
@@ -170,7 +170,7 @@ LoadableClassicScript::LoadableClassicScript(const AtomString& nonce, const Atom
 void LoadableClassicScript::execute(ScriptElement& scriptElement)
 {
     ASSERT(!m_error);
-    scriptElement.executeClassicScript(ScriptSourceCode(protectedCachedScript().get(), JSC::SourceProviderSourceType::Program, *this));
+    scriptElement.executeClassicScript(ScriptSourceCode(m_cachedScript.get(), JSC::SourceProviderSourceType::Program, *this));
 }
 
 }

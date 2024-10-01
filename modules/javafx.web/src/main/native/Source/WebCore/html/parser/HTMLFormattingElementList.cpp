@@ -75,12 +75,12 @@ auto HTMLFormattingElementList::bookmarkFor(Element& element) -> Bookmark
     return Bookmark(at(index));
 }
 
-void HTMLFormattingElementList::swapTo(Ref<Element> oldElement, HTMLStackItem&& newItem, const Bookmark& bookmark)
+void HTMLFormattingElementList::swapTo(Element& oldElement, HTMLStackItem&& newItem, const Bookmark& bookmark)
 {
     ASSERT(contains(oldElement));
     ASSERT(!contains(newItem.element()));
     if (!bookmark.hasBeenMoved()) {
-        ASSERT(&bookmark.mark().element() == oldElement.ptr());
+        ASSERT(&bookmark.mark().element() == &oldElement);
         bookmark.mark().replaceElement(WTFMove(newItem));
         return;
     }
@@ -194,7 +194,7 @@ void HTMLFormattingElementList::ensureNoahsArkCondition(HTMLStackItem& newItem)
 
             auto* candidateAttribute = candidate->findAttribute(attribute.name());
             if (candidateAttribute && candidateAttribute->value() == attribute.value())
-                remainingCandidates.append(candidate);
+                remainingCandidates.uncheckedAppend(candidate);
         }
 
         if (remainingCandidates.size() < kNoahsArkCapacity)
@@ -208,7 +208,7 @@ void HTMLFormattingElementList::ensureNoahsArkCondition(HTMLStackItem& newItem)
     // however, that we will spin the loop more than once because of how the
     // formatting element list gets permuted.
     for (size_t i = kNoahsArkCapacity - 1; i < candidates.size(); ++i)
-        remove(candidates[i]->protectedElement());
+        remove(candidates[i]->element());
 }
 
 #if ENABLE(TREE_DEBUGGING)

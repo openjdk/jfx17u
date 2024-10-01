@@ -77,7 +77,7 @@ public: // DOM
     float getCurrentTime() const;
     void setCurrentTime(float);
 
-    unsigned suspendRedraw(unsigned) { return 1; }
+    unsigned suspendRedraw(unsigned) { return 0; }
     void unsuspendRedraw(unsigned) { }
     void unsuspendRedrawAll() { }
     void forceRedraw() { }
@@ -142,7 +142,7 @@ private:
     RefPtr<LocalFrame> frameForCurrentScale() const;
     Ref<NodeList> collectIntersectionOrEnclosureList(SVGRect&, SVGElement*, bool (*checkFunction)(SVGElement&, SVGRect&));
 
-    RefPtr<SVGViewElement> findViewAnchor(StringView fragmentIdentifier) const;
+    SVGViewElement* findViewAnchor(StringView fragmentIdentifier) const;
     SVGSVGElement* findRootAnchor(const SVGViewElement*) const;
     SVGSVGElement* findRootAnchor(StringView) const;
 

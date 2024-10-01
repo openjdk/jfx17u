@@ -28,7 +28,6 @@
 #include "ConstructAbility.h"
 #include "ConstructorKind.h"
 #include "Identifier.h"
-#include "InlineAttribute.h"
 
 namespace JSC {
 
@@ -46,7 +45,7 @@ enum class CodeGenerationMode : uint8_t {
     ControlFlowProfiler = 1 << 2,
 };
 
-enum class FunctionMode { None, FunctionExpression, FunctionDeclaration, MethodDefinition };
+enum class FunctionMode { FunctionExpression, FunctionDeclaration, MethodDefinition };
 
 // Keep it less than 32, it means this should be within 5 bits.
 enum class SourceParseMode : uint8_t {
@@ -231,15 +230,6 @@ ALWAYS_INLINE bool isGeneratorOrAsyncFunctionWrapperParseMode(SourceParseMode pa
         SourceParseMode::AsyncArrowFunctionMode,
         SourceParseMode::AsyncGeneratorWrapperFunctionMode,
         SourceParseMode::AsyncMethodMode,
-        SourceParseMode::AsyncGeneratorWrapperMethodMode).contains(parseMode);
-}
-
-ALWAYS_INLINE bool isGeneratorOrAsyncGeneratorWrapperParseMode(SourceParseMode parseMode)
-{
-    return SourceParseModeSet(
-        SourceParseMode::GeneratorWrapperFunctionMode,
-        SourceParseMode::GeneratorWrapperMethodMode,
-        SourceParseMode::AsyncGeneratorWrapperFunctionMode,
         SourceParseMode::AsyncGeneratorWrapperMethodMode).contains(parseMode);
 }
 

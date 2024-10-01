@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 1999-2000 Harri Porten (porten@kde.org)
  *  Copyright (C) 2001 Peter Kelly (pmk@post.com)
- *  Copyright (C) 2003-2023 Apple Inc. All rights reserved.
+ *  Copyright (C) 2003-2017 Apple Inc. All rights reserved.
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -24,7 +24,6 @@
 #include "RegisterState.h"
 #include <wtf/Lock.h>
 #include <wtf/ScopedLambda.h>
-#include <wtf/TZoneMalloc.h>
 #include <wtf/ThreadGroup.h>
 
 namespace JSC {
@@ -41,7 +40,7 @@ struct CurrentThreadState {
 };
 
 class MachineThreads {
-    WTF_MAKE_TZONE_ALLOCATED(MachineThreads);
+    WTF_MAKE_FAST_ALLOCATED;
     WTF_MAKE_NONCOPYABLE(MachineThreads);
 public:
     MachineThreads();
@@ -60,7 +59,7 @@ private:
     void tryCopyOtherThreadStack(const ThreadSuspendLocker&, Thread&, void*, size_t capacity, size_t*);
     bool tryCopyOtherThreadStacks(const AbstractLocker&, void*, size_t capacity, size_t*, Thread&);
 
-    std::shared_ptr<ThreadGroup> m_threadGroup;
+    Ref<ThreadGroup> m_threadGroup;
 };
 
 #define DECLARE_AND_COMPUTE_CURRENT_THREAD_STATE(stateName) \

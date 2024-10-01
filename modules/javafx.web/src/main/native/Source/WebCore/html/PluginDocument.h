@@ -46,6 +46,9 @@ public:
 
     void setPluginElement(HTMLPlugInElement&);
     void detachFromPluginElement();
+
+    void cancelManualPluginLoad();
+
     bool shouldLoadPluginManually() const { return m_shouldLoadPluginManually; }
 
 private:
@@ -61,9 +64,5 @@ private:
 
 SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::PluginDocument)
     static bool isType(const WebCore::Document& document) { return document.isPluginDocument(); }
-    static bool isType(const WebCore::Node& node)
-    {
-        auto* document = dynamicDowncast<WebCore::Document>(node);
-        return document && isType(*document);
-    }
+    static bool isType(const WebCore::Node& node) { return is<WebCore::Document>(node) && isType(downcast<WebCore::Document>(node)); }
 SPECIALIZE_TYPE_TRAITS_END()

@@ -56,7 +56,10 @@ public:
     JSGlobalObject* globalObject() const { return m_globalObject; }
     unsigned identifierNumber() const { return m_identifierNumber; }
 
-    friend bool operator==(const DesiredGlobalProperty&, const DesiredGlobalProperty&) = default;
+    bool operator==(const DesiredGlobalProperty& other) const
+    {
+        return m_globalObject == other.m_globalObject && m_identifierNumber == other.m_identifierNumber;
+    }
 
     bool isHashTableDeletedValue() const
     {

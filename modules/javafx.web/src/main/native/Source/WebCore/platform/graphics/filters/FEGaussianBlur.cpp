@@ -34,13 +34,13 @@
 
 namespace WebCore {
 
-Ref<FEGaussianBlur> FEGaussianBlur::create(float x, float y, EdgeModeType edgeMode, DestinationColorSpace colorSpace)
+Ref<FEGaussianBlur> FEGaussianBlur::create(float x, float y, EdgeModeType edgeMode)
 {
-    return adoptRef(*new FEGaussianBlur(x, y, edgeMode, colorSpace));
+    return adoptRef(*new FEGaussianBlur(x, y, edgeMode));
 }
 
-FEGaussianBlur::FEGaussianBlur(float x, float y, EdgeModeType edgeMode, DestinationColorSpace colorSpace)
-    : FilterEffect(FilterEffect::Type::FEGaussianBlur, colorSpace)
+FEGaussianBlur::FEGaussianBlur(float x, float y, EdgeModeType edgeMode)
+    : FilterEffect(FilterEffect::Type::FEGaussianBlur)
     , m_stdX(x)
     , m_stdY(y)
     , m_edgeMode(edgeMode)
@@ -153,8 +153,7 @@ bool FEGaussianBlur::resultIsAlphaImage(const FilterImageVector& inputs) const
 OptionSet<FilterRenderingMode> FEGaussianBlur::supportedFilterRenderingModes() const
 {
     OptionSet<FilterRenderingMode> modes = FilterRenderingMode::Software;
-    // FIXME: Ensure the correctness of the CG GaussianBlur filter (http://webkit.org/b/243816).
-#if 0 && HAVE(CGSTYLE_COLORMATRIX_BLUR)
+#if HAVE(CGSTYLE_COLORMATRIX_BLUR)
     if (m_stdX == m_stdY)
         modes.add(FilterRenderingMode::GraphicsContext);
 #endif

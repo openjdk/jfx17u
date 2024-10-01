@@ -32,6 +32,7 @@
 #if ENABLE(ASYNC_SCROLLING) && USE(NICOSIA)
 
 #include "Logging.h"
+#include "NicosiaPlatformLayer.h"
 #include "ScrollingStatePositionedNode.h"
 
 namespace WebCore {

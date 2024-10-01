@@ -26,17 +26,16 @@
 #pragma once
 
 #include "WebGLExtension.h"
-#include "WebGLRenderingContextBase.h"
-#include <wtf/IsoMalloc.h>
-#include <wtf/Noncopyable.h>
 
 namespace WebCore {
 
-class WebGLCompressedTextureETC final : public WebGLExtension<WebGLRenderingContextBase> {
+class WebGLCompressedTextureETC final : public WebGLExtension {
     WTF_MAKE_ISO_ALLOCATED(WebGLCompressedTextureETC);
 public:
     explicit WebGLCompressedTextureETC(WebGLRenderingContextBase&);
-    ~WebGLCompressedTextureETC();
+    virtual ~WebGLCompressedTextureETC();
+
+    ExtensionName getName() const override;
 
     static bool supported(GraphicsContextGL&);
 };

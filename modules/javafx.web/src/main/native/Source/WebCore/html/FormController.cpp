@@ -174,10 +174,10 @@ private:
 
 static bool shouldBeUsedForFormSignature(const Element& element)
 {
-    if (auto* formControl = dynamicDowncast<HTMLFormControlElement>(element))
-        return formControl->shouldSaveAndRestoreFormControlState();
-    if (auto* customElement = dynamicDowncast<HTMLMaybeFormAssociatedCustomElement>(element))
-        return customElement->hasFormAssociatedInterface() || element.isCustomElementUpgradeCandidate();
+    if (is<HTMLFormControlElement>(element))
+        return downcast<HTMLFormControlElement>(element).shouldSaveAndRestoreFormControlState();
+    if (is<HTMLMaybeFormAssociatedCustomElement>(element))
+        return downcast<HTMLMaybeFormAssociatedCustomElement>(element).hasFormAssociatedInterface() || element.isCustomElementUpgradeCandidate();
     return false;
 }
 

@@ -41,13 +41,13 @@
 
 namespace WTF {
 
-class WorkQueueBase : public ThreadSafeRefCounted<WorkQueueBase>, protected ThreadLike {
+class WorkQueueBase : public FunctionDispatcher, public ThreadSafeRefCounted<WorkQueueBase>, protected ThreadLike {
 public:
     using QOS = Thread::QOS;
 
-    WTF_EXPORT_PRIVATE virtual ~WorkQueueBase();
+    ~WorkQueueBase() override;
 
-    WTF_EXPORT_PRIVATE void dispatch(Function<void()>&&);
+    WTF_EXPORT_PRIVATE void dispatch(Function<void()>&&) override;
     WTF_EXPORT_PRIVATE void dispatchWithQOS(Function<void()>&&, QOS);
     WTF_EXPORT_PRIVATE virtual void dispatchAfter(Seconds, Function<void()>&&);
     WTF_EXPORT_PRIVATE virtual void dispatchSync(Function<void()>&&);
@@ -68,15 +68,17 @@ protected:
     explicit WorkQueueBase(RunLoop&);
 #endif
 
+    void platformInitialize(const char* name, Type, QOS);
+    void platformInvalidate();
+
 #if USE(COCOA_EVENT_LOOP)
     OSObjectPtr<dispatch_queue_t> m_dispatchQueue;
 #else
     RunLoop* m_runLoop;
-#endif
+#if ASSERT_ENABLED
     uint32_t m_threadID { 0 };
-private:
-    void platformInitialize(const char* name, Type, QOS);
-    void platformInvalidate();
+#endif
+#endif
 };
 
 /**
@@ -86,42 +88,61 @@ private:
  * They may be executed on different threads but can safely be used by objects that aren't already threadsafe.
  * Use `assertIsCurrent(m_myQueue);` in a runnable to assert that the runnable runs in a specific queue.
  */
-class WTF_CAPABILITY("is current") WTF_EXPORT_PRIVATE WorkQueue : public WorkQueueBase, public RefCountedSerialFunctionDispatcher {
+class WTF_CAPABILITY("is current") WorkQueue : public WorkQueueBase {
 public:
-    static WorkQueue& main();
-    static Ref<WorkQueue> create(const char* name, QOS = QOS::Default);
-    void dispatch(Function<void()>&&) override;
-    bool isCurrent() const override;
-    void ref() const override;
-    void deref() const override;
+    WTF_EXPORT_PRIVATE static WorkQueue& main();
+
+    WTF_EXPORT_PRIVATE static Ref<WorkQueue> create(const char* name, QOS = QOS::Default);
 
 #if !USE(COCOA_EVENT_LOOP)
     RunLoop& runLoop() const { return *m_runLoop; }
 #endif
 
+#if ASSERT_ENABLED
+    WTF_EXPORT_PRIVATE ThreadLikeAssertion threadLikeAssertion() const;
+#else
+    ThreadLikeAssertion threadLikeAssertion() const { return { }; };
+#endif
 protected:
-    WorkQueue(const char* name, QOS);
+    WorkQueue(const char* name, QOS qos)
+        : WorkQueueBase(name, Type::Serial, qos)
+    {
+    }
 private:
-    enum MainTag : bool {
-        CreateMain
-    };
-    explicit WorkQueue(MainTag);
+#if USE(COCOA_EVENT_LOOP)
+    explicit WorkQueue(OSObjectPtr<dispatch_queue_t>&&);
+#else
+    explicit WorkQueue(RunLoop&);
+#endif
+    static Ref<WorkQueue> constructMainWorkQueue();
+
+#if ASSERT_ENABLED
+    friend void assertIsCurrent(const WorkQueue&);
+#endif
 };
+
+inline void assertIsCurrent(const WorkQueue& workQueue) WTF_ASSERTS_ACQUIRED_CAPABILITY(workQueue)
+{
+    assertIsCurrent(workQueue.threadLikeAssertion());
+}
 
 /**
  * A ConcurrentWorkQueue unlike a WorkQueue doesn't guarantee the order in which the dispatched runnable will run
  * and each can run concurrently on different threads.
  */
-class WTF_EXPORT_PRIVATE ConcurrentWorkQueue final : public WorkQueueBase, public FunctionDispatcher {
+class ConcurrentWorkQueue final : public WorkQueueBase {
 public:
-    static Ref<ConcurrentWorkQueue> create(const char* name, QOS = QOS::Default);
-    static void apply(size_t iterations, WTF::Function<void(size_t index)>&&);
-    void dispatch(Function<void()>&&) override;
+    WTF_EXPORT_PRIVATE static Ref<ConcurrentWorkQueue> create(const char* name, QOS = QOS::Default);
+    WTF_EXPORT_PRIVATE static void apply(size_t iterations, WTF::Function<void(size_t index)>&&);
 private:
-    ConcurrentWorkQueue(const char*, QOS);
+    ConcurrentWorkQueue(const char* name, QOS qos)
+        : WorkQueueBase(name, Type::Concurrent, qos)
+    {
+    }
 };
 
 }
 
 using WTF::WorkQueue;
 using WTF::ConcurrentWorkQueue;
+using WTF::assertIsCurrent;

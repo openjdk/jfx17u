@@ -173,9 +173,9 @@ void GeolocationController::stopUpdatingIfNecessary()
     m_isUpdating = false;
 }
 
-ASCIILiteral GeolocationController::supplementName()
+const char* GeolocationController::supplementName()
 {
-    return "GeolocationController"_s;
+    return "GeolocationController";
 }
 
 void provideGeolocationTo(Page* page, GeolocationClient& client)

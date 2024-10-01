@@ -41,7 +41,7 @@ public:
     static Ref<DetailsMarkerControl> create(Document&);
 
 private:
-    explicit DetailsMarkerControl(Document&);
+    DetailsMarkerControl(Document&);
 
     RenderPtr<RenderElement> createElementRenderer(RenderStyle&&, const RenderTreePosition&) override;
     bool rendererIsNeeded(const RenderStyle&) override;

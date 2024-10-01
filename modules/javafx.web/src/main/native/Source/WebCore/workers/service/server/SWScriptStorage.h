@@ -25,6 +25,7 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
 #include <wtf/FileSystem.h>
 #include <wtf/Forward.h>
 #include <wtf/text/WTFString.h>
@@ -55,3 +56,5 @@ private:
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

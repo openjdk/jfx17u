@@ -28,14 +28,11 @@
 
 #if ENABLE(OFFSCREEN_CANVAS)
 
-#include "BitmapImage.h"
 #include "CSSValuePool.h"
 #include "CanvasRenderingContext.h"
 #include "Chrome.h"
 #include "Document.h"
 #include "EventDispatcher.h"
-#include "GPU.h"
-#include "GPUCanvasContext.h"
 #include "HTMLCanvasElement.h"
 #include "ImageBitmap.h"
 #include "ImageBitmapRenderingContext.h"
@@ -48,7 +45,6 @@
 #include "PlaceholderRenderingContext.h"
 #include "WorkerClient.h"
 #include "WorkerGlobalScope.h"
-#include "WorkerNavigator.h"
 #include <wtf/IsoMallocInlines.h>
 
 #if ENABLE(WEBGL)
@@ -56,11 +52,6 @@
 #include "WebGLRenderingContext.h"
 #include "WebGL2RenderingContext.h"
 #endif // ENABLE(WEBGL)
-
-#if HAVE(WEBGPU_IMPLEMENTATION)
-#include "LocalDomWindow.h"
-#include "Navigator.h"
-#endif
 
 namespace WebCore {
 
@@ -77,7 +68,16 @@ RefPtr<ImageBuffer> DetachedOffscreenCanvas::takeImageBuffer(ScriptExecutionCont
 {
     if (!m_buffer)
         return nullptr;
-    return SerializedImageBuffer::sinkIntoImageBuffer(WTFMove(m_buffer), context.graphicsClient());
+    GraphicsClient* client = nullptr;
+    if (is<WorkerGlobalScope>(context)) {
+        client = downcast<WorkerGlobalScope>(context).workerClient();
+        ASSERT(client);
+    } else if (is<Document>(context)) {
+        ASSERT(downcast<Document>(context).page());
+        client = &downcast<Document>(context).page()->chrome();
+    }
+    ASSERT(client);
+    return client->sinkIntoImageBuffer(WTFMove(m_buffer));
 }
 
 WeakPtr<HTMLCanvasElement, WeakPtrImplWithEventTargetData> DetachedOffscreenCanvas::takePlaceholderCanvas()
@@ -145,7 +145,6 @@ OffscreenCanvas::OffscreenCanvas(ScriptExecutionContext& scriptExecutionContext,
 OffscreenCanvas::~OffscreenCanvas()
 {
     notifyObserversCanvasDestroyed();
-    removeCanvasNeedingPreparationForDisplayOrFlush();
 
     m_context = nullptr; // Ensure this goes away before the ImageBuffer.
     setImageBuffer(nullptr);
@@ -184,8 +183,8 @@ void OffscreenCanvas::setSize(const IntSize& newSize)
     CanvasBase::setSize(newSize);
     reset();
 
-    if (RefPtr context = dynamicDowncast<GPUBasedCanvasRenderingContext>(m_context.get()))
-        context->reshape(width(), height());
+    if (m_context && m_context->isGPUBased())
+        downcast<GPUBasedCanvasRenderingContext>(*m_context).reshape(width(), height());
 }
 
 #if ENABLE(WEBGL)
@@ -219,108 +218,122 @@ static bool shouldEnableWebGL(const Settings::Values& settings, bool isWorker)
     return settings.acceleratedCompositingEnabled;
 }
 
+void OffscreenCanvas::createContextWebGL(RenderingContextType contextType, WebGLContextAttributes&& attrs)
+{
+    ASSERT(!m_context);
+
+    auto scriptExecutionContext = this->scriptExecutionContext();
+    if (scriptExecutionContext->isWorkerGlobalScope()) {
+        WorkerGlobalScope& workerGlobalScope = downcast<WorkerGlobalScope>(*scriptExecutionContext);
+        if (!shouldEnableWebGL(workerGlobalScope.settingsValues(), true))
+            return;
+    } else if (scriptExecutionContext->isDocument()) {
+        auto& settings = downcast<Document>(*scriptExecutionContext).settings();
+        if (!shouldEnableWebGL(settings.values(), false))
+            return;
+    } else
+        return;
+
+    auto webGLVersion = (contextType == RenderingContextType::Webgl) ? GraphicsContextGLWebGLVersion::WebGL1 : GraphicsContextGLWebGLVersion::WebGL2;
+    m_context = WebGLRenderingContextBase::create(*this, attrs, webGLVersion);
+}
+
 #endif // ENABLE(WEBGL)
 
 ExceptionOr<std::optional<OffscreenRenderingContext>> OffscreenCanvas::getContext(JSC::JSGlobalObject& state, RenderingContextType contextType, FixedVector<JSC::Strong<JSC::Unknown>>&& arguments)
 {
     if (m_detached)
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
 
     if (contextType == RenderingContextType::_2d) {
-        if (!m_context) {
+        if (m_context) {
+            if (!is<OffscreenCanvasRenderingContext2D>(*m_context))
+                return { { std::nullopt } };
+            return { { RefPtr<OffscreenCanvasRenderingContext2D> { &downcast<OffscreenCanvasRenderingContext2D>(*m_context) } } };
+        }
+
         auto scope = DECLARE_THROW_SCOPE(state.vm());
         auto settings = convert<IDLDictionary<CanvasRenderingContext2DSettings>>(state, arguments.isEmpty() ? JSC::jsUndefined() : (arguments[0].isObject() ? arguments[0].get() : JSC::jsNull()));
-            RETURN_IF_EXCEPTION(scope, Exception { ExceptionCode::ExistingExceptionError });
+        RETURN_IF_EXCEPTION(scope, Exception { ExistingExceptionError });
+
         m_context = OffscreenCanvasRenderingContext2D::create(*this, WTFMove(settings));
-        }
-        if (RefPtr context = dynamicDowncast<OffscreenCanvasRenderingContext2D>(m_context.get()))
-            return { { WTFMove(context) } };
+        if (!m_context)
             return { { std::nullopt } };
+
+        return { { RefPtr<OffscreenCanvasRenderingContext2D> { &downcast<OffscreenCanvasRenderingContext2D>(*m_context) } } };
+    } else if (contextType == RenderingContextType::Bitmaprenderer) {
+        if (m_context) {
+            if (!is<ImageBitmapRenderingContext>(*m_context))
+                return { { std::nullopt } };
+            return { { RefPtr<ImageBitmapRenderingContext> { &downcast<ImageBitmapRenderingContext>(*m_context) } } };
         }
-    if (contextType == RenderingContextType::Bitmaprenderer) {
-        if (!m_context) {
+
         auto scope = DECLARE_THROW_SCOPE(state.vm());
         auto settings = convert<IDLDictionary<ImageBitmapRenderingContextSettings>>(state, arguments.isEmpty() ? JSC::jsUndefined() : (arguments[0].isObject() ? arguments[0].get() : JSC::jsNull()));
-            RETURN_IF_EXCEPTION(scope, Exception { ExceptionCode::ExistingExceptionError });
+        RETURN_IF_EXCEPTION(scope, Exception { ExistingExceptionError });
+
         m_context = ImageBitmapRenderingContext::create(*this, WTFMove(settings));
-            downcast<ImageBitmapRenderingContext>(m_context.get())->transferFromImageBitmap(nullptr);
-        }
-        if (RefPtr context = dynamicDowncast<ImageBitmapRenderingContext>(m_context.get()))
-            return { { WTFMove(context) } };
+        if (!m_context)
             return { { std::nullopt } };
+
+        return { { RefPtr<ImageBitmapRenderingContext> { &downcast<ImageBitmapRenderingContext>(*m_context) } } };
     }
-    if (contextType == RenderingContextType::Webgpu) {
-#if HAVE(WEBGPU_IMPLEMENTATION)
-        if (!m_context) {
-            auto scope = DECLARE_THROW_SCOPE(state.vm());
-            RETURN_IF_EXCEPTION(scope, Exception { ExceptionCode::ExistingExceptionError });
-            Ref scriptExecutionContext = *this->scriptExecutionContext();
-            if (RefPtr globalScope = dynamicDowncast<WorkerGlobalScope>(scriptExecutionContext)) {
-                if (auto* gpu = globalScope->navigator().gpu())
-                    m_context = GPUCanvasContext::create(*this, *gpu);
-            } else if (RefPtr document = dynamicDowncast<Document>(scriptExecutionContext)) {
-                if (RefPtr domWindow = document->domWindow()) {
-                    if (auto* gpu = domWindow->navigator().gpu())
-                        m_context = GPUCanvasContext::create(*this, *gpu);
-                }
-            }
-        }
-        if (RefPtr context = dynamicDowncast<GPUCanvasContext>(m_context.get()))
-            return { { WTFMove(context) } };
-#endif
+#if ENABLE(WEBGL)
+    else {
+        if (m_context) {
+            if (is<WebGLRenderingContext>(*m_context))
+                return { { RefPtr<WebGLRenderingContext> { &downcast<WebGLRenderingContext>(*m_context) } } };
+
+            if (is<WebGL2RenderingContext>(*m_context))
+                return { { RefPtr<WebGL2RenderingContext> { &downcast<WebGL2RenderingContext>(*m_context) } } };
+
             return { { std::nullopt } };
         }
-#if ENABLE(WEBGL)
-    if (contextType == RenderingContextType::Webgl || contextType == RenderingContextType::Webgl2) {
-        auto webGLVersion = contextType == RenderingContextType::Webgl ? WebGLVersion::WebGL1 : WebGLVersion::WebGL2;
-        if (!m_context) {
+
         auto scope = DECLARE_THROW_SCOPE(state.vm());
         auto attributes = convert<IDLDictionary<WebGLContextAttributes>>(state, arguments.isEmpty() ? JSC::jsUndefined() : (arguments[0].isObject() ? arguments[0].get() : JSC::jsNull()));
-            RETURN_IF_EXCEPTION(scope, Exception { ExceptionCode::ExistingExceptionError });
-            auto* scriptExecutionContext = this->scriptExecutionContext();
-            if (shouldEnableWebGL(scriptExecutionContext->settingsValues(), is<WorkerGlobalScope>(scriptExecutionContext)))
-                m_context = WebGLRenderingContextBase::create(*this, attributes, webGLVersion);
-        }
-        if (webGLVersion == WebGLVersion::WebGL1) {
-            if (RefPtr context = dynamicDowncast<WebGLRenderingContext>(m_context.get()))
-                return { { WTFMove(context) } };
-        } else {
-            if (RefPtr context = dynamicDowncast<WebGL2RenderingContext>(m_context.get()))
-                return { { WTFMove(context) } };
-        }
+        RETURN_IF_EXCEPTION(scope, Exception { ExistingExceptionError });
+
+        createContextWebGL(contextType, WTFMove(attributes));
+        if (!m_context)
             return { { std::nullopt } };
+
+        if (is<WebGL2RenderingContext>(*m_context))
+            return { { RefPtr<WebGL2RenderingContext> { &downcast<WebGL2RenderingContext>(*m_context) } } };
+
+        return { { RefPtr<WebGLRenderingContext> { &downcast<WebGLRenderingContext>(*m_context) } } };
     }
 #endif
 
-    return Exception { ExceptionCode::TypeError };
+    return Exception { TypeError };
 }
 
 ExceptionOr<RefPtr<ImageBitmap>> OffscreenCanvas::transferToImageBitmap()
 {
     if (m_detached || !m_context)
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
 
     if (is<OffscreenCanvasRenderingContext2D>(*m_context) || is<ImageBitmapRenderingContext>(*m_context)) {
         if (!width() || !height())
             return { RefPtr<ImageBitmap> { nullptr } };
 
         if (!m_hasCreatedImageBuffer) {
-            auto buffer = allocateImageBuffer();
+            auto buffer = allocateImageBuffer(false, false);
             if (!buffer)
                 return { RefPtr<ImageBitmap> { nullptr } };
-            return { ImageBitmap::create(buffer.releaseNonNull(), originClean()) };
+            return { ImageBitmap::create(ImageBitmapBacking(WTFMove(buffer))) };
         }
 
         if (!buffer())
             return { RefPtr<ImageBitmap> { nullptr } };
 
         RefPtr<ImageBuffer> bitmap;
-        if (RefPtr context = dynamicDowncast<OffscreenCanvasRenderingContext2D>(*m_context)) {
+        if (is<OffscreenCanvasRenderingContext2D>(*m_context)) {
         // As the canvas context state is stored in GraphicsContext, which is owned
         // by buffer(), to avoid resetting the context state, we have to make a copy and
         // clear the original buffer rather than returning the original buffer.
             bitmap = buffer()->clone();
-            context->clearCanvas();
+        downcast<OffscreenCanvasRenderingContext2D>(*m_context).clearCanvas();
         } else {
             // ImageBitmapRenderingContext doesn't use the context state, so we can just take its
             // buffer, and then call transferFromImageBitmap(nullptr) which will trigger it to allocate
@@ -329,22 +342,24 @@ ExceptionOr<RefPtr<ImageBitmap>> OffscreenCanvas::transferToImageBitmap()
             downcast<ImageBitmapRenderingContext>(*m_context).transferFromImageBitmap(nullptr);
         }
         clearCopiedImage();
-        if (!bitmap)
-            return { RefPtr<ImageBitmap> { nullptr } };
-        return { ImageBitmap::create(bitmap.releaseNonNull(), originClean(), false, false) };
+
+        return { ImageBitmap::create(ImageBitmapBacking(WTFMove(bitmap), originClean() ? SerializationState::OriginClean : SerializationState())) };
     }
 
 #if ENABLE(WEBGL)
-    if (auto* webGLContext = dynamicDowncast<WebGLRenderingContextBase>(*m_context)) {
+    if (is<WebGLRenderingContextBase>(*m_context)) {
+        auto webGLContext = &downcast<WebGLRenderingContextBase>(*m_context);
+
         // FIXME: We're supposed to create an ImageBitmap using the backing
         // store from this canvas (or its context), but for now we'll just
         // create a new bitmap and paint into it.
-        auto buffer = allocateImageBuffer();
-        if (!buffer)
+
+        auto imageBitmap = ImageBitmap::create(allocateImageBuffer(false, false));
+        if (!imageBitmap->buffer())
             return { RefPtr<ImageBitmap> { nullptr } };
 
-        RefPtr gc3d = webGLContext->graphicsContextGL();
-        gc3d->drawSurfaceBufferToImageBuffer(GraphicsContextGL::SurfaceBuffer::DrawingBuffer, *buffer);
+        auto* gc3d = webGLContext->graphicsContextGL();
+        gc3d->paintRenderingResultsToCanvas(*imageBitmap->buffer());
 
         // FIXME: The transfer algorithm requires that the canvas effectively
         // creates a new backing store. Since we're not doing that yet, we
@@ -355,11 +370,12 @@ ExceptionOr<RefPtr<ImageBitmap>> OffscreenCanvas::transferToImageBitmap()
         gc3d->clearColor(0, 0, 0, 0);
         gc3d->clear(GraphicsContextGL::COLOR_BUFFER_BIT | GraphicsContextGL::DEPTH_BUFFER_BIT | GraphicsContextGL::STENCIL_BUFFER_BIT);
         gc3d->clearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
-        return { ImageBitmap::create(buffer.releaseNonNull(), originClean()) };
+
+        return { WTFMove(imageBitmap) };
     }
 #endif
 
-    return Exception { ExceptionCode::NotSupportedError };
+    return Exception { NotSupportedError };
 }
 
 static String toEncodingMimeType(const String& mimeType)
@@ -380,15 +396,15 @@ static std::optional<double> qualityFromDouble(double qualityNumber)
 void OffscreenCanvas::convertToBlob(ImageEncodeOptions&& options, Ref<DeferredPromise>&& promise)
 {
     if (!originClean()) {
-        promise->reject(ExceptionCode::SecurityError);
+        promise->reject(SecurityError);
         return;
     }
     if (size().isEmpty()) {
-        promise->reject(ExceptionCode::IndexSizeError);
+        promise->reject(IndexSizeError);
         return;
     }
     if (m_detached || !buffer()) {
-        promise->reject(ExceptionCode::InvalidStateError);
+        promise->reject(InvalidStateError);
         return;
     }
 
@@ -399,7 +415,7 @@ void OffscreenCanvas::convertToBlob(ImageEncodeOptions&& options, Ref<DeferredPr
 
     Vector<uint8_t> blobData = buffer()->toData(encodingMIMEType, quality);
     if (blobData.isEmpty()) {
-        promise->reject(ExceptionCode::EncodingError);
+        promise->reject(EncodingError);
         return;
     }
 
@@ -409,9 +425,10 @@ void OffscreenCanvas::convertToBlob(ImageEncodeOptions&& options, Ref<DeferredPr
 
 void OffscreenCanvas::didDraw(const std::optional<FloatRect>& rect, ShouldApplyPostProcessingToDirtyRect shouldApplyPostProcessingToDirtyRect)
 {
+    CanvasBase::didDraw(rect, shouldApplyPostProcessingToDirtyRect);
     clearCopiedImage();
     scheduleCommitToPlaceholderCanvas();
-    CanvasBase::didDraw(rect, shouldApplyPostProcessingToDirtyRect);
+    notifyObserversCanvasChanged(rect);
 }
 
 Image* OffscreenCanvas::copiedImage() const
@@ -421,8 +438,8 @@ Image* OffscreenCanvas::copiedImage() const
 
     if (!m_copiedImage && buffer()) {
         if (m_context)
-            m_context->drawBufferToCanvas(CanvasRenderingContext::SurfaceBuffer::DrawingBuffer);
-        m_copiedImage = BitmapImage::create(buffer()->copyNativeImage());
+            m_context->paintRenderingResultsToCanvas();
+        m_copiedImage = buffer()->copyImage(CopyBackingStore, PreserveResolution::Yes);
     }
     return m_copiedImage.get();
 }
@@ -435,8 +452,8 @@ void OffscreenCanvas::clearCopiedImage() const
 SecurityOrigin* OffscreenCanvas::securityOrigin() const
 {
     auto& scriptExecutionContext = *canvasBaseScriptExecutionContext();
-    if (auto* globalScope = dynamicDowncast<WorkerGlobalScope>(scriptExecutionContext))
-        return &globalScope->topOrigin();
+    if (is<WorkerGlobalScope>(scriptExecutionContext))
+        return &downcast<WorkerGlobalScope>(scriptExecutionContext).topOrigin();
 
     return &downcast<Document>(scriptExecutionContext).securityOrigin();
 }
@@ -450,8 +467,6 @@ std::unique_ptr<DetachedOffscreenCanvas> OffscreenCanvas::detach()
 {
     if (!canDetach())
         return nullptr;
-
-    removeCanvasNeedingPreparationForDisplayOrFlush();
 
     m_detached = true;
 
@@ -478,8 +493,9 @@ void OffscreenCanvas::pushBufferToPlaceholder()
     callOnMainThread([placeholderData = Ref { *m_placeholderData }] () mutable {
         Locker locker { placeholderData->bufferLock };
         if (RefPtr canvas = placeholderData->canvas.get()) {
-            if (placeholderData->pendingCommitBuffer) {
-                auto imageBuffer = SerializedImageBuffer::sinkIntoImageBuffer(WTFMove(placeholderData->pendingCommitBuffer), canvas->document().graphicsClient());
+            if (canvas->document().page() && placeholderData->pendingCommitBuffer) {
+                GraphicsClient& client = canvas->document().page()->chrome();
+            auto imageBuffer = client.sinkIntoImageBuffer(WTFMove(placeholderData->pendingCommitBuffer));
                 canvas->setImageBufferAndMarkDirty(WTFMove(imageBuffer));
             }
         }
@@ -489,15 +505,14 @@ void OffscreenCanvas::pushBufferToPlaceholder()
 
 void OffscreenCanvas::commitToPlaceholderCanvas()
 {
-    RefPtr imageBuffer = buffer();
+    auto* imageBuffer = buffer();
     if (!imageBuffer)
         return;
 
     // FIXME: Transfer texture over if we're using accelerated compositing
     if (m_context && (m_context->isWebGL() || m_context->isAccelerated())) {
-        if (m_context->compositingResultsNeedUpdating())
-            m_context->prepareForDisplay();
-        m_context->drawBufferToCanvas(CanvasRenderingContext::SurfaceBuffer::DisplayBuffer);
+        m_context->prepareForDisplayWithPaint();
+        m_context->paintRenderingResultsToCanvas();
     }
 
     if (m_placeholderData->bufferPipeSource) {
@@ -527,7 +542,7 @@ void OffscreenCanvas::scheduleCommitToPlaceholderCanvas()
 void OffscreenCanvas::createImageBuffer() const
 {
     m_hasCreatedImageBuffer = true;
-    setImageBuffer(allocateImageBuffer());
+    setImageBuffer(allocateImageBuffer(false, false));
 }
 
 void OffscreenCanvas::setImageBufferAndMarkDirty(RefPtr<ImageBuffer>&& buffer)
@@ -555,8 +570,8 @@ std::unique_ptr<SerializedImageBuffer> OffscreenCanvas::takeImageBuffer() const
 void OffscreenCanvas::reset()
 {
     resetGraphicsContextState();
-    if (RefPtr context = dynamicDowncast<OffscreenCanvasRenderingContext2D>(m_context.get()))
-        context->reset();
+    if (is<OffscreenCanvasRenderingContext2D>(m_context))
+        downcast<OffscreenCanvasRenderingContext2D>(*m_context).reset();
 
     m_hasCreatedImageBuffer = false;
     setImageBuffer(nullptr);
@@ -565,6 +580,7 @@ void OffscreenCanvas::reset()
     notifyObserversCanvasResized();
     scheduleCommitToPlaceholderCanvas();
 }
+
 
 void OffscreenCanvas::queueTaskKeepingObjectAlive(TaskSource source, Function<void()>&& task)
 {

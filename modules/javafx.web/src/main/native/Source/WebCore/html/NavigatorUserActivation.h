@@ -44,7 +44,7 @@ public:
 
 private:
     static NavigatorUserActivation* from(Navigator&);
-    static ASCIILiteral supplementName();
+    static const char* supplementName();
 
     Ref<UserActivation> m_userActivation;
 };

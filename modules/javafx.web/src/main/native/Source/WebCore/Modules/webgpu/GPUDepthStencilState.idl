@@ -35,8 +35,8 @@ typedef [EnforceRange] long GPUDepthBias;
 dictionary GPUDepthStencilState {
     required GPUTextureFormat format;
 
-    boolean depthWriteEnabled;
-    GPUCompareFunction depthCompare;
+    boolean depthWriteEnabled = false;
+    GPUCompareFunction depthCompare = "always";
 
     GPUStencilFaceState stencilFront;
     GPUStencilFaceState stencilBack;

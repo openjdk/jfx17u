@@ -33,6 +33,7 @@ namespace WTF {
 
 enum class SDKAlignedBehavior {
     AllowsWheelEventGesturesToBecomeNonBlocking,
+    ApplicationCacheDisabledByDefault,
     AuthorizationHeaderOnSameOriginRedirects,
     BlanksViewOnJSPrompt,
     ContextMenuTriggersLinkActivationNavigationType,
@@ -54,7 +55,6 @@ enum class SDKAlignedBehavior {
     ExpiredOnlyReloadBehavior,
     ForbidsDotPrefixedFonts,
     FullySuspendsBackgroundContent,
-    FullySuspendsBackgroundContentImmediately,
     HasUIContextMenuInteraction,
     HTMLDocumentSupportedPropertyNames,
     InitializeWebKit2MainThreadAssertion,
@@ -112,11 +112,6 @@ enum class SDKAlignedBehavior {
     DoesNotOverrideUAFromNSUserDefault,
     EvaluateJavaScriptWithoutTransientActivation,
     ResettingTransitionCancelsRunningTransitionQuirk,
-    OnlyLoadWellKnownAboutURLs,
-    AsyncFragmentNavigationPolicyDecision,
-    DoNotLoadStyleSheetIfHTTPStatusIsNotOK,
-    ScrollViewSubclassImplementsAddGestureRecognizer,
-    ThrowIfCanDeclareGlobalFunctionFails,
 
     NumberOfBehaviors
 };
@@ -131,17 +126,12 @@ WTF_EXPORT_PRIVATE void disableAllSDKAlignedBehaviors();
 
 WTF_EXPORT_PRIVATE bool linkedOnOrAfterSDKWithBehavior(SDKAlignedBehavior);
 
-WTF_EXPORT_PRIVATE bool processIsExtension();
-WTF_EXPORT_PRIVATE void setProcessIsExtension(bool);
-
 }
 
 using WTF::disableAllSDKAlignedBehaviors;
 using WTF::enableAllSDKAlignedBehaviors;
 using WTF::linkedOnOrAfterSDKWithBehavior;
-using WTF::processIsExtension;
 using WTF::SDKAlignedBehavior;
 using WTF::sdkAlignedBehaviors;
 using WTF::SDKAlignedBehaviors;
-using WTF::setProcessIsExtension;
 using WTF::setSDKAlignedBehaviors;

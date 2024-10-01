@@ -136,12 +136,12 @@ public:
     };
 
     struct UnicodeRange {
-        char32_t from;
-        char32_t to;
-        friend bool operator==(const UnicodeRange&, const UnicodeRange&) = default;
+        UChar32 from;
+        UChar32 to;
+        bool operator==(const UnicodeRange& other) const { return from == other.from && to == other.to; }
     };
 
-    bool rangesMatchCodePoint(char32_t) const;
+    bool rangesMatchCodePoint(UChar32) const;
 
     // We don't guarantee that the FontFace wrapper will be the same every time you ask for it.
     Ref<FontFace> wrapper(ScriptExecutionContext*);

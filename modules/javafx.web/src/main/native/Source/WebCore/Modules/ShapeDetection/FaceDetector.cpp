@@ -42,22 +42,23 @@ namespace WebCore {
 
 ExceptionOr<Ref<FaceDetector>> FaceDetector::create(ScriptExecutionContext& scriptExecutionContext, const FaceDetectorOptions& faceDetectorOptions)
 {
-    if (RefPtr document = dynamicDowncast<Document>(scriptExecutionContext)) {
-        RefPtr page = document->page();
+    if (is<Document>(scriptExecutionContext)) {
+        const auto& document = downcast<Document>(scriptExecutionContext);
+        const auto* page = document.page();
         if (!page)
-            return Exception { ExceptionCode::AbortError };
+            return Exception { AbortError };
         auto backing = page->chrome().createFaceDetector(faceDetectorOptions.convertToBacking());
         if (!backing)
-            return Exception { ExceptionCode::AbortError };
+            return Exception { AbortError };
         return adoptRef(*new FaceDetector(backing.releaseNonNull()));
     }
 
     if (is<WorkerGlobalScope>(scriptExecutionContext)) {
         // FIXME: https://bugs.webkit.org/show_bug.cgi?id=255380 Make the Shape Detection API work in Workers
-        return Exception { ExceptionCode::AbortError };
+        return Exception { AbortError };
     }
 
-    return Exception { ExceptionCode::AbortError };
+    return Exception { AbortError };
 }
 
 FaceDetector::FaceDetector(Ref<ShapeDetection::FaceDetector>&& backing)

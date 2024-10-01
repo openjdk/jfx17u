@@ -26,15 +26,12 @@
 #pragma once
 
 #include "FlexFormattingConstraints.h"
+#include "FlexFormattingState.h"
 #include "FlexRect.h"
 #include "LogicalFlexItem.h"
-#include "RenderStyleConstants.h"
 #include <wtf/Range.h>
 
 namespace WebCore {
-
-class RenderStyle;
-
 namespace Layout {
 
 class FlexFormattingContext;
@@ -45,7 +42,7 @@ struct PositionAndMargins;
 // https://www.w3.org/TR/css-flexbox-1/
 class FlexLayout {
 public:
-    FlexLayout(FlexFormattingContext&);
+    FlexLayout(const FlexFormattingContext&);
 
     using LogicalFlexItems = Vector<LogicalFlexItem>;
     struct LogicalConstraints {
@@ -73,11 +70,11 @@ private:
     using LinesCrossPositionList = Vector<LayoutUnit>;
 
     void computeAvailableMainAndCrossSpace(const LogicalConstraints&);
-    FlexBaseAndHypotheticalMainSizeList flexBaseAndHypotheticalMainSizeForFlexItems(const LogicalConstraints::AxisGeometry& mainAxis, const LogicalFlexItems&);
+    FlexBaseAndHypotheticalMainSizeList flexBaseAndHypotheticalMainSizeForFlexItems(const LogicalConstraints::AxisGeometry& mainAxis, const LogicalFlexItems&) const;
     LayoutUnit flexContainerMainSize(const LogicalConstraints::AxisGeometry& mainAxis) const;
     LineRanges computeFlexLines(const LogicalFlexItems&, LayoutUnit flexContainerMainSize, const FlexBaseAndHypotheticalMainSizeList&) const;
     SizeList computeMainSizeForFlexItems(const LogicalFlexItems&, const LineRanges&, LayoutUnit flexContainerMainSize, const FlexBaseAndHypotheticalMainSizeList&) const;
-    SizeList hypotheticalCrossSizeForFlexItems(const LogicalFlexItems&, const SizeList& flexItemsMainSizeList);
+    SizeList hypotheticalCrossSizeForFlexItems(const LogicalFlexItems&, const SizeList& flexItemsMainSizeList) const;
     LinesCrossSizeList crossSizeForFlexLines(const LineRanges&, const LogicalConstraints::AxisGeometry& crossAxis, const LogicalFlexItems&, const SizeList& flexItemsHypotheticalCrossSizeList) const;
     void stretchFlexLines(LinesCrossSizeList& flexLinesCrossSizeList, size_t numberOfLines, const LogicalConstraints::AxisGeometry& crossAxis) const;
     bool collapseNonVisibleFlexItems();
@@ -86,15 +83,15 @@ private:
     PositionAndMarginsList handleCrossAxisAlignmentForFlexItems(const LogicalFlexItems&, const LineRanges&, const SizeList& flexItemsCrossSizeList, const LinesCrossSizeList& flexLinesCrossSizeList) const;
     LinesCrossPositionList handleCrossAxisAlignmentForFlexLines(const LogicalConstraints::AxisGeometry& crossAxis, const LineRanges&, LinesCrossSizeList& flexLinesCrossSizeList) const;
 
-    LayoutUnit maxContentForFlexItem(const LogicalFlexItem&);
+    LayoutUnit maxContentForFlexItem(const LogicalFlexItem&) const;
 
     bool isSingleLineFlexContainer() const { return flexContainer().style().flexWrap() == FlexWrap::NoWrap; }
     const ElementBox& flexContainer() const;
-    FlexFormattingContext& flexFormattingContext();
+    const FlexFormattingContext& flexFormattingContext() const;
     const RenderStyle& flexContainerStyle() const { return flexContainer().style(); }
 
 private:
-    FlexFormattingContext& m_flexFormattingContext;
+    const FlexFormattingContext& m_flexFormattingContext;
 
     LayoutUnit m_availableMainSpace;
     LayoutUnit m_availableCrossSpace;

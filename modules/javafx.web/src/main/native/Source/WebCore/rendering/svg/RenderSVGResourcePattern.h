@@ -1,5 +1,7 @@
 /*
- * Copyright (C) 2021, 2022, 2023, 2024 Igalia S.L.
+ * Copyright (C) 2006 Nikolas Zimmermann <zimmermann@kde.org>
+ * Copyright (C) Research In Motion Limited 2010. All rights reserved.
+ * Copyright (C) 2022 Apple Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -19,47 +21,56 @@
 
 #pragma once
 
-#if ENABLE(LAYER_BASED_SVG_ENGINE)
-#include "AffineTransform.h"
+#include "ImageBuffer.h"
+#include "Pattern.h"
 #include "PatternAttributes.h"
-#include "RenderSVGResourcePaintServer.h"
+#include "RenderSVGResourceContainer.h"
 #include "SVGPatternElement.h"
-
-class Pattern;
+#include <memory>
+#include <wtf/IsoMallocInlines.h>
+#include <wtf/HashMap.h>
 
 namespace WebCore {
 
-class RenderSVGResourcePattern : public RenderSVGResourcePaintServer {
-    WTF_MAKE_ISO_ALLOCATED(RenderSVGResourcePattern);
+struct PatternData {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
-    RenderSVGResourcePattern(SVGElement&, RenderStyle&&);
-    virtual ~RenderSVGResourcePattern();
-
-    inline SVGPatternElement& patternElement() const;
-
-    bool prepareFillOperation(GraphicsContext&, const RenderLayerModelObject&, const RenderStyle&) final;
-    bool prepareStrokeOperation(GraphicsContext&, const RenderLayerModelObject&, const RenderStyle&) final;
-
-    void invalidatePattern()
-    {
-        m_attributes = std::nullopt;
-        repaintAllClients();
-    }
-
-protected:
-    RefPtr<Pattern> buildPattern(GraphicsContext&, const RenderLayerModelObject&);
-
-    void collectPatternAttributesIfNeeded();
-
-    bool buildTileImageTransform(const RenderElement&, const PatternAttributes&, const SVGPatternElement&, FloatRect& patternBoundaries, AffineTransform& tileImageTransform) const;
-
-    RefPtr<ImageBuffer> createTileImage(const PatternAttributes&, const FloatRect&, const FloatRect& scale, const AffineTransform& tileImageTransform) const;
-
-    std::optional<PatternAttributes> m_attributes;
+    RefPtr<Pattern> pattern;
+    AffineTransform transform;
 };
 
-}
+class RenderSVGResourcePattern final : public RenderSVGResourceContainer {
+    WTF_MAKE_ISO_ALLOCATED(RenderSVGResourcePattern);
+public:
+    RenderSVGResourcePattern(SVGPatternElement&, RenderStyle&&);
+    SVGPatternElement& patternElement() const;
 
-SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderSVGResourcePattern, isRenderSVGResourcePattern())
+    void removeAllClientsFromCacheIfNeeded(bool markForInvalidation, WeakHashSet<RenderObject>* visitedRenderers) override;
+    void removeClientFromCache(RenderElement&, bool markForInvalidation = true) override;
 
-#endif // ENABLE(LAYER_BASED_SVG_ENGINE)
+    bool applyResource(RenderElement&, const RenderStyle&, GraphicsContext*&, OptionSet<RenderSVGResourceMode>) override;
+    void postApplyResource(RenderElement&, GraphicsContext*&, OptionSet<RenderSVGResourceMode>, const Path*, const RenderElement*) override;
+    FloatRect resourceBoundingBox(const RenderObject&) override { return FloatRect(); }
+
+    RenderSVGResourceType resourceType() const override { return PatternResourceType; }
+
+    void collectPatternAttributes(PatternAttributes&) const;
+
+private:
+    void element() const = delete;
+    ASCIILiteral renderName() const override { return "RenderSVGResourcePattern"_s; }
+
+    bool buildTileImageTransform(RenderElement&, const PatternAttributes&, const SVGPatternElement&, FloatRect& patternBoundaries, AffineTransform& tileImageTransform) const;
+
+    RefPtr<ImageBuffer> createTileImage(GraphicsContext&, const FloatSize&, const FloatSize& scale, const AffineTransform& tileImageTransform, const PatternAttributes&) const;
+
+    PatternData* buildPattern(RenderElement&, OptionSet<RenderSVGResourceMode>, GraphicsContext&);
+
+    PatternAttributes m_attributes;
+    HashMap<RenderElement*, std::unique_ptr<PatternData>> m_patternMap;
+    bool m_shouldCollectPatternAttributes { true };
+};
+
+} // namespace WebCore
+
+SPECIALIZE_TYPE_TRAITS_RENDER_SVG_RESOURCE(RenderSVGResourcePattern, PatternResourceType)

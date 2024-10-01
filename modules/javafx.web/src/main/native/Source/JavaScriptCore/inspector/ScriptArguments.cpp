@@ -38,17 +38,6 @@
 
 namespace Inspector {
 
-static inline String argumentAsString(JSC::JSGlobalObject* globalObject, JSC::JSValue argument)
-{
-    if (JSC::jsDynamicCast<JSC::ProxyObject*>(argument))
-        return "[object Proxy]"_s;
-
-    auto scope = DECLARE_CATCH_SCOPE(globalObject->vm());
-    auto result = argument.toWTFString(globalObject);
-    scope.clearException();
-    return result;
-}
-
 Ref<ScriptArguments> ScriptArguments::create(JSC::JSGlobalObject* globalObject, Vector<JSC::Strong<JSC::Unknown>>&& arguments)
 {
     return adoptRef(*new ScriptArguments(globalObject, WTFMove(arguments)));
@@ -84,7 +73,15 @@ std::optional<String> ScriptArguments::getArgumentAtIndexAsString(size_t argumen
         return std::nullopt;
     }
 
-    return argumentAsString(globalObject, argumentAt(argumentIndex));
+    auto value = argumentAt(argumentIndex);
+    if (JSC::jsDynamicCast<JSC::ProxyObject*>(value))
+        return "[object Proxy]"_s;
+
+    String result;
+    auto scope = DECLARE_CATCH_SCOPE(globalObject->vm());
+    result = value.toWTFString(globalObject);
+    scope.clearException();
+    return result;
 }
 
 bool ScriptArguments::getFirstArgumentAsString(String& result) const
@@ -99,14 +96,13 @@ bool ScriptArguments::getFirstArgumentAsString(String& result) const
 
 Vector<String> ScriptArguments::getArgumentsAsStrings() const
 {
-    auto* globalObject = this->globalObject();
-    ASSERT(globalObject);
-    if (!globalObject)
-        return { };
-
-    return WTF::map(m_arguments, [globalObject](auto& argument) {
-        return argumentAsString(globalObject, argument.get());
-    });
+    Vector<String> result;
+    result.reserveInitialCapacity(argumentCount());
+    for (size_t i = 0; i < argumentCount(); ++i) {
+        if (auto currentArgumentString = getArgumentAtIndexAsString(i))
+            result.uncheckedAppend(WTFMove(*currentArgumentString));
+    }
+    return result;
 }
 
 bool ScriptArguments::isEqual(const ScriptArguments& other) const

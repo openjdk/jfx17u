@@ -33,7 +33,6 @@ namespace WebCore {
 
 struct PlatformTrackConfiguration {
     String codec;
-    friend bool operator==(const PlatformTrackConfiguration&, const PlatformTrackConfiguration&) = default;
 };
 
 }

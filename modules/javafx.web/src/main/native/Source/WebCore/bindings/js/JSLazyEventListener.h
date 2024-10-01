@@ -55,12 +55,11 @@ private:
     JSC::JSObject* initializeJSFunction(ScriptExecutionContext&) const final;
 
     String m_functionName;
-    const String& m_functionParameters;
+    const String& m_eventParameterName;
     String m_code;
     URL m_sourceURL;
     TextPosition m_sourcePosition;
     WeakPtr<ContainerNode, WeakPtrImplWithEventTargetData> m_originalNode;
-    JSC::SourceTaintedOrigin m_sourceTaintedOrigin;
 };
 
 } // namespace WebCore

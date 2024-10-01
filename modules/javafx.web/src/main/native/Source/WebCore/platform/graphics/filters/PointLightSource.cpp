@@ -44,7 +44,7 @@ Ref<PointLightSource> PointLightSource::create(const FloatPoint3D& position)
 }
 
 PointLightSource::PointLightSource(const FloatPoint3D& position)
-    : LightSource(LightType::LS_POINT)
+    : LightSource(LS_POINT)
     , m_position(position)
 {
 }

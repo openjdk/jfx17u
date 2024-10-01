@@ -25,7 +25,6 @@
 #include "MediaPlayer.h"
 #include "TextureMapperPlatformLayerBuffer.h"
 #include "TextureMapperPlatformLayerProxyGL.h"
-#include <wtf/NeverDestroyed.h>
 
 namespace WebCore {
 
@@ -36,7 +35,7 @@ MediaPlayerPrivateHolePunch::MediaPlayerPrivateHolePunch(MediaPlayer* player)
     , m_readyTimer(RunLoop::main(), this, &MediaPlayerPrivateHolePunch::notifyReadyState)
     , m_networkState(MediaPlayer::NetworkState::Empty)
 #if USE(NICOSIA)
-    , m_nicosiaLayer(Nicosia::ContentLayer::create(*this, adoptRef(*new WebCore::TextureMapperPlatformLayerProxyGL(true))))
+    , m_nicosiaLayer(Nicosia::ContentLayer::create(Nicosia::ContentLayerTextureMapperImpl::createFactory(*this)))
 #else
     , m_platformLayerProxy(adoptRef(new TextureMapperPlatformLayerProxyGL))
 #endif
@@ -51,7 +50,7 @@ MediaPlayerPrivateHolePunch::MediaPlayerPrivateHolePunch(MediaPlayer* player)
 MediaPlayerPrivateHolePunch::~MediaPlayerPrivateHolePunch()
 {
 #if USE(NICOSIA)
-    m_nicosiaLayer->invalidateClient();
+    downcast<Nicosia::ContentLayerTextureMapperImpl>(m_nicosiaLayer->impl()).invalidateClient();
 #endif
 }
 
@@ -78,12 +77,12 @@ void MediaPlayerPrivateHolePunch::pushNextHolePunchBuffer()
         [this](TextureMapperPlatformLayerProxyGL& proxy)
         {
             Locker locker { proxy.lock() };
-            std::unique_ptr<TextureMapperPlatformLayerBuffer> layerBuffer = makeUnique<TextureMapperPlatformLayerBuffer>(0, m_size, TextureMapperFlags::ShouldNotBlend, GL_DONT_CARE);
+            std::unique_ptr<TextureMapperPlatformLayerBuffer> layerBuffer = makeUnique<TextureMapperPlatformLayerBuffer>(0, m_size, TextureMapperGL::ShouldNotBlend, GL_DONT_CARE);
             proxy.pushNextBuffer(WTFMove(layerBuffer));
         };
 
 #if USE(NICOSIA)
-    auto& proxy = m_nicosiaLayer->proxy();
+    auto& proxy = downcast<Nicosia::ContentLayerTextureMapperImpl>(m_nicosiaLayer->impl()).proxy();
     ASSERT(is<TextureMapperPlatformLayerProxyGL>(proxy));
     proxyOperation(downcast<TextureMapperPlatformLayerProxyGL>(proxy));
 #else
@@ -93,9 +92,7 @@ void MediaPlayerPrivateHolePunch::pushNextHolePunchBuffer()
 
 void MediaPlayerPrivateHolePunch::swapBuffersIfNeeded()
 {
-#if !USE(NICOSIA)
     pushNextHolePunchBuffer();
-#endif
 }
 
 #if !USE(NICOSIA)
@@ -105,9 +102,9 @@ RefPtr<TextureMapperPlatformLayerProxy> MediaPlayerPrivateHolePunch::proxy() con
 }
 #endif
 
-static HashSet<String>& mimeTypeCache()
+static HashSet<String, ASCIICaseInsensitiveHash>& mimeTypeCache()
 {
-    static NeverDestroyed<HashSet<String>> cache;
+    static NeverDestroyed<HashSet<String, ASCIICaseInsensitiveHash>> cache;
     static bool typeListInitialized = false;
 
     if (typeListInitialized)
@@ -125,7 +122,7 @@ static HashSet<String>& mimeTypeCache()
     return cache;
 }
 
-void MediaPlayerPrivateHolePunch::getSupportedTypes(HashSet<String>& types)
+void MediaPlayerPrivateHolePunch::getSupportedTypes(HashSet<String, ASCIICaseInsensitiveHash>& types)
 {
     types = mimeTypeCache();
 }
@@ -149,12 +146,12 @@ class MediaPlayerFactoryHolePunch final : public MediaPlayerFactory {
 private:
     MediaPlayerEnums::MediaEngineIdentifier identifier() const final { return MediaPlayerEnums::MediaEngineIdentifier::HolePunch; };
 
-    Ref<MediaPlayerPrivateInterface> createMediaEnginePlayer(MediaPlayer* player) const final
+    std::unique_ptr<MediaPlayerPrivateInterface> createMediaEnginePlayer(MediaPlayer* player) const final
     {
-        return adoptRef(*new MediaPlayerPrivateHolePunch(player));
+        return makeUnique<MediaPlayerPrivateHolePunch>(player);
     }
 
-    void getSupportedTypes(HashSet<String>& types) const final
+    void getSupportedTypes(HashSet<String, ASCIICaseInsensitiveHash>& types) const final
     {
         return MediaPlayerPrivateHolePunch::getSupportedTypes(types);
     }

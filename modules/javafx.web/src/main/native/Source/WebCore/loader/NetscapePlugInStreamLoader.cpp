@@ -68,7 +68,7 @@ NetscapePlugInStreamLoader::~NetscapePlugInStreamLoader() = default;
 
 void NetscapePlugInStreamLoader::create(LocalFrame& frame, NetscapePlugInStreamLoaderClient& client, ResourceRequest&& request, CompletionHandler<void(RefPtr<NetscapePlugInStreamLoader>&&)>&& completionHandler)
 {
-    Ref loader = adoptRef(*new NetscapePlugInStreamLoader(frame, client));
+    auto loader(adoptRef(*new NetscapePlugInStreamLoader(frame, client)));
     loader->init(WTFMove(request), [loader, completionHandler = WTFMove(completionHandler)] (bool initialized) mutable {
         if (!initialized)
             return completionHandler(nullptr);
@@ -93,7 +93,7 @@ void NetscapePlugInStreamLoader::init(ResourceRequest&& request, CompletionHandl
         if (!success)
             return completionHandler(false);
         ASSERT(!reachedTerminalState());
-        protectedDocumentLoader()->addPlugInStreamLoader(*this);
+        m_documentLoader->addPlugInStreamLoader(*this);
         m_isInitialized = true;
         completionHandler(true);
     });
@@ -137,13 +137,13 @@ void NetscapePlugInStreamLoader::didReceiveResponse(const ResourceResponse& resp
 
         // Status code can be null when serving from a Web archive.
         if (response.httpStatusCode() && (response.httpStatusCode() < 100 || response.httpStatusCode() >= 400))
-            cancel(checkedFrameLoader()->client().fileDoesNotExistError(response));
+            cancel(frameLoader()->client().fileDoesNotExistError(response));
     });
 }
 
 void NetscapePlugInStreamLoader::didReceiveData(const SharedBuffer& buffer, long long encodedDataLength, DataPayloadType dataPayloadType)
 {
-    Ref protectedThis { *this };
+    Ref<NetscapePlugInStreamLoader> protectedThis(*this);
 
     if (m_client)
         m_client->didReceiveData(this, buffer);
@@ -153,7 +153,7 @@ void NetscapePlugInStreamLoader::didReceiveData(const SharedBuffer& buffer, long
 
 void NetscapePlugInStreamLoader::didFinishLoading(const NetworkLoadMetrics& networkLoadMetrics)
 {
-    Ref protectedThis { *this };
+    Ref<NetscapePlugInStreamLoader> protectedThis(*this);
 
     notifyDone();
 
@@ -164,7 +164,7 @@ void NetscapePlugInStreamLoader::didFinishLoading(const NetworkLoadMetrics& netw
 
 void NetscapePlugInStreamLoader::didFail(const ResourceError& error)
 {
-    Ref protectedThis { *this };
+    Ref<NetscapePlugInStreamLoader> protectedThis(*this);
 
     notifyDone();
 
@@ -189,7 +189,7 @@ void NetscapePlugInStreamLoader::notifyDone()
     if (!m_isInitialized)
         return;
 
-    protectedDocumentLoader()->removePlugInStreamLoader(*this);
+    m_documentLoader->removePlugInStreamLoader(*this);
 }
 
 

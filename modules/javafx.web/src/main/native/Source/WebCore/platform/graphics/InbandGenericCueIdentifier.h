@@ -29,7 +29,7 @@
 
 namespace WebCore {
 
-enum class InbandGenericCueIdentifierType { };
+enum InbandGenericCueIdentifierType { };
 using InbandGenericCueIdentifier = ObjectIdentifier<InbandGenericCueIdentifierType>;
 
 } // namespace WebCore

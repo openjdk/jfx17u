@@ -386,8 +386,6 @@ private:
             case NewTypedArray:
             case NewRegexp:
             case NewStringObject:
-            case NewMap:
-            case NewSet:
             case NewSymbol:
             case MaterializeNewObject:
             case MaterializeCreateActivation:

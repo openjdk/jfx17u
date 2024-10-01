@@ -341,9 +341,9 @@ Value FunId::evaluate() const
 
         // If there are several nodes with the same id, id() should return the first one.
         // In WebKit, getElementById behaves so, too, although its behavior in this case is formally undefined.
-        RefPtr node = contextScope.getElementById(StringView(idList).substring(startPos, endPos - startPos));
+        Node* node = contextScope.getElementById(StringView(idList).substring(startPos, endPos - startPos));
         if (node && resultSet.add(*node).isNewEntry)
-            result.append(WTFMove(node));
+            result.append(node);
 
         startPos = endPos;
     }
@@ -353,16 +353,16 @@ Value FunId::evaluate() const
     return Value(WTFMove(result));
 }
 
-static inline String expandedNameLocalPart(Node& node)
+static inline String expandedNameLocalPart(Node* node)
 {
-    if (auto* pi = dynamicDowncast<ProcessingInstruction>(node))
-        return pi->target();
-    return node.localName().string();
+    if (is<ProcessingInstruction>(*node))
+        return downcast<ProcessingInstruction>(*node).target();
+    return node->localName().string();
 }
 
-static inline String expandedName(Node& node)
+static inline String expandedName(Node* node)
 {
-    auto& prefix = node.prefix();
+    const AtomString& prefix = node->prefix();
     return prefix.isEmpty() ? expandedNameLocalPart(node) : prefix + ":" + expandedNameLocalPart(node);
 }
 
@@ -373,11 +373,11 @@ Value FunLocalName::evaluate() const
         if (!a.isNodeSet())
             return emptyString();
 
-        auto* node = a.toNodeSet().firstNode();
-        return node ? expandedNameLocalPart(*node) : emptyString();
+        Node* node = a.toNodeSet().firstNode();
+        return node ? expandedNameLocalPart(node) : emptyString();
     }
 
-    return expandedNameLocalPart(*evaluationContext().node);
+    return expandedNameLocalPart(evaluationContext().node.get());
 }
 
 Value FunNamespaceURI::evaluate() const
@@ -401,11 +401,11 @@ Value FunName::evaluate() const
         if (!a.isNodeSet())
             return emptyString();
 
-        auto* node = a.toNodeSet().firstNode();
-        return node ? expandedName(*node) : emptyString();
+        Node* node = a.toNodeSet().firstNode();
+        return node ? expandedName(node) : emptyString();
     }
 
-    return expandedName(*evaluationContext().node);
+    return expandedName(evaluationContext().node.get());
 }
 
 Value FunCount::evaluate() const
@@ -627,9 +627,10 @@ Value FunLang::evaluate() const
     const Attribute* languageAttribute = nullptr;
     Node* node = evaluationContext().node.get();
     while (node) {
-        if (RefPtr element = dynamicDowncast<Element>(*node)) {
-            if (element->hasAttributes())
-                languageAttribute = element->findAttributeByName(XMLNames::langAttr);
+        if (is<Element>(*node)) {
+            Element& element = downcast<Element>(*node);
+            if (element.hasAttributes())
+                languageAttribute = element.findAttributeByName(XMLNames::langAttr);
         }
         if (languageAttribute)
             break;

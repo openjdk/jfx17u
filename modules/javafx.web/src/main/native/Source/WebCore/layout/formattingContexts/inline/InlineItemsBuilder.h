@@ -25,8 +25,7 @@
 
 #pragma once
 
-#include "InlineContentCache.h"
-#include "InlineItem.h"
+#include "InlineFormattingState.h"
 #include "InlineLineTypes.h"
 #include "LayoutElementBox.h"
 #include <wtf/text/StringBuilder.h>
@@ -37,34 +36,27 @@ class InlineTextBox;
 
 class InlineItemsBuilder {
 public:
-    InlineItemsBuilder(InlineContentCache&, const ElementBox& root);
+    InlineItemsBuilder(const ElementBox& formattingContextRoot, InlineFormattingState&);
     void build(InlineItemPosition startPosition);
 
 private:
-    void collectInlineItems(InlineItemList&, InlineItemPosition startPosition);
-    using LayoutQueue = Vector<CheckedRef<const Box>>;
-    LayoutQueue initializeLayoutQueue(InlineItemPosition startPosition);
-    bool traverseUntilDamaged(LayoutQueue&, const Box& subtreeRoot, const Box& firstDamagedLayoutBox);
-    void breakAndComputeBidiLevels(InlineItemList&);
-    void computeInlineTextItemWidths(InlineItemList&);
+    void collectInlineItems(InlineItems&, FormattingState::OutOfFlowBoxList&, InlineItemPosition startPosition);
+    void breakAndComputeBidiLevels(InlineItems&);
+    void computeInlineTextItemWidths(InlineItems&);
 
-    void handleTextContent(const InlineTextBox&, InlineItemList&, std::optional<size_t> partialContentOffset);
-    void handleInlineBoxStart(const Box&, InlineItemList&);
-    void handleInlineBoxEnd(const Box&, InlineItemList&);
-    void handleInlineLevelBox(const Box&, InlineItemList&);
+    void handleTextContent(const InlineTextBox&, InlineItems&, std::optional<size_t> partialContentOffset);
+    void handleInlineBoxStart(const Box&, InlineItems&);
+    void handleInlineBoxEnd(const Box&, InlineItems&);
+    void handleInlineLevelBox(const Box&, InlineItems&);
 
     bool contentRequiresVisualReordering() const { return m_contentRequiresVisualReordering; }
 
     const ElementBox& root() const { return m_root; }
-    InlineContentCache& inlineContentCache() { return m_inlineContentCache; }
 
-private:
-    InlineContentCache& m_inlineContentCache;
     const ElementBox& m_root;
-
+    // FIXME: We should not need this here. This is only required by the out of flow boxes.
+    InlineFormattingState& m_formattingState;
     bool m_contentRequiresVisualReordering { false };
-    bool m_isTextAndForcedLineBreakOnlyContent { true };
-    size_t m_inlineBoxCount { 0 };
 };
 
 }

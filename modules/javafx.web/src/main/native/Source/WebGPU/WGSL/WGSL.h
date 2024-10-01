@@ -25,17 +25,12 @@
 
 #pragma once
 
-#include "CallGraph.h"
 #include "CompilationMessage.h"
-#include "CompilationScope.h"
-#include "ConstantValue.h"
-#include "WGSLEnums.h"
 #include <cinttypes>
 #include <cstdint>
 #include <memory>
 #include <variant>
 #include <wtf/HashMap.h>
-#include <wtf/HashSet.h>
 #include <wtf/OptionSet.h>
 #include <wtf/UniqueRef.h>
 #include <wtf/Vector.h>
@@ -48,11 +43,6 @@ namespace WGSL {
 //
 
 class ShaderModule;
-class CompilationScope;
-
-namespace AST {
-class Expression;
-}
 
 struct SuccessfulCheck {
     SuccessfulCheck() = delete;
@@ -75,9 +65,6 @@ struct SourceMap {
 
 struct Configuration {
     uint32_t maxBuffersPlusVertexBuffersForVertexStage = 8;
-    uint32_t maxBuffersForFragmentStage = 8;
-    uint32_t maxBuffersForComputeStage = 8;
-    const HashSet<String> supportedFeatures = { };
 };
 
 std::variant<SuccessfulCheck, FailedCheck> staticCheck(const String& wgsl, const std::optional<SourceMap>&, const Configuration&);
@@ -131,15 +118,13 @@ struct TextureBindingLayout {
     bool multisampled;
 };
 
-enum class StorageTextureAccess : uint8_t {
-    WriteOnly,
-    ReadOnly,
-    ReadWrite,
-};
+/* enum class StorageTextureAccess : uint8_t {
+    writeOnly
+}; */
 
 struct StorageTextureBindingLayout {
-    StorageTextureAccess access { StorageTextureAccess::WriteOnly };
-    TexelFormat format;
+    // StorageTextureAccess access; // There's only one field in this enum
+    // TextureFormat format; // Not sure this is necessary
     TextureViewDimension viewDimension;
 };
 
@@ -147,29 +132,21 @@ struct ExternalTextureBindingLayout {
     // Sentinel
 };
 
+enum class ShaderStage : uint8_t {
+    Vertex = 0x1,
+    Fragment = 0x2,
+    Compute = 0x4
+};
+
 struct BindGroupLayoutEntry {
     uint32_t binding;
-    uint32_t webBinding;
     OptionSet<ShaderStage> visibility;
     using BindingMember = std::variant<BufferBindingLayout, SamplerBindingLayout, TextureBindingLayout, StorageTextureBindingLayout, ExternalTextureBindingLayout>;
     BindingMember bindingMember;
-    String name;
-    std::optional<uint32_t> vertexArgumentBufferIndex;
-    std::optional<uint32_t> vertexArgumentBufferSizeIndex;
-    std::optional<uint32_t> vertexBufferDynamicOffset;
-
-    std::optional<uint32_t> fragmentArgumentBufferIndex;
-    std::optional<uint32_t> fragmentArgumentBufferSizeIndex;
-    std::optional<uint32_t> fragmentBufferDynamicOffset;
-
-    std::optional<uint32_t> computeArgumentBufferIndex;
-    std::optional<uint32_t> computeArgumentBufferSizeIndex;
-    std::optional<uint32_t> computeBufferDynamicOffset;
 };
 
 struct BindGroupLayout {
     // Metal's [[id(n)]] indices are equal to the index into this vector.
-    uint32_t group;
     Vector<BindGroupLayoutEntry> entries;
 };
 
@@ -190,9 +167,9 @@ struct Fragment {
 };
 
 struct WorkgroupSize {
-    const AST::Expression* width;
-    const AST::Expression* height;
-    const AST::Expression* depth;
+    unsigned width;
+    unsigned height;
+    unsigned depth;
 };
 
 struct Compute {
@@ -203,42 +180,33 @@ enum class SpecializationConstantType : uint8_t {
     Boolean,
     Float,
     Int,
-    Unsigned,
-    Half
+    Unsigned
 };
 
 struct SpecializationConstant {
     String mangledName;
     SpecializationConstantType type;
-    AST::Expression* defaultValue;
 };
 
 struct EntryPointInformation {
     // FIXME: This can probably be factored better.
-    String originalName;
     String mangledName;
     std::optional<PipelineLayout> defaultLayout; // If the input PipelineLayout is nullopt, the compiler computes a layout and returns it. https://gpuweb.github.io/gpuweb/#default-pipeline-layout
     HashMap<std::pair<size_t, size_t>, size_t> bufferLengthLocations; // Metal buffer identity -> offset within helper buffer where its size needs to lie
     HashMap<String, SpecializationConstant> specializationConstants;
     std::variant<Vertex, Fragment, Compute> typedEntryPoint;
-    size_t sizeForWorkgroupVariables { 0 };
 };
 
 } // namespace Reflection
 
 struct PrepareResult {
-    CallGraph callGraph;
+    String msl;
     HashMap<String, Reflection::EntryPointInformation> entryPoints;
-    CompilationScope compilationScope;
 };
 
 // These are not allowed to fail.
 // All failures must have already been caught in check().
 PrepareResult prepare(ShaderModule&, const HashMap<String, std::optional<PipelineLayout>>&);
 PrepareResult prepare(ShaderModule&, const String& entryPointName, const std::optional<PipelineLayout>&);
-
-String generate(const CallGraph&, HashMap<String, ConstantValue>&);
-
-ConstantValue evaluate(const AST::Expression&, const HashMap<String, ConstantValue>&);
 
 } // namespace WGSL

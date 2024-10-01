@@ -26,11 +26,11 @@
 
 #pragma once
 
-#include "StyleOriginatedAnimationEvent.h"
+#include "DeclarativeAnimationEvent.h"
 
 namespace WebCore {
 
-class CSSTransitionEvent final : public StyleOriginatedAnimationEvent {
+class CSSTransitionEvent final : public DeclarativeAnimationEvent {
     WTF_MAKE_ISO_ALLOCATED(CSSTransitionEvent);
 public:
     static Ref<CSSTransitionEvent> create(const AtomString& type, WebAnimation* animation, std::optional<Seconds> scheduledTime,  double elapsedTime, PseudoId pseudoId, const String propertyName)

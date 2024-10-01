@@ -92,7 +92,7 @@ void RadioInputType::forEachButtonInDetachedGroup(ContainerNode& rootNode, const
     }
 }
 
-void RadioInputType::willUpdateCheckedness(bool nowChecked, WasSetByJavaScript)
+void RadioInputType::willUpdateCheckedness(bool nowChecked)
 {
     if (!nowChecked)
         return;
@@ -142,9 +142,9 @@ auto RadioInputType::handleKeydownEvent(KeyboardEvent& event) -> ShouldCallBaseE
         if (is<HTMLFormElement>(*node))
             break;
         // Look for more radio buttons.
-        RefPtr inputElement = dynamicDowncast<HTMLInputElement>(*node);
-        if (!inputElement)
+        if (!is<HTMLInputElement>(*node))
             continue;
+        RefPtr<HTMLInputElement> inputElement = downcast<HTMLInputElement>(node.get());
         if (inputElement->form() != element()->form())
             break;
         if (inputElement->isRadioButton() && inputElement->name() == element()->name() && inputElement->isFocusable()) {
@@ -187,9 +187,10 @@ bool RadioInputType::isKeyboardFocusable(KeyboardEvent* event) const
 
     // Never allow keyboard tabbing to leave you in the same radio group.  Always
     // skip any other elements in the group.
-    RefPtr currentFocusedNode = element()->document().focusedElement();
-    if (auto* focusedInput = dynamicDowncast<HTMLInputElement>(currentFocusedNode.get())) {
-        if (focusedInput->isRadioButton() && focusedInput->form() == element()->form() && focusedInput->name() == element()->name())
+    RefPtr<Element> currentFocusedNode = element()->document().focusedElement();
+    if (is<HTMLInputElement>(currentFocusedNode)) {
+        HTMLInputElement& focusedInput = downcast<HTMLInputElement>(*currentFocusedNode);
+        if (focusedInput.isRadioButton() && focusedInput.form() == element()->form() && focusedInput.name() == element()->name())
             return false;
     }
 

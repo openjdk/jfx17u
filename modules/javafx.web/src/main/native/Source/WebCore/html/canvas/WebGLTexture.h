@@ -27,12 +27,12 @@
 
 #if ENABLE(WEBGL)
 
-#include "WebGLObject.h"
+#include "WebGLSharedObject.h"
 #include <wtf/Vector.h>
 
 namespace WebCore {
 
-class WebGLTexture final : public WebGLObject {
+class WebGLTexture final : public WebGLSharedObject {
 public:
 
     enum TextureExtensionFlag {
@@ -43,22 +43,24 @@ public:
 
     virtual ~WebGLTexture();
 
-    static RefPtr<WebGLTexture> create(WebGLRenderingContextBase&);
+    static Ref<WebGLTexture> create(WebGLRenderingContextBase&);
 
-    void didBind(GCGLenum);
+    void setTarget(GCGLenum);
     GCGLenum getTarget() const { return m_target; }
+
+    bool hasEverBeenBound() const { return object() && m_target; }
 
     static GCGLint computeLevelCount(GCGLsizei width, GCGLsizei height);
 
-    bool isUsable() const { return object() && !isDeleted(); }
-    bool isInitialized() const { return m_target; }
-
 private:
-    WebGLTexture(WebGLRenderingContextBase&, PlatformGLObject);
-    void deleteObjectImpl(const AbstractLocker&, GraphicsContextGL*, PlatformGLObject) override;
-    int mapTargetToIndex(GCGLenum) const;
+    WebGLTexture(WebGLRenderingContextBase&);
 
-    GCGLenum m_target { 0 };
+    void deleteObjectImpl(const AbstractLocker&, GraphicsContextGL*, PlatformGLObject) override;
+
+    bool isTexture() const override { return true; }
+
+    int mapTargetToIndex(GCGLenum) const;
+    GCGLenum m_target;
 };
 
 } // namespace WebCore

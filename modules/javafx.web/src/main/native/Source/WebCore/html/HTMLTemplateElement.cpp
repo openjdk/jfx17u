@@ -51,7 +51,7 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(HTMLTemplateElement);
 using namespace HTMLNames;
 
 inline HTMLTemplateElement::HTMLTemplateElement(const QualifiedName& tagName, Document& document)
-    : HTMLElement(tagName, document, TypeFlag::HasDidMoveToNewDocument)
+    : HTMLElement(tagName, document)
 {
 }
 
@@ -96,11 +96,14 @@ const AtomString& HTMLTemplateElement::shadowRootMode() const
         return closed;
     if (equalLettersIgnoringASCIICase(modeString, "open"_s))
         return open;
-    return emptyAtom();
+    return nullAtom();
 }
 
 void HTMLTemplateElement::setShadowRootMode(const AtomString& value)
 {
+    if (value.isNull())
+        removeAttribute(HTMLNames::shadowrootmodeAttr);
+    else
         setAttribute(HTMLNames::shadowrootmodeAttr, value);
 }
 
@@ -163,10 +166,10 @@ void HTMLTemplateElement::attachAsDeclarativeShadowRootIfNeeded(Element& host)
     auto importedContent = document().importNode(content(), /* deep */ true).releaseReturnValue();
     for (RefPtr<Node> node = NodeTraversal::next(importedContent), next; node; node = next) {
         next = NodeTraversal::next(*node);
-        if (auto* templateElement = dynamicDowncast<HTMLTemplateElement>(*node)) {
+        if (!is<HTMLTemplateElement>(*node))
+            continue;
         if (RefPtr parentElement = node->parentElement())
-                templateElement->attachAsDeclarativeShadowRootIfNeeded(*parentElement);
-        }
+            downcast<HTMLTemplateElement>(*node).attachAsDeclarativeShadowRootIfNeeded(*parentElement);
     }
 
     Ref shadowRoot = exceptionOrShadowRoot.releaseReturnValue();

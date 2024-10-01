@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "BackgroundFetchRecordLoader.h"
 #include "ProcessIdentifier.h"
 #include "ScriptExecutionContextIdentifier.h"
@@ -62,3 +64,5 @@ public:
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

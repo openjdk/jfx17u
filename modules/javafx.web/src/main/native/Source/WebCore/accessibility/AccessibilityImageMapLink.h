@@ -39,7 +39,7 @@ public:
     static Ref<AccessibilityImageMapLink> create();
     virtual ~AccessibilityImageMapLink();
 
-    void setHTMLAreaElement(HTMLAreaElement*);
+    void setHTMLAreaElement(HTMLAreaElement* element) { m_areaElement = element; }
     HTMLAreaElement* areaElement() const { return m_areaElement.get(); }
 
     void setHTMLMapElement(HTMLMapElement* element) { m_mapElement = element; }
@@ -47,7 +47,7 @@ public:
 
     Node* node() const override { return m_areaElement.get(); }
 
-    AccessibilityRole determineAccessibilityRole() final;
+    AccessibilityRole roleValue() const override;
     bool isEnabled() const override { return true; }
 
     Element* anchorElement() const override;
@@ -70,8 +70,8 @@ private:
     bool isImageMapLink() const final { return true; }
     bool supportsPath() const override { return true; }
 
-    WeakPtr<HTMLAreaElement, WeakPtrImplWithEventTargetData> m_areaElement;
-    WeakPtr<HTMLMapElement, WeakPtrImplWithEventTargetData> m_mapElement;
+    RefPtr<HTMLAreaElement> m_areaElement;
+    RefPtr<HTMLMapElement> m_mapElement;
 };
 
 } // namespace WebCore

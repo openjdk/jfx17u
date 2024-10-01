@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2018-2022 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,7 +28,6 @@
 #if ENABLE(JIT)
 
 #include "MacroAssembler.h"
-#include <wtf/TZoneMalloc.h>
 #include <wtf/Vector.h>
 #include <wtf/text/CString.h>
 
@@ -51,7 +50,7 @@ public:
 };
 
 class YarrDisassembler {
-    WTF_MAKE_TZONE_ALLOCATED(YarrDisassembler);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     YarrDisassembler(YarrJITInfo*);
     ~YarrDisassembler();

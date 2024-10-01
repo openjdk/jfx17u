@@ -150,7 +150,7 @@ void BorderPainter::paintBorder(const LayoutRect& rect, const RenderStyle& style
         if (!styleImage)
             return false;
 
-        if (!styleImage->isLoaded(&m_renderer))
+        if (!styleImage->isLoaded())
             return false;
 
         if (!styleImage->canRender(&m_renderer, style.effectiveZoom()))
@@ -208,8 +208,8 @@ void BorderPainter::paintOutline(const LayoutRect& paintRect)
     if (styleToUse.outlineStyleIsAuto() == OutlineIsAuto::On && !m_renderer.theme().supportsFocusRing(styleToUse)) {
         Vector<LayoutRect> focusRingRects;
         LayoutRect paintRectToUse { paintRect };
-        if (CheckedPtr box = dynamicDowncast<RenderBox>(m_renderer))
-            paintRectToUse = m_renderer.theme().adjustedPaintRect(*box, paintRectToUse);
+        if (is<RenderBox>(m_renderer))
+            paintRectToUse = m_renderer.theme().adjustedPaintRect(downcast<RenderBox>(m_renderer), paintRectToUse);
         m_renderer.addFocusRingRects(focusRingRects, paintRectToUse.location(), m_paintInfo.paintContainer);
         m_renderer.paintFocusRing(m_paintInfo, styleToUse, focusRingRects);
     }
@@ -484,14 +484,13 @@ bool BorderPainter::paintNinePieceImage(const LayoutRect& rect, const RenderStyl
     if (!styleImage)
         return false;
 
-    if (!styleImage->isLoaded(&m_renderer))
+    if (!styleImage->isLoaded())
         return true; // Never paint a nine-piece image incrementally, but don't paint the fallback borders either.
 
     if (!styleImage->canRender(&m_renderer, style.effectiveZoom()))
         return false;
 
-    CheckedPtr modelObject = dynamicDowncast<RenderBoxModelObject>(m_renderer);
-    if (!modelObject)
+    if (!is<RenderBoxModelObject>(m_renderer))
         return false;
 
     // FIXME: border-image is broken with full page zooming when tiling has to happen, since the tiling function
@@ -502,7 +501,7 @@ bool BorderPainter::paintNinePieceImage(const LayoutRect& rect, const RenderStyl
     rectWithOutsets.expand(style.imageOutsets(ninePieceImage));
     LayoutRect destination = LayoutRect(snapRectToDevicePixels(rectWithOutsets, deviceScaleFactor));
 
-    auto source = modelObject->calculateImageIntrinsicDimensions(styleImage, destination.size(), RenderBoxModelObject::DoNotScaleByEffectiveZoom);
+    auto source = downcast<RenderBoxModelObject>(m_renderer).calculateImageIntrinsicDimensions(styleImage, destination.size(), RenderBoxModelObject::DoNotScaleByEffectiveZoom);
 
     // If both values are ‘auto’ then the intrinsic width and/or height of the image should be used, if any.
     styleImage->setContainerContextForRenderer(m_renderer, source, style.effectiveZoom());
@@ -1423,20 +1422,15 @@ Color BorderPainter::calculateBorderStyleColor(const BorderStyle& style, const B
 
     Operation operation = (side == BoxSide::Top || side == BoxSide::Left) == (style == BorderStyle::Inset) ? Darken : Lighten;
 
-    bool isVeryDarkColor = color.luminance() <= baseDarkColorLuminance;
-    bool isVeryLightColor = color.luminance() > baseLightColorLuminance;
-
-    // Special case very dark colors to give them extra contrast.
-    if (isVeryDarkColor)
-        return operation == Darken ? color.lightened() : color.lightened().lightened();
-
-    // Here we will darken the border decoration color when needed.
-    if (operation == Darken)
+    // Here we will darken the border decoration color when needed. This will yield a similar behavior as in FF.
+    if (operation == Darken) {
+        if (color.luminance() > baseDarkColorLuminance)
             return color.darkened();
-
-    ASSERT(operation == Lighten);
-
-    return isVeryLightColor ? color : color.lightened();
+    } else {
+        if (color.luminance() < baseLightColorLuminance)
+            return color.lightened();
+    }
+    return color;
 }
 
 const Document& BorderPainter::document() const

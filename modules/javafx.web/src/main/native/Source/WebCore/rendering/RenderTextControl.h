@@ -44,7 +44,7 @@ public:
 #endif
 
 protected:
-    RenderTextControl(Type, HTMLTextFormControlElement&, RenderStyle&&);
+    RenderTextControl(HTMLTextFormControlElement&, RenderStyle&&);
 
     // This convenience function should not be made public because innerTextElement may outlive the render tree.
     RefPtr<TextControlInnerTextElement> innerTextElement() const;
@@ -68,6 +68,7 @@ private:
     void element() const = delete;
 
     ASCIILiteral renderName() const override { return "RenderTextControl"_s; }
+    bool isTextControl() const final { return true; }
     void computeIntrinsicLogicalWidths(LayoutUnit& minLogicalWidth, LayoutUnit& maxLogicalWidth) const override;
     void computePreferredLogicalWidths() override;
     bool avoidsFloats() const override { return true; }
@@ -101,4 +102,4 @@ private:
 
 } // namespace WebCore
 
-SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderTextControl, isRenderTextControl())
+SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderTextControl, isTextControl())

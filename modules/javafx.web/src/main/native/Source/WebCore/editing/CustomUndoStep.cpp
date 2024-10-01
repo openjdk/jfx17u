@@ -76,7 +76,7 @@ String CustomUndoStep::label() const
 
 void CustomUndoStep::didRemoveFromUndoManager()
 {
-    if (RefPtr undoItem = std::exchange(m_undoItem, nullptr).get())
+    if (auto undoItem = std::exchange(m_undoItem, nullptr))
         undoItem->invalidate();
 }
 

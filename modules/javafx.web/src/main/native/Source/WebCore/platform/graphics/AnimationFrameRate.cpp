@@ -114,10 +114,7 @@ TextStream& operator<<(TextStream& ts, const OptionSet<ThrottlingReason>& reason
             ts << "LowPowerMode";
             break;
         case ThrottlingReason::NonInteractedCrossOriginFrame:
-            ts << "NonInteractedCrossOriginFrame";
-            break;
-        case ThrottlingReason::ThermalMitigation:
-            ts << "ThermalMitigation";
+            ts << "NonInteractiveCrossOriginFrame";
             break;
         }
         didAppend = true;

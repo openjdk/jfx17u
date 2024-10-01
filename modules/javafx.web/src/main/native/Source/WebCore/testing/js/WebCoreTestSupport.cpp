@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2011, 2015 Google Inc. All rights reserved.
- * Copyright (C) 2016-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2016-2022 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,6 +29,7 @@
 
 #include "DeprecatedGlobalSettings.h"
 #include "DocumentFragment.h"
+#include "FragmentScriptingPermission.h"
 #include "FrameDestructionObserverInlines.h"
 #include "InternalSettings.h"
 #include "Internals.h"
@@ -44,7 +45,6 @@
 #include "ProcessWarming.h"
 #include "SWContextManager.h"
 #include "ServiceWorkerGlobalScope.h"
-#include "SincResampler.h"
 #include "WheelEventTestMonitor.h"
 #include "XMLDocument.h"
 #include <JavaScriptCore/APICast.h>
@@ -232,6 +232,7 @@ void setMockGamepadButtonValue(unsigned gamepadIndex, unsigned buttonIndex, doub
 
 void setupNewlyCreatedServiceWorker(uint64_t serviceWorkerIdentifier)
 {
+#if ENABLE(SERVICE_WORKER)
     auto identifier = AtomicObjectIdentifier<ServiceWorkerIdentifierType>(serviceWorkerIdentifier);
     SWContextManager::singleton().postTaskToServiceWorker(identifier, [identifier] (ServiceWorkerGlobalScope& globalScope) {
         auto* script = globalScope.script();
@@ -244,6 +245,9 @@ void setupNewlyCreatedServiceWorker(uint64_t serviceWorkerIdentifier)
         auto* contextWrapper = script->globalScopeWrapper();
         contextWrapper->putDirect(vm, Identifier::fromString(vm, Internals::internalsId), toJS(&globalObject, contextWrapper, ServiceWorkerInternals::create(globalScope, identifier)));
     });
+#else
+    UNUSED_PARAM(serviceWorkerIdentifier);
+#endif
 }
 
 #if PLATFORM(COCOA)
@@ -284,13 +288,6 @@ void populateDisassemblyLabels()
 #endif // ENABLE(JIT_OPERATION_DISASSEMBLY)
 
 #endif // ENABLE(JIT_OPERATION_VALIDATION) || ENABLE(JIT_OPERATION_DISASSEMBLY)
-
-#if ENABLE(WEB_AUDIO)
-void testSincResamplerProcessBuffer(std::span<const float> source, std::span<float> destination, double scaleFactor)
-{
-    SincResampler::processBuffer(source, destination, scaleFactor);
-}
-#endif // ENABLE(WEB_AUDIO)
 
 bool testDocumentFragmentParseXML(const String& chunk, OptionSet<ParserContentPolicy> parserContentPolicy)
 {

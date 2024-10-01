@@ -41,7 +41,6 @@ static StringView metalCodePrologue()
 {
     return StringView {
         "#include <metal_stdlib>\n"
-        "#include <metal_types>\n"
         "\n"
         "using namespace metal;\n"
         "\n"_s
@@ -57,12 +56,12 @@ static void dumpMetalCodeIfNeeded(StringBuilder& stringBuilder)
     }
 }
 
-String generateMetalCode(const CallGraph& callGraph, const HashMap<String, ConstantValue>& constantValues)
+String generateMetalCode(CallGraph& callGraph)
 {
     StringBuilder stringBuilder;
     stringBuilder.append(metalCodePrologue());
 
-    Metal::emitMetalFunctions(stringBuilder, callGraph, constantValues);
+    Metal::emitMetalFunctions(stringBuilder, callGraph);
 
     dumpMetalCodeIfNeeded(stringBuilder);
 

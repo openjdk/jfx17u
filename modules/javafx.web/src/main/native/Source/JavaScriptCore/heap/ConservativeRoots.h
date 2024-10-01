@@ -58,7 +58,7 @@ private:
     HeapCell** m_roots;
     size_t m_size;
     size_t m_capacity;
-    JSC::Heap& m_heap;
+    Heap& m_heap;
     HeapCell* m_inlineRoots[inlineCapacity];
 };
 

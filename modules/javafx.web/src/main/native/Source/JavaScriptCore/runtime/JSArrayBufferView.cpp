@@ -44,7 +44,7 @@ const ASCIILiteral typedArrayBufferHasBeenDetachedErrorMessage { "Underlying Arr
 
 JSArrayBufferView::ConstructionContext::ConstructionContext(Structure* structure, size_t length, void* vector)
     : m_structure(structure)
-    , m_vector(vector)
+    , m_vector(vector, length)
     , m_length(length)
     , m_byteOffset(0)
     , m_mode(FastTypedArray)
@@ -52,6 +52,7 @@ JSArrayBufferView::ConstructionContext::ConstructionContext(Structure* structure
 {
     ASSERT(!isResizableOrGrowableSharedTypedArrayIncludingDataView(structure->classInfoForCells()));
     ASSERT(!Gigacage::isEnabled() || (Gigacage::contains(vector) && Gigacage::contains(static_cast<const uint8_t*>(vector) + length - 1)));
+    ASSERT(vector == removeArrayPtrTag(vector));
     RELEASE_ASSERT(length <= fastSizeLimit);
 }
 
@@ -72,7 +73,7 @@ JSArrayBufferView::ConstructionContext::ConstructionContext(VM& vm, Structure* s
             return;
 
         m_structure = structure;
-        m_vector = VectorType(temp);
+        m_vector = VectorType(temp, m_length);
         m_mode = FastTypedArray;
 
         if (mode == ZeroFill) {
@@ -94,11 +95,11 @@ JSArrayBufferView::ConstructionContext::ConstructionContext(VM& vm, Structure* s
         memory = Gigacage::tryZeroedMalloc(Gigacage::Primitive, size.value());
     else
         memory = Gigacage::tryMalloc(Gigacage::Primitive, size.value());
-    m_vector = VectorType(memory);
+    m_vector = VectorType(memory, m_length);
     if (!m_vector)
         return;
 
-    vm.heap.reportExtraMemoryAllocated(static_cast<JSCell*>(nullptr), size.value());
+    vm.heap.reportExtraMemoryAllocated(size.value());
 
     m_structure = structure;
     m_mode = OversizeTypedArray;
@@ -126,8 +127,9 @@ JSArrayBufferView::ConstructionContext::ConstructionContext(VM& vm, Structure* s
     else
         ASSERT(!isResizableOrGrowableSharedTypedArrayIncludingDataView(structure->classInfoForCells()));
 #endif
+    ASSERT(arrayBuffer->data() == removeArrayPtrTag(arrayBuffer->data()));
 
-    m_vector = VectorType(static_cast<uint8_t*>(arrayBuffer->data()) + byteOffset);
+    m_vector = VectorType(static_cast<uint8_t*>(arrayBuffer->data()) + byteOffset, m_length);
     IndexingHeader indexingHeader;
     indexingHeader.setArrayBuffer(arrayBuffer.get());
     m_butterfly = Butterfly::create(vm, nullptr, 0, 0, true, indexingHeader, 0);
@@ -156,8 +158,9 @@ JSArrayBufferView::ConstructionContext::ConstructionContext(Structure* structure
     else
         ASSERT(!isResizableOrGrowableSharedTypedArrayIncludingDataView(structure->classInfoForCells()));
 #endif
+    ASSERT(arrayBuffer->data() == removeArrayPtrTag(arrayBuffer->data()));
 
-    m_vector = VectorType(static_cast<uint8_t*>(arrayBuffer->data()) + byteOffset);
+    m_vector = VectorType(static_cast<uint8_t*>(arrayBuffer->data()) + byteOffset, m_length);
 }
 
 JSArrayBufferView::JSArrayBufferView(VM& vm, ConstructionContext& context)
@@ -167,7 +170,8 @@ JSArrayBufferView::JSArrayBufferView(VM& vm, ConstructionContext& context)
     , m_mode(context.mode())
 {
     setButterfly(vm, context.butterfly());
-    m_vector.setWithoutBarrier(context.vector());
+    ASSERT(context.vector() == removeArrayPtrTag(context.vector()));
+    m_vector.setWithoutBarrier(context.vector(), m_length);
 }
 
 void JSArrayBufferView::finishCreation(VM& vm)
@@ -321,7 +325,7 @@ ArrayBuffer* JSArrayBufferView::slowDownAndWasteMemory()
     {
         Locker locker { cellLock() };
         butterfly()->indexingHeader()->setArrayBuffer(buffer.get());
-        m_vector.setWithoutBarrier(buffer->data());
+        m_vector.setWithoutBarrier(buffer->data(), m_length);
         WTF::storeStoreFence();
         m_mode = WastefulTypedArray; // There is no possibility that FastTypedArray or OversizeTypedArray becomes resizable ones since resizable ones do not start with FastTypedArray or OversizeTypedArray.
     }

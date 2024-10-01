@@ -36,14 +36,13 @@
 #include <memory>
 #include <wtf/Noncopyable.h>
 #include <wtf/RefCounted.h>
-#include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
 class MutationObserverInterestGroup;
 
 // ChildListMutationAccumulator is not meant to be used directly; ChildListMutationScope is the public interface.
-class ChildListMutationAccumulator : public RefCounted<ChildListMutationAccumulator>, public CanMakeSingleThreadWeakPtr<ChildListMutationAccumulator> {
+class ChildListMutationAccumulator : public RefCounted<ChildListMutationAccumulator> {
 public:
     static Ref<ChildListMutationAccumulator> getOrCreate(ContainerNode&);
     ~ChildListMutationAccumulator();
@@ -61,15 +60,13 @@ private:
     bool isAddedNodeInOrder(Node&);
     bool isRemovedNodeInOrder(Node&);
 
-    Ref<ContainerNode> protectedTarget() const;
-
     Ref<ContainerNode> m_target;
 
     Vector<Ref<Node>> m_removedNodes;
     Vector<Ref<Node>> m_addedNodes;
     RefPtr<Node> m_previousSibling;
     RefPtr<Node> m_nextSibling;
-    WeakPtr<Node, WeakPtrImplWithEventTargetData> m_lastAdded;
+    Node* m_lastAdded;
 
     std::unique_ptr<MutationObserverInterestGroup> m_observers;
 };

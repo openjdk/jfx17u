@@ -37,8 +37,8 @@
 
 namespace WebCore {
 
-ModifySelectionListLevelCommand::ModifySelectionListLevelCommand(Ref<Document>&& document)
-    : CompositeEditCommand(WTFMove(document))
+ModifySelectionListLevelCommand::ModifySelectionListLevelCommand(Document& document)
+    : CompositeEditCommand(document)
 {
 }
 
@@ -48,18 +48,18 @@ bool ModifySelectionListLevelCommand::preservesTypingStyle() const
 }
 
 // This needs to be static so it can be called by canIncreaseSelectionListLevel and canDecreaseSelectionListLevel
-static bool getStartEndListChildren(const VisibleSelection& selection, RefPtr<Node>& start, RefPtr<Node>& end)
+static bool getStartEndListChildren(const VisibleSelection& selection, Node*& start, Node*& end)
 {
     if (selection.isNone())
         return false;
 
     // start must be in a list child
-    RefPtr startListChild = enclosingListChild(selection.start().anchorNode());
+    Node* startListChild = enclosingListChild(selection.start().anchorNode());
     if (!startListChild || !startListChild->renderer())
         return false;
 
     // end must be in a list child
-    RefPtr endListChild = selection.isRange() ? enclosingListChild(selection.end().anchorNode()) : startListChild;
+    Node* endListChild = selection.isRange() ? enclosingListChild(selection.end().anchorNode()) : startListChild;
     if (!endListChild || !endListChild->renderer())
         return false;
 
@@ -79,14 +79,14 @@ static bool getStartEndListChildren(const VisibleSelection& selection, RefPtr<No
     }
 
     // if the selection ends on a list item with a sublist, include the entire sublist
-    if (endListChild->renderer()->isRenderListItem()) {
+    if (endListChild->renderer()->isListItem()) {
         RenderObject* r = endListChild->renderer()->nextSibling();
         if (r && isListHTMLElement(r->node()) && r->node()->parentNode() == startListChild->parentNode())
             endListChild = r->node();
     }
 
-    start = WTFMove(startListChild);
-    end = WTFMove(endListChild);
+    start = startListChild;
+    end = endListChild;
     return true;
 }
 
@@ -140,14 +140,14 @@ void ModifySelectionListLevelCommand::appendSiblingNodeRange(Node* startNode, No
     ASSERT_NOT_REACHED();
 }
 
-IncreaseSelectionListLevelCommand::IncreaseSelectionListLevelCommand(Ref<Document>&& document, Type listType)
-    : ModifySelectionListLevelCommand(WTFMove(document))
+IncreaseSelectionListLevelCommand::IncreaseSelectionListLevelCommand(Document& document, Type listType)
+    : ModifySelectionListLevelCommand(document)
     , m_listType(listType)
 {
 }
 
 // This needs to be static so it can be called by canIncreaseSelectionListLevel
-static bool canIncreaseListLevel(const VisibleSelection& selection, RefPtr<Node>& start, RefPtr<Node>& end)
+static bool canIncreaseListLevel(const VisibleSelection& selection, Node*& start, Node*& end)
 {
     if (!getStartEndListChildren(selection, start, end))
         return false;
@@ -176,16 +176,16 @@ static bool canIncreaseListLevel(const VisibleSelection& selection, RefPtr<Node>
 //  - (silly) client specifies whether to return pre-existing list nodes
 void IncreaseSelectionListLevelCommand::doApply()
 {
-    RefPtr<Node> startListChild;
-    RefPtr<Node> endListChild;
+    Node* startListChild;
+    Node* endListChild;
     if (!canIncreaseListLevel(endingSelection(), startListChild, endListChild))
         return;
 
-    RefPtr previousItem = startListChild->renderer()->previousSibling()->node();
-    if (isListHTMLElement(previousItem.get())) {
+    Node* previousItem = startListChild->renderer()->previousSibling()->node();
+    if (isListHTMLElement(previousItem)) {
         // move nodes up into preceding list
-        appendSiblingNodeRange(startListChild.get(), endListChild.get(), downcast<Element>(previousItem.get()));
-        m_listElement = WTFMove(previousItem);
+        appendSiblingNodeRange(startListChild, endListChild, downcast<Element>(previousItem));
+        m_listElement = previousItem;
     } else {
         // create a sublist for the preceding element and move nodes there
         RefPtr<Element> newParent;
@@ -203,15 +203,15 @@ void IncreaseSelectionListLevelCommand::doApply()
             break;
         }
         insertNodeBefore(*newParent, *startListChild);
-        appendSiblingNodeRange(startListChild.get(), endListChild.get(), newParent.get());
+        appendSiblingNodeRange(startListChild, endListChild, newParent.get());
         m_listElement = WTFMove(newParent);
     }
 }
 
 bool IncreaseSelectionListLevelCommand::canIncreaseSelectionListLevel(Document* document)
 {
-    RefPtr<Node> startListChild;
-    RefPtr<Node> endListChild;
+    Node* startListChild;
+    Node* endListChild;
     return canIncreaseListLevel(document->frame()->selection().selection(), startListChild, endListChild);
 }
 
@@ -239,13 +239,13 @@ RefPtr<Node> IncreaseSelectionListLevelCommand::increaseSelectionListLevelUnorde
     return increaseSelectionListLevel(document, Type::UnorderedList);
 }
 
-DecreaseSelectionListLevelCommand::DecreaseSelectionListLevelCommand(Ref<Document>&& document)
-    : ModifySelectionListLevelCommand(WTFMove(document))
+DecreaseSelectionListLevelCommand::DecreaseSelectionListLevelCommand(Document& document)
+    : ModifySelectionListLevelCommand(document)
 {
 }
 
 // This needs to be static so it can be called by canDecreaseSelectionListLevel
-static bool canDecreaseListLevel(const VisibleSelection& selection, RefPtr<Node>& start, RefPtr<Node>& end)
+static bool canDecreaseListLevel(const VisibleSelection& selection, Node*& start, Node*& end)
 {
     if (!getStartEndListChildren(selection, start, end))
         return false;
@@ -259,35 +259,35 @@ static bool canDecreaseListLevel(const VisibleSelection& selection, RefPtr<Node>
 
 void DecreaseSelectionListLevelCommand::doApply()
 {
-    RefPtr<Node> startListChild;
-    RefPtr<Node> endListChild;
+    Node* startListChild;
+    Node* endListChild;
     if (!canDecreaseListLevel(endingSelection(), startListChild, endListChild))
         return;
 
-    RefPtr previousItem = startListChild->renderer()->previousSibling() ? startListChild->renderer()->previousSibling()->node() : 0;
-    RefPtr nextItem = endListChild->renderer()->nextSibling() ? endListChild->renderer()->nextSibling()->node() : 0;
-    RefPtr listNode = startListChild->parentElement();
+    Node* previousItem = startListChild->renderer()->previousSibling() ? startListChild->renderer()->previousSibling()->node() : 0;
+    Node* nextItem = endListChild->renderer()->nextSibling() ? endListChild->renderer()->nextSibling()->node() : 0;
+    Element* listNode = startListChild->parentElement();
 
     if (!previousItem) {
         // at start of sublist, move the child(ren) to before the sublist
-        insertSiblingNodeRangeBefore(startListChild.get(), endListChild.get(), listNode.get());
+        insertSiblingNodeRangeBefore(startListChild, endListChild, listNode);
         // if that was the whole sublist we moved, remove the sublist node
         if (!nextItem && listNode)
             removeNode(*listNode);
     } else if (!nextItem) {
         // at end of list, move the child(ren) to after the sublist
-        insertSiblingNodeRangeAfter(startListChild.get(), endListChild.get(), listNode.get());
+        insertSiblingNodeRangeAfter(startListChild, endListChild, listNode);
     } else if (listNode) {
         // in the middle of list, split the list and move the children to the divide
         splitElement(*listNode, *startListChild);
-        insertSiblingNodeRangeBefore(startListChild.get(), endListChild.get(), listNode.get());
+        insertSiblingNodeRangeBefore(startListChild, endListChild, listNode);
     }
 }
 
 bool DecreaseSelectionListLevelCommand::canDecreaseSelectionListLevel(Document* document)
 {
-    RefPtr<Node> startListChild;
-    RefPtr<Node> endListChild;
+    Node* startListChild;
+    Node* endListChild;
     return canDecreaseListLevel(document->frame()->selection().selection(), startListChild, endListChild);
 }
 

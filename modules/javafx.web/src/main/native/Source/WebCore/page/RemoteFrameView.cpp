@@ -46,6 +46,25 @@ void RemoteFrameView::setFrameRect(const IntRect& newRect)
 
 // FIXME: Implement all the stubs below.
 
+void RemoteFrameView::invalidateRect(const IntRect&)
+{
+}
+
+bool RemoteFrameView::isActive() const
+{
+    return false;
+}
+
+bool RemoteFrameView::forceUpdateScrollbarsOnMainThreadForPerformanceTesting() const
+{
+    return false;
+}
+
+ScrollableArea* RemoteFrameView::enclosingScrollableArea() const
+{
+    return nullptr;
+}
+
 bool RemoteFrameView::isScrollableOrRubberbandable()
 {
     return false;
@@ -56,6 +75,11 @@ bool RemoteFrameView::hasScrollableOrRubberbandableAncestor()
     return false;
 }
 
+IntRect RemoteFrameView::scrollableAreaBoundingBox(bool*) const
+{
+    return { };
+}
+
 bool RemoteFrameView::shouldPlaceVerticalScrollbarOnLeft() const
 {
     return false;
@@ -63,6 +87,11 @@ bool RemoteFrameView::shouldPlaceVerticalScrollbarOnLeft() const
 
 void RemoteFrameView::invalidateScrollbarRect(Scrollbar&, const IntRect&)
 {
+}
+
+HostWindow* RemoteFrameView::hostWindow() const
+{
+    return nullptr;
 }
 
 IntRect RemoteFrameView::windowClipRect() const

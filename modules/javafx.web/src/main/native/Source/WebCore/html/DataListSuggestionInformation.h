@@ -37,7 +37,6 @@ enum class DataListSuggestionActivationType : uint8_t {
     ControlClicked,
     IndicatorClicked,
     TextChanged,
-    DataListMayHaveChanged,
 };
 
 struct DataListSuggestion {

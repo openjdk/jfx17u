@@ -35,7 +35,6 @@
 #include "DiagnosticLoggingKeys.h"
 #include "DiagnosticLoggingResultType.h"
 #include "Document.h"
-#include "DocumentInlines.h"
 #include "DocumentLoader.h"
 #include "FocusController.h"
 #include "FrameDestructionObserverInlines.h"
@@ -81,39 +80,38 @@ static inline void logBackForwardCacheFailureDiagnosticMessage(Page* page, const
 static bool canCacheFrame(LocalFrame& frame, DiagnosticLoggingClient& diagnosticLoggingClient, unsigned indentLevel)
 {
     PCLOG("+---");
-    CheckedRef frameLoader = frame.loader();
+    FrameLoader& frameLoader = frame.loader();
 
     // Prevent page caching if a subframe is still in provisional load stage.
     // We only do this check for subframes because the main frame is reused when navigating to a new page.
-    if (!frame.isMainFrame() && frameLoader->state() == FrameState::Provisional) {
+    if (!frame.isMainFrame() && frameLoader.state() == FrameState::Provisional) {
         PCLOG("   -Frame is in provisional load stage");
         logBackForwardCacheFailureDiagnosticMessage(diagnosticLoggingClient, DiagnosticLoggingKeys::provisionalLoadKey());
         return false;
     }
 
-    if (frame.isMainFrame() && frameLoader->stateMachine().isDisplayingInitialEmptyDocument()) {
+    if (frame.isMainFrame() && frameLoader.stateMachine().isDisplayingInitialEmptyDocument()) {
         PCLOG("   -MainFrame is displaying initial empty document");
         return false;
     }
 
-    RefPtr document = frame.document();
-    if (!document) {
+    if (!frame.document()) {
         PCLOG("   -Frame has no document");
         return false;
     }
 
-    if (document->shouldPreventEnteringBackForwardCacheForTesting()) {
+    if (frame.document()->shouldPreventEnteringBackForwardCacheForTesting()) {
         PCLOG("   -Back/Forward caching is disabled for testing");
         return false;
     }
 
-    if (!document->frame()) {
+    if (!frame.document()->frame()) {
         PCLOG("   -Document is detached from frame");
         ASSERT_NOT_REACHED();
         return false;
     }
 
-    RefPtr documentLoader = frameLoader->documentLoader();
+    DocumentLoader* documentLoader = frameLoader.documentLoader();
     if (!documentLoader) {
         PCLOG("   -There is no DocumentLoader object");
         logBackForwardCacheFailureDiagnosticMessage(diagnosticLoggingClient, DiagnosticLoggingKeys::noDocumentLoaderKey());
@@ -121,7 +119,7 @@ static bool canCacheFrame(LocalFrame& frame, DiagnosticLoggingClient& diagnostic
     }
 
     URL currentURL = documentLoader->url();
-    URL newURL = frameLoader->provisionalDocumentLoader() ? frameLoader->provisionalDocumentLoader()->url() : URL();
+    URL newURL = frameLoader.provisionalDocumentLoader() ? frameLoader.provisionalDocumentLoader()->url() : URL();
     if (!newURL.isEmpty())
         PCLOG(" Determining if frame can be cached navigating from (", currentURL.string(), ") to (", newURL.string(), "):");
     else
@@ -129,7 +127,7 @@ static bool canCacheFrame(LocalFrame& frame, DiagnosticLoggingClient& diagnostic
 
     bool isCacheable = true;
 
-    if (frame.isMainFrame() && document->quirks().shouldBypassBackForwardCache()) {
+    if (frame.isMainFrame() && frame.document()->quirks().shouldBypassBackForwardCache()) {
         PCLOG("   -Disabled by site-specific quirk");
         logBackForwardCacheFailureDiagnosticMessage(diagnosticLoggingClient, DiagnosticLoggingKeys::siteSpecificQuirkKey());
         isCacheable = false;
@@ -141,12 +139,12 @@ static bool canCacheFrame(LocalFrame& frame, DiagnosticLoggingClient& diagnostic
         logBackForwardCacheFailureDiagnosticMessage(diagnosticLoggingClient, DiagnosticLoggingKeys::isErrorPageKey());
         isCacheable = false;
     }
-    if (frame.isMainFrame() && document && document->url().protocolIs("https"_s) && documentLoader->response().cacheControlContainsNoStore()) {
+    if (frame.isMainFrame() && frame.document() && frame.document()->url().protocolIs("https"_s) && documentLoader->response().cacheControlContainsNoStore()) {
         PCLOG("   -Frame is HTTPS, and cache control prohibits storing");
         logBackForwardCacheFailureDiagnosticMessage(diagnosticLoggingClient, DiagnosticLoggingKeys::httpsNoStoreKey());
         isCacheable = false;
     }
-    if (frame.isMainFrame() && !frameLoader->history().currentItem()) {
+    if (frame.isMainFrame() && !frameLoader.history().currentItem()) {
         PCLOG("   -Main frame has no current history item");
         logBackForwardCacheFailureDiagnosticMessage(diagnosticLoggingClient, DiagnosticLoggingKeys::noCurrentHistoryItemKey());
         isCacheable = false;
@@ -156,7 +154,7 @@ static bool canCacheFrame(LocalFrame& frame, DiagnosticLoggingClient& diagnostic
         logBackForwardCacheFailureDiagnosticMessage(diagnosticLoggingClient, DiagnosticLoggingKeys::visuallyEmptyKey());
         isCacheable = false;
     }
-    if (frameLoader->quickRedirectComing()) {
+    if (frameLoader.quickRedirectComing()) {
         PCLOG("   -Quick redirect is coming");
         logBackForwardCacheFailureDiagnosticMessage(diagnosticLoggingClient, DiagnosticLoggingKeys::quirkRedirectComingKey());
         isCacheable = false;
@@ -179,14 +177,14 @@ static bool canCacheFrame(LocalFrame& frame, DiagnosticLoggingClient& diagnostic
         logBackForwardCacheFailureDiagnosticMessage(diagnosticLoggingClient, DiagnosticLoggingKeys::applicationCacheKey());
         isCacheable = false;
     }
-    if (!frameLoader->client().canCachePage()) {
+    if (!frameLoader.client().canCachePage()) {
         PCLOG("   -The client says this frame cannot be cached");
         logBackForwardCacheFailureDiagnosticMessage(diagnosticLoggingClient, DiagnosticLoggingKeys::deniedByClientKey());
         isCacheable = false;
     }
 
     for (auto* child = frame.tree().firstChild(); child; child = child->tree().nextSibling()) {
-        RefPtr localChild = dynamicDowncast<LocalFrame>(child);
+        auto* localChild = dynamicDowncast<LocalFrame>(child);
         if (!localChild)
             continue;
         if (!canCacheFrame(*localChild, diagnosticLoggingClient, indentLevel + 1))
@@ -206,13 +204,13 @@ static bool canCachePage(Page& page)
     unsigned indentLevel = 0;
     PCLOG("--------\n Determining if page can be cached:");
 
-    CheckedRef diagnosticLoggingClient = page.diagnosticLoggingClient();
-    RefPtr localMainFrame = dynamicDowncast<LocalFrame>(page.mainFrame());
+    DiagnosticLoggingClient& diagnosticLoggingClient = page.diagnosticLoggingClient();
+    auto* localMainFrame = dynamicDowncast<LocalFrame>(page.mainFrame());
     if (!localMainFrame)
         return false;
     bool isCacheable = canCacheFrame(*localMainFrame, diagnosticLoggingClient, indentLevel + 1);
 
-    if (!page.settings().usesBackForwardCache() || page.isResourceCachingDisabledByWebInspector() || page.settings().siteIsolationEnabled()) {
+    if (!page.settings().usesBackForwardCache() || page.isResourceCachingDisabledByWebInspector()) {
         PCLOG("   -Page settings says b/f cache disabled");
         logBackForwardCacheFailureDiagnosticMessage(diagnosticLoggingClient, DiagnosticLoggingKeys::isDisabledKey());
         isCacheable = false;
@@ -280,9 +278,9 @@ static bool canCachePage(Page& page)
 
     // If this is a same-origin navigation and the navigated-to main resource serves the
     // `Clear-Site-Data: "cache"` HTTP header, then we shouldn't cache the current page.
-    if (RefPtr provisionalDocumentLoader = localMainFrame->loader().provisionalDocumentLoader()) {
+    if (auto* provisionalDocumentLoader = localMainFrame->loader().provisionalDocumentLoader()) {
         if (provisionalDocumentLoader->responseClearSiteDataValues().contains(ClearSiteDataValue::Cache)) {
-            if (RefPtr topDocument = localMainFrame->document()) {
+            if (auto* topDocument = localMainFrame->document()) {
                 if (topDocument->securityOrigin().isSameOriginAs(SecurityOrigin::create(provisionalDocumentLoader->response().url()))) {
                     PCLOG("   -`Clear-Site-Data: cache` HTTP header is present");
                     isCacheable = false;
@@ -296,7 +294,7 @@ static bool canCachePage(Page& page)
     else
         PCLOG(" Page CANNOT be cached\n--------");
 
-    diagnosticLoggingClient->logDiagnosticMessageWithResult(DiagnosticLoggingKeys::backForwardCacheKey(), DiagnosticLoggingKeys::canCacheKey(), isCacheable ? DiagnosticLoggingResultPass : DiagnosticLoggingResultFail, ShouldSample::No);
+    diagnosticLoggingClient.logDiagnosticMessageWithResult(DiagnosticLoggingKeys::backForwardCacheKey(), DiagnosticLoggingKeys::canCacheKey(), isCacheable ? DiagnosticLoggingResultPass : DiagnosticLoggingResultFail, ShouldSample::No);
     return isCacheable;
 }
 
@@ -366,20 +364,20 @@ unsigned BackForwardCache::frameCount() const
 void BackForwardCache::markPagesForDeviceOrPageScaleChanged(Page& page)
 {
     for (auto& item : m_items) {
-        CheckedRef cachedPage = *item->m_cachedPage;
+        CachedPage& cachedPage = *item->m_cachedPage;
         auto* localMainFrame = dynamicDowncast<LocalFrame>(page.mainFrame());
-        if (localMainFrame == &cachedPage->cachedMainFrame()->view()->frame())
-            cachedPage->markForDeviceOrPageScaleChanged();
+        if (localMainFrame == &cachedPage.cachedMainFrame()->view()->frame())
+            cachedPage.markForDeviceOrPageScaleChanged();
     }
 }
 
 void BackForwardCache::markPagesForContentsSizeChanged(Page& page)
 {
     for (auto& item : m_items) {
-        CheckedRef cachedPage = *item->m_cachedPage;
+        CachedPage& cachedPage = *item->m_cachedPage;
         auto* localMainFrame = dynamicDowncast<LocalFrame>(page.mainFrame());
-        if (localMainFrame == &cachedPage->cachedMainFrame()->view()->frame())
-            cachedPage->markForContentsSizeChanged();
+        if (localMainFrame == &cachedPage.cachedMainFrame()->view()->frame())
+            cachedPage.markForContentsSizeChanged();
     }
 }
 
@@ -388,7 +386,7 @@ void BackForwardCache::markPagesForCaptionPreferencesChanged()
 {
     for (auto& item : m_items) {
         ASSERT(item->m_cachedPage);
-        CheckedRef { *item->m_cachedPage }->markForCaptionPreferencesChanged();
+        item->m_cachedPage->markForCaptionPreferencesChanged();
     }
 }
 #endif
@@ -427,15 +425,15 @@ static void destroyRenderTree(LocalFrame& mainFrame)
             continue;
         if (!frame->document())
             continue;
-        Ref document = *frame->document();
-        if (document->hasLivingRenderTree())
-            document->destroyRenderTree();
+        auto& document = *frame->document();
+        if (document.hasLivingRenderTree())
+            document.destroyRenderTree();
     }
 }
 
 static void firePageHideEventRecursively(LocalFrame& frame)
 {
-    RefPtr document = frame.document();
+    auto* document = frame.document();
     if (!document)
         return;
 
@@ -443,23 +441,25 @@ static void firePageHideEventRecursively(LocalFrame& frame)
     // that the parent document's ignore-opens-during-unload counter should be incremented while the
     // pagehide event is being fired in its subframes:
     // https://html.spec.whatwg.org/multipage/browsers.html#unload-a-document
-    IgnoreOpensDuringUnloadCountIncrementer ignoreOpensDuringUnloadCountIncrementer(document.get());
+    IgnoreOpensDuringUnloadCountIncrementer ignoreOpensDuringUnloadCountIncrementer(document);
 
     frame.loader().stopLoading(UnloadEventPolicy::UnloadAndPageHide);
 
-    for (auto* child = frame.tree().firstChild(); child; child = child->tree().nextSibling()) {
-        if (RefPtr localChild = dynamicDowncast<LocalFrame>(*child))
+    for (RefPtr child = frame.tree().firstChild(); child; child = child->tree().nextSibling()) {
+        RefPtr localChild = dynamicDowncast<LocalFrame>(child.get());
+        if (!localChild)
+            continue;
         firePageHideEventRecursively(*localChild);
     }
 }
 
 std::unique_ptr<CachedPage> BackForwardCache::trySuspendPage(Page& page, ForceSuspension forceSuspension)
 {
-    RefPtr localMainFrame = dynamicDowncast<LocalFrame>(page.mainFrame());
+    auto* localMainFrame = dynamicDowncast<LocalFrame>(page.mainFrame());
     if (!localMainFrame)
         return nullptr;
 
-    localMainFrame->checkedLoader()->stopForBackForwardCache();
+    localMainFrame->loader().stopForBackForwardCache();
 
     if (forceSuspension == ForceSuspension::No && !canCache(page))
         return nullptr;
@@ -470,8 +470,8 @@ std::unique_ptr<CachedPage> BackForwardCache::trySuspendPage(Page& page, ForceSu
 
     // Focus the main frame, defocusing a focused subframe (if we have one). We do this here,
     // before the page enters the back/forward cache, while we still can dispatch DOM blur/focus events.
-    if (CheckedRef focusController = page.focusController(); focusController->focusedLocalFrame())
-        focusController->setFocusedFrame(localMainFrame.get());
+    if (CheckedRef focusController { page.focusController() }; focusController->focusedFrame())
+        focusController->setFocusedFrame(localMainFrame);
 
     // Fire the pagehide event in all frames.
     firePageHideEventRecursively(*localMainFrame);
@@ -480,7 +480,7 @@ std::unique_ptr<CachedPage> BackForwardCache::trySuspendPage(Page& page, ForceSu
 
     // Stop all loads again before checking if we can still cache the page after firing the pagehide
     // event, since the page may have started ping loads in its pagehide event handler.
-    localMainFrame->checkedLoader()->stopForBackForwardCache();
+    localMainFrame->loader().stopForBackForwardCache();
 
     // Check that the page is still page-cacheable after firing the pagehide event. The JS event handlers
     // could have altered the page in a way that could prevent caching.
@@ -539,7 +539,7 @@ std::unique_ptr<CachedPage> BackForwardCache::take(HistoryItem& item, Page* page
     }
 
     m_items.remove(&item);
-    auto cachedPage = item.takeCachedPage();
+    std::unique_ptr<CachedPage> cachedPage = item.takeCachedPage();
 
     RELEASE_LOG(BackForwardCache, "BackForwardCache::take item: %s, size: %u / %u", item.identifier().toString().utf8().data(), pageCount(), maxSize());
 
@@ -565,7 +565,7 @@ void BackForwardCache::removeAllItemsForPage(Page& page)
         ++it;
         if (&(*current)->m_cachedPage->page() == &page) {
             RELEASE_LOG(BackForwardCache, "BackForwardCache::removeAllItemsForPage removing item: %s, size: %u / %u", (*current)->identifier().toString().utf8().data(), pageCount() - 1, maxSize());
-            RefPtr { *current }->setCachedPage(nullptr);
+            (*current)->setCachedPage(nullptr);
             m_items.remove(current);
         }
     }
@@ -573,7 +573,7 @@ void BackForwardCache::removeAllItemsForPage(Page& page)
 
 CachedPage* BackForwardCache::get(HistoryItem& item, Page* page)
 {
-    CheckedPtr cachedPage = item.m_cachedPage.get();
+    CachedPage* cachedPage = item.m_cachedPage.get();
     if (!cachedPage) {
         if (item.m_pruningReason != PruningReason::None)
             logBackForwardCacheFailureDiagnosticMessage(page, pruningReasonToDiagnosticLoggingKey(item.m_pruningReason));
@@ -586,7 +586,7 @@ CachedPage* BackForwardCache::get(HistoryItem& item, Page* page)
         remove(item);
         return nullptr;
     }
-    return cachedPage.get();
+    return cachedPage;
 }
 
 void BackForwardCache::remove(HistoryItem& item)
@@ -605,7 +605,7 @@ void BackForwardCache::remove(HistoryItem& item)
 void BackForwardCache::prune(PruningReason pruningReason)
 {
     while (pageCount() > maxSize()) {
-        RefPtr oldestItem = m_items.takeFirst();
+        auto oldestItem = m_items.takeFirst();
         oldestItem->setCachedPage(nullptr);
         oldestItem->m_pruningReason = pruningReason;
         RELEASE_LOG(BackForwardCache, "BackForwardCache::prune removing item: %s, size: %u / %u", oldestItem->identifier().toString().utf8().data(), pageCount(), maxSize());
@@ -621,7 +621,7 @@ void BackForwardCache::clearEntriesForOrigins(const HashSet<RefPtr<SecurityOrigi
         auto itemOrigin = SecurityOrigin::create((*current)->url());
         if (origins.contains(itemOrigin.ptr())) {
             RELEASE_LOG(BackForwardCache, "BackForwardCache::clearEntriesForOrigins removing item: %s, size: %u / %u", (*current)->identifier().toString().utf8().data(), pageCount() - 1, maxSize());
-            RefPtr { *current }->setCachedPage(nullptr);
+            (*current)->setCachedPage(nullptr);
             m_items.remove(current);
         }
     }

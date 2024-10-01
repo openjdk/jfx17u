@@ -99,6 +99,4 @@ private:
     bool m_matchSubdomains { false };
 };
 
-WEBCORE_EXPORT bool matchesWildcardPattern(const String& pattern, const String& testString);
-
 } // namespace WebCore

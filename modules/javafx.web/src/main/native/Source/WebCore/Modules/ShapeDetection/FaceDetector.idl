@@ -31,7 +31,6 @@ typedef (HTMLImageElement
     or HTMLVideoElement
 #endif
     or HTMLCanvasElement
-    or SVGImageElement
     or ImageBitmap
 #if defined(ENABLE_OFFSCREEN_CANVAS) && ENABLE_OFFSCREEN_CANVAS
     or OffscreenCanvas

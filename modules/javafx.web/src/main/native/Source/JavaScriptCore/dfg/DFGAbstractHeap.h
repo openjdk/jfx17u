@@ -153,7 +153,11 @@ public:
             return static_cast<int32_t>(value());
         }
 
-        friend bool operator==(const Payload&, const Payload&) = default;
+        bool operator==(const Payload& other) const
+        {
+            return m_isTop == other.m_isTop
+                && m_value == other.m_value;
+        }
 
         bool operator<(const Payload& other) const
         {
@@ -282,7 +286,10 @@ public:
         return WTF::IntHash<int64_t>::hash(m_value);
     }
 
-    friend bool operator==(const AbstractHeap&, const AbstractHeap&) = default;
+    bool operator==(const AbstractHeap& other) const
+    {
+        return m_value == other.m_value;
+    }
 
     bool operator<(const AbstractHeap& other) const
     {

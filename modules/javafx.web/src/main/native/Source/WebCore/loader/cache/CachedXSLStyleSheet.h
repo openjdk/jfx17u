@@ -47,7 +47,6 @@ private:
     void setEncoding(const String&) final;
     String encoding() const final;
     const TextResourceDecoder* textResourceDecoder() const final { return m_decoder.get(); }
-    RefPtr<TextResourceDecoder> protectedDecoder() const;
     void finishLoading(const FragmentedSharedBuffer*, const NetworkLoadMetrics&) final;
 
     String m_sheet;

@@ -32,9 +32,10 @@ Ref<SourceAlpha> SourceAlpha::create(const DestinationColorSpace& colorSpace)
     return adoptRef(*new SourceAlpha(colorSpace));
 }
 
-SourceAlpha::SourceAlpha(DestinationColorSpace colorSpace)
-    : FilterEffect(FilterEffect::Type::SourceAlpha, colorSpace)
+SourceAlpha::SourceAlpha(const DestinationColorSpace& colorSpace)
+    : FilterEffect(FilterEffect::Type::SourceAlpha)
 {
+    setOperatingColorSpace(colorSpace);
 }
 
 std::unique_ptr<FilterEffectApplier> SourceAlpha::createSoftwareApplier() const

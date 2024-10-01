@@ -45,9 +45,10 @@ public:
 
     void setCreatedByParser(bool createdByParser) { m_createdByParser = createdByParser; }
 
+    void finishParsingChildren() override;
+
     const String& localHref() const { return m_localHref; }
     StyleSheet* sheet() const { return m_sheet.get(); }
-    RefPtr<StyleSheet> protectedSheet() const;
 
     bool isCSS() const { return m_isCSS; }
 #if ENABLE(XSLT)
@@ -59,6 +60,7 @@ private:
     ProcessingInstruction(Document&, String&& target, String&& data);
 
     String nodeName() const override;
+    NodeType nodeType() const override;
     Ref<Node> cloneNodeInternal(Document&, CloningOperation) override;
 
     InsertedIntoAncestorResult insertedIntoAncestor(InsertionType, ContainerNode&) override;
@@ -82,7 +84,7 @@ private:
     String m_localHref;
     String m_title;
     String m_media;
-    CachedResourceHandle<CachedResource> m_cachedSheet;
+    CachedResourceHandle<CachedResource> m_cachedSheet { nullptr };
     RefPtr<StyleSheet> m_sheet;
     bool m_loading { false };
     bool m_alternate { false };

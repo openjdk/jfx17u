@@ -64,7 +64,7 @@ public:
     }
 
 private:
-    explicit PDFDocumentParser(PDFDocument& document)
+    PDFDocumentParser(PDFDocument& document)
         : RawDataDocumentParser(document)
     {
     }
@@ -118,7 +118,7 @@ void PDFDocumentEventListener::handleEvent(ScriptExecutionContext&, Event& event
     } else if (is<HTMLScriptElement>(event.target()) && event.type() == eventNames().loadEvent) {
         m_document->setContentScriptLoaded(true);
         if (m_document->isFinishedParsing())
-            m_document->finishLoadingPDF();
+            m_document->sendPDFArrayBuffer();
     } else
         ASSERT_NOT_REACHED();
 }
@@ -177,7 +177,7 @@ void PDFDocument::finishedParsing()
     ASSERT(m_iframe);
     m_isFinishedParsing = true;
     if (m_isContentScriptLoaded)
-        finishLoadingPDF();
+        sendPDFArrayBuffer();
 }
 
 void PDFDocument::postMessageToIframe(const String& name, JSC::JSObject* data)
@@ -219,23 +219,8 @@ void PDFDocument::sendPDFArrayBuffer()
     }
 }
 
-void PDFDocument::finishLoadingPDF()
-{
-    sendPDFArrayBuffer();
-
-    if (m_script) {
-        m_script->removeEventListener(eventNames().loadEvent, *m_listener, { });
-        m_script = nullptr;
-    }
-
-    m_listener = nullptr;
-}
-
 void PDFDocument::injectStyleAndContentScript()
 {
-    if (m_injectedStyleAndScript)
-        return;
-
     auto* contentDocument = m_iframe->contentDocument();
     ASSERT(contentDocument->head());
     auto link = HTMLLinkElement::create(HTMLNames::linkTag, *contentDocument, false);
@@ -248,13 +233,11 @@ void PDFDocument::injectStyleAndContentScript()
     contentDocument->head()->appendChild(link);
 
     ASSERT(contentDocument->body());
-    m_script = HTMLScriptElement::create(scriptTag, *contentDocument, false);
-    ASSERT(m_listener);
-    m_script->addEventListener(eventNames().loadEvent, *m_listener, false);
-    m_script->setAttribute(srcAttr, "webkit-pdfjs-viewer://pdfjs/extras/content-script.js"_s);
-    contentDocument->body()->appendChild(*m_script);
+    auto script = HTMLScriptElement::create(scriptTag, *contentDocument, false);
+    script->addEventListener(eventNames().loadEvent, m_listener.releaseNonNull(), false);
 
-    m_injectedStyleAndScript = true;
+    script->setAttribute(srcAttr, "webkit-pdfjs-viewer://pdfjs/extras/content-script.js"_s);
+    contentDocument->body()->appendChild(script);
 }
 
 } // namepsace WebCore

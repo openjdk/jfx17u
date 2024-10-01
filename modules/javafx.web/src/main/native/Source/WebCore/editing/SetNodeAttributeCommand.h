@@ -47,8 +47,6 @@ private:
     void getNodesInCommand(HashSet<Ref<Node>>&) override;
 #endif
 
-    Ref<Element> protectedElement() const { return m_element; }
-
     Ref<Element> m_element;
     QualifiedName m_attribute;
     AtomString m_value;

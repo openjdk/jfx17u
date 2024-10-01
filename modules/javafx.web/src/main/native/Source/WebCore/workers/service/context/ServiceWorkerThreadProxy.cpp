@@ -26,7 +26,8 @@
 #include "config.h"
 #include "ServiceWorkerThreadProxy.h"
 
-#include "BadgeClient.h"
+#if ENABLE(SERVICE_WORKER)
+
 #include "CacheStorageProvider.h"
 #include "DocumentLoader.h"
 #include "EventLoop.h"
@@ -38,7 +39,6 @@
 #include "Logging.h"
 #include "MessageWithMessagePorts.h"
 #include "NotificationData.h"
-#include "NotificationPayload.h"
 #include "PlatformStrategies.h"
 #include "ScriptExecutionContextIdentifier.h"
 #include "ServiceWorkerClientData.h"
@@ -49,7 +49,6 @@
 #include <wtf/CrossThreadCopier.h>
 #include <wtf/MainThread.h>
 #include <wtf/RunLoop.h>
-#include <wtf/ThreadSafeWeakHashSet.h>
 
 namespace WebCore {
 
@@ -58,13 +57,13 @@ static inline IDBClient::IDBConnectionProxy* idbConnectionProxy(Document& docume
     return document.idbConnectionProxy();
 }
 
-static ThreadSafeWeakHashSet<ServiceWorkerThreadProxy>& allServiceWorkerThreadProxies()
+static HashSet<ServiceWorkerThreadProxy*>& allServiceWorkerThreadProxies()
 {
-    static MainThreadNeverDestroyed<ThreadSafeWeakHashSet<ServiceWorkerThreadProxy>> set;
+    static NeverDestroyed<HashSet<ServiceWorkerThreadProxy*>> set;
     return set;
 }
 
-ServiceWorkerThreadProxy::ServiceWorkerThreadProxy(Ref<Page>&& page, ServiceWorkerContextData&& contextData, ServiceWorkerData&& workerData, String&& userAgent, WorkerThreadMode workerThreadMode, CacheStorageProvider& cacheStorageProvider, std::unique_ptr<NotificationClient>&& notificationClient)
+ServiceWorkerThreadProxy::ServiceWorkerThreadProxy(UniqueRef<Page>&& page, ServiceWorkerContextData&& contextData, ServiceWorkerData&& workerData, String&& userAgent, WorkerThreadMode workerThreadMode, CacheStorageProvider& cacheStorageProvider, std::unique_ptr<NotificationClient>&& notificationClient)
     : m_page(WTFMove(page))
     , m_document(*dynamicDowncast<LocalFrame>(m_page->mainFrame())->document())
 #if ENABLE(REMOTE_INSPECTOR)
@@ -80,18 +79,19 @@ ServiceWorkerThreadProxy::ServiceWorkerThreadProxy(Ref<Page>&& page, ServiceWork
         addedListener = true;
     }
 
-    ASSERT(!allServiceWorkerThreadProxies().contains(*this));
-    allServiceWorkerThreadProxies().add(*this);
+    ASSERT(!allServiceWorkerThreadProxies().contains(this));
+    allServiceWorkerThreadProxies().add(this);
 
 #if ENABLE(REMOTE_INSPECTOR)
-    m_remoteDebuggable->setInspectable(m_page->inspectable());
+    m_remoteDebuggable->setInspectable(true);
     m_remoteDebuggable->init();
 #endif
 }
 
 ServiceWorkerThreadProxy::~ServiceWorkerThreadProxy()
 {
-    allServiceWorkerThreadProxies().remove(*this);
+    ASSERT(allServiceWorkerThreadProxies().contains(this));
+    allServiceWorkerThreadProxies().remove(this);
 
     auto functionalEventTasks = WTFMove(m_ongoingFunctionalEventTasks);
     for (auto& callback : functionalEventTasks.values())
@@ -173,8 +173,8 @@ std::unique_ptr<FetchLoader> ServiceWorkerThreadProxy::createBlobLoader(FetchLoa
 
 void ServiceWorkerThreadProxy::networkStateChanged(bool isOnLine)
 {
-    for (auto& proxy : allServiceWorkerThreadProxies())
-        proxy.notifyNetworkStateChange(isOnLine);
+    for (auto* proxy : allServiceWorkerThreadProxies())
+        proxy->notifyNetworkStateChange(isOnLine);
 }
 
 void ServiceWorkerThreadProxy::notifyNetworkStateChange(bool isOnline)
@@ -336,12 +336,8 @@ void ServiceWorkerThreadProxy::fireMessageEvent(MessageWithMessagePorts&& messag
 
 void ServiceWorkerThreadProxy::fireInstallEvent()
 {
-    ASSERT(!isMainThread());
-
-    callOnMainRunLoop([protectedThis = Ref { *this }] {
-        protectedThis->thread().willPostTaskToFireInstallEvent();
-    });
-
+    ASSERT(isMainThread());
+    thread().willPostTaskToFireInstallEvent();
     thread().runLoop().postTask([this, protectedThis = Ref { *this }](auto&) mutable {
         thread().queueTaskToFireInstallEvent();
     });
@@ -349,13 +345,9 @@ void ServiceWorkerThreadProxy::fireInstallEvent()
 
 void ServiceWorkerThreadProxy::fireActivateEvent()
 {
-    ASSERT(!isMainThread());
-
-    callOnMainRunLoop([protectedThis = Ref { *this }] {
-        protectedThis->thread().willPostTaskToFireActivateEvent();
-    });
-
-    thread().runLoop().postTask([this, protectedThis = Ref { *this }](auto&) {
+    ASSERT(isMainThread());
+    thread().willPostTaskToFireActivateEvent();
+    thread().runLoop().postTask([this, protectedThis = Ref { *this }](auto&) mutable {
         thread().queueTaskToFireActivateEvent();
     });
 }
@@ -369,33 +361,28 @@ void ServiceWorkerThreadProxy::didSaveScriptsToDisk(ScriptBuffer&& script, HashM
     });
 }
 
-void ServiceWorkerThreadProxy::firePushEvent(std::optional<Vector<uint8_t>>&& data, std::optional<NotificationPayload>&& proposedPayload, CompletionHandler<void(bool, std::optional<NotificationPayload>&&)>&& callback)
+void ServiceWorkerThreadProxy::firePushEvent(std::optional<Vector<uint8_t>>&& data, CompletionHandler<void(bool)>&& callback)
 {
     ASSERT(isMainThread());
 
-    if (m_ongoingNotificationPayloadFunctionalEventTasks.isEmpty())
-        thread().startNotificationPayloadFunctionalEventMonitoring();
+    if (m_ongoingFunctionalEventTasks.isEmpty())
+        thread().startFunctionalEventMonitoring();
 
     auto identifier = ++m_functionalEventTasksCounter;
-    ASSERT(!m_ongoingNotificationPayloadFunctionalEventTasks.contains(identifier));
-    m_ongoingNotificationPayloadFunctionalEventTasks.add(identifier, WTFMove(callback));
-
-    std::optional<NotificationPayload> payloadCopy;
-    if (proposedPayload)
-        payloadCopy = *proposedPayload;
-
-    bool isPosted = postTaskForModeToWorkerOrWorkletGlobalScope([this, protectedThis = Ref { *this }, identifier, data = crossThreadCopy(WTFMove(data)), proposedPayload = crossThreadCopy(WTFMove(proposedPayload))](auto&) mutable {
-        thread().queueTaskToFirePushEvent(WTFMove(data), WTFMove(proposedPayload), [this, protectedThis = WTFMove(protectedThis), identifier](bool result, std::optional<NotificationPayload> resultPayload) mutable {
-            callOnMainThread([this, protectedThis = WTFMove(protectedThis), identifier, result, resultPayload = crossThreadCopy(WTFMove(resultPayload))]() mutable {
-                if (auto callback = m_ongoingNotificationPayloadFunctionalEventTasks.take(identifier))
-                    callback(result, WTFMove(resultPayload));
-                if (m_ongoingNotificationPayloadFunctionalEventTasks.isEmpty())
-                    thread().stopNotificationPayloadFunctionalEventMonitoring();
+    ASSERT(!m_ongoingFunctionalEventTasks.contains(identifier));
+    m_ongoingFunctionalEventTasks.add(identifier, WTFMove(callback));
+    bool isPosted = postTaskForModeToWorkerOrWorkletGlobalScope([this, protectedThis = Ref { *this }, identifier, data = WTFMove(data)](auto&) mutable {
+        thread().queueTaskToFirePushEvent(WTFMove(data), [this, protectedThis = WTFMove(protectedThis), identifier](bool result) mutable {
+            callOnMainThread([this, protectedThis = WTFMove(protectedThis), identifier, result]() mutable {
+                if (auto callback = m_ongoingFunctionalEventTasks.take(identifier))
+                    callback(result);
+                if (m_ongoingFunctionalEventTasks.isEmpty())
+                    thread().stopFunctionalEventMonitoring();
             });
         });
     }, WorkerRunLoop::defaultMode());
     if (!isPosted)
-        m_ongoingNotificationPayloadFunctionalEventTasks.take(identifier)(false, WTFMove(payloadCopy));
+        m_ongoingFunctionalEventTasks.take(identifier)(false);
 }
 
 void ServiceWorkerThreadProxy::firePushSubscriptionChangeEvent(std::optional<PushSubscriptionData>&& newSubscriptionData, std::optional<PushSubscriptionData>&& oldSubscriptionData)
@@ -491,15 +478,6 @@ void ServiceWorkerThreadProxy::setAppBadge(std::optional<uint64_t> badge)
     });
 }
 
-void ServiceWorkerThreadProxy::setInspectable(bool inspectable)
-{
-    ASSERT(isMainThread());
-#if ENABLE(REMOTE_INSPECTOR)
-    m_page->setInspectable(inspectable);
-    m_remoteDebuggable->setInspectable(inspectable);
-#else
-    UNUSED_PARAM(inspectable);
-#endif // ENABLE(REMOTE_INSPECTOR)
-}
-
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

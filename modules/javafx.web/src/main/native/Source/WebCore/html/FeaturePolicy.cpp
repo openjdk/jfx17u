@@ -27,7 +27,6 @@
 #include "FeaturePolicy.h"
 
 #include "Document.h"
-#include "DocumentInlines.h"
 #include "ElementInlines.h"
 #include "HTMLIFrameElement.h"
 #include "HTMLNames.h"
@@ -50,8 +49,6 @@ static const char* policyTypeName(FeaturePolicy::Type type)
         return "SpeakerSelection";
     case FeaturePolicy::Type::DisplayCapture:
         return "DisplayCapture";
-    case FeaturePolicy::Type::Gamepad:
-        return "Gamepad";
     case FeaturePolicy::Type::Geolocation:
         return "Geolocation";
     case FeaturePolicy::Type::Payment:
@@ -80,8 +77,6 @@ static const char* policyTypeName(FeaturePolicy::Type type)
     case FeaturePolicy::Type::XRSpatialTracking:
         return "XRSpatialTracking";
 #endif
-    case FeaturePolicy::Type::PrivateToken:
-        return "PrivateToken";
     }
     ASSERT_NOT_REACHED();
     return "";
@@ -210,7 +205,6 @@ FeaturePolicy FeaturePolicy::parse(Document& document, const HTMLIFrameElement* 
     bool isMicrophoneInitialized = false;
     bool isSpeakerSelectionInitialized = false;
     bool isDisplayCaptureInitialized = false;
-    bool isGamepadInitialized = false;
     bool isGeolocationInitialized = false;
     bool isPaymentInitialized = false;
     bool isScreenWakeLockInitialized = false;
@@ -228,7 +222,6 @@ FeaturePolicy FeaturePolicy::parse(Document& document, const HTMLIFrameElement* 
 #if ENABLE(WEBXR)
     bool isXRSpatialTrackingInitialized = false;
 #endif
-    bool isPrivateTokenInitialized = false;
     if (iframe) {
         for (auto allowItem : allowAttributeValue.split(';')) {
             auto item = allowItem.trim(isASCIIWhitespace<UChar>);
@@ -250,11 +243,6 @@ FeaturePolicy FeaturePolicy::parse(Document& document, const HTMLIFrameElement* 
             if (item.startsWith("display-capture"_s)) {
                 isDisplayCaptureInitialized = true;
                 updateList(document, *iframe, policy.m_displayCaptureRule, item.substring(16));
-                continue;
-            }
-            if (item.startsWith("gamepad"_s)) {
-                isGamepadInitialized = true;
-                updateList(document, *iframe, policy.m_gamepadRule, item.substring(8));
                 continue;
             }
             if (item.startsWith("geolocation"_s)) {
@@ -318,13 +306,7 @@ FeaturePolicy FeaturePolicy::parse(Document& document, const HTMLIFrameElement* 
                 continue;
             }
 #endif
-            constexpr auto privateTokenToken { "private-token"_s };
-            if (item.startsWith(privateTokenToken)) {
-                isPrivateTokenInitialized = true;
-                updateList(document, *iframe, policy.m_privateTokenRule, item.substring(privateTokenToken.length()));
-                continue;
         }
-    }
     }
 
     // By default, camera, microphone, speaker-selection, display-capture, fullscreen, xr-spatial-tracking, screen-wake-lock, and web-share policy is 'self'.
@@ -336,8 +318,6 @@ FeaturePolicy FeaturePolicy::parse(Document& document, const HTMLIFrameElement* 
         policy.m_speakerSelectionRule.allowedList.add(document.securityOrigin().data());
     if (!isDisplayCaptureInitialized)
         policy.m_displayCaptureRule.allowedList.add(document.securityOrigin().data());
-    if (!isGamepadInitialized)
-        policy.m_gamepadRule.type = FeaturePolicy::AllowRule::Type::All;
     if (!isScreenWakeLockInitialized)
         policy.m_screenWakeLockRule.allowedList.add(document.securityOrigin().data());
     if (!isGeolocationInitialized)
@@ -362,8 +342,6 @@ FeaturePolicy FeaturePolicy::parse(Document& document, const HTMLIFrameElement* 
     if (!isXRSpatialTrackingInitialized)
         policy.m_xrSpatialTrackingRule.allowedList.add(document.securityOrigin().data());
 #endif
-    if (!isPrivateTokenInitialized)
-        policy.m_privateTokenRule.allowedList.add(document.securityOrigin().data());
 
     // https://w3c.github.io/webappsec-feature-policy/#process-feature-policy-attributes
     // 9.5 Process Feature Policy Attributes
@@ -397,8 +375,6 @@ bool FeaturePolicy::allows(Type type, const SecurityOriginData& origin) const
         return isAllowedByFeaturePolicy(m_speakerSelectionRule, origin);
     case Type::DisplayCapture:
         return isAllowedByFeaturePolicy(m_displayCaptureRule, origin);
-    case Type::Gamepad:
-        return isAllowedByFeaturePolicy(m_gamepadRule, origin);
     case Type::Geolocation:
         return isAllowedByFeaturePolicy(m_geolocationRule, origin);
     case Type::Payment:
@@ -427,8 +403,6 @@ bool FeaturePolicy::allows(Type type, const SecurityOriginData& origin) const
     case Type::XRSpatialTracking:
         return isAllowedByFeaturePolicy(m_xrSpatialTrackingRule, origin);
 #endif
-    case Type::PrivateToken:
-        return isAllowedByFeaturePolicy(m_privateTokenRule, origin);
     }
     ASSERT_NOT_REACHED();
     return false;

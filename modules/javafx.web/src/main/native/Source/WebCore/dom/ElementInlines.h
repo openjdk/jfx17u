@@ -51,15 +51,12 @@ inline unsigned Element::findAttributeIndexByName(const AtomString& name, bool s
 
 inline bool Node::hasAttributes() const
 {
-    auto* element = dynamicDowncast<Element>(*this);
-    return element && element->hasAttributes();
+    return is<Element>(*this) && downcast<Element>(*this).hasAttributes();
 }
 
 inline NamedNodeMap* Node::attributes() const
 {
-    if (auto* element = dynamicDowncast<Element>(*this))
-        return &element->attributes();
-    return nullptr;
+    return is<Element>(*this) ? &downcast<Element>(*this).attributes() : nullptr;
 }
 
 inline Element* Node::parentElement() const
@@ -95,7 +92,7 @@ inline const AtomString& Element::attributeWithoutSynchronization(const Qualifie
 
 inline URL Element::getURLAttributeForBindings(const QualifiedName& name) const
 {
-    return protectedDocument()->maskedURLForBindingsIfNeeded(getURLAttribute(name));
+    return document().maskedURLForBindingsIfNeeded(getURLAttribute(name));
 }
 
 inline bool Element::hasAttributesWithoutUpdate() const
@@ -211,7 +208,7 @@ inline const AtomString& Element::getAttribute(const QualifiedName& name, const 
 
 inline bool isInTopLayerOrBackdrop(const RenderStyle& style, const Element* element)
 {
-    return (element && element->isInTopLayer()) || style.pseudoElementType() == PseudoId::Backdrop;
+    return (element && element->isInTopLayer()) || style.styleType() == PseudoId::Backdrop;
 }
 
 inline void Element::hideNonce()

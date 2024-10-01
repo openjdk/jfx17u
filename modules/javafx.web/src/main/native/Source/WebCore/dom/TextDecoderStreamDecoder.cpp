@@ -43,17 +43,12 @@ TextDecoderStreamDecoder::TextDecoderStreamDecoder(Ref<TextDecoder>&& textDecode
 
 ExceptionOr<String> TextDecoderStreamDecoder::decode(std::optional<BufferSource::VariantType> value)
 {
-    return protectedTextDecoder()->decode(WTFMove(value), { true });
+    return m_textDecoder->decode(WTFMove(value), { true });
 }
 
 ExceptionOr<String> TextDecoderStreamDecoder::flush()
 {
-    return protectedTextDecoder()->decode({ }, { false });
-}
-
-Ref<TextDecoder> TextDecoderStreamDecoder::protectedTextDecoder()
-{
-    return m_textDecoder;
+    return m_textDecoder->decode({ }, { false });
 }
 
 }

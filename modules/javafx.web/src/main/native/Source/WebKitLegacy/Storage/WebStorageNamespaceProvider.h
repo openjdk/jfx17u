@@ -26,7 +26,6 @@
 #pragma once
 
 #include <WebCore/StorageNamespaceProvider.h>
-#include <wtf/CheckedRef.h>
 #include <wtf/WeakHashMap.h>
 
 namespace WebCore {
@@ -35,7 +34,7 @@ class SecurityOriginData;
 
 namespace WebKit {
 
-class WebStorageNamespaceProvider final : public WebCore::StorageNamespaceProvider, public CanMakeWeakPtr<WebStorageNamespaceProvider> {
+class WebStorageNamespaceProvider final : public WebCore::StorageNamespaceProvider {
 public:
     static Ref<WebStorageNamespaceProvider> create(const String& localStorageDatabasePath);
     virtual ~WebStorageNamespaceProvider();
@@ -58,7 +57,7 @@ private:
     void copySessionStorageNamespace(WebCore::Page&, WebCore::Page&) final;
 
     const String m_localStorageDatabasePath;
-    SingleThreadWeakHashMap<WebCore::Page, HashMap<WebCore::SecurityOriginData, RefPtr<WebCore::StorageNamespace>>> m_sessionStorageNamespaces;
+    WeakHashMap<WebCore::Page, HashMap<WebCore::SecurityOriginData, RefPtr<WebCore::StorageNamespace>>> m_sessionStorageNamespaces;
 };
 
 } // namespace WebKit

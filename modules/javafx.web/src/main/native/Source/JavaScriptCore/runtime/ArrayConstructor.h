@@ -30,8 +30,6 @@ class ArrayPrototype;
 class JSArray;
 class GetterSetter;
 
-extern const ASCIILiteral ArrayInvalidLengthError;
-
 class ArrayConstructor final : public InternalFunction {
 public:
     typedef InternalFunction Base;
@@ -46,7 +44,10 @@ public:
 
     DECLARE_INFO;
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        return Structure::create(vm, globalObject, prototype, TypeInfo(InternalFunctionType, StructureFlags), info());
+    }
 
 private:
     ArrayConstructor(VM&, Structure*);

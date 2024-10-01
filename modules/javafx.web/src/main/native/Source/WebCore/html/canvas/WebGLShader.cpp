@@ -29,30 +29,29 @@
 
 #include "WebGLShader.h"
 
+#include "WebGLContextGroup.h"
 #include "WebGLRenderingContextBase.h"
 #include <wtf/Lock.h>
 #include <wtf/Locker.h>
 
 namespace WebCore {
 
-RefPtr<WebGLShader> WebGLShader::create(WebGLRenderingContextBase& context, GCGLenum type)
+Ref<WebGLShader> WebGLShader::create(WebGLRenderingContextBase& ctx, GCGLenum type)
 {
-    auto object = context.protectedGraphicsContextGL()->createShader(type);
-    if (!object)
-        return nullptr;
-    return adoptRef(*new WebGLShader(context, object, type));
+    return adoptRef(*new WebGLShader(ctx, type));
 }
 
-WebGLShader::WebGLShader(WebGLRenderingContextBase& context, PlatformGLObject object, GCGLenum type)
-    : WebGLObject(context, object)
+WebGLShader::WebGLShader(WebGLRenderingContextBase& ctx, GCGLenum type)
+    : WebGLSharedObject(ctx)
     , m_type(type)
     , m_source(emptyString())
 {
+    setObject(ctx.graphicsContextGL()->createShader(type));
 }
 
 WebGLShader::~WebGLShader()
 {
-    if (!m_context)
+    if (!hasGroupOrContext())
         return;
 
     runDestructor();

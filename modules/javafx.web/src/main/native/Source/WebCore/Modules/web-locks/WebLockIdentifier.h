@@ -29,7 +29,7 @@
 
 namespace WebCore {
 
-enum class WebLockIdentifierType { };
+enum WebLockIdentifierType { };
 using WebLockIdentifier = ProcessQualified<AtomicObjectIdentifier<WebLockIdentifierType>>;
 
 } // namespace

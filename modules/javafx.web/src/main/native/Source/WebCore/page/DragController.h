@@ -52,7 +52,6 @@ class PlatformMouseEvent;
 struct DragItem;
 struct DragState;
 struct PromisedAttachmentInfo;
-struct RemoteUserInputEventData;
 
 class DragController {
     WTF_MAKE_NONCOPYABLE(DragController); WTF_MAKE_FAST_ALLOCATED;
@@ -62,8 +61,9 @@ public:
 
     static DragOperation platformGenericDragOperation();
 
-    WEBCORE_EXPORT std::variant<std::optional<DragOperation>, RemoteUserInputEventData> dragEnteredOrUpdated(LocalFrame&, DragData&&);
-    WEBCORE_EXPORT void dragExited(LocalFrame&, DragData&&);
+    WEBCORE_EXPORT std::optional<DragOperation> dragEntered(DragData&&);
+    WEBCORE_EXPORT void dragExited(DragData&&);
+    WEBCORE_EXPORT std::optional<DragOperation> dragUpdated(DragData&&);
     WEBCORE_EXPORT bool performDragOperation(DragData&&);
     WEBCORE_EXPORT void dragCancelled();
 
@@ -82,7 +82,6 @@ public:
     DragHandlingMethod dragHandlingMethod() const { return m_dragHandlingMethod; }
 
     Document* documentUnderMouse() const { return m_documentUnderMouse.get(); }
-    RefPtr<Document> protectedDocumentUnderMouse() const { return m_documentUnderMouse; }
     OptionSet<DragDestinationAction> dragDestinationActionMask() const { return m_dragDestinationActionMask; }
     OptionSet<DragSourceAction> delegateDragSourceAction(const IntPoint& rootViewPoint);
 
@@ -111,9 +110,10 @@ private:
     bool dispatchTextInputEventFor(LocalFrame*, const DragData&);
     bool canProcessDrag(const DragData&);
     bool concludeEditDrag(const DragData&);
+    std::optional<DragOperation> dragEnteredOrUpdated(DragData&&);
     std::optional<DragOperation> operationForLoad(const DragData&);
-    DragHandlingMethod tryDocumentDrag(LocalFrame&, const DragData&, OptionSet<DragDestinationAction>, std::optional<DragOperation>&);
-    bool tryDHTMLDrag(LocalFrame&, const DragData&, std::optional<DragOperation>&);
+    DragHandlingMethod tryDocumentDrag(const DragData&, OptionSet<DragDestinationAction>, std::optional<DragOperation>&);
+    bool tryDHTMLDrag(const DragData&, std::optional<DragOperation>&);
     std::optional<DragOperation> dragOperation(const DragData&);
     void clearDragCaret();
     bool dragIsMove(FrameSelection&, const DragData&);

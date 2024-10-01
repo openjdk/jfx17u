@@ -54,7 +54,11 @@ public:
         return result;
     }
 
-    friend bool operator==(const SingleRootGraphNode&, const SingleRootGraphNode&) = default;
+    bool operator==(const SingleRootGraphNode& other) const
+    {
+        return m_node == other.m_node
+            && m_isRoot == other.m_isRoot;
+    }
 
     explicit operator bool() const { return *this != SingleRootGraphNode(); }
 

@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "ExceptionOr.h"
 #include <JavaScriptCore/ArrayBuffer.h>
 #include <JavaScriptCore/JSCJSValue.h>
@@ -59,3 +61,5 @@ inline PushMessageData::PushMessageData(Vector<uint8_t>&& data)
 }
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

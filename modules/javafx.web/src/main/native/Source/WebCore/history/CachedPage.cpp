@@ -27,7 +27,6 @@
 #include "CachedPage.h"
 
 #include "Document.h"
-#include "DocumentLoader.h"
 #include "Element.h"
 #include "FocusController.h"
 #include "FrameLoader.h"
@@ -59,8 +58,10 @@ DEFINE_DEBUG_ONLY_GLOBAL(WTF::RefCountedLeakCounter, cachedPageCounter, ("Cached
 CachedPage::CachedPage(Page& page)
     : m_page(page)
     , m_expirationTime(MonotonicTime::now() + page.settings().backForwardCacheExpirationInterval())
-    , m_cachedMainFrame(makeUnique<CachedFrame>(page.mainFrame()))
+    , m_cachedMainFrame(is<LocalFrame>(page.mainFrame()) ? makeUnique<CachedFrame>(downcast<LocalFrame>(page.mainFrame())) : nullptr)
+#if ENABLE(TRACKING_PREVENTION)
     , m_loadedSubresourceDomains(is<LocalFrame>(page.mainFrame()) ? downcast<LocalFrame>(page.mainFrame()).loader().client().loadedSubresourceDomains() : Vector<RegistrableDomain>())
+#endif
 {
 #ifndef NDEBUG
     cachedPageCounter.increment();
@@ -80,18 +81,22 @@ CachedPage::~CachedPage()
 static void firePageShowEvent(Page& page)
 {
     // Dispatching JavaScript events can cause frame destruction.
-    Ref mainFrame = page.mainFrame();
+    auto* localMainFrame = dynamicDowncast<LocalFrame>(page.mainFrame());
+    if (!localMainFrame)
+        return;
 
     Vector<Ref<LocalFrame>> childFrames;
-    for (auto* child = mainFrame->tree().traverseNextInPostOrder(CanWrap::Yes); child; child = child->tree().traverseNextInPostOrder(CanWrap::No)) {
-        if (RefPtr localChild = dynamicDowncast<LocalFrame>(child))
-            childFrames.append(localChild.releaseNonNull());
+    for (auto* child = localMainFrame->tree().traverseNextInPostOrder(CanWrap::Yes); child; child = child->tree().traverseNextInPostOrder(CanWrap::No)) {
+        auto* localChild = downcast<LocalFrame>(child);
+        if (!localChild)
+            continue;
+        childFrames.append(*localChild);
     }
 
     for (auto& child : childFrames) {
-        if (!child->tree().isDescendantOf(mainFrame.ptr()))
+        if (!child->tree().isDescendantOf(localMainFrame))
             continue;
-        RefPtr document = child->document();
+        auto* document = child->document();
         if (!document)
             continue;
 
@@ -107,27 +112,31 @@ public:
     CachedPageRestorationScope(Page& page)
         : m_page(page)
     {
-        m_page->setIsRestoringCachedPage(true);
+        m_page.setIsRestoringCachedPage(true);
     }
 
     ~CachedPageRestorationScope()
     {
-        m_page->setIsRestoringCachedPage(false);
+        m_page.setIsRestoringCachedPage(false);
     }
 
 private:
-    SingleThreadWeakRef<Page> m_page;
+    Page& m_page;
 };
 
 void CachedPage::restore(Page& page)
 {
     ASSERT(m_cachedMainFrame);
     ASSERT(m_cachedMainFrame->view());
-    ASSERT(m_cachedMainFrame->view()->frame().isMainFrame());
+#if ASSERT_ENABLED
+    auto* localFrame = dynamicDowncast<LocalFrame>(m_cachedMainFrame->view()->frame());
+#endif
+    ASSERT(localFrame && localFrame->isMainFrame());
     ASSERT(!page.subframeCount());
 
-    Ref mainFrame = page.mainFrame();
-    RefPtr localMainFrame = dynamicDowncast<LocalFrame>(mainFrame);
+    auto* localMainFrame = dynamicDowncast<LocalFrame>(page.mainFrame());
+    if (!localMainFrame)
+        return;
 
     CachedPageRestorationScope restorationScope(page);
     m_cachedMainFrame->open();
@@ -139,11 +148,10 @@ void CachedPage::restore(Page& page)
 #if PLATFORM(IOS_FAMILY)
         // We don't want focused nodes changing scroll position when restoring from the cache
         // as it can cause ugly jumps before we manage to restore the cached position.
-        if (localMainFrame)
         localMainFrame->selection().suppressScrolling();
 
         bool hadProhibitsScrolling = false;
-        RefPtr frameView = mainFrame->virtualView();
+        auto* frameView = localMainFrame->view();
         if (frameView) {
             hadProhibitsScrolling = frameView->prohibitsScrolling();
             frameView->setProhibitsScrolling(true);
@@ -153,12 +161,11 @@ void CachedPage::restore(Page& page)
 #if PLATFORM(IOS_FAMILY)
         if (frameView)
             frameView->setProhibitsScrolling(hadProhibitsScrolling);
-        if (localMainFrame)
-            localMainFrame->checkedSelection()->restoreScrolling();
+        localMainFrame->selection().restoreScrolling();
 #endif
     }
 
-    if (m_needsDeviceOrPageScaleChanged && localMainFrame)
+    if (m_needsDeviceOrPageScaleChanged)
         localMainFrame->deviceOrPageScaleFactorChanged();
 
     page.setNeedsRecalcStyleInAllFrames();
@@ -169,16 +176,16 @@ void CachedPage::restore(Page& page)
 #endif
 
     if (m_needsUpdateContentsSize) {
-        if (RefPtr frameView = mainFrame->virtualView())
+        if (auto* frameView = localMainFrame->view())
             frameView->updateContentsSize();
     }
 
     firePageShowEvent(page);
 
-    for (auto& domain : m_loadedSubresourceDomains) {
-        if (localMainFrame)
-            localMainFrame->checkedLoader()->client().didLoadFromRegistrableDomain(WTFMove(domain));
-    }
+#if ENABLE(TRACKING_PREVENTION)
+    for (auto& domain : m_loadedSubresourceDomains)
+        localMainFrame->loader().client().didLoadFromRegistrableDomain(WTFMove(domain));
+#endif
 
     clear();
 }
@@ -193,17 +200,14 @@ void CachedPage::clear()
 #endif
     m_needsDeviceOrPageScaleChanged = false;
     m_needsUpdateContentsSize = false;
+#if ENABLE(TRACKING_PREVENTION)
     m_loadedSubresourceDomains.clear();
+#endif
 }
 
 bool CachedPage::hasExpired() const
 {
     return MonotonicTime::now() > m_expirationTime;
-}
-
-RefPtr<DocumentLoader> CachedPage::protectedDocumentLoader() const
-{
-    return documentLoader();
 }
 
 } // namespace WebCore

@@ -44,7 +44,6 @@ struct TestCommand {
 #endif
     std::string expectedPixelHash;
     std::string selfComparisonHeader;
-    std::string additionalHeader;
     WTF::Seconds timeout;
     bool shouldDumpPixels { false };
     bool forceDumpPixels { false };

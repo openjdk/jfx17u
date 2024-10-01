@@ -25,7 +25,7 @@
 
 #pragma once
 
-#if ENABLE(B3_JIT) || ENABLE(WEBASSEMBLY_BBQJIT)
+#if ENABLE(B3_JIT)
 
 #include "B3Common.h"
 #include "SIMDInfo.h"
@@ -59,13 +59,11 @@ public:
     constexpr Type(const Type&) = default;
     constexpr Type(TypeKind kind)
         : m_kind(kind)
-    {
-        ASSERT(kind != Tuple);
-    }
+    { }
 
     ~Type() = default;
 
-    static Type tupleFromIndex(unsigned index) { ASSERT(!(index & tupleFlag)); return bitwise_cast<Type>(index | tupleFlag); }
+    static Type tupleFromIndex(unsigned index) { ASSERT(!(index & tupleFlag)); return static_cast<TypeKind>(index | tupleFlag); }
 
     TypeKind kind() const { return m_kind & tupleFlag ? Tuple : m_kind; }
     uint32_t tupleIndex() const { ASSERT(m_kind & tupleFlag); return m_kind & tupleIndexMask; }
@@ -77,7 +75,8 @@ public:
     inline bool isTuple() const;
     inline bool isVector() const;
 
-    friend bool operator==(const Type&, const Type&) = default;
+    bool operator==(const TypeKind& otherKind) const { return kind() == otherKind; }
+    bool operator==(const Type& type) const { return m_kind == type.m_kind; }
 
 private:
     TypeKind m_kind { Void };

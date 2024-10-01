@@ -65,25 +65,25 @@ void InspectorCSSOMWrappers::collect(ListType* listType)
 
         switch (cssRule->styleRuleType()) {
         case StyleRuleType::Container:
-            collect(uncheckedDowncast<CSSContainerRule>(cssRule));
+            collect(downcast<CSSContainerRule>(cssRule));
             break;
         case StyleRuleType::Import:
-            collect(uncheckedDowncast<CSSImportRule>(*cssRule).styleSheet());
+            collect(downcast<CSSImportRule>(*cssRule).styleSheet());
             break;
         case StyleRuleType::LayerBlock:
-            collect(uncheckedDowncast<CSSLayerBlockRule>(cssRule));
+            collect(downcast<CSSLayerBlockRule>(cssRule));
             break;
         case StyleRuleType::Media:
-            collect(uncheckedDowncast<CSSMediaRule>(cssRule));
+            collect(downcast<CSSMediaRule>(cssRule));
             break;
         case StyleRuleType::Supports:
-            collect(uncheckedDowncast<CSSSupportsRule>(cssRule));
+            collect(downcast<CSSSupportsRule>(cssRule));
             break;
         case StyleRuleType::Style:
-            m_styleRuleToCSSOMWrapperMap.add(&uncheckedDowncast<CSSStyleRule>(*cssRule).styleRule(), uncheckedDowncast<CSSStyleRule>(cssRule));
+            m_styleRuleToCSSOMWrapperMap.add(&downcast<CSSStyleRule>(*cssRule).styleRule(), downcast<CSSStyleRule>(cssRule));
 
             // Eagerly collect rules nested in this style rule.
-            collect(uncheckedDowncast<CSSStyleRule>(cssRule));
+            collect(downcast<CSSStyleRule>(cssRule));
             break;
         default:
             break;
@@ -121,12 +121,11 @@ void InspectorCSSOMWrappers::collectDocumentWrappers(ExtensionStyleSheets& exten
     if (m_styleRuleToCSSOMWrapperMap.isEmpty()) {
         collectFromStyleSheetContents(UserAgentStyle::defaultStyleSheet);
         collectFromStyleSheetContents(UserAgentStyle::quirksStyleSheet);
+        collectFromStyleSheetContents(UserAgentStyle::dialogStyleSheet);
         collectFromStyleSheetContents(UserAgentStyle::svgStyleSheet);
         collectFromStyleSheetContents(UserAgentStyle::mathMLStyleSheet);
         collectFromStyleSheetContents(UserAgentStyle::mediaControlsStyleSheet);
         collectFromStyleSheetContents(UserAgentStyle::horizontalFormControlsStyleSheet);
-        collectFromStyleSheetContents(UserAgentStyle::viewTransitionsStyleSheet);
-        collectFromStyleSheetContents(UserAgentStyle::htmlSwitchControlStyleSheet);
 #if ENABLE(FULLSCREEN_API)
         collectFromStyleSheetContents(UserAgentStyle::fullscreenStyleSheet);
 #endif
@@ -135,6 +134,9 @@ void InspectorCSSOMWrappers::collectDocumentWrappers(ExtensionStyleSheets& exten
 #endif
 #if ENABLE(INPUT_TYPE_COLOR)
         collectFromStyleSheetContents(UserAgentStyle::colorInputStyleSheet);
+#endif
+#if ENABLE(IOS_FORM_CONTROL_REFRESH)
+        collectFromStyleSheetContents(UserAgentStyle::legacyFormControlsIOSStyleSheet);
 #endif
         collectFromStyleSheetContents(UserAgentStyle::plugInsStyleSheet);
         collectFromStyleSheetContents(UserAgentStyle::mediaQueryStyleSheet);

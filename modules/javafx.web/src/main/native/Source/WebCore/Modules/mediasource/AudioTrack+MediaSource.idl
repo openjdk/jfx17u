@@ -24,13 +24,10 @@
  */
 
 // https://w3c.github.io/media-source/#audio-track-extensions
-// FIXME: Extend this interface to 'DedicatedWorker' in future.
-
 [
     Conditional=MEDIA_SOURCE,
-    EnabledBySetting=MediaSourceEnabled|ManagedMediaSourceEnabled,
-    ImplementedBy=AudioTrackMediaSource,
-    Exposed=Window
+    EnabledBySetting=MediaSourceEnabled,
+    ImplementedBy=AudioTrackMediaSource
 ] partial interface AudioTrack {
     readonly attribute SourceBuffer? sourceBuffer;
 };

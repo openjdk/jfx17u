@@ -36,7 +36,6 @@ public:
 
     WEBCORE_EXPORT ~ImmutableStyleProperties();
     static Ref<ImmutableStyleProperties> create(const CSSProperty* properties, unsigned count, CSSParserMode);
-    static Ref<ImmutableStyleProperties> createDeduplicating(const CSSProperty* properties, unsigned count, CSSParserMode);
 
     unsigned propertyCount() const { return m_arraySize; }
     bool isEmpty() const { return !propertyCount(); }
@@ -50,8 +49,6 @@ public:
     int findCustomPropertyIndex(StringView propertyName) const;
 
     static constexpr size_t objectSize(unsigned propertyCount);
-
-    static void clearDeduplicationMap();
 
     void* m_storage;
 

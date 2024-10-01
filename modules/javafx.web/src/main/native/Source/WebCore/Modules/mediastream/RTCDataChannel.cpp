@@ -47,6 +47,18 @@ namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(RTCDataChannel);
 
+static const AtomString& blobKeyword()
+{
+    static MainThreadNeverDestroyed<const AtomString> blob("blob"_s);
+    return blob;
+}
+
+static const AtomString& arraybufferKeyword()
+{
+    static MainThreadNeverDestroyed<const AtomString> arraybuffer("arraybuffer"_s);
+    return arraybuffer;
+}
+
 Ref<RTCDataChannel> RTCDataChannel::create(ScriptExecutionContext& context, std::unique_ptr<RTCDataChannelHandler>&& handler, String&& label, RTCDataChannelInit&& options, RTCDataChannelState state)
 {
     ASSERT(handler);
@@ -58,7 +70,7 @@ Ref<RTCDataChannel> RTCDataChannel::create(ScriptExecutionContext& context, std:
         channel->m_isDetachable = false;
         if (!channel->m_handler)
             return;
-        if (RefPtr context = channel->scriptExecutionContext())
+        if (auto* context = channel->scriptExecutionContext())
             channel->m_handler->setClient(*channel, context->identifier());
     });
     return channel;
@@ -73,7 +85,7 @@ NetworkSendQueue RTCDataChannel::createMessageQueue(ScriptExecutionContext& cont
         if (!channel.m_handler->sendRawData(span.data(), span.size()))
             channel.scriptExecutionContext()->addConsoleMessage(MessageSource::JS, MessageLevel::Error, "Error sending binary data through RTCDataChannel."_s);
     }, [&channel](ExceptionCode errorCode) {
-        if (RefPtr context = channel.scriptExecutionContext()) {
+        if (auto* context = channel.scriptExecutionContext()) {
             auto code = static_cast<int>(errorCode);
             context->addConsoleMessage(MessageSource::JS, MessageLevel::Error, makeString("Error ", code, " in retrieving a blob data to be sent through RTCDataChannel."));
         }
@@ -101,15 +113,36 @@ std::optional<unsigned short> RTCDataChannel::id() const
     return m_options.id;
 }
 
-void RTCDataChannel::setBinaryType(BinaryType binaryType)
+const AtomString& RTCDataChannel::binaryType() const
 {
-    m_binaryType = binaryType;
+    switch (m_binaryType) {
+    case BinaryType::Blob:
+        return blobKeyword();
+    case BinaryType::ArrayBuffer:
+        return arraybufferKeyword();
+    }
+
+    ASSERT_NOT_REACHED();
+    return emptyAtom();
+}
+
+ExceptionOr<void> RTCDataChannel::setBinaryType(const AtomString& binaryType)
+{
+    if (binaryType == blobKeyword()) {
+        m_binaryType = BinaryType::Blob;
+        return { };
+    }
+    if (binaryType == arraybufferKeyword()) {
+        m_binaryType = BinaryType::ArrayBuffer;
+        return { };
+    }
+    return Exception { SyntaxError };
 }
 
 ExceptionOr<void> RTCDataChannel::send(const String& data)
 {
     if (m_readyState != RTCDataChannelState::Open)
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
 
     // FIXME: We might want to use strict conversion like WebSocket.
     auto utf8 = data.utf8();
@@ -121,7 +154,7 @@ ExceptionOr<void> RTCDataChannel::send(const String& data)
 ExceptionOr<void> RTCDataChannel::send(ArrayBuffer& data)
 {
     if (m_readyState != RTCDataChannelState::Open)
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
 
     m_bufferedAmount += data.byteLength();
     m_messageQueue.enqueue(data, 0, data.byteLength());
@@ -131,7 +164,7 @@ ExceptionOr<void> RTCDataChannel::send(ArrayBuffer& data)
 ExceptionOr<void> RTCDataChannel::send(ArrayBufferView& data)
 {
     if (m_readyState != RTCDataChannelState::Open)
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
 
     m_bufferedAmount += data.byteLength();
     m_messageQueue.enqueue(*data.unsharedBuffer(), data.byteOffset(), data.byteLength());
@@ -141,7 +174,7 @@ ExceptionOr<void> RTCDataChannel::send(ArrayBufferView& data)
 ExceptionOr<void> RTCDataChannel::send(Blob& blob)
 {
     if (m_readyState != RTCDataChannelState::Open)
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
 
     m_bufferedAmount += blob.size();
     m_messageQueue.enqueue(blob);
@@ -212,7 +245,7 @@ void RTCDataChannel::didReceiveRawData(const uint8_t* data, size_t dataLength)
     case BinaryType::Blob:
         scheduleDispatchEvent(MessageEvent::create(Blob::create(scriptExecutionContext(), Vector { data, dataLength }, emptyString()), { }));
         return;
-    case BinaryType::Arraybuffer:
+    case BinaryType::ArrayBuffer:
         scheduleDispatchEvent(MessageEvent::create(ArrayBuffer::create(data, dataLength)));
         return;
     }

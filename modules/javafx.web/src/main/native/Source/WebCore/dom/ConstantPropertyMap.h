@@ -29,7 +29,6 @@
 #include <wtf/HashMap.h>
 #include <wtf/Ref.h>
 #include <wtf/Seconds.h>
-#include <wtf/WeakRef.h>
 #include <wtf/text/AtomString.h>
 #include <wtf/text/AtomStringHash.h>
 
@@ -38,7 +37,6 @@ namespace WebCore {
 class CSSCustomPropertyValue;
 class CSSVariableData;
 class Document;
-class WeakPtrImplWithEventTargetData;
 
 enum class ConstantProperty {
     SafeAreaInsetTop,
@@ -73,11 +71,9 @@ private:
     void updateConstantsForSafeAreaInsets();
     void updateConstantsForFullscreen();
 
-    Ref<Document> protectedDocument() const;
-
     std::optional<Values> m_values;
 
-    WeakRef<Document, WeakPtrImplWithEventTargetData> m_document;
+    Document& m_document;
 };
 
 } // namespace WebCore

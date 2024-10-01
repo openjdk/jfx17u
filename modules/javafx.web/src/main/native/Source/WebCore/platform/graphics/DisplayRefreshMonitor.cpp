@@ -36,6 +36,8 @@
 #include "DisplayRefreshMonitorIOS.h"
 #elif PLATFORM(MAC)
 #include "LegacyDisplayRefreshMonitorMac.h"
+#elif PLATFORM(GTK)
+#include "DisplayRefreshMonitorGtk.h"
 #elif PLATFORM(WIN)
 #include "DisplayRefreshMonitorWin.h"
 #endif
@@ -49,6 +51,9 @@ RefPtr<DisplayRefreshMonitor> DisplayRefreshMonitor::createDefaultDisplayRefresh
 #endif
 #if PLATFORM(IOS_FAMILY)
     return DisplayRefreshMonitorIOS::create(displayID);
+#endif
+#if PLATFORM(GTK) && !USE(GTK4)
+    return DisplayRefreshMonitorGtk::create(displayID);
 #endif
 #if PLATFORM(WIN)
     return DisplayRefreshMonitorWin::create(displayID);
@@ -109,7 +114,7 @@ bool DisplayRefreshMonitor::removeClient(DisplayRefreshMonitorClient& client)
 std::optional<FramesPerSecond> DisplayRefreshMonitor::maximumClientPreferredFramesPerSecond() const
 {
     std::optional<FramesPerSecond> maxFramesPerSecond;
-    for (auto& client : m_clients)
+    for (auto* client : m_clients)
         maxFramesPerSecond = std::max<FramesPerSecond>(maxFramesPerSecond.value_or(0), client->preferredFramesPerSecond());
 
     return maxFramesPerSecond;
@@ -198,10 +203,10 @@ void DisplayRefreshMonitor::displayDidRefresh(const DisplayUpdate& displayUpdate
 
     // Copy the hash table and remove clients from it one by one so we don't notify
     // any client twice, but can respond to removal of clients during the delivery process.
-    auto clientsToBeNotified = m_clients;
+    HashSet<DisplayRefreshMonitorClient*> clientsToBeNotified = m_clients;
     m_clientsToBeNotified = &clientsToBeNotified;
     while (!clientsToBeNotified.isEmpty()) {
-        auto client = clientsToBeNotified.takeAny();
+        DisplayRefreshMonitorClient* client = clientsToBeNotified.takeAny();
         client->fireDisplayRefreshIfNeeded(displayUpdate);
 
         // This checks if this function was reentered. In that case, stop iterating

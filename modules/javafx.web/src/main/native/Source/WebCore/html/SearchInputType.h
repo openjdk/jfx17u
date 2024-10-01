@@ -56,7 +56,7 @@ private:
     const AtomString& formControlType() const final;
     bool needsContainer() const final;
     void createShadowSubtree() final;
-    void removeShadowSubtree() final;
+    void destroyShadowSubtree() final;
     HTMLElement* resultsButtonElement() const final;
     HTMLElement* cancelButtonElement() const final;
     ShouldCallBaseEventHandler handleKeydownEvent(KeyboardEvent&) final;

@@ -51,7 +51,7 @@ public:
     MediaDevices* mediaDevices() const;
 
 private:
-    static ASCIILiteral supplementName();
+    static const char* supplementName();
 
     mutable RefPtr<MediaDevices> m_mediaDevices;
 };

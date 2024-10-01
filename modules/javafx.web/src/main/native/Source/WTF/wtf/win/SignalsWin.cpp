@@ -76,7 +76,7 @@ inline void SignalHandlers::forEachHandler(Signal signal, const Func& func) cons
     }
 }
 
-inline Signal fromSystemException(DWORD signal)
+inline Signal fromSystemException(int signal)
 {
     switch (signal) {
     case EXCEPTION_FLT_DENORMAL_OPERAND:

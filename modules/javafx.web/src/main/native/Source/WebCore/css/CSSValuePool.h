@@ -63,9 +63,8 @@ private:
 
 WEBCORE_EXPORT extern LazyNeverDestroyed<StaticCSSValuePool> staticCSSValuePool;
 
-DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(CSSValuePool);
 class CSSValuePool {
-    WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(CSSValuePool);
+    WTF_MAKE_FAST_ALLOCATED;
     WTF_MAKE_NONCOPYABLE(CSSValuePool);
 public:
     CSSValuePool();

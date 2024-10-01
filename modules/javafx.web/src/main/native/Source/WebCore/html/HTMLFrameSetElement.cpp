@@ -51,7 +51,7 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(HTMLFrameSetElement);
 using namespace HTMLNames;
 
 HTMLFrameSetElement::HTMLFrameSetElement(const QualifiedName& tagName, Document& document)
-    : HTMLElement(tagName, document, TypeFlag::HasCustomStyleResolveCallbacks)
+    : HTMLElement(tagName, document, CreateHTMLFrameSetElement)
     , m_totalRows(1)
     , m_totalCols(1)
     , m_border(6)
@@ -180,13 +180,11 @@ void HTMLFrameSetElement::willAttachRenderers()
 
 void HTMLFrameSetElement::defaultEventHandler(Event& event)
 {
-    if (auto* mouseEvent = dynamicDowncast<MouseEvent>(event); mouseEvent && !m_noresize) {
-        if (CheckedPtr renderFrameSet = dynamicDowncast<RenderFrameSet>(renderer())) {
-            if (renderFrameSet->userResize(*mouseEvent)) {
+    if (is<MouseEvent>(event) && !m_noresize && is<RenderFrameSet>(renderer())) {
+        if (downcast<RenderFrameSet>(*renderer()).userResize(downcast<MouseEvent>(event))) {
             event.setDefaultHandled();
             return;
         }
-    }
     }
     HTMLElement::defaultEventHandler(event);
 }
@@ -210,8 +208,11 @@ void HTMLFrameSetElement::removedFromAncestor(RemovalType removalType, Container
 
 WindowProxy* HTMLFrameSetElement::namedItem(const AtomString& name)
 {
-    RefPtr frameElement = dynamicDowncast<HTMLFrameElement>(children()->namedItem(name));
-    return frameElement ? frameElement->contentWindow() : nullptr;
+    RefPtr frameElement = children()->namedItem(name);
+    if (!is<HTMLFrameElement>(frameElement))
+        return nullptr;
+
+    return downcast<HTMLFrameElement>(*frameElement).contentWindow();
 }
 
 bool HTMLFrameSetElement::isSupportedPropertyName(const AtomString& name)

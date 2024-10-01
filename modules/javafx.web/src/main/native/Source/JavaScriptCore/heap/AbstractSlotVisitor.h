@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2021 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,7 +31,6 @@
 #include "VisitRaceKey.h"
 #include <wtf/ConcurrentPtrHashSet.h>
 #include <wtf/SharedTask.h>
-#include <wtf/TZoneMalloc.h>
 #include <wtf/text/CString.h>
 
 namespace JSC {
@@ -53,7 +52,7 @@ class WriteBarrierStructureID;
 
 class AbstractSlotVisitor {
     WTF_MAKE_NONCOPYABLE(AbstractSlotVisitor);
-    WTF_MAKE_TZONE_ALLOCATED(AbstractSlotVisitor);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     enum OpaqueRootTag { OpaqueRoot };
 
@@ -139,7 +138,7 @@ public:
 
     VM& vm();
     const VM& vm() const;
-    JSC::Heap* heap() const;
+    Heap* heap() const;
 
     virtual void append(const ConservativeRoots&) = 0;
 
@@ -222,7 +221,7 @@ protected:
 
     size_t m_visitCount { 0 };
 
-    JSC::Heap& m_heap;
+    Heap& m_heap;
     ReferrerContext* m_context { nullptr };
     CString m_codeName;
 

@@ -35,7 +35,7 @@ namespace Inspector {
 class FrontendChannel {
 public:
 
-    enum class ConnectionType : bool {
+    enum class ConnectionType {
         Remote,
         Local
     };
@@ -46,3 +46,15 @@ public:
 };
 
 } // namespace Inspector
+
+namespace WTF {
+
+template<> struct EnumTraits<Inspector::FrontendChannel::ConnectionType> {
+    using values = EnumValues<
+        Inspector::FrontendChannel::ConnectionType,
+        Inspector::FrontendChannel::ConnectionType::Remote,
+        Inspector::FrontendChannel::ConnectionType::Local
+    >;
+};
+
+} // namespace WTF

@@ -76,15 +76,14 @@ bool DeviceOrientationController::hasLastData()
 
 RefPtr<Event> DeviceOrientationController::getLastEvent()
 {
-    RefPtr orientation = deviceOrientationClient().lastOrientation();
-    return DeviceOrientationEvent::create(eventNames().deviceorientationEvent, orientation.get());
+    return DeviceOrientationEvent::create(eventNames().deviceorientationEvent, deviceOrientationClient().lastOrientation());
 }
 
 #endif // PLATFORM(IOS_FAMILY)
 
-ASCIILiteral DeviceOrientationController::supplementName()
+const char* DeviceOrientationController::supplementName()
 {
-    return "DeviceOrientationController"_s;
+    return "DeviceOrientationController";
 }
 
 DeviceOrientationController* DeviceOrientationController::from(Page* page)

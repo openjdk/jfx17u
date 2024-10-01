@@ -33,22 +33,21 @@
 
 namespace WebCore {
 
-Ref<WebGLVertexArrayObjectOES> WebGLVertexArrayObjectOES::createDefault(WebGLRenderingContextBase& context)
+Ref<WebGLVertexArrayObjectOES> WebGLVertexArrayObjectOES::create(WebGLRenderingContextBase& context, Type type)
 {
-    return adoptRef(*new WebGLVertexArrayObjectOES(context, 0, Type::Default));
+    return adoptRef(*new WebGLVertexArrayObjectOES(context, type));
 }
 
-RefPtr<WebGLVertexArrayObjectOES> WebGLVertexArrayObjectOES::createUser(WebGLRenderingContextBase& context)
+WebGLVertexArrayObjectOES::WebGLVertexArrayObjectOES(WebGLRenderingContextBase& context, Type type)
+    : WebGLVertexArrayObjectBase(context, type)
 {
-    auto object = context.protectedGraphicsContextGL()->createVertexArray();
-    if (!object)
-        return nullptr;
-    return adoptRef(*new WebGLVertexArrayObjectOES { context, object, Type::User });
-}
-
-WebGLVertexArrayObjectOES::WebGLVertexArrayObjectOES(WebGLRenderingContextBase& context, PlatformGLObject object, Type type)
-    : WebGLVertexArrayObjectBase(context, object, type)
-{
+    switch (type) {
+    case Type::Default:
+        break;
+    case Type::User:
+        setObject(this->context()->graphicsContextGL()->createVertexArray());
+        break;
+    }
 }
 
 WebGLVertexArrayObjectOES::~WebGLVertexArrayObjectOES()

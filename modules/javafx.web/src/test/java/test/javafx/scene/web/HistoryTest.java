@@ -202,8 +202,7 @@ public class HistoryTest extends TestBase {
             // [2, 3*]
             history.setMaxSize(2);
             assertEquals("entries: size is wrong", 2, history.getEntries().size());
-            //JDK-8335596
-            //assertEquals("entries: title is wrong", "2", history.getEntries().get(0).getTitle());
+            assertEquals("entries: title is wrong", "2", history.getEntries().get(0).getTitle());
         });
 
         submit(() -> {

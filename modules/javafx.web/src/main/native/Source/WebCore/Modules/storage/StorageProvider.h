@@ -27,7 +27,6 @@
 
 namespace WebCore {
 
-class SecurityOriginData;
 class StorageConnection;
 
 class StorageProvider {
@@ -35,8 +34,6 @@ public:
     StorageProvider() = default;
     virtual ~StorageProvider() = default;
     virtual StorageConnection& storageConnection() = 0;
-    virtual String ensureMediaKeysStorageDirectoryForOrigin(const SecurityOriginData&) = 0;
-    virtual void setMediaKeysStorageDirectory(const String&) = 0;
 };
 
 } // namespace WebCore

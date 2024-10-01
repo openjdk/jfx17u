@@ -27,46 +27,45 @@
 
 #if ENABLE(VIDEO)
 
+#include <wtf/EnumTraits.h>
 #include <wtf/IsoMalloc.h>
 #include <wtf/RetainPtr.h>
-#include <wtf/text/StringHash.h>
 
-OBJC_CLASS AVMetadataItem;
-OBJC_CLASS NSData;
-OBJC_CLASS NSDate;
-OBJC_CLASS NSDictionary;
-OBJC_CLASS NSLocale;
-OBJC_CLASS NSNumber;
-OBJC_CLASS NSString;
+#if PLATFORM(COCOA)
+using PlatformNativeValue = id;
+using PlatformNativeValueSmartPtr = RetainPtr<PlatformNativeValue>;
+#else
+using PlatformNativeValue = void*;
+using PlatformNativeValueSmartPtr = PlatformNativeValue;
+#endif
 
 namespace WebCore {
 
 class SerializedPlatformDataCueValue {
     WTF_MAKE_ISO_ALLOCATED(SerializedPlatformDataCueValue);
 public:
-    struct Data {
-#if PLATFORM(COCOA)
-        String type;
-        HashMap<String, String> otherAttributes;
-        String key;
-        RetainPtr<NSLocale> locale;
-        std::variant<std::nullptr_t, RetainPtr<NSString>, RetainPtr<NSDate>, RetainPtr<NSNumber>, RetainPtr<NSData>> value;
-        bool operator==(const Data&) const;
-#endif
+    enum class PlatformType : bool {
+        None,
+        ObjC,
     };
 
+    SerializedPlatformDataCueValue(PlatformType platformType, PlatformNativeValue nativeValue)
+        : m_nativeValue(nativeValue)
+        , m_type(platformType)
+    {
+    }
     SerializedPlatformDataCueValue() = default;
-    SerializedPlatformDataCueValue(std::optional<Data>&& data)
-        : m_data(WTFMove(data)) { }
-#if PLATFORM(COCOA)
-    SerializedPlatformDataCueValue(AVMetadataItem *);
-    RetainPtr<NSDictionary> toNSDictionary() const;
-    bool operator==(const SerializedPlatformDataCueValue&) const;
-#endif
+    ~SerializedPlatformDataCueValue() = default;
 
-    const std::optional<Data>& data() const { return m_data; }
-private:
-    std::optional<Data> m_data;
+    PlatformType platformType() const { return m_type; }
+
+    PlatformNativeValueSmartPtr nativeValue() const { return m_nativeValue; }
+
+    bool encodingRequiresPlatformData() const { return m_type == PlatformType::ObjC; }
+
+protected:
+    PlatformNativeValueSmartPtr m_nativeValue { nullptr };
+    PlatformType m_type { PlatformType::None };
 };
 
 } // namespace WebCore

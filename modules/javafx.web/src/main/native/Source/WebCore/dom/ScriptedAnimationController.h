@@ -27,10 +27,8 @@
 #pragma once
 
 #include "AnimationFrameRate.h"
-#include "Document.h"
 #include "ReducedResolutionSeconds.h"
 #include "Timer.h"
-#include <wtf/CheckedPtr.h>
 #include <wtf/OptionSet.h>
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
@@ -38,7 +36,7 @@
 
 namespace WebCore {
 
-class ImminentlyScheduledWorkScope;
+class Document;
 class Page;
 class RequestAnimationFrameCallback;
 class UserGestureToken;
@@ -76,12 +74,10 @@ private:
     bool isThrottledRelativeToPage() const;
     bool shouldRescheduleRequestAnimationFrame(ReducedResolutionSeconds) const;
     void scheduleAnimation();
-    RefPtr<Document> protectedDocument();
 
     struct CallbackData {
         Ref<RequestAnimationFrameCallback> callback;
         RefPtr<UserGestureToken> userGestureTokenToForward;
-        RefPtr<ImminentlyScheduledWorkScope> scheduledWorkScope;
     };
     Vector<CallbackData> m_callbackDataList;
 

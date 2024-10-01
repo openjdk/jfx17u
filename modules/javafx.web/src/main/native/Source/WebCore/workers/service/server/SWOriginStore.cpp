@@ -26,6 +26,8 @@
 #include "config.h"
 #include "SWOriginStore.h"
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "SecurityOrigin.h"
 
 namespace WebCore {
@@ -65,3 +67,5 @@ void SWOriginStore::clearAll()
 }
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

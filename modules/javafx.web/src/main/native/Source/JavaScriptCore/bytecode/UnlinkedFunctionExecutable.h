@@ -29,9 +29,9 @@
 #include "ConstructAbility.h"
 #include "ConstructorKind.h"
 #include "ExecutableInfo.h"
+#include "ExpressionRangeInfo.h"
 #include "Identifier.h"
 #include "ImplementationVisibility.h"
-#include "InlineAttribute.h"
 #include "Intrinsic.h"
 #include "JSCast.h"
 #include "ParserModes.h"
@@ -72,10 +72,10 @@ public:
         return &vm.unlinkedFunctionExecutableSpace();
     }
 
-    static UnlinkedFunctionExecutable* create(VM& vm, const SourceCode& source, FunctionMetadataNode* node, UnlinkedFunctionKind unlinkedFunctionKind, ConstructAbility constructAbility, InlineAttribute inlineAttribute, JSParserScriptMode scriptMode, RefPtr<TDZEnvironmentLink> parentScopeTDZVariables, std::optional<Vector<Identifier>>&& generatorOrAsyncWrapperFunctionParameterNames, std::optional<PrivateNameEnvironment> parentPrivateNameEnvironment, DerivedContextType derivedContextType, NeedsClassFieldInitializer needsClassFieldInitializer, PrivateBrandRequirement privateBrandRequirement, bool isBuiltinDefaultClassConstructor = false)
+    static UnlinkedFunctionExecutable* create(VM& vm, const SourceCode& source, FunctionMetadataNode* node, UnlinkedFunctionKind unlinkedFunctionKind, ConstructAbility constructAbility, JSParserScriptMode scriptMode, RefPtr<TDZEnvironmentLink> parentScopeTDZVariables, std::optional<PrivateNameEnvironment> parentPrivateNameEnvironment, DerivedContextType derivedContextType, NeedsClassFieldInitializer needsClassFieldInitializer, PrivateBrandRequirement privateBrandRequirement, bool isBuiltinDefaultClassConstructor = false)
     {
         UnlinkedFunctionExecutable* instance = new (NotNull, allocateCell<UnlinkedFunctionExecutable>(vm))
-            UnlinkedFunctionExecutable(vm, vm.unlinkedFunctionExecutableStructure.get(), source, node, unlinkedFunctionKind, constructAbility, inlineAttribute, scriptMode, WTFMove(parentScopeTDZVariables), WTFMove(generatorOrAsyncWrapperFunctionParameterNames), WTFMove(parentPrivateNameEnvironment), derivedContextType, needsClassFieldInitializer, privateBrandRequirement, isBuiltinDefaultClassConstructor);
+            UnlinkedFunctionExecutable(vm, vm.unlinkedFunctionExecutableStructure.get(), source, node, unlinkedFunctionKind, constructAbility, scriptMode, WTFMove(parentScopeTDZVariables), WTFMove(parentPrivateNameEnvironment), derivedContextType, needsClassFieldInitializer, privateBrandRequirement, isBuiltinDefaultClassConstructor);
         instance->finishCreation(vm);
         return instance;
     }
@@ -181,13 +181,6 @@ public:
         return m_rareData->m_parentScopeTDZVariables;
     }
 
-    const FixedVector<Identifier>* generatorOrAsyncWrapperFunctionParameterNames() const
-    {
-        if (!m_rareData)
-            return nullptr;
-        return &m_rareData->m_generatorOrAsyncWrapperFunctionParameterNames;
-    }
-
     const PrivateNameEnvironment* parentPrivateNameEnvironment() const
     {
         if (!m_rareData)
@@ -198,8 +191,6 @@ public:
     bool isArrowFunction() const { return isArrowFunctionParseMode(parseMode()); }
 
     JSC::DerivedContextType derivedContextType() const {return static_cast<JSC::DerivedContextType>(m_derivedContextType); }
-
-    InlineAttribute inlineAttribute() const { return static_cast<InlineAttribute>(m_inlineAttribute); }
 
     String sourceURLDirective() const
     {
@@ -224,22 +215,6 @@ public:
 
     void finalizeUnconditionally(VM&, CollectionScope);
 
-    struct ClassElementDefinition {
-        WTF_MAKE_STRUCT_FAST_ALLOCATED;
-
-        enum class Kind : uint8_t {
-            FieldWithLiteralPropertyKey = 0,
-            FieldWithComputedPropertyKey = 1,
-            FieldWithPrivatePropertyKey = 2,
-            StaticInitializationBlock = 3,
-        };
-
-        Identifier ident { };
-        JSTextPosition position { };
-        std::optional<JSTextPosition> initializerPosition { std::nullopt };
-        Kind kind { Kind::FieldWithLiteralPropertyKey };
-    };
-
     struct RareData {
         WTF_MAKE_STRUCT_FAST_ALLOCATED;
 
@@ -247,29 +222,28 @@ public:
         String m_sourceURLDirective;
         String m_sourceMappingURLDirective;
         RefPtr<TDZEnvironmentLink> m_parentScopeTDZVariables;
-        FixedVector<Identifier> m_generatorOrAsyncWrapperFunctionParameterNames;
-        FixedVector<ClassElementDefinition> m_classElementDefinitions;
+        FixedVector<JSTextPosition> m_classFieldLocations;
         PrivateNameEnvironment m_parentPrivateNameEnvironment;
     };
 
     NeedsClassFieldInitializer needsClassFieldInitializer() const { return static_cast<NeedsClassFieldInitializer>(m_needsClassFieldInitializer); }
 
-    const FixedVector<ClassElementDefinition>* classElementDefinitions() const
+    const FixedVector<JSTextPosition>* classFieldLocations() const
     {
         if (m_rareData)
-            return &m_rareData->m_classElementDefinitions;
+            return &m_rareData->m_classFieldLocations;
         return nullptr;
     }
 
-    void setClassElementDefinitions(Vector<ClassElementDefinition>&& classElementDefinitions)
+    void setClassFieldLocations(Vector<JSTextPosition>&& classFieldLocations)
     {
-        if (classElementDefinitions.isEmpty())
+        if (classFieldLocations.isEmpty())
             return;
-        ensureRareData().m_classElementDefinitions = FixedVector<ClassElementDefinition>(WTFMove(classElementDefinitions));
+        ensureRareData().m_classFieldLocations = FixedVector<JSTextPosition>(WTFMove(classFieldLocations));
     }
 
 private:
-    UnlinkedFunctionExecutable(VM&, Structure*, const SourceCode&, FunctionMetadataNode*, UnlinkedFunctionKind, ConstructAbility, InlineAttribute, JSParserScriptMode, RefPtr<TDZEnvironmentLink>, std::optional<Vector<Identifier>>&&, std::optional<PrivateNameEnvironment>, JSC::DerivedContextType, JSC::NeedsClassFieldInitializer, PrivateBrandRequirement, bool isBuiltinDefaultClassConstructor);
+    UnlinkedFunctionExecutable(VM&, Structure*, const SourceCode&, FunctionMetadataNode*, UnlinkedFunctionKind, ConstructAbility, JSParserScriptMode, RefPtr<TDZEnvironmentLink>, std::optional<PrivateNameEnvironment>, JSC::DerivedContextType, JSC::NeedsClassFieldInitializer, PrivateBrandRequirement, bool isBuiltinDefaultClassConstructor);
     UnlinkedFunctionExecutable(Decoder&, const CachedFunctionExecutable&);
 
     DECLARE_VISIT_CHILDREN;
@@ -310,7 +284,6 @@ private:
     uint8_t m_lexicalScopeFeatures : bitWidthOfLexicalScopeFeatures;
     uint8_t m_functionMode : 2; // FunctionMode
     uint8_t m_derivedContextType : 2;
-    uint8_t m_inlineAttribute : 1;
 
     union {
         WriteBarrier<UnlinkedFunctionCodeBlock> m_unlinkedCodeBlockForCall;
@@ -339,7 +312,10 @@ private:
     std::unique_ptr<RareData> m_rareData;
 
 public:
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue proto)
+    {
+        return Structure::create(vm, globalObject, proto, TypeInfo(UnlinkedFunctionExecutableType, StructureFlags), info());
+    }
 
     DECLARE_EXPORT_INFO;
 };

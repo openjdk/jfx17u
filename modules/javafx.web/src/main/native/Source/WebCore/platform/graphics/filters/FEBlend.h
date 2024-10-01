@@ -30,7 +30,7 @@ namespace WebCore {
 
 class FEBlend : public FilterEffect {
 public:
-    WEBCORE_EXPORT static Ref<FEBlend> create(BlendMode, DestinationColorSpace = DestinationColorSpace::SRGB());
+    WEBCORE_EXPORT static Ref<FEBlend> create(BlendMode);
 
     bool operator==(const FEBlend&) const;
 
@@ -38,7 +38,7 @@ public:
     bool setBlendMode(BlendMode);
 
 private:
-    FEBlend(BlendMode, DestinationColorSpace);
+    FEBlend(BlendMode);
 
     bool operator==(const FilterEffect& other) const override { return areEqual<FEBlend>(*this, other); }
 
@@ -53,4 +53,4 @@ private:
 
 } // namespace WebCore
 
-SPECIALIZE_TYPE_TRAITS_FILTER_FUNCTION(FEBlend)
+SPECIALIZE_TYPE_TRAITS_FILTER_EFFECT(FEBlend)

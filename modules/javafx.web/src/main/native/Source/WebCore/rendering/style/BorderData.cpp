@@ -28,14 +28,13 @@
 
 #include "OutlineValue.h"
 #include "RenderStyle.h"
-#include <wtf/PointerComparison.h>
 #include <wtf/text/TextStream.h>
 
 namespace WebCore {
 
 bool BorderData::isEquivalentForPainting(const BorderData& other, bool currentColorDiffers) const
 {
-    if (!arePointingToEqualData(this, &other))
+    if (*this != other)
         return false;
 
     if (!currentColorDiffers)

@@ -42,6 +42,7 @@ public:
 private:
     void graphicsElement() const = delete;
 
+    bool isSVGTextPath() const override { return true; }
     ASCIILiteral renderName() const override { return "RenderSVGTextPath"_s; }
 
     Path m_layoutPath;
@@ -49,4 +50,4 @@ private:
 
 } // namespace WebCore
 
-SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderSVGTextPath, isRenderSVGTextPath())
+SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderSVGTextPath, isSVGTextPath())

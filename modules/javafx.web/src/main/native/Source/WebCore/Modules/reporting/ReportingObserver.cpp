@@ -26,7 +26,6 @@
 #include "config.h"
 #include "ReportingObserver.h"
 
-#include "DocumentInlines.h"
 #include "EventLoop.h"
 #include "InspectorInstrumentation.h"
 #include "LocalDOMWindow.h"
@@ -61,10 +60,10 @@ Ref<ReportingObserver> ReportingObserver::create(ScriptExecutionContext& scriptE
 
 static WeakPtr<ReportingScope> reportingScopeForContext(ScriptExecutionContext& scriptExecutionContext)
 {
-    if (RefPtr document = dynamicDowncast<Document>(&scriptExecutionContext))
+    if (auto* document = dynamicDowncast<Document>(&scriptExecutionContext))
         return document->reportingScope();
 
-    if (RefPtr workerGlobalScope = dynamicDowncast<WorkerGlobalScope>(&scriptExecutionContext))
+    if (auto* workerGlobalScope = dynamicDowncast<WorkerGlobalScope>(&scriptExecutionContext))
         return workerGlobalScope->reportingScope();
 
     RELEASE_ASSERT_NOT_REACHED();
@@ -78,7 +77,10 @@ ReportingObserver::ReportingObserver(ScriptExecutionContext& scriptExecutionCont
 {
 }
 
-ReportingObserver::~ReportingObserver() = default;
+ReportingObserver::~ReportingObserver()
+{
+    disconnect();
+}
 
 void ReportingObserver::disconnect()
 {
@@ -129,7 +131,7 @@ void ReportingObserver::appendQueuedReportIfCorrectType(const Ref<Report>& repor
     if (m_queuedReports.size() > 1)
         return;
 
-    RefPtr context = m_callback->scriptExecutionContext();
+    auto* context = m_callback->scriptExecutionContext();
     if (!context)
         return;
 

@@ -78,19 +78,19 @@ UserMediaRequest::~UserMediaRequest()
 
 SecurityOrigin* UserMediaRequest::userMediaDocumentOrigin() const
 {
-    RefPtr context = scriptExecutionContext();
+    auto* context = scriptExecutionContext();
     return context ? context->securityOrigin() : nullptr;
 }
 
 SecurityOrigin* UserMediaRequest::topLevelDocumentOrigin() const
 {
-    RefPtr context = scriptExecutionContext();
+    auto* context = scriptExecutionContext();
     return context ? &context->topOrigin() : nullptr;
 }
 
 void UserMediaRequest::start()
 {
-    RefPtr context = scriptExecutionContext();
+    auto* context = scriptExecutionContext();
     ASSERT(context);
     if (!context) {
         deny(MediaAccessDenialReason::UserMediaDisabled);
@@ -166,7 +166,7 @@ void UserMediaRequest::allow(CaptureDevice&& audioDevice, CaptureDevice&& videoD
                 RELEASE_LOG(MediaStream, "UserMediaRequest::allow failed to create media stream!");
                 auto error = privateStreamOrError.error();
                 scriptExecutionContext()->addConsoleMessage(MessageSource::JS, MessageLevel::Error, error.errorMessage);
-                deny(error.denialReason, error.errorMessage, error.invalidConstraint);
+                deny(error.denialReason, error.errorMessage);
                 return;
             }
             auto privateStream = WTFMove(privateStreamOrError).value();
@@ -182,14 +182,14 @@ void UserMediaRequest::allow(CaptureDevice&& audioDevice, CaptureDevice&& videoD
                 return;
             }
 
-            if (RefPtr audioTrack = stream->getFirstAudioTrack()) {
+            if (auto* audioTrack = stream->getFirstAudioTrack()) {
 #if USE(AUDIO_SESSION)
                 AudioSession::sharedSession().tryToSetActive(true);
 #endif
                 if (std::holds_alternative<MediaTrackConstraints>(m_audioConstraints))
                     audioTrack->setConstraints(std::get<MediaTrackConstraints>(WTFMove(m_audioConstraints)));
             }
-            if (RefPtr videoTrack = stream->getFirstVideoTrack()) {
+            if (auto* videoTrack = stream->getFirstVideoTrack()) {
                 if (std::holds_alternative<MediaTrackConstraints>(m_videoConstraints))
                     videoTrack->setConstraints(std::get<MediaTrackConstraints>(WTFMove(m_videoConstraints)));
             }
@@ -212,7 +212,7 @@ void UserMediaRequest::allow(CaptureDevice&& audioDevice, CaptureDevice&& videoD
     });
 }
 
-void UserMediaRequest::deny(MediaAccessDenialReason reason, const String& message, MediaConstraintType invalidConstraint)
+void UserMediaRequest::deny(MediaAccessDenialReason reason, const String& message)
 {
     if (!scriptExecutionContext())
         return;
@@ -221,39 +221,39 @@ void UserMediaRequest::deny(MediaAccessDenialReason reason, const String& messag
     switch (reason) {
     case MediaAccessDenialReason::NoReason:
         ASSERT_NOT_REACHED();
-        code = ExceptionCode::AbortError;
+        code = AbortError;
         break;
     case MediaAccessDenialReason::NoConstraints:
         RELEASE_LOG(MediaStream, "UserMediaRequest::deny - no constraints");
-        code = ExceptionCode::TypeError;
+        code = TypeError;
         break;
     case MediaAccessDenialReason::UserMediaDisabled:
         RELEASE_LOG(MediaStream, "UserMediaRequest::deny - user media disabled");
-        code = ExceptionCode::SecurityError;
+        code = SecurityError;
         break;
     case MediaAccessDenialReason::NoCaptureDevices:
         RELEASE_LOG(MediaStream, "UserMediaRequest::deny - no capture devices");
-        code = ExceptionCode::NotFoundError;
+        code = NotFoundError;
         break;
     case MediaAccessDenialReason::InvalidConstraint:
-        RELEASE_LOG(MediaStream, "UserMediaRequest::deny - invalid constraint - %d", (int)invalidConstraint);
-        m_promise->rejectType<IDLInterface<OverconstrainedError>>(OverconstrainedError::create(invalidConstraint, "Invalid constraint"_s).get());
+        RELEASE_LOG(MediaStream, "UserMediaRequest::deny - invalid constraint - %s", message.utf8().data());
+        m_promise->rejectType<IDLInterface<OverconstrainedError>>(OverconstrainedError::create(message, "Invalid constraint"_s).get());
         return;
     case MediaAccessDenialReason::HardwareError:
         RELEASE_LOG(MediaStream, "UserMediaRequest::deny - hardware error");
-        code = ExceptionCode::NotReadableError;
+        code = NotReadableError;
         break;
     case MediaAccessDenialReason::OtherFailure:
         RELEASE_LOG(MediaStream, "UserMediaRequest::deny - other failure");
-        code = ExceptionCode::AbortError;
+        code = AbortError;
         break;
     case MediaAccessDenialReason::PermissionDenied:
         RELEASE_LOG(MediaStream, "UserMediaRequest::deny - permission denied");
-        code = ExceptionCode::NotAllowedError;
+        code = NotAllowedError;
         break;
     case MediaAccessDenialReason::InvalidAccess:
         RELEASE_LOG(MediaStream, "UserMediaRequest::deny - invalid access");
-        code = ExceptionCode::InvalidAccessError;
+        code = InvalidAccessError;
         break;
     }
 

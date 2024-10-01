@@ -35,9 +35,6 @@
 #include "PathOperation.h"
 #include "RotateTransformOperation.h"
 #include "ScaleTransformOperation.h"
-#include "ScopedName.h"
-#include "ScrollAxis.h"
-#include "ScrollTimeline.h"
 #include "ScrollTypes.h"
 #include "ScrollbarGutter.h"
 #include "ShapeValue.h"
@@ -48,7 +45,6 @@
 #include "TextDecorationThickness.h"
 #include "TouchAction.h"
 #include "TranslateTransformOperation.h"
-#include "ViewTimeline.h"
 #include "WillChangeData.h"
 #include <memory>
 #include <wtf/DataRef.h>
@@ -99,7 +95,9 @@ public:
 
     LengthPoint perspectiveOrigin() const { return { perspectiveOriginX, perspectiveOriginY }; }
 
+#if ENABLE(FILTERS_LEVEL_2)
     bool hasBackdropFilters() const;
+#endif
 
     OptionSet<Containment> effectiveContainment() const;
 
@@ -115,7 +113,9 @@ public:
 
     DataRef<StyleMarqueeData> marquee; // Marquee properties
 
+#if ENABLE(FILTERS_LEVEL_2)
     DataRef<StyleFilterData> backdropFilter; // Filter operations (url, sepia, blur, etc.)
+#endif
 
     DataRef<StyleGridData> grid;
     DataRef<StyleGridItemData> gridItem;
@@ -130,7 +130,7 @@ public:
 
     RefPtr<StyleReflection> boxReflect;
 
-    NinePieceImage maskBorder;
+    NinePieceImage maskBoxImage;
 
     LengthSize pageSize;
 
@@ -152,8 +152,7 @@ public:
     RefPtr<TranslateTransformOperation> translate;
     RefPtr<PathOperation> offsetPath;
 
-    Vector<Style::ScopedName> containerNames;
-    std::optional<Style::ScopedName> viewTransitionName;
+    Vector<AtomString> containerNames;
 
     GapLength columnGap;
     GapLength rowGap;
@@ -173,20 +172,10 @@ public:
     ScrollSnapAlign scrollSnapAlign;
     ScrollSnapStop scrollSnapStop { ScrollSnapStop::Normal };
 
-    Vector<Ref<ScrollTimeline>> scrollTimelines;
-    Vector<ScrollAxis> scrollTimelineAxes;
-    Vector<AtomString> scrollTimelineNames;
-
-    Vector<Ref<ViewTimeline>> viewTimelines;
-    Vector<ScrollAxis> viewTimelineAxes;
-    Vector<ViewTimelineInsets> viewTimelineInsets;
-    Vector<AtomString> viewTimelineNames;
-
     ScrollbarGutter scrollbarGutter;
     ScrollbarWidth scrollbarWidth { ScrollbarWidth::Auto };
 
     float zoom;
-    AtomString pseudoElementNameArgument;
 
     std::optional<Length> blockStepSize;
     unsigned blockStepInsert : 1; // BlockStepInsert
@@ -207,8 +196,10 @@ public:
 
     unsigned contentVisibility : 2; // ContentVisibility
 
+#if ENABLE(CSS_COMPOSITING)
     unsigned effectiveBlendMode: 5; // EBlendMode
     unsigned isolation : 1; // Isolation
+#endif
 
 #if ENABLE(APPLE_PAY)
     unsigned applePayButtonStyle : 2;

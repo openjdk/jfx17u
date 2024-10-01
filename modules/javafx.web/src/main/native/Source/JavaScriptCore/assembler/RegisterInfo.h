@@ -51,6 +51,8 @@
 #include "X86Registers.h"
 #elif CPU(X86_64)
 #include "X86_64Registers.h"
+#elif CPU(MIPS)
+#include "MIPSRegisters.h"
 #elif CPU(ARM_THUMB2)
 #include "ARMv7Registers.h"
 #elif CPU(ARM64)

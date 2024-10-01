@@ -27,6 +27,8 @@
 #include "ServiceWorkerContextData.h"
 #include <wtf/CrossThreadCopier.h>
 
+#if ENABLE(SERVICE_WORKER)
+
 namespace WebCore {
 
 ServiceWorkerContextData ServiceWorkerContextData::isolatedCopy() const &
@@ -72,3 +74,5 @@ ServiceWorkerContextData ServiceWorkerContextData::isolatedCopy() &&
 }
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

@@ -28,7 +28,6 @@
 
 #include "TextCodec.h"
 #include <unicode/ucnv.h>
-#include <wtf/text/ASCIILiteral.h>
 #include <wtf/unicode/icu/ICUHelpers.h>
 
 namespace PAL {
@@ -40,7 +39,7 @@ public:
     static void registerEncodingNames(EncodingNameRegistrar);
     static void registerCodecs(TextCodecRegistrar);
 
-    explicit TextCodecICU(ASCIILiteral encoding, ASCIILiteral canonicalConverterName);
+    explicit TextCodecICU(const char* encoding, const char* canonicalConverterName);
     virtual ~TextCodecICU();
 
 private:
@@ -52,8 +51,8 @@ private:
 
     int decodeToBuffer(UChar* buffer, UChar* bufferLimit, const char*& source, const char* sourceLimit, int32_t* offsets, bool flush, UErrorCode&);
 
-    ASCIILiteral m_encodingName;
-    ASCIILiteral const m_canonicalConverterName;
+    const char* const m_encodingName;
+    const char* const m_canonicalConverterName;
     mutable ICUConverterPtr m_converter;
 };
 

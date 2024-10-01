@@ -25,7 +25,6 @@
 
 #pragma once
 
-#include <wtf/CheckedRef.h>
 #include <wtf/MonotonicTime.h>
 
 namespace WebCore {
@@ -57,7 +56,7 @@ enum class TiledBackingScrollability : uint8_t {
     VerticallyScrollable    = 1 << 1
 };
 
-class TiledBacking : public CanMakeCheckedPtr {
+class TiledBacking {
 public:
     virtual ~TiledBacking() = default;
 

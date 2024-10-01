@@ -77,11 +77,11 @@ bool HTMLMapElement::mapMouseEvent(LayoutPoint location, const LayoutSize& size,
     return defaultArea;
 }
 
-RefPtr<HTMLImageElement> HTMLMapElement::imageElement()
+HTMLImageElement* HTMLMapElement::imageElement()
 {
     if (m_name.isEmpty())
         return nullptr;
-    return treeScope().imageElementByUsemap(m_name);
+    return treeScope().imageElementByUsemap(*m_name.impl());
 }
 
 void HTMLMapElement::attributeChanged(const QualifiedName& name, const AtomString& oldValue, const AtomString& newValue, AttributeModificationReason attributeModificationReason)

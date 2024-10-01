@@ -29,7 +29,6 @@
 #include "JITCode.h"
 #include "JITCodeMap.h"
 #include "StructureStubInfo.h"
-#include <wtf/ButterflyArray.h>
 #include <wtf/CompactPointerTuple.h>
 
 #if ENABLE(JIT)
@@ -63,11 +62,13 @@ public:
     using Constant = unsigned;
 
     enum class Type : uint8_t {
+        GlobalObject,
+        StructureStubInfo,
         FunctionDecl,
         FunctionExpr,
     };
 
-    using Value = JITConstant<Type>;
+    using Value = CompactPointerTuple<void*, Type>;
 
     JITConstantPool() = default;
     JITConstantPool(JITConstantPool&&) = default;
@@ -102,34 +103,23 @@ public:
     bool m_isShareable { true };
 };
 
-class BaselineJITData final : public ButterflyArray<BaselineJITData, StructureStubInfo, void*> {
+class BaselineJITData final : public TrailingArray<BaselineJITData, void*> {
+    WTF_MAKE_FAST_ALLOCATED;
     friend class LLIntOffsetsExtractor;
 public:
-    using Base = ButterflyArray<BaselineJITData, StructureStubInfo, void*>;
+    using Base = TrailingArray<BaselineJITData, void*>;
 
-    static std::unique_ptr<BaselineJITData> create(unsigned stubInfoSize, unsigned poolSize, CodeBlock* codeBlock)
+    static std::unique_ptr<BaselineJITData> create(unsigned poolSize)
     {
-        return std::unique_ptr<BaselineJITData> { createImpl(stubInfoSize, poolSize, codeBlock) };
+        return std::unique_ptr<BaselineJITData> { new (NotNull, fastMalloc(Base::allocationSize(poolSize))) BaselineJITData(poolSize) };
     }
 
-    explicit BaselineJITData(unsigned poolSize, unsigned stubInfoSize, CodeBlock*);
-
-    static ptrdiff_t offsetOfGlobalObject() { return OBJECT_OFFSETOF(BaselineJITData, m_globalObject); }
-    static ptrdiff_t offsetOfStackOffset() { return OBJECT_OFFSETOF(BaselineJITData, m_stackOffset); }
-
-    StructureStubInfo& stubInfo(unsigned index)
+    explicit BaselineJITData(unsigned size)
+        : Base(size)
     {
-        auto span = stubInfos();
-        return span[span.size() - index - 1];
     }
 
-    auto stubInfos() -> decltype(leadingSpan())
-    {
-        return leadingSpan();
-    }
-
-    JSGlobalObject* m_globalObject { nullptr }; // This is not marked since owner CodeBlock will mark JSGlobalObject.
-    intptr_t m_stackOffset { 0 };
+    FixedVector<StructureStubInfo> m_stubInfos;
 };
 
 } // namespace JSC

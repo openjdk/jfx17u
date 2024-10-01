@@ -36,32 +36,49 @@ struct MediaQueryParserContext;
 
 namespace MQ {
 
-struct FeatureParser {
-    static std::optional<Feature> consumeFeature(CSSParserTokenRange&, const MediaQueryParserContext&);
-    static std::optional<Feature> consumeBooleanOrPlainFeature(CSSParserTokenRange&, const MediaQueryParserContext&);
-    static std::optional<Feature> consumeRangeFeature(CSSParserTokenRange&, const MediaQueryParserContext&);
-    static RefPtr<CSSValue> consumeValue(CSSParserTokenRange&, const MediaQueryParserContext&);
+class GenericMediaQueryParserBase {
+public:
+    GenericMediaQueryParserBase(const MediaQueryParserContext& context)
+        : m_context(context)
+    { }
 
-    static bool validateFeatureAgainstSchema(Feature&, const FeatureSchema&);
+protected:
+    std::optional<Feature> consumeFeature(CSSParserTokenRange&);
+    std::optional<Feature> consumeBooleanOrPlainFeature(CSSParserTokenRange&);
+    std::optional<Feature> consumeRangeFeature(CSSParserTokenRange&);
+    RefPtr<CSSValue> consumeValue(CSSParserTokenRange&);
+
+    bool validateFeatureAgainstSchema(Feature&, const FeatureSchema&);
+
+    const MediaQueryParserContext& m_context;
 };
 
 template<typename ConcreteParser>
-struct GenericMediaQueryParser  {
-    static std::optional<Condition> consumeCondition(CSSParserTokenRange&, const MediaQueryParserContext&);
-    static std::optional<QueryInParens> consumeQueryInParens(CSSParserTokenRange&, const MediaQueryParserContext&);
-    static std::optional<Feature> consumeAndValidateFeature(CSSParserTokenRange&, const MediaQueryParserContext&);
+class GenericMediaQueryParser : public GenericMediaQueryParserBase {
+public:
+    GenericMediaQueryParser(const MediaQueryParserContext& context)
+        : GenericMediaQueryParserBase(context)
+    { }
 
-    static const FeatureSchema* schemaForFeatureName(const AtomString&, const MediaQueryParserContext&);
-    static bool validateFeature(Feature&, const MediaQueryParserContext&);
+    std::optional<Condition> consumeCondition(CSSParserTokenRange&);
+    std::optional<QueryInParens> consumeQueryInParens(CSSParserTokenRange&);
+    std::optional<Feature> consumeFeature(CSSParserTokenRange&);
+
+    const FeatureSchema* schemaForFeatureName(const AtomString&) const;
+
+private:
+    bool validateFeature(Feature&);
+
+    ConcreteParser& concreteParser() { return static_cast<ConcreteParser&>(*this); }
 };
 
 template<typename ConcreteParser>
-std::optional<Condition> GenericMediaQueryParser<ConcreteParser>::consumeCondition(CSSParserTokenRange& range, const MediaQueryParserContext& context)
+std::optional<Condition> GenericMediaQueryParser<ConcreteParser>::consumeCondition(CSSParserTokenRange& range)
 {
     if (range.peek().type() == IdentToken) {
         if (range.peek().id() == CSSValueNot) {
             range.consumeIncludingWhitespace();
-            auto query = ConcreteParser::consumeQueryInParens(range, context);
+            auto query = concreteParser().consumeQueryInParens(range);
             if (!query || !range.atEnd())
                 return { };
 
@@ -71,7 +88,7 @@ std::optional<Condition> GenericMediaQueryParser<ConcreteParser>::consumeConditi
 
     Condition condition;
 
-    auto query = ConcreteParser::consumeQueryInParens(range, context);
+    auto query = concreteParser().consumeQueryInParens(range);
     if (!query)
         return { };
 
@@ -98,7 +115,7 @@ std::optional<Condition> GenericMediaQueryParser<ConcreteParser>::consumeConditi
 
         condition.logicalOperator = *op;
 
-        auto query = ConcreteParser::consumeQueryInParens(range, context);
+        auto query = concreteParser().consumeQueryInParens(range);
         if (!query)
             return { };
 
@@ -110,7 +127,7 @@ std::optional<Condition> GenericMediaQueryParser<ConcreteParser>::consumeConditi
 }
 
 template<typename ConcreteParser>
-std::optional<QueryInParens> GenericMediaQueryParser<ConcreteParser>::consumeQueryInParens(CSSParserTokenRange& range, const MediaQueryParserContext& context)
+std::optional<QueryInParens> GenericMediaQueryParser<ConcreteParser>::consumeQueryInParens(CSSParserTokenRange& range)
 {
     if (range.peek().type() == FunctionToken) {
         auto name = range.peek().value();
@@ -126,11 +143,11 @@ std::optional<QueryInParens> GenericMediaQueryParser<ConcreteParser>::consumeQue
         blockRange.consumeWhitespace();
 
         auto conditionRange = blockRange;
-        if (auto condition = ConcreteParser::consumeCondition(conditionRange, context))
+        if (auto condition = consumeCondition(conditionRange))
             return { condition };
 
         auto featureRange = blockRange;
-        if (auto feature = ConcreteParser::consumeAndValidateFeature(featureRange, context))
+        if (auto feature = concreteParser().consumeFeature(featureRange))
             return { *feature };
 
         return GeneralEnclosed { { }, blockRange.serialize() };
@@ -140,29 +157,29 @@ std::optional<QueryInParens> GenericMediaQueryParser<ConcreteParser>::consumeQue
 }
 
 template<typename ConcreteParser>
-std::optional<Feature> GenericMediaQueryParser<ConcreteParser>::consumeAndValidateFeature(CSSParserTokenRange& range, const MediaQueryParserContext& context)
+std::optional<Feature> GenericMediaQueryParser<ConcreteParser>::consumeFeature(CSSParserTokenRange& range)
 {
-    auto feature = FeatureParser::consumeFeature(range, context);
+    auto feature = GenericMediaQueryParserBase::consumeFeature(range);
     if (!feature)
         return { };
 
-    if (!validateFeature(*feature, context))
+    if (!validateFeature(*feature))
         return { };
 
     return feature;
 }
 
 template<typename ConcreteParser>
-bool GenericMediaQueryParser<ConcreteParser>::validateFeature(Feature& feature, const MediaQueryParserContext& context)
+bool GenericMediaQueryParser<ConcreteParser>::validateFeature(Feature& feature)
 {
-    auto* schema = ConcreteParser::schemaForFeatureName(feature.name, context);
+    auto* schema = concreteParser().schemaForFeatureName(feature.name);
     if (!schema)
         return false;
-    return FeatureParser::validateFeatureAgainstSchema(feature, *schema);
+    return validateFeatureAgainstSchema(feature, *schema);
 }
 
 template<typename ConcreteParser>
-const FeatureSchema* GenericMediaQueryParser<ConcreteParser>::schemaForFeatureName(const AtomString& name, const MediaQueryParserContext&)
+const FeatureSchema* GenericMediaQueryParser<ConcreteParser>::schemaForFeatureName(const AtomString& name) const
 {
     using SchemaMap = MemoryCompactLookupOnlyRobinHoodHashMap<AtomString, const FeatureSchema*>;
 

@@ -44,24 +44,18 @@ class SlotAssignment;
 class StyleSheetList;
 class WebAnimation;
 
-enum class ParserContentPolicy : uint8_t;
-
-namespace Style {
-class Scope;
-}
-
-class ShadowRoot final : public CanMakeCheckedPtr, public DocumentFragment, public TreeScope {
+class ShadowRoot final : public DocumentFragment, public TreeScope {
     WTF_MAKE_ISO_ALLOCATED(ShadowRoot);
 public:
 
     enum class DelegatesFocus : bool { No, Yes };
-    enum class Clonable : bool { No, Yes };
+    enum class Cloneable : bool { No, Yes };
     enum class AvailableToElementInternals : bool { No, Yes };
 
     static Ref<ShadowRoot> create(Document& document, ShadowRootMode type, SlotAssignmentMode assignmentMode = SlotAssignmentMode::Named,
-        DelegatesFocus delegatesFocus = DelegatesFocus::No, Clonable clonable = Clonable::No, AvailableToElementInternals availableToElementInternals = AvailableToElementInternals::No)
+        DelegatesFocus delegatesFocus = DelegatesFocus::No, Cloneable cloneable = Cloneable::No, AvailableToElementInternals availableToElementInternals = AvailableToElementInternals::No)
     {
-        return adoptRef(*new ShadowRoot(document, type, assignmentMode, delegatesFocus, clonable, availableToElementInternals));
+        return adoptRef(*new ShadowRoot(document, type, assignmentMode, delegatesFocus, cloneable, availableToElementInternals));
     }
 
     static Ref<ShadowRoot> create(Document& document, std::unique_ptr<SlotAssignment>&& assignment)
@@ -71,28 +65,20 @@ public:
 
     virtual ~ShadowRoot();
 
-    // Resolve ambiguity for CanMakeCheckedPtr.
-    using CanMakeCheckedPtr::incrementPtrCount;
-    using CanMakeCheckedPtr::decrementPtrCount;
-#if CHECKED_POINTER_DEBUG
-    using CanMakeCheckedPtr::registerCheckedPtr;
-    using CanMakeCheckedPtr::copyCheckedPtr;
-    using CanMakeCheckedPtr::moveCheckedPtr;
-    using CanMakeCheckedPtr::unregisterCheckedPtr;
-#endif // CHECKED_POINTER_DEBUG
-
     using TreeScope::getElementById;
     using TreeScope::rootNode;
 
-    Style::Scope& styleScope() { return *m_styleScope; }
-    CheckedRef<Style::Scope> checkedStyleScope() const;
+    WEBCORE_EXPORT Style::Scope& styleScope();
     StyleSheetList& styleSheets();
+
+    bool resetStyleInheritance() const { return m_resetStyleInheritance; }
+    void setResetStyleInheritance(bool);
 
     bool delegatesFocus() const { return m_delegatesFocus; }
     bool containsFocusedElement() const { return m_containsFocusedElement; }
     void setContainsFocusedElement(bool flag) { m_containsFocusedElement = flag; }
 
-    bool isClonable() const { return m_isClonable; }
+    bool isCloneable() const { return m_isCloneable; }
 
     bool isAvailableToElementInternals() const { return m_availableToElementInternals; }
     void setIsAvailableToElementInternals(bool flag) { m_availableToElementInternals = flag; }
@@ -100,10 +86,7 @@ public:
     void setIsDeclarativeShadowRoot(bool flag) { m_isDeclarativeShadowRoot = flag; }
 
     Element* host() const { return m_host.get(); }
-    RefPtr<Element> protectedHost() const { return m_host.get(); }
     void setHost(WeakPtr<Element, WeakPtrImplWithEventTargetData>&& host) { m_host = WTFMove(host); }
-
-    ExceptionOr<void> setHTMLUnsafe(const String&);
 
     String innerHTML() const;
     ExceptionOr<void> setInnerHTML(const String&);
@@ -151,7 +134,7 @@ public:
     Vector<RefPtr<WebAnimation>> getAnimations();
 
 private:
-    ShadowRoot(Document&, ShadowRootMode, SlotAssignmentMode, DelegatesFocus, Clonable, AvailableToElementInternals);
+    ShadowRoot(Document&, ShadowRootMode, SlotAssignmentMode, DelegatesFocus, Cloneable, AvailableToElementInternals);
     ShadowRoot(Document&, std::unique_ptr<SlotAssignment>&&);
 
     bool childTypeAllowed(NodeType) const override;
@@ -161,11 +144,10 @@ private:
 
     void childrenChanged(const ChildChange&) override;
 
-    ExceptionOr<void> replaceChildrenWithMarkup(const String&, OptionSet<ParserContentPolicy>);
-
+    bool m_resetStyleInheritance : 1 { false };
     bool m_hasBegunDeletingDetachedChildren : 1 { false };
     bool m_delegatesFocus : 1 { false };
-    bool m_isClonable : 1 { false };
+    bool m_isCloneable : 1 { false };
     bool m_containsFocusedElement : 1 { false };
     bool m_availableToElementInternals : 1 { false };
     bool m_isDeclarativeShadowRoot : 1 { false };
@@ -187,21 +169,15 @@ inline Element* ShadowRoot::activeElement() const
 
 inline bool Node::isUserAgentShadowRoot() const
 {
-    auto* shadowRoot = dynamicDowncast<ShadowRoot>(*this);
-    return shadowRoot && shadowRoot->mode() == ShadowRootMode::UserAgent;
+    return isShadowRoot() && downcast<ShadowRoot>(*this).mode() == ShadowRootMode::UserAgent;
 }
 
 inline ContainerNode* Node::parentOrShadowHostNode() const
 {
     ASSERT(isMainThreadOrGCThread());
-    if (auto* shadowRoot = dynamicDowncast<ShadowRoot>(*this))
-        return shadowRoot->host();
+    if (is<ShadowRoot>(*this))
+        return downcast<ShadowRoot>(*this).host();
     return parentNode();
-}
-
-inline RefPtr<ContainerNode> Node::protectedParentOrShadowHostNode() const
-{
-    return parentOrShadowHostNode();
 }
 
 inline bool hasShadowRootParent(const Node& node)
@@ -209,7 +185,7 @@ inline bool hasShadowRootParent(const Node& node)
     return node.parentNode() && node.parentNode()->isShadowRoot();
 }
 
-Vector<Ref<ShadowRoot>> assignedShadowRootsIfSlotted(const Node&);
+Vector<ShadowRoot*> assignedShadowRootsIfSlotted(const Node&);
 
 } // namespace WebCore
 

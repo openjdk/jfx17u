@@ -85,6 +85,10 @@ private:
 #endif
 
     void disabledStateChanged() final;
+
+#if ENABLE(TOUCH_EVENTS) && !PLATFORM(IOS_FAMILY)
+    bool hasTouchEventHandler() const final;
+#endif
 };
 
 } // namespace WebCore

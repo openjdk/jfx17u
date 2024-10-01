@@ -29,11 +29,9 @@
 
 #include "CachedResourceClient.h"
 #include "CachedResourceHandle.h"
-#include "LoaderMalloc.h"
 #include "Timer.h"
 #include "WebVTTParser.h"
 #include <memory>
-#include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
@@ -43,7 +41,7 @@ class HTMLTrackElement;
 class TextTrackLoader;
 class VTTCue;
 
-class TextTrackLoaderClient : public CanMakeWeakPtr<TextTrackLoaderClient> {
+class TextTrackLoaderClient {
 public:
     virtual ~TextTrackLoaderClient() = default;
 
@@ -55,7 +53,7 @@ public:
 
 class TextTrackLoader final : public CachedResourceClient, private WebVTTParserClient {
     WTF_MAKE_NONCOPYABLE(TextTrackLoader);
-    WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Loader);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     TextTrackLoader(TextTrackLoaderClient&, Document&);
     virtual ~TextTrackLoader();
@@ -82,15 +80,12 @@ private:
     void cueLoadTimerFired();
     void corsPolicyPreventedLoad();
 
-    Ref<Document> protectedDocument() const;
-    CachedResourceHandle<CachedTextTrack> protectedResource() const;
-
     enum State { Idle, Loading, Finished, Failed };
 
-    WeakRef<TextTrackLoaderClient> m_client;
+    TextTrackLoaderClient& m_client;
     std::unique_ptr<WebVTTParser> m_cueParser;
     CachedResourceHandle<CachedTextTrack> m_resource;
-    WeakRef<Document, WeakPtrImplWithEventTargetData> m_document;
+    Document& m_document;
     Timer m_cueLoadTimer;
     State m_state { Idle };
     unsigned m_parseOffset { 0 };

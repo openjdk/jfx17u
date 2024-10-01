@@ -29,10 +29,8 @@
 #include "GraphicsLayerClient.h"
 #include "LayerAncestorClippingStack.h"
 #include "RenderLayer.h"
-#include <pal/HysteresisActivity.h>
 #include <wtf/HashMap.h>
 #include <wtf/OptionSet.h>
-#include <wtf/WeakHashSet.h>
 
 namespace WebCore {
 
@@ -83,7 +81,6 @@ enum class CompositingReason {
     Root                                   = 1 << 25,
     IsolatesCompositedBlendingDescendants  = 1 << 26,
     Model                                  = 1 << 27,
-    BackdropRoot                           = 1 << 28,
 };
 
 enum class ScrollCoordinationRole {
@@ -91,8 +88,7 @@ enum class ScrollCoordinationRole {
     Scrolling           = 1 << 1,
     ScrollingProxy      = 1 << 2,
     FrameHosting        = 1 << 3,
-    PluginHosting       = 1 << 4,
-    Positioning         = 1 << 5,
+    Positioning         = 1 << 4,
 };
 
 static constexpr OptionSet<ScrollCoordinationRole> allScrollCoordinationRoles()
@@ -102,7 +98,6 @@ static constexpr OptionSet<ScrollCoordinationRole> allScrollCoordinationRoles()
         ScrollCoordinationRole::ScrollingProxy,
         ScrollCoordinationRole::ViewportConstrained,
         ScrollCoordinationRole::FrameHosting,
-        ScrollCoordinationRole::PluginHosting,
         ScrollCoordinationRole::Positioning
     };
 }
@@ -136,8 +131,8 @@ private:
 
     ChromeClient& m_chromeClient;
 
-    SingleThreadWeakHashSet<RenderLayer> m_scrollingLayers;
-    SingleThreadWeakHashSet<RenderLayer> m_viewportConstrainedLayers;
+    HashSet<RenderLayer*> m_scrollingLayers;
+    HashSet<RenderLayer*> m_viewportConstrainedLayers;
 
     const bool m_coordinateViewportConstrainedLayers;
 };
@@ -215,7 +210,7 @@ public:
 
     // Returns the ScrollingNodeID for the containing async-scrollable layer that scrolls this renderer's border box.
     // May return 0 for position-fixed content.
-    WEBCORE_EXPORT static ScrollingNodeID asyncScrollableContainerNodeID(const RenderObject&);
+    static ScrollingNodeID asyncScrollableContainerNodeID(const RenderObject&);
 
     // Whether layer's backing needs a graphics layer to clip z-order children of the given layer.
     static bool clipsCompositingDescendants(const RenderLayer&);
@@ -243,8 +238,6 @@ public:
     void layerWillBeRemoved(RenderLayer& parent, RenderLayer& child);
 
     void layerStyleChanged(StyleDifference, RenderLayer&, const RenderStyle* oldStyle);
-
-    void establishesTopLayerWillChangeForLayer(RenderLayer&);
 
     // Get the nearest ancestor layer that has overflow or clip, but is not a stacking context
     RenderLayer* enclosingNonStackingClippingLayer(const RenderLayer&) const;
@@ -298,12 +291,10 @@ public:
     // to know if there is non-affine content, e.g. for drawing into an image.
     bool has3DContent() const;
 
-    static bool hasCompositedWidgetContents(const RenderObject&);
-    static bool isCompositedPlugin(const RenderObject&);
-
+    static bool isCompositedSubframeRenderer(const RenderObject&);
     static RenderLayerCompositor* frameContentsCompositor(RenderWidget&);
-    // Returns true the widget contents layer was parented.
-    bool attachWidgetContentLayers(RenderWidget&);
+    // Return true if the layers changed.
+    bool parentFrameContentLayers(RenderWidget&);
 
     // Update the geometry of the layers used for clipping and scrolling in frames.
     void frameViewDidChangeLocation(const IntPoint& contentsOffset);
@@ -330,6 +321,7 @@ public:
     void layerTiledBackingUsageChanged(const GraphicsLayer*, bool /*usingTiledBacking*/);
 
     bool acceleratedDrawingEnabled() const { return m_acceleratedDrawingEnabled; }
+    bool displayListDrawingEnabled() const { return m_displayListDrawingEnabled; }
 
     void deviceOrPageScaleFactorChanged();
 
@@ -353,7 +345,6 @@ public:
     bool useCoordinatedScrollingForLayer(const RenderLayer&) const;
     ScrollPositioningBehavior computeCoordinatedPositioningForLayer(const RenderLayer&, const RenderLayer* compositingAncestor) const;
     bool isLayerForIFrameWithScrollCoordinatedContents(const RenderLayer&) const;
-    bool isLayerForPluginWithScrollCoordinatedContents(const RenderLayer&) const;
 
     ScrollableArea* scrollableAreaForScrollingNodeID(ScrollingNodeID) const;
 
@@ -397,7 +388,6 @@ private:
 
     // Returns true if the policy changed.
     bool updateCompositingPolicy();
-    bool canUpdateCompositingPolicy() const;
 
     // GraphicsLayerClient implementation
     void paintContents(const GraphicsLayer*, GraphicsContext&, const FloatRect&, OptionSet<GraphicsLayerPaintBehavior>) override;
@@ -428,16 +418,10 @@ private:
     bool layerRepaintTargetsBackingSharingLayer(RenderLayer&, BackingSharingState&) const;
 
     void computeExtent(const LayerOverlapMap&, const RenderLayer&, OverlapExtent&) const;
-    void computeClippingScopes(const RenderLayer&, OverlapExtent&) const;
     void addToOverlapMap(LayerOverlapMap&, const RenderLayer&, OverlapExtent&) const;
     void addDescendantsToOverlapMapRecursive(LayerOverlapMap&, const RenderLayer&, const RenderLayer* ancestorLayer = nullptr) const;
     void updateOverlapMap(LayerOverlapMap&, const RenderLayer&, OverlapExtent&, bool didPushContainer, bool addLayerToOverlap, bool addDescendantsToOverlap = false) const;
     bool layerOverlaps(const LayerOverlapMap&, const RenderLayer&, OverlapExtent&) const;
-
-    void updateBackingSharingBeforeDescendantTraversal(BackingSharingState&, unsigned depth, const LayerOverlapMap&, RenderLayer&, OverlapExtent&, bool willBeComposited, RenderLayer* stackingContextAncestor);
-    void updateBackingSharingAfterDescendantTraversal(BackingSharingState&, unsigned depth, const LayerOverlapMap&, RenderLayer&, OverlapExtent&, const RenderLayer* preDescendantProviderStartLayer, RenderLayer* stackingContextAncestor);
-
-    void clearBackingProviderSequencesInStackingContextOfLayer(RenderLayer&);
 
     void updateCompositingLayersTimerFired();
 
@@ -531,7 +515,6 @@ private:
     ScrollingNodeID updateScrollingNodeForScrollingRole(RenderLayer&, struct ScrollingTreeState&, OptionSet<ScrollingNodeChangeFlags>);
     ScrollingNodeID updateScrollingNodeForScrollingProxyRole(RenderLayer&, struct ScrollingTreeState&, OptionSet<ScrollingNodeChangeFlags>);
     ScrollingNodeID updateScrollingNodeForFrameHostingRole(RenderLayer&, struct ScrollingTreeState&, OptionSet<ScrollingNodeChangeFlags>);
-    ScrollingNodeID updateScrollingNodeForPluginHostingRole(RenderLayer&, struct ScrollingTreeState&, OptionSet<ScrollingNodeChangeFlags>);
     ScrollingNodeID updateScrollingNodeForPositioningRole(RenderLayer&, const RenderLayer* compositingAncestor, struct ScrollingTreeState&, OptionSet<ScrollingNodeChangeFlags>);
 
     void updateScrollingNodeLayers(ScrollingNodeID, RenderLayer&, ScrollingCoordinator&);
@@ -588,11 +571,11 @@ private:
     bool m_hasAcceleratedCompositing { true };
 
     CompositingPolicy m_compositingPolicy { CompositingPolicy::Normal };
-    PAL::HysteresisActivity m_compositingPolicyHysteresis;
 
     bool m_showDebugBorders { false };
     bool m_showRepaintCounter { false };
     bool m_acceleratedDrawingEnabled { false };
+    bool m_displayListDrawingEnabled { false };
 
     bool m_compositing { false };
     bool m_flushingLayers { false };
@@ -644,8 +627,8 @@ private:
     Color m_viewBackgroundColor;
     Color m_rootExtendedBackgroundColor;
 
-    HashMap<ScrollingNodeID, SingleThreadWeakPtr<RenderLayer>> m_scrollingNodeToLayerMap;
-    SingleThreadWeakHashSet<RenderLayer> m_layersWithUnresolvedRelations;
+    HashMap<ScrollingNodeID, WeakPtr<RenderLayer>> m_scrollingNodeToLayerMap;
+    WeakHashSet<RenderLayer> m_layersWithUnresolvedRelations;
 #if PLATFORM(IOS_FAMILY)
     std::unique_ptr<LegacyWebKitScrollingLayerCoordinator> m_legacyScrollingLayerCoordinator;
 #endif

@@ -34,7 +34,6 @@
 #include "AudioNodeOptions.h"
 #include "AudioNodeOutput.h"
 #include "AudioParam.h"
-#include "ContextDestructionObserverInlines.h"
 #include "Logging.h"
 #include <wtf/Atomics.h>
 #include <wtf/IsoMallocInlines.h>
@@ -190,24 +189,23 @@ ExceptionOr<void> AudioNode::connect(AudioNode& destination, unsigned outputInde
 
     // Sanity check input and output indices.
     if (outputIndex >= numberOfOutputs())
-        return Exception { ExceptionCode::IndexSizeError, "Output index exceeds number of outputs"_s };
+        return Exception { IndexSizeError, "Output index exceeds number of outputs"_s };
 
     if (inputIndex >= destination.numberOfInputs())
-        return Exception { ExceptionCode::IndexSizeError, "Input index exceeds number of inputs"_s };
+        return Exception { IndexSizeError, "Input index exceeds number of inputs"_s };
 
     auto& context = this->context();
     if (&context != &destination.context())
-        return Exception { ExceptionCode::InvalidAccessError, "Source and destination nodes belong to different audio contexts"_s };
+        return Exception { InvalidAccessError, "Source and destination nodes belong to different audio contexts"_s };
 
     auto* input = destination.input(inputIndex);
     auto* output = this->output(outputIndex);
 
     if (!output->numberOfChannels())
-        return Exception { ExceptionCode::InvalidAccessError, "Node has zero output channels"_s };
+        return Exception { InvalidAccessError, "Node has zero output channels"_s };
 
-    RefPtr audioContext = dynamicDowncast<AudioContext>(context);
-    if (audioContext && &destination == &context.destination() && !audioContext->destination().isConnected())
-        audioContext->defaultDestinationWillBecomeConnected();
+    if (is<AudioContext>(context) && &destination == &context.destination() && !downcast<AudioContext>(context).destination().isConnected())
+        downcast<AudioContext>(context).defaultDestinationWillBecomeConnected();
 
     input->connect(output);
 
@@ -225,10 +223,10 @@ ExceptionOr<void> AudioNode::connect(AudioParam& param, unsigned outputIndex)
     INFO_LOG(LOGIDENTIFIER, param.name(), ", output = ", outputIndex);
 
     if (outputIndex >= numberOfOutputs())
-        return Exception { ExceptionCode::IndexSizeError, "Output index exceeds number of outputs"_s };
+        return Exception { IndexSizeError, "Output index exceeds number of outputs"_s };
 
     if (&context() != param.context())
-        return Exception { ExceptionCode::InvalidAccessError, "Node and AudioParam belong to different audio contexts"_s };
+        return Exception { InvalidAccessError, "Node and AudioParam belong to different audio contexts"_s };
 
     auto* output = this->output(outputIndex);
     param.connect(output);
@@ -256,7 +254,7 @@ ExceptionOr<void> AudioNode::disconnect(unsigned outputIndex)
     Locker locker { context().graphLock() };
 
     if (outputIndex >= numberOfOutputs())
-        return Exception { ExceptionCode::IndexSizeError, "output index is out of bounds"_s };
+        return Exception { IndexSizeError, "output index is out of bounds"_s };
 
     auto* output = this->output(outputIndex);
     INFO_LOG(LOGIDENTIFIER, output->node()->nodeType());
@@ -285,7 +283,7 @@ ExceptionOr<void> AudioNode::disconnect(AudioNode& destinationNode)
     }
 
     if (!didDisconnection)
-        return Exception { ExceptionCode::InvalidAccessError, "The given destination is not connected"_s };
+        return Exception { InvalidAccessError, "The given destination is not connected"_s };
 
     updatePullStatus();
     return { };
@@ -297,7 +295,7 @@ ExceptionOr<void> AudioNode::disconnect(AudioNode& destinationNode, unsigned out
     Locker locker { context().graphLock() };
 
     if (outputIndex >= numberOfOutputs())
-        return Exception { ExceptionCode::IndexSizeError, "output index is out of bounds"_s };
+        return Exception { IndexSizeError, "output index is out of bounds"_s };
 
     bool didDisconnection = false;
     auto* output = this->output(outputIndex);
@@ -310,7 +308,7 @@ ExceptionOr<void> AudioNode::disconnect(AudioNode& destinationNode, unsigned out
     }
 
     if (!didDisconnection)
-        return Exception { ExceptionCode::InvalidAccessError, "The given destination is not connected"_s };
+        return Exception { InvalidAccessError, "The given destination is not connected"_s };
 
     updatePullStatus();
     return { };
@@ -322,15 +320,15 @@ ExceptionOr<void> AudioNode::disconnect(AudioNode& destinationNode, unsigned out
     Locker locker { context().graphLock() };
 
     if (outputIndex >= numberOfOutputs())
-        return Exception { ExceptionCode::IndexSizeError, "output index is out of bounds"_s };
+        return Exception { IndexSizeError, "output index is out of bounds"_s };
 
     if (inputIndex >= destinationNode.numberOfInputs())
-        return Exception { ExceptionCode::IndexSizeError, "input index is out of bounds"_s };
+        return Exception { IndexSizeError, "input index is out of bounds"_s };
 
     auto* output = this->output(outputIndex);
     auto* input = destinationNode.input(inputIndex);
     if (!output->isConnectedTo(*input))
-        return Exception { ExceptionCode::InvalidAccessError, "The given destination is not connected"_s };
+        return Exception { InvalidAccessError, "The given destination is not connected"_s };
 
     input->disconnect(output);
 
@@ -353,7 +351,7 @@ ExceptionOr<void> AudioNode::disconnect(AudioParam& destinationParam)
     }
 
     if (!didDisconnection)
-        return Exception { ExceptionCode::InvalidAccessError, "The given destination is not connected"_s };
+        return Exception { InvalidAccessError, "The given destination is not connected"_s };
 
     updatePullStatus();
     return { };
@@ -365,11 +363,11 @@ ExceptionOr<void> AudioNode::disconnect(AudioParam& destinationParam, unsigned o
     Locker locker { context().graphLock() };
 
     if (outputIndex >= numberOfOutputs())
-        return Exception { ExceptionCode::IndexSizeError, "output index is out of bounds"_s };
+        return Exception { IndexSizeError, "output index is out of bounds"_s };
 
     auto* output = this->output(outputIndex);
     if (!output->isConnectedTo(destinationParam))
-        return Exception { ExceptionCode::InvalidAccessError, "The given destination is not connected"_s };
+        return Exception { InvalidAccessError, "The given destination is not connected"_s };
 
     destinationParam.disconnect(output);
 
@@ -390,10 +388,10 @@ ExceptionOr<void> AudioNode::setChannelCount(unsigned channelCount)
     ALWAYS_LOG(LOGIDENTIFIER, channelCount);
 
     if (!channelCount)
-        return Exception { ExceptionCode::NotSupportedError, "Channel count cannot be 0"_s };
+        return Exception { NotSupportedError, "Channel count cannot be 0"_s };
 
     if (channelCount > AudioContext::maxNumberOfChannels)
-        return Exception { ExceptionCode::NotSupportedError, "Channel count exceeds maximum limit"_s };
+        return Exception { NotSupportedError, "Channel count exceeds maximum limit"_s };
 
     if (m_channelCount == channelCount)
         return { };

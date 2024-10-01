@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include <JavaScriptCore/ArrayBuffer.h>
 #include <optional>
 #include <variant>
@@ -39,3 +41,5 @@ struct PushSubscriptionOptionsInit {
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

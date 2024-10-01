@@ -46,7 +46,7 @@ public:
 private:
     explicit AccessibilityListBoxOption(HTMLElement&);
 
-    AccessibilityRole determineAccessibilityRole() final { return AccessibilityRole::ListBoxOption; }
+    AccessibilityRole roleValue() const final { return AccessibilityRole::ListBoxOption; }
     bool isEnabled() const final;
     bool isSelectedOptionActive() const final;
     String stringValue() const final;

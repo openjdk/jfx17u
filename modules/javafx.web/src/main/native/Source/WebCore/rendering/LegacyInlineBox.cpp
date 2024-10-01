@@ -44,7 +44,7 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(LegacyInlineBox);
 struct SameSizeAsLegacyInlineBox {
     virtual ~SameSizeAsLegacyInlineBox() = default;
     void* a[3];
-    SingleThreadWeakPtr<RenderObject> r;
+    WeakPtr<RenderObject> r;
     FloatPoint b;
     float c[2];
     unsigned d : 23;
@@ -134,14 +134,14 @@ float LegacyInlineBox::logicalHeight() const
     if (hasVirtualLogicalHeight())
         return virtualLogicalHeight();
 
-    if (auto* inlineBox = dynamicDowncast<LegacyRootInlineBox>(*this); inlineBox && inlineBox->isForTrailingFloats())
+    if (is<LegacyRootInlineBox>(*this) && downcast<LegacyRootInlineBox>(*this).isForTrailingFloats())
         return 0;
 
     const RenderStyle& lineStyle = this->lineStyle();
-    if (renderer().isRenderTextOrLineBreak())
+    if (renderer().isTextOrLineBreak())
         return lineStyle.metricsOfPrimaryFont().height();
-    if (auto* box = dynamicDowncast<RenderBox>(renderer()); box && parent())
-        return isHorizontal() ? box->height() : box->width();
+    if (is<RenderBox>(renderer()) && parent())
+        return isHorizontal() ? downcast<RenderBox>(renderer()).height() : downcast<RenderBox>(renderer()).width();
 
     ASSERT(isInlineFlowBox());
     RenderBoxModelObject* flowObject = boxModelObject();

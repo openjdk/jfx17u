@@ -59,7 +59,7 @@ static Expected<Vector<String>, std::error_code> getStringList(const JSON::Array
         String string = value->asString();
         if (string.isEmpty())
             return makeUnexpected(ContentExtensionError::JSONInvalidConditionList);
-        strings.append(string);
+        strings.uncheckedAppend(string);
     }
     return strings;
 }
@@ -99,7 +99,7 @@ static Expected<Vector<String>, std::error_code> getDomainList(const JSON::Array
 
         const char* protocolRegex = "[a-z][a-z+.-]*:\\/\\/";
         const char* allowSubdomainsRegex = "([^/]*\\.)*";
-        regexes.append(makeString(protocolRegex, allowSubdomains ? allowSubdomainsRegex : "", domain, "[:/]"));
+        regexes.uncheckedAppend(makeString(protocolRegex, allowSubdomains ? allowSubdomainsRegex : "", domain, "[:/]"));
     }
     return regexes;
 }
@@ -213,7 +213,7 @@ bool isValidCSSSelector(const String& selector)
     WebCore::CSSParserContext context(HTMLQuirksMode);
     context.hasPseudoClassEnabled = true;
     CSSParser parser(context);
-    return !!parser.parseSelectorList(selector);
+    return !!parser.parseSelector(selector);
 }
 
 WebCore::CSSParserContext contentExtensionCSSParserContext()
@@ -310,7 +310,7 @@ static Expected<Vector<ContentExtensionRule>, std::error_code> loadEncodedRules(
             continue;
         if (!rule->has_value())
             return makeUnexpected(rule->error());
-        ruleList.append(WTFMove(rule->value()));
+        ruleList.uncheckedAppend(WTFMove(rule->value()));
     }
 
     return ruleList;

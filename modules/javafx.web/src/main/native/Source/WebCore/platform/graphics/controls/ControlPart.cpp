@@ -56,7 +56,7 @@ FloatSize ControlPart::sizeForBounds(const FloatRect& bounds, const ControlStyle
         return bounds.size();
 
     platformControl->updateCellStates(bounds, style);
-    return platformControl->sizeForBounds(bounds, style);
+    return platformControl->sizeForBounds(bounds);
 }
 
 FloatRect ControlPart::rectForBounds(const FloatRect& bounds, const ControlStyle& style)

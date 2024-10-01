@@ -70,8 +70,6 @@ public:
     // We need to declare this in this non-template base. Otherwise, every use of
     // AlreadyTaggedValueTag will require a specialized template qualification.
     enum AlreadyTaggedValueTag { AlreadyTaggedValue };
-
-    friend bool operator==(FunctionPtrBase, FunctionPtrBase) = default;
 };
 
 template<PtrTag tag, typename Out, typename... In, FunctionAttributes attr>
@@ -129,7 +127,7 @@ public:
     explicit operator bool() const { return !!m_ptr; }
     bool operator!() const { return !m_ptr; }
 
-    friend bool operator==(FunctionPtr, FunctionPtr) = default;
+    bool operator==(const FunctionPtr& other) const { return m_ptr == other.m_ptr; }
 
     FunctionPtr& operator=(Ptr ptr)
     {

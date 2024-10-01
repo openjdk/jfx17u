@@ -54,7 +54,7 @@ public:
         InlineLayoutUnit descent { 0 };
 
         InlineLayoutUnit height() const { return ascent + descent; }
-        friend bool operator==(const AscentAndDescent&, const AscentAndDescent&) = default;
+        bool operator==(const AscentAndDescent& other) const { return ascent == other.ascent && descent == other.descent; }
         // FIXME: Remove this.
         // We need floor/ceil to match legacy layout integral positioning.
         void round();
@@ -87,9 +87,9 @@ public:
     TextBoxTrim textBoxTrim() const { return m_style.textBoxTrim; }
     InlineLayoutUnit inlineBoxContentOffsetForTextBoxTrim() const { return m_inlineBoxContentOffsetForTextBoxTrim; }
 
-    bool hasTextEmphasis() const { return (hasContent() || isAtomicInlineLevelBox()) && m_textEmphasis.has_value(); };
-    std::optional<InlineLayoutUnit> textEmphasisAbove() const { return hasTextEmphasis() ? std::optional { m_textEmphasis->above } : std::nullopt; }
-    std::optional<InlineLayoutUnit> textEmphasisBelow() const { return hasTextEmphasis() ? std::optional { m_textEmphasis->below } : std::nullopt; }
+    bool hasAnnotation() const { return (hasContent() || isAtomicInlineLevelBox()) && m_annotation.has_value(); };
+    std::optional<InlineLayoutUnit> annotationAbove() const { return hasAnnotation() ? std::optional { m_annotation->above } : std::nullopt; }
+    std::optional<InlineLayoutUnit> annotationBelow() const { return hasAnnotation() ? std::optional { m_annotation->below } : std::nullopt; }
 
     bool isInlineBox() const { return m_type == Type::InlineBox || isRootInlineBox() || isLineSpanningInlineBox(); }
     bool isRootInlineBox() const { return m_type == Type::RootInlineBox; }
@@ -124,8 +124,7 @@ private:
     friend class LineBox;
     friend class LineBoxBuilder;
     friend class LineBoxVerticalAligner;
-    friend class InlineFormattingUtils;
-    friend class RubyFormattingContext;
+    friend class InlineFormattingGeometry;
 
     const InlineRect& logicalRect() const { return m_logicalRect; }
     InlineLayoutUnit logicalTop() const { return m_logicalRect.top(); }
@@ -147,8 +146,6 @@ private:
     void setIsFirstBox() { m_isFirstWithinLayoutBox = true; }
     void setIsLastBox() { m_isLastWithinLayoutBox = true; }
 
-    void setTextEmphasis(std::pair<InlineLayoutUnit, InlineLayoutUnit>);
-
 private:
     CheckedRef<const Box> m_layoutBox;
     // This is the combination of margin and border boxes. Inline level boxes are vertically aligned using their margin boxes.
@@ -168,17 +165,17 @@ private:
         const Length& lineHeight;
         TextBoxEdge textBoxEdge;
         TextBoxTrim textBoxTrim;
-        OptionSet<LineBoxContain> lineBoxContain;
+        WTF::OptionSet<LineBoxContain> lineBoxContain;
         InlineLayoutUnit primaryFontSize { 0 };
         VerticalAlignment verticalAlignment { };
     };
     Style m_style;
 
-    struct TextEmphasis {
+    struct Annotation {
         InlineLayoutUnit above;
         InlineLayoutUnit below;
     };
-    std::optional<TextEmphasis> m_textEmphasis;
+    std::optional<Annotation> m_annotation;
 };
 
 inline void InlineLevelBox::setHasContent()
@@ -189,12 +186,13 @@ inline void InlineLevelBox::setHasContent()
 
 inline InlineLayoutUnit InlineLevelBox::preferredLineHeight() const
 {
+    // FIXME: Remove integral flooring when legacy line layout stops using it.
     if (isPreferredLineHeightFontMetricsBased())
-        return primarymetricsOfPrimaryFont().floatLineSpacing();
+        return primarymetricsOfPrimaryFont().lineSpacing();
 
     if (m_style.lineHeight.isPercentOrCalculated())
-        return minimumValueForLength(m_style.lineHeight, fontSize());
-    return m_style.lineHeight.value();
+        return floorf(minimumValueForLength(m_style.lineHeight, fontSize()));
+    return floorf(m_style.lineHeight.value());
 }
 
 inline bool InlineLevelBox::hasLineBoxRelativeAlignment() const

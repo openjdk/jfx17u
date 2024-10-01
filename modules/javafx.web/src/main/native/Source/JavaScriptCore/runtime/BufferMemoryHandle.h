@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2016-2022 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,7 +36,6 @@
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
 #include <wtf/StdSet.h>
-#include <wtf/TZoneMalloc.h>
 #include <wtf/Vector.h>
 #include <wtf/WeakPtr.h>
 
@@ -80,7 +79,7 @@ struct BufferMemoryResult {
 };
 
 class BufferMemoryManager {
-    WTF_MAKE_TZONE_ALLOCATED(BufferMemoryManager);
+    WTF_MAKE_FAST_ALLOCATED;
     WTF_MAKE_NONCOPYABLE(BufferMemoryManager);
 public:
     friend class LazyNeverDestroyed<BufferMemoryManager>;
@@ -126,7 +125,7 @@ private:
 
 class BufferMemoryHandle final : public ThreadSafeRefCounted<BufferMemoryHandle> {
     WTF_MAKE_NONCOPYABLE(BufferMemoryHandle);
-    WTF_MAKE_TZONE_ALLOCATED_EXPORT(BufferMemoryHandle, JS_EXPORT_PRIVATE);
+    WTF_MAKE_FAST_ALLOCATED;
     friend LLIntOffsetsExtractor;
 public:
     BufferMemoryHandle(void*, size_t size, size_t mappedCapacity, PageCount initial, PageCount maximum, MemorySharingMode, MemoryMode);
@@ -159,7 +158,7 @@ public:
     static void* nullBasePointer();
 
 private:
-    using CagedMemory = CagedPtr<Gigacage::Primitive, void>;
+    using CagedMemory = CagedPtr<Gigacage::Primitive, void, tagCagedPtr>;
 
     Lock m_lock;
     MemorySharingMode m_sharingMode { MemorySharingMode::Default };

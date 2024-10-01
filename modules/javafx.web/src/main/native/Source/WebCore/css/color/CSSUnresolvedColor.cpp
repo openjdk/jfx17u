@@ -38,9 +38,6 @@ bool CSSUnresolvedColor::containsCurrentColor() const
     return WTF::switchOn(m_value,
         [&] (const CSSUnresolvedColorMix& unresolved) {
             return StyleColor::containsCurrentColor(unresolved.mixComponents1.color) || StyleColor::containsCurrentColor(unresolved.mixComponents2.color);
-        },
-        [&] (const CSSUnresolvedLightDark& unresolved) {
-            return StyleColor::containsCurrentColor(unresolved.lightColor) || StyleColor::containsCurrentColor(unresolved.darkColor);
         }
     );
 }
@@ -63,7 +60,7 @@ bool CSSUnresolvedColor::equals(const CSSUnresolvedColor& other) const
 StyleColor CSSUnresolvedColor::createStyleColor(const Document& document, RenderStyle& style, Style::ForVisitedLink forVisitedLink) const
 {
     return WTF::switchOn(m_value,
-        [&] (const auto& unresolved) {
+        [&] (const CSSUnresolvedColorMix& unresolved) {
             return WebCore::createStyleColor(unresolved, document, style, forVisitedLink);
         }
     );

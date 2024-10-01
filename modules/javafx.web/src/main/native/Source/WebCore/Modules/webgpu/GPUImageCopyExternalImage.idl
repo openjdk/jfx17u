@@ -33,14 +33,10 @@ typedef (sequence<GPUIntegerCoordinate> or GPUOrigin2DDict) GPUOrigin2D;
     EnabledBySetting=WebGPUEnabled
 ]
 dictionary GPUImageCopyExternalImage {
-    required (ImageBitmap or
-#if defined(ENABLE_VIDEO) && ENABLE_VIDEO && defined(ENABLE_WEB_CODECS) && ENABLE_WEB_CODECS
-        ImageData or HTMLImageElement or HTMLVideoElement or WebCodecsVideoFrame or
-#endif
+    required (ImageBitmap or HTMLCanvasElement
 #if defined(ENABLE_OFFSCREEN_CANVAS) && ENABLE_OFFSCREEN_CANVAS
-        OffscreenCanvas or
+        or OffscreenCanvas
 #endif
-        HTMLCanvasElement
     ) source;
     GPUOrigin2D origin;
     boolean flipY = false;

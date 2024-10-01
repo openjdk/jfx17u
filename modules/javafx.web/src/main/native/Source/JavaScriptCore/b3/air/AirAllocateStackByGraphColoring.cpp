@@ -316,7 +316,12 @@ private:
         {
         }
 
-        friend bool operator==(const CoalescableMove&, const CoalescableMove&) = default;
+        bool operator==(const CoalescableMove& other) const
+        {
+            return src == other.src
+                && dst == other.dst
+                && frequency == other.frequency;
+        }
 
         explicit operator bool() const
         {

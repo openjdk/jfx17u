@@ -374,7 +374,6 @@ class VisionInlineMediaControls extends VisionMediaControls
         this.skipForwardButton.style = Button.Styles.Bar;
         this.playPauseButton.style = Button.Styles.Bar;
         this.muteButton.style = Button.Styles.Bar;
-        this.muteButton.circular = true;
         this.overflowButton.style = Button.Styles.Bar;
 
         this.timeControl.timeLabelsAttachment = TimeControl.TimeLabelsAttachment.Side;
@@ -467,6 +466,7 @@ class VisionFullscreenMediaControls extends VisionMediaControls
         this.bottomControlsBar.width = Math.min(this._shouldUseAudioLayout ? this.width : (this.width - 2 * inlineInsideMargin), MaxWidthForBottomControlsBarInFullscreen);
 
         this.playPauseButton.style = Button.Styles.Bar;
+        this.muteButton.style = this._widthForSizeClassDetermination >= MaxWidthForBottomControlsBarInFullscreen ? Button.Styles.Bar : Button.Styles.Rounded;
         
         this._bottomBarLeftContainer.children = this._bottomBarLeftContainerButtons();
         this._bottomBarLeftContainer.layout();

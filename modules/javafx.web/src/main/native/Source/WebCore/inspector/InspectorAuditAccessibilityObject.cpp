@@ -27,9 +27,9 @@
 #include "config.h"
 #include "InspectorAuditAccessibilityObject.h"
 
-#include "AXCoreObject.h"
 #include "AXObjectCache.h"
 #include "AccessibilityNodeObject.h"
+#include "AccessibilityObjectInterface.h"
 #include "ContainerNode.h"
 #include "Document.h"
 #include "HTMLNames.h"
@@ -44,7 +44,7 @@ using namespace Inspector;
 
 #define ERROR_IF_NO_ACTIVE_AUDIT() \
     if (!m_auditAgent.hasActiveAudit()) \
-        return Exception { ExceptionCode::NotAllowedError, "Cannot be called outside of a Web Inspector Audit"_s };
+        return Exception { NotAllowedError, "Cannot be called outside of a Web Inspector Audit"_s };
 
 InspectorAuditAccessibilityObject::InspectorAuditAccessibilityObject(InspectorAuditAgent& auditAgent)
     : m_auditAgent(auditAgent)
@@ -246,11 +246,16 @@ ExceptionOr<std::optional<Vector<RefPtr<Node>>>> InspectorAuditAccessibilityObje
     std::optional<Vector<RefPtr<Node>>> result;
 
     if (auto* axObject = accessibilityObjectForNode(node)) {
+        Vector<RefPtr<Node>> controlledNodes;
+
         auto controlledElements = axObject->elementsFromAttribute(HTMLNames::aria_controlsAttr);
-        result = WTF::map(WTFMove(controlledElements), [](auto&& element) -> RefPtr<Node> {
-            return WTFMove(element);
-        });
+        for (Element* controlledElement : controlledElements) {
+            if (controlledElement)
+                controlledNodes.append(controlledElement);
         }
+
+        result = WTFMove(controlledNodes);
+    }
 
     return result;
 }
@@ -262,11 +267,16 @@ ExceptionOr<std::optional<Vector<RefPtr<Node>>>> InspectorAuditAccessibilityObje
     std::optional<Vector<RefPtr<Node>>> result;
 
     if (auto* axObject = accessibilityObjectForNode(node)) {
+        Vector<RefPtr<Node>> flowedNodes;
+
         auto flowedElements = axObject->elementsFromAttribute(HTMLNames::aria_flowtoAttr);
-        result = WTF::map(WTFMove(flowedElements), [](auto&& element) -> RefPtr<Node> {
-            return WTFMove(element);
-        });
+        for (Element* flowedElement : flowedElements) {
+            if (flowedElement)
+                flowedNodes.append(flowedElement);
         }
+
+        result = WTFMove(flowedNodes);
+    }
 
     return result;
 }
@@ -291,10 +301,15 @@ ExceptionOr<std::optional<Vector<RefPtr<Node>>>> InspectorAuditAccessibilityObje
 
     if (auto* axObject = accessibilityObjectForNode(node)) {
         if (axObject->supportsARIAOwns()) {
+            Vector<RefPtr<Node>> ownedNodes;
+
             auto ownedElements = axObject->elementsFromAttribute(HTMLNames::aria_ownsAttr);
-            result = WTF::map(WTFMove(ownedElements), [](auto&& element) -> RefPtr<Node> {
-                return WTFMove(element);
-            });
+            for (Element* ownedElement : ownedElements) {
+                if (ownedElement)
+                    ownedNodes.append(ownedElement);
+            }
+
+            result = WTFMove(ownedNodes);
         }
     }
 

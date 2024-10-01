@@ -270,10 +270,7 @@ void updateRTCRtpSendParameters(const RTCRtpSendParameters& parameters, webrtc::
         rtcParameters.header_extensions.push_back(fromRTCHeaderExtensionParameters(extension));
     // Codecs parameters are readonly
 
-    if (!parameters.degradationPreference)
-        rtcParameters.degradation_preference = { };
-    else {
-        switch (*parameters.degradationPreference) {
+    switch (parameters.degradationPreference) {
     case RTCDegradationPreference::MaintainFramerate:
         rtcParameters.degradation_preference = webrtc::DegradationPreference::MAINTAIN_FRAMERATE;
         break;
@@ -283,7 +280,6 @@ void updateRTCRtpSendParameters(const RTCRtpSendParameters& parameters, webrtc::
     case RTCDegradationPreference::Balanced:
         rtcParameters.degradation_preference = webrtc::DegradationPreference::BALANCED;
         break;
-    }
     }
 
     if (parameters.rtcp.reducedSize)
@@ -346,19 +342,19 @@ ExceptionCode toExceptionCode(webrtc::RTCErrorType type)
 {
     switch (type) {
     case webrtc::RTCErrorType::INVALID_PARAMETER:
-        return ExceptionCode::InvalidAccessError;
+        return InvalidAccessError;
     case webrtc::RTCErrorType::INVALID_RANGE:
-        return ExceptionCode::RangeError;
+        return RangeError;
     case webrtc::RTCErrorType::SYNTAX_ERROR:
-        return ExceptionCode::SyntaxError;
+        return SyntaxError;
     case webrtc::RTCErrorType::INVALID_STATE:
-        return ExceptionCode::InvalidStateError;
+        return InvalidStateError;
     case webrtc::RTCErrorType::INVALID_MODIFICATION:
-        return ExceptionCode::InvalidModificationError;
+        return InvalidModificationError;
     case webrtc::RTCErrorType::NETWORK_ERROR:
-        return ExceptionCode::NetworkError;
+        return NetworkError;
     default:
-        return ExceptionCode::OperationError;
+        return OperationError;
     }
 }
 

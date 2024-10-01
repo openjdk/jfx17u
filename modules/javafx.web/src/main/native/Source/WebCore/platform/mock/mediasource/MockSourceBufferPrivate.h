@@ -41,29 +41,38 @@ class VideoTrackPrivate;
 
 class MockSourceBufferPrivate final : public SourceBufferPrivate {
 public:
-    static Ref<MockSourceBufferPrivate> create(MockMediaSourcePrivate&);
+    static Ref<MockSourceBufferPrivate> create(MockMediaSourcePrivate*);
     virtual ~MockSourceBufferPrivate();
 
-    constexpr MediaPlatformType platformType() const final { return MediaPlatformType::Mock; }
+    void clearMediaSource() { m_mediaSource = nullptr; }
+
+    bool isActive() const final;
+
 private:
-    explicit MockSourceBufferPrivate(MockMediaSourcePrivate&);
-    RefPtr<MockMediaSourcePrivate> mediaSourcePrivate() const;
+    explicit MockSourceBufferPrivate(MockMediaSourcePrivate*);
 
     // SourceBufferPrivate overrides
-    Ref<MediaPromise> appendInternal(Ref<SharedBuffer>&&) final;
+    void appendInternal(Ref<SharedBuffer>&&) final;
     void resetParserStateInternal() final;
-    bool canSetMinimumUpcomingPresentationTime(TrackID) const final;
-    void setMinimumUpcomingPresentationTime(TrackID, const MediaTime&) final;
-    void clearMinimumUpcomingPresentationTime(TrackID) final;
+    void removedFromMediaSource() final;
+    MediaPlayer::ReadyState readyState() const final;
+    void setReadyState(MediaPlayer::ReadyState) final;
+    bool canSetMinimumUpcomingPresentationTime(const AtomString&) const final;
+    void setMinimumUpcomingPresentationTime(const AtomString&, const MediaTime&) final;
+    void clearMinimumUpcomingPresentationTime(const AtomString&) final;
     bool canSwitchToType(const ContentType&) final;
+    bool isSeeking() const final;
+    MediaTime currentMediaTime() const final;
+    MediaTime duration() const final;
 
-    void flush(TrackID) final { m_enqueuedSamples.clear(); m_minimumUpcomingPresentationTime = MediaTime::invalidTime(); }
-    void enqueueSample(Ref<MediaSample>&&, TrackID) final;
-    bool isReadyForMoreSamples(TrackID) final { return !m_maxQueueDepth || m_enqueuedSamples.size() < m_maxQueueDepth.value(); }
+    void flush(const AtomString&) final { m_enqueuedSamples.clear(); m_minimumUpcomingPresentationTime = MediaTime::invalidTime(); }
+    void enqueueSample(Ref<MediaSample>&&, const AtomString&) final;
+    bool isReadyForMoreSamples(const AtomString&) final { return !m_maxQueueDepth || m_enqueuedSamples.size() < m_maxQueueDepth.value(); }
+    void setActive(bool) final;
 
-    Ref<SamplesPromise> enqueuedSamplesForTrackID(TrackID) final;
-    MediaTime minimumUpcomingPresentationTimeForTrackID(TrackID) final;
-    void setMaximumQueueDepthForTrackID(TrackID, uint64_t) final;
+    void enqueuedSamplesForTrackID(const AtomString&, CompletionHandler<void(Vector<String>&&)>&&) final;
+    MediaTime minimumUpcomingPresentationTimeForTrackID(const AtomString&) final;
+    void setMaximumQueueDepthForTrackID(const AtomString&, uint64_t) final;
 
     void didReceiveInitializationSegment(const MockInitializationBox&);
     void didReceiveSample(const MockSampleBox&);
@@ -78,6 +87,7 @@ private:
     const void* sourceBufferLogIdentifier() final { return logIdentifier(); }
 #endif
 
+    MockMediaSourcePrivate* m_mediaSource;
     bool m_isActive { false };
     MediaTime m_minimumUpcomingPresentationTime;
     Vector<String> m_enqueuedSamples;
@@ -90,6 +100,6 @@ private:
 #endif
 };
 
-} // namespace WebCore
+}
 
 #endif // ENABLE(MEDIA_SOURCE) && USE(AVFOUNDATION)

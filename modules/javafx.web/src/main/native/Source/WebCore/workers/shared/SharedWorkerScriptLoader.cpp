@@ -60,15 +60,12 @@ void SharedWorkerScriptLoader::didReceiveResponse(ResourceLoaderIdentifier ident
 
 void SharedWorkerScriptLoader::notifyFinished()
 {
-    auto* scriptExecutionContext = m_worker->scriptExecutionContext();
-    if (scriptExecutionContext && !m_loader->failed())
+    if (auto* scriptExecutionContext = m_worker->scriptExecutionContext(); !m_loader->failed())
         InspectorInstrumentation::scriptImported(*scriptExecutionContext, m_loader->identifier(), m_loader->script().toString());
-
-    auto fetchResult = m_loader->fetchResult();
-    if (fetchResult.referrerPolicy.isNull() && scriptExecutionContext)
-        fetchResult.referrerPolicy = referrerPolicyToString(scriptExecutionContext->referrerPolicy());
-    m_completionHandler(WTFMove(fetchResult), WorkerInitializationData {
+    m_completionHandler(m_loader->fetchResult(), WorkerInitializationData {
+#if ENABLE(SERVICE_WORKER)
         m_loader->takeServiceWorkerData(),
+#endif
         m_loader->clientIdentifier(),
         m_loader->userAgentForSharedWorker()
     }); // deletes this.

@@ -62,8 +62,7 @@ JSErrorHandler::~JSErrorHandler() = default;
 
 void JSErrorHandler::handleEvent(ScriptExecutionContext& scriptExecutionContext, Event& event)
 {
-    auto* errorEvent = dynamicDowncast<ErrorEvent>(event);
-    if (!errorEvent)
+    if (!is<ErrorEvent>(event))
         return JSEventListener::handleEvent(scriptExecutionContext, event);
 
     VM& vm = scriptExecutionContext.vm();
@@ -91,16 +90,18 @@ void JSErrorHandler::handleEvent(ScriptExecutionContext& scriptExecutionContext,
             savedEvent = jsFunctionWindow->currentEvent();
 
             // window.event should not be set when the target is inside a shadow tree, as per the DOM specification.
-            if (!errorEvent->currentTargetIsInShadowTree())
-                jsFunctionWindow->setCurrentEvent(errorEvent);
+            if (!event.currentTargetIsInShadowTree())
+                jsFunctionWindow->setCurrentEvent(&event);
         }
 
+        auto& errorEvent = downcast<ErrorEvent>(event);
+
         MarkedArgumentBuffer args;
-        args.append(toJS<IDLDOMString>(*globalObject, errorEvent->message()));
-        args.append(toJS<IDLUSVString>(*globalObject, errorEvent->filename()));
-        args.append(toJS<IDLUnsignedLong>(errorEvent->lineno()));
-        args.append(toJS<IDLUnsignedLong>(errorEvent->colno()));
-        args.append(errorEvent->error(*globalObject));
+        args.append(toJS<IDLDOMString>(*globalObject, errorEvent.message()));
+        args.append(toJS<IDLUSVString>(*globalObject, errorEvent.filename()));
+        args.append(toJS<IDLUnsignedLong>(errorEvent.lineno()));
+        args.append(toJS<IDLUnsignedLong>(errorEvent.colno()));
+        args.append(errorEvent.error(*globalObject));
         ASSERT(!args.hasOverflowed());
 
         VM& vm = globalObject->vm();
@@ -117,7 +118,7 @@ void JSErrorHandler::handleEvent(ScriptExecutionContext& scriptExecutionContext,
             reportException(jsFunction->globalObject(), exception);
         else {
             if (returnValue.isTrue())
-                errorEvent->preventDefault();
+                event.preventDefault();
         }
 
         if (jsFunctionWindow)

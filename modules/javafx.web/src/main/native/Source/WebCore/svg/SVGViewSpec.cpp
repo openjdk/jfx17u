@@ -43,11 +43,14 @@ SVGViewSpec::SVGViewSpec(SVGElement& contextElement)
     });
 }
 
-RefPtr<SVGElement> SVGViewSpec::viewTarget() const
+SVGElement* SVGViewSpec::viewTarget() const
 {
     if (!m_contextElement)
         return nullptr;
-    return dynamicDowncast<SVGElement>(m_contextElement->treeScope().getElementById(m_viewTargetString));
+    auto* element = m_contextElement->treeScope().getElementById(m_viewTargetString);
+    if (!is<SVGElement>(element))
+        return nullptr;
+    return downcast<SVGElement>(element);
 }
 
 void SVGViewSpec::reset()

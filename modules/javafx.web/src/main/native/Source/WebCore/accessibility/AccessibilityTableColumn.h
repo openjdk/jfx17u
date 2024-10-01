@@ -41,7 +41,7 @@ public:
 
     AXCoreObject* columnHeader() override;
 
-    AccessibilityRole determineAccessibilityRole() final { return AccessibilityRole::Column; }
+    AccessibilityRole roleValue() const override { return AccessibilityRole::Column; }
 
     void setColumnIndex(unsigned columnIndex) { m_columnIndex = columnIndex; }
     unsigned columnIndex() const override { return m_columnIndex; }

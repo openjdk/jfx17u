@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 1999-2000 Harri Porten (porten@kde.org)
- *  Copyright (C) 2006-2023 Apple Inc. All Rights Reserved.
+ *  Copyright (C) 2006-2019 Apple Inc. All Rights Reserved.
  *  Copyright (C) 2007 Cameron Zwarich (cwzwarich@uwaterloo.ca)
  *  Copyright (C) 2010 Zoltan Herczeg (zherczeg@inf.u-szeged.hu)
  *  Copyright (C) 2012 Mathias Bynens (mathias@qiwi.be)
@@ -35,7 +35,6 @@
 #include <variant>
 #include <wtf/Assertions.h>
 #include <wtf/HexNumber.h>
-#include <wtf/TZoneMallocInlines.h>
 #include <wtf/dtoa.h>
 
 namespace JSC {
@@ -612,29 +611,29 @@ ALWAYS_INLINE T Lexer<T>::peek(int offset) const
 }
 
 struct ParsedUnicodeEscapeValue {
-    ParsedUnicodeEscapeValue(char32_t value)
+    ParsedUnicodeEscapeValue(UChar32 value)
         : m_value(value)
     {
         ASSERT(isValid());
     }
 
-    enum SpecialValueType : char32_t { Incomplete = 0xFFFFFFFEu, Invalid = 0xFFFFFFFFu };
+    enum SpecialValueType { Incomplete = -2, Invalid = -1 };
     ParsedUnicodeEscapeValue(SpecialValueType type)
         : m_value(type)
     {
     }
 
-    bool isValid() const { return m_value != Incomplete && m_value != Invalid; }
+    bool isValid() const { return m_value >= 0; }
     bool isIncomplete() const { return m_value == Incomplete; }
 
-    char32_t value() const
+    UChar32 value() const
     {
         ASSERT(isValid());
         return m_value;
     }
 
 private:
-    char32_t m_value;
+    UChar32 m_value;
 };
 
 template<typename CharacterType>
@@ -642,7 +641,7 @@ ParsedUnicodeEscapeValue Lexer<CharacterType>::parseUnicodeEscape()
 {
     if (m_current == '{') {
         shift();
-        char32_t codePoint = 0;
+        UChar32 codePoint = 0;
         do {
             if (!isASCIIHexDigit(m_current))
                 return m_current ? ParsedUnicodeEscapeValue::Invalid : ParsedUnicodeEscapeValue::Incomplete;
@@ -729,7 +728,7 @@ ALWAYS_INLINE void Lexer<T>::skipWhitespace()
         shift();
 }
 
-static bool isNonLatin1IdentStart(char32_t c)
+static bool isNonLatin1IdentStart(UChar32 c)
 {
     return u_hasBinaryProperty(c, UCHAR_ID_START);
 }
@@ -737,7 +736,7 @@ static bool isNonLatin1IdentStart(char32_t c)
 template<typename CharacterType>
 static ALWAYS_INLINE bool isIdentStart(CharacterType c)
 {
-    static_assert(std::is_same_v<CharacterType, LChar> || std::is_same_v<CharacterType, char32_t>, "Call isSingleCharacterIdentStart for UChars that don't need to check for surrogate pairs");
+    static_assert(std::is_same_v<CharacterType, LChar> || std::is_same_v<CharacterType, UChar32>, "Call isSingleCharacterIdentStart for UChars that don't need to check for surrogate pairs");
     if (!isLatin1(c))
         return isNonLatin1IdentStart(c);
     return typesOfLatin1Characters[static_cast<LChar>(c)] == CharacterIdentifierStart;
@@ -747,7 +746,7 @@ static ALWAYS_INLINE UNUSED_FUNCTION bool isSingleCharacterIdentStart(UChar c)
 {
     if (LIKELY(isLatin1(c)))
         return isIdentStart(static_cast<LChar>(c));
-    return !U16_IS_SURROGATE(c) && isIdentStart(static_cast<char32_t>(c));
+    return !U16_IS_SURROGATE(c) && isIdentStart(static_cast<UChar32>(c));
 }
 
 static ALWAYS_INLINE bool cannotBeIdentStart(LChar c)
@@ -762,7 +761,7 @@ static ALWAYS_INLINE bool cannotBeIdentStart(UChar c)
     return Lexer<UChar>::isWhiteSpace(c) || Lexer<UChar>::isLineTerminator(c);
 }
 
-static NEVER_INLINE bool isNonLatin1IdentPart(char32_t c)
+static NEVER_INLINE bool isNonLatin1IdentPart(UChar32 c)
 {
     return u_hasBinaryProperty(c, UCHAR_ID_CONTINUE) || c == 0x200C || c == 0x200D;
 }
@@ -770,7 +769,7 @@ static NEVER_INLINE bool isNonLatin1IdentPart(char32_t c)
 template<typename CharacterType>
 static ALWAYS_INLINE bool isIdentPart(CharacterType c)
 {
-    static_assert(std::is_same_v<CharacterType, LChar> || std::is_same_v<CharacterType, char32_t>, "Call isSingleCharacterIdentPart for UChars that don't need to check for surrogate pairs");
+    static_assert(std::is_same_v<CharacterType, LChar> || std::is_same_v<CharacterType, UChar32>, "Call isSingleCharacterIdentPart for UChars that don't need to check for surrogate pairs");
     if (!isLatin1(c))
         return isNonLatin1IdentPart(c);
 
@@ -784,7 +783,7 @@ static ALWAYS_INLINE bool isSingleCharacterIdentPart(UChar c)
 {
     if (LIKELY(isLatin1(c)))
         return isIdentPart(static_cast<LChar>(c));
-    return !U16_IS_SURROGATE(c) && isIdentPart(static_cast<char32_t>(c));
+    return !U16_IS_SURROGATE(c) && isIdentPart(static_cast<UChar32>(c));
 }
 
 static ALWAYS_INLINE bool cannotBeIdentPartOrEscapeStart(LChar c)
@@ -803,23 +802,24 @@ static ALWAYS_INLINE bool cannotBeIdentPartOrEscapeStart(UChar c)
 
 
 template<>
-ALWAYS_INLINE char32_t Lexer<LChar>::currentCodePoint() const
+ALWAYS_INLINE UChar32 Lexer<LChar>::currentCodePoint() const
 {
     return m_current;
 }
 
 template<>
-ALWAYS_INLINE char32_t Lexer<UChar>::currentCodePoint() const
+ALWAYS_INLINE UChar32 Lexer<UChar>::currentCodePoint() const
 {
-    ASSERT_WITH_MESSAGE(!isIdentStart(errorCodePoint), "error values shouldn't appear as a valid identifier start code point");
+    ASSERT_WITH_MESSAGE(!isIdentStart(static_cast<UChar32>(U_SENTINEL)), "error values shouldn't appear as a valid identifier start code point");
     if (!U16_IS_SURROGATE(m_current))
         return m_current;
 
     UChar trail = peek(1);
     if (UNLIKELY(!U16_IS_LEAD(m_current) || !U16_IS_SURROGATE_TRAIL(trail)))
-        return errorCodePoint;
+        return U_SENTINEL;
 
-    return U16_GET_SUPPLEMENTARY(m_current, trail);
+    UChar32 codePoint = U16_GET_SUPPLEMENTARY(m_current, trail);
+    return codePoint;
 }
 
 template<typename CharacterType>
@@ -901,11 +901,12 @@ inline void Lexer<T>::record16(int c)
     m_buffer16.append(static_cast<UChar>(c));
 }
 
-template<typename CharacterType> inline void Lexer<CharacterType>::recordUnicodeCodePoint(char32_t codePoint)
+template<typename CharacterType> inline void Lexer<CharacterType>::recordUnicodeCodePoint(UChar32 codePoint)
 {
+    ASSERT(codePoint >= 0);
     ASSERT(codePoint <= UCHAR_MAX_VALUE);
     if (U_IS_BMP(codePoint))
-        record16(static_cast<UChar>(codePoint));
+        record16(codePoint);
     else {
         UChar codeUnits[2] = { U16_LEAD(codePoint), U16_TRAIL(codePoint) };
         append16(codeUnits, 2);
@@ -1118,8 +1119,8 @@ JSTokenType Lexer<CharacterType>::parseIdentifierSlowCase(JSTokenData* tokenData
         if (UNLIKELY(!U16_IS_SURROGATE_LEAD(m_current)))
             return INVALID_UNICODE_ENCODING_ERRORTOK;
 
-        char32_t codePoint = currentCodePoint();
-        if (UNLIKELY(codePoint == errorCodePoint))
+        UChar32 codePoint = currentCodePoint();
+        if (UNLIKELY(codePoint == U_SENTINEL))
             return INVALID_UNICODE_ENCODING_ERRORTOK;
         if (UNLIKELY(isStart ? !isNonLatin1IdentStart(codePoint) : !isNonLatin1IdentPart(codePoint)))
             return INVALID_IDENTIFIER_UNICODE_ERRORTOK;
@@ -1927,7 +1928,7 @@ start:
     if (LIKELY(isLatin1(m_current)))
         type = static_cast<CharacterType>(typesOfLatin1Characters[m_current]);
     else {
-        char32_t codePoint;
+        UChar32 codePoint;
         U16_GET(m_code, 0, 0, m_codeEnd - m_code, codePoint);
         if (isNonLatin1IdentStart(codePoint))
             type = CharacterIdentifierStart;
@@ -2492,7 +2493,7 @@ start:
     }
     case CharacterIdentifierStart: {
         if constexpr (ASSERT_ENABLED) {
-            char32_t codePoint;
+            UChar32 codePoint;
             U16_GET(m_code, 0, 0, m_codeEnd - m_code, codePoint);
             ASSERT(isIdentStart(codePoint));
         }
@@ -2740,11 +2741,5 @@ void Lexer<T>::clear()
 // Instantiate the two flavors of Lexer we need instead of putting most of this file in Lexer.h
 template class Lexer<LChar>;
 template class Lexer<UChar>;
-
-using LexerLChar = Lexer<LChar>;
-using LexerUChar = Lexer<UChar>;
-
-WTF_MAKE_TZONE_ALLOCATED_IMPL_TEMPLATE(LexerLChar);
-WTF_MAKE_TZONE_ALLOCATED_IMPL_TEMPLATE(LexerUChar);
 
 } // namespace JSC

@@ -33,6 +33,7 @@
 #include <wtf/text/StringHash.h>
 
 #if ENABLE(WEB_CRYPTO)
+
 namespace WebCore {
 
 class CryptoAlgorithm;
@@ -68,4 +69,5 @@ private:
 };
 
 } // namespace WebCore
+
 #endif // ENABLE(WEB_CRYPTO)

@@ -33,17 +33,17 @@ namespace WebCore {
 
 class TextDecorationThickness {
 public:
-    static TextDecorationThickness createWithAuto()
+    static constexpr TextDecorationThickness createWithAuto()
     {
         return TextDecorationThickness(Type::Auto);
     }
-    static TextDecorationThickness createFromFont()
+    static constexpr TextDecorationThickness createFromFont()
     {
         return TextDecorationThickness(Type::FromFont);
     }
-    static TextDecorationThickness createWithLength(Length&& length)
+    static constexpr TextDecorationThickness createWithLength(float length)
     {
-        return { Type::Length, WTFMove(length) };
+        return { Type::Length, length };
     }
 
     constexpr bool isAuto() const
@@ -61,7 +61,13 @@ public:
         return m_type == Type::Length;
     }
 
-    const Length& length() const
+    void setLengthValue(float length)
+    {
+        ASSERT(isLength());
+        m_length = length;
+    }
+
+    constexpr float lengthValue() const
     {
         ASSERT(isLength());
         return m_length;
@@ -75,13 +81,8 @@ public:
         }
         if (isFromFont())
             return metrics.underlineThickness();
-
         ASSERT(isLength());
-        if (m_length.isPercent())
-            return fontSize * (m_length.percent() / 100.0f);
-        if (m_length.isCalculated())
-            return m_length.nonNanCalculatedValue(fontSize);
-        return m_length.value();
+        return m_length;
     }
 
     constexpr bool operator==(const TextDecorationThickness& other) const
@@ -105,19 +106,14 @@ private:
         Length
     };
 
-    TextDecorationThickness(Type type)
-        : m_type(type)
-    {
-    }
-
-    TextDecorationThickness(Type type, Length&& length)
-        : m_type(type)
-        , m_length(WTFMove(length))
+    constexpr TextDecorationThickness(Type type, float length = 0)
+        : m_type { type }
+        , m_length { length }
     {
     }
 
     Type m_type;
-    Length m_length;
+    float m_length { 0 };
 };
 
 inline TextStream& operator<<(TextStream& ts, const TextDecorationThickness& thickness)
@@ -127,7 +123,7 @@ inline TextStream& operator<<(TextStream& ts, const TextDecorationThickness& thi
     else if (thickness.isFromFont())
         ts << "from-font";
     else
-        ts << thickness.length();
+        ts << TextStream::FormatNumberRespectingIntegers(thickness.lengthValue());
     return ts;
 }
 

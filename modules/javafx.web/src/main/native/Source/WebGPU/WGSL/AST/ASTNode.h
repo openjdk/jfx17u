@@ -39,20 +39,16 @@ enum class NodeKind : uint8_t {
     BindingAttribute,
     BuiltinAttribute,
     ConstAttribute,
-    DiagnosticAttribute,
     GroupAttribute,
     IdAttribute,
     InterpolateAttribute,
     InvariantAttribute,
     LocationAttribute,
-    MustUseAttribute,
     SizeAttribute,
     StageAttribute,
     WorkgroupSizeAttribute,
 
-    ConstAssert,
     Directive,
-    DiagnosticDirective,
 
     // Expression
     BinaryExpression,
@@ -75,7 +71,6 @@ enum class NodeKind : uint8_t {
     AbstractIntegerLiteral,
     BoolLiteral,
     Float32Literal,
-    Float16Literal,
     Signed32Literal,
     Unsigned32Literal,
 
@@ -87,7 +82,6 @@ enum class NodeKind : uint8_t {
     CallStatement,
     CompoundAssignmentStatement,
     CompoundStatement,
-    ConstAssertStatement,
     ContinueStatement,
     DecrementIncrementStatement,
     DiscardStatement,
@@ -106,9 +100,11 @@ enum class NodeKind : uint8_t {
 
     TypeAlias,
 
-    ArrayTypeExpression,
-    ElaboratedTypeExpression,
-    ReferenceTypeExpression,
+    // TypeName
+    ArrayTypeName,
+    NamedTypeName,
+    ParameterizedTypeName,
+    ReferenceTypeName,
 
     Variable,
 

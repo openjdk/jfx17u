@@ -88,9 +88,8 @@ enum HashTokenType {
     HashTokenUnrestricted,
 };
 
-DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(CSSParserToken);
 class CSSParserToken {
-    WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(CSSParserToken);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     enum BlockType {
         NotBlock,
@@ -117,7 +116,12 @@ public:
     void convertToPercentage();
 
     CSSParserTokenType type() const { return static_cast<CSSParserTokenType>(m_type); }
-    StringView value() const { return { m_valueDataCharRaw, m_valueLength, m_valueIs8Bit }; }
+    StringView value() const
+    {
+        if (m_valueIs8Bit)
+            return StringView(static_cast<const LChar*>(m_valueDataCharRaw), m_valueLength);
+        return StringView(static_cast<const UChar*>(m_valueDataCharRaw), m_valueLength);
+    }
 
     UChar delimiter() const;
     NumericSign numericSign() const;
@@ -137,9 +141,6 @@ public:
 
     void serialize(StringBuilder&, const CSSParserToken* nextToken = nullptr) const;
 
-    template<typename CharacterType>
-    void updateCharacters(const CharacterType* characters, unsigned length);
-
     CSSParserToken copyWithUpdatedString(StringView) const;
 
 private:
@@ -147,7 +148,7 @@ private:
     {
         m_valueLength = string.length();
         m_valueIs8Bit = string.is8Bit();
-        m_valueDataCharRaw = string.rawCharacters();
+        m_valueDataCharRaw = m_valueIs8Bit ? static_cast<const void*>(string.characters8()) : static_cast<const void*>(string.characters16());
     }
     unsigned m_type : 6; // CSSParserTokenType
     unsigned m_blockType : 2; // BlockType
@@ -169,13 +170,5 @@ private:
         mutable int m_id;
     };
 };
-
-template<typename CharacterType>
-inline void CSSParserToken::updateCharacters(const CharacterType* characters, unsigned length)
-{
-    m_valueLength = length;
-    m_valueIs8Bit = (sizeof(CharacterType) == 1);
-    m_valueDataCharRaw = characters;
-}
 
 } // namespace WebCore

@@ -34,8 +34,6 @@ namespace CSSParserEnum {
 
 enum class IsNestedContext : bool { No, Yes };
 
-enum class IsForgiving : bool { No, Yes };
-
 } // namespace CSSParserEnum
 
 } // namespace WebCore

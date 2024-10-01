@@ -57,11 +57,7 @@ private:
 
 SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::ModelDocument)
     static bool isType(const WebCore::Document& document) { return document.isModelDocument(); }
-    static bool isType(const WebCore::Node& node)
-    {
-        auto* document = dynamicDowncast<WebCore::Document>(node);
-        return document && isType(*document);
-    }
+    static bool isType(const WebCore::Node& node) { return is<WebCore::Document>(node) && isType(downcast<WebCore::Document>(node)); }
 SPECIALIZE_TYPE_TRAITS_END()
 
 #endif // ENABLE(MODEL_ELEMENT)

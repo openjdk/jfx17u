@@ -73,8 +73,6 @@ public:
     void inflate(InlineLayoutUnit);
     void inflate(InlineLayoutUnit top, InlineLayoutUnit right, InlineLayoutUnit bottom, InlineLayoutUnit left);
 
-    bool intersects(const InlineRect other) { return m_rect.intersects(other); }
-
     bool isEmpty() const;
 
     operator InlineLayoutRect() const;

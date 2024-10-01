@@ -31,29 +31,26 @@
 #include "CachedResourceHandle.h"
 #include "FontLoadRequest.h"
 #include "FontSelectionAlgorithm.h"
-#include "ScriptExecutionContext.h"
 
 namespace WebCore {
 
 class FontCreationContext;
 
 class CachedFontLoadRequest final : public FontLoadRequest, public CachedFontClient {
-    WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Loader);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
-    CachedFontLoadRequest(CachedFont& font, ScriptExecutionContext& context)
+    CachedFontLoadRequest(CachedFont& font)
         : m_font(&font)
-        , m_context(context)
     {
     }
 
     ~CachedFontLoadRequest()
     {
         if (m_fontLoadRequestClient)
-            protectedCachedFont()->removeClient(*this);
+            m_font->removeClient(*this);
     }
 
     CachedFont& cachedFont() const { return *m_font; }
-    CachedResourceHandle<CachedFont> protectedCachedFont() const { return m_font; }
 
 private:
     const URL& url() const final { return m_font->url(); }
@@ -64,18 +61,18 @@ private:
     bool ensureCustomFontData() final { return m_font->ensureCustomFontData(); }
     RefPtr<Font> createFont(const FontDescription& description, bool syntheticBold, bool syntheticItalic, const FontCreationContext& fontCreationContext) final
     {
-        return protectedCachedFont()->createFont(description, syntheticBold, syntheticItalic, fontCreationContext);
+        return m_font->createFont(description, syntheticBold, syntheticItalic, fontCreationContext);
     }
 
     void setClient(FontLoadRequestClient* client) final
     {
-        WeakPtr oldClient = m_fontLoadRequestClient;
+        auto* oldClient = m_fontLoadRequestClient;
         m_fontLoadRequestClient = client;
 
         if (!client && oldClient)
-            protectedCachedFont()->removeClient(*this);
+            m_font->removeClient(*this);
         else if (client && !oldClient)
-            protectedCachedFont()->addClient(*this);
+            m_font->addClient(*this);
     }
 
     bool isCachedFontLoadRequest() const final { return true; }
@@ -83,19 +80,12 @@ private:
     void fontLoaded(CachedFont& font) final
     {
         ASSERT_UNUSED(font, &font == m_font.get());
-        if (protectedCachedFont()->didRefuseToLoadCustomFont()) {
-            if (RefPtr context = m_context.get()) {
-                auto message = makeString("[Lockdown Mode] This font has been blocked: ", m_font->url().string());
-                context->addConsoleMessage(MessageSource::Security, MessageLevel::Info, message);
-            }
-        }
         if (m_fontLoadRequestClient)
-            m_fontLoadRequestClient->fontLoaded(*this); // fontLoaded() might destroy this object. Don't deref its members after it.
+            m_fontLoadRequestClient->fontLoaded(*this);
     }
 
     CachedResourceHandle<CachedFont> m_font;
-    WeakPtr<FontLoadRequestClient> m_fontLoadRequestClient;
-    WeakPtr<ScriptExecutionContext> m_context;
+    FontLoadRequestClient* m_fontLoadRequestClient { nullptr };
 };
 
 } // namespace WebCore

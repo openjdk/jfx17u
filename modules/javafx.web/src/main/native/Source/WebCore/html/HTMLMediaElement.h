@@ -266,9 +266,6 @@ public:
     void setDefaultPlaybackRate(double) override;
     WEBCORE_EXPORT double playbackRate() const override;
     void setPlaybackRate(double) override;
-    WEBCORE_EXPORT bool preservesPitch() const;
-    WEBCORE_EXPORT void setPreservesPitch(bool);
-
 
 // MediaTime versions of playback state
     MediaTime currentMediaTime() const;
@@ -277,6 +274,8 @@ public:
     WEBCORE_EXPORT void fastSeek(const MediaTime&);
 
     void updatePlaybackRate();
+    WEBCORE_EXPORT bool webkitPreservesPitch() const;
+    WEBCORE_EXPORT void setWebkitPreservesPitch(bool);
     Ref<TimeRanges> played() override;
     Ref<TimeRanges> seekable() const override;
     double seekableTimeRangesLastModifiedTime() const;
@@ -304,6 +303,11 @@ public:
     void setBufferingPolicy(BufferingPolicy);
     WEBCORE_EXPORT BufferingPolicy bufferingPolicy() const;
     WEBCORE_EXPORT void purgeBufferedDataIfPossible();
+
+// captions
+    WEBCORE_EXPORT bool webkitHasClosedCaptions() const;
+    WEBCORE_EXPORT bool webkitClosedCaptionsVisible() const;
+    WEBCORE_EXPORT void setWebkitClosedCaptionsVisible(bool);
 
 #if ENABLE(MEDIA_STATISTICS)
 // Statistics
@@ -357,6 +361,8 @@ public:
     double nextScanRate();
 
     WEBCORE_EXPORT bool canPlay() const override;
+
+    double percentLoaded() const;
 
     bool shouldForceControlsDisplay() const;
 
@@ -524,10 +530,9 @@ public:
     void mediaLoadingFailed(MediaPlayer::NetworkState);
     void mediaLoadingFailedFatally(MediaPlayer::NetworkState);
 
-    RefPtr<VideoPlaybackQuality> getVideoPlaybackQuality() const;
+    RefPtr<VideoPlaybackQuality> getVideoPlaybackQuality();
 
     MediaPlayer::Preload preloadValue() const { return m_preload; }
-    MediaElementSession* mediaSessionIfExists() const { return m_mediaSession.get(); }
     WEBCORE_EXPORT MediaElementSession& mediaSession() const;
 
     void pageScaleFactorChanged();
@@ -589,7 +594,6 @@ public:
     WEBCORE_EXPORT void didBecomeFullscreenElement() final;
     WEBCORE_EXPORT void willExitFullscreen();
     WEBCORE_EXPORT void didStopBeingFullscreenElement() final;
-    void willBecomeFullscreenElement(VideoFullscreenMode = VideoFullscreenModeStandard);
 
     void scheduleEvent(Ref<Event>&&);
 
@@ -642,29 +646,15 @@ public:
     WEBCORE_EXPORT LayerHostingContextID layerHostingContextID();
     WEBCORE_EXPORT WebCore::FloatSize naturalSize();
 
-    WEBCORE_EXPORT WebCore::FloatSize videoLayerSize() const;
-    void setVideoLayerSizeFenced(const FloatSize&, WTF::MachSendRight&&);
+    FloatSize mediaPlayerVideoInlineSize() const override { return videoInlineSize(); }
+    WEBCORE_EXPORT WebCore::FloatSize videoInlineSize() const;
+    void setVideoInlineSizeFenced(const FloatSize&, WTF::MachSendRight&&);
     void updateMediaState();
 
-    enum class SourceType : uint8_t {
-        File,
-        HLS,
-        MediaSource,
-        ManagedMediaSource,
-        MediaStream,
-        LiveStream,
-        StoredStream,
-    };
-    std::optional<SourceType> sourceType() const;
-    String localizedSourceType() const;
-
-    LayoutRect contentBoxRect() const { return mediaPlayerContentBoxRect(); }
-
 protected:
+    constexpr static auto CreateHTMLMediaElement = CreateHTMLElement | NodeFlag::HasCustomStyleResolveCallbacks;
     HTMLMediaElement(const QualifiedName&, Document&, bool createdByParser);
     virtual ~HTMLMediaElement();
-
-    void removeAllEventListeners() final;
 
     void attributeChanged(const QualifiedName&, const AtomString& oldValue, const AtomString& newValue, AttributeModificationReason) override;
     void finishParsingChildren() override;
@@ -700,24 +690,6 @@ protected:
 
     void mediaPlayerEngineUpdated() override;
     void visibilityStateChanged() final;
-    void mediaPlayerNetworkStateChanged() final;
-    void mediaPlayerReadyStateChanged() final;
-    void mediaPlayerTimeChanged() final;
-    void mediaPlayerVolumeChanged() final;
-    void mediaPlayerMuteChanged() final;
-    void mediaPlayerDurationChanged() final;
-    void mediaPlayerRateChanged() final;
-    void mediaPlayerPlaybackStateChanged() final;
-    void mediaPlayerResourceNotSupported() final;
-    void mediaPlayerRepaint() final;
-    void mediaPlayerSizeChanged() final;
-    void mediaPlayerRenderingModeChanged() final;
-    bool mediaPlayerAcceleratedCompositingEnabled() final;
-    void mediaPlayerWillInitializeMediaEngine() final;
-    void mediaPlayerDidInitializeMediaEngine() final;
-    void mediaPlayerReloadAndResumePlaybackIfNeeded() final;
-    void mediaPlayerQueueTaskOnEventLoop(Function<void()>&&) final;
-    void mediaPlayerCharacteristicChanged() final;
 
 private:
     friend class Internals;
@@ -736,6 +708,8 @@ private:
     bool isInteractiveContent() const override;
 
     void setFullscreenMode(VideoFullscreenMode);
+
+    void willBecomeFullscreenElement() override;
     void willStopBeingFullscreenElement() override;
 
     // ActiveDOMObject API.
@@ -754,9 +728,28 @@ private:
     WEBCORE_EXPORT double effectivePlaybackRate() const;
     double requestedPlaybackRate() const;
 
+    void mediaPlayerNetworkStateChanged() final;
+    void mediaPlayerReadyStateChanged() final;
+    void mediaPlayerTimeChanged() final;
+    void mediaPlayerVolumeChanged() final;
+    void mediaPlayerMuteChanged() final;
+    void mediaPlayerDurationChanged() final;
+    void mediaPlayerRateChanged() final;
+    void mediaPlayerPlaybackStateChanged() final;
+    void mediaPlayerResourceNotSupported() final;
+    void mediaPlayerRepaint() final;
+    void mediaPlayerSizeChanged() final;
+    void mediaPlayerRenderingModeChanged() final;
+    bool mediaPlayerAcceleratedCompositingEnabled() final;
+    void mediaPlayerWillInitializeMediaEngine() final;
+    void mediaPlayerDidInitializeMediaEngine() final;
+    void mediaPlayerReloadAndResumePlaybackIfNeeded() final;
+    void mediaPlayerQueueTaskOnEventLoop(Function<void()>&&) final;
+
     void scheduleMediaEngineWasUpdated();
     void mediaEngineWasUpdated();
 
+    void mediaPlayerCharacteristicChanged() final;
 
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA)
     RefPtr<ArrayBuffer> mediaPlayerCachedKeyForKeyId(const String& keyId) const final;
@@ -833,9 +826,6 @@ private:
 
     bool mediaPlayerShouldDisableHDR() const final { return shouldDisableHDR(); }
 
-    FloatSize mediaPlayerVideoLayerSize() const final { return videoLayerSize(); }
-    void mediaPlayerVideoLayerSizeDidChange(const FloatSize& size) final { m_videoLayerSize = size; }
-
     void pendingActionTimerFired();
     void progressEventTimerFired();
     void playbackProgressTimerFired();
@@ -849,7 +839,7 @@ private:
 
     void seek(const MediaTime&);
     void seekInternal(const MediaTime&);
-    void seekWithTolerance(const SeekTarget&, bool fromDOM);
+    void seekWithTolerance(const MediaTime&, const MediaTime& negativeTolerance, const MediaTime& positiveTolerance, bool fromDOM);
     void finishSeek();
     void clearSeeking();
     void addPlayedRange(const MediaTime& start, const MediaTime& end);
@@ -956,7 +946,7 @@ private:
     bool isLiveStream() const override { return movieLoadType() == MovieLoadType::LiveStream; }
 
     void updateSleepDisabling();
-    enum class SleepType : uint8_t { None, Display, System };
+    enum class SleepType { None, Display, System };
     SleepType shouldDisableSleep() const;
 
     DOMWrapperWorld& ensureIsolatedWorld();
@@ -973,8 +963,6 @@ private:
     bool shouldOverrideBackgroundLoadingRestriction() const override;
     bool canProduceAudio() const final;
     bool isAudible() const final { return canProduceAudio(); };
-    bool isEnded() const final { return ended(); }
-    MediaTime mediaSessionDuration() const final;
     bool hasMediaStreamSource() const final;
     void processIsSuspendedChanged() final;
     bool shouldOverridePauseDuringRouteChange() const final;
@@ -1033,6 +1021,7 @@ private:
     void setInActiveDocument(bool);
 
     void checkForAudioAndVideo();
+    bool hasLiveSource() const;
 
     void playPlayer();
     void pausePlayer();
@@ -1081,7 +1070,7 @@ private:
     double m_requestedPlaybackRate { 1 };
     double m_reportedPlaybackRate { 1 };
     double m_defaultPlaybackRate { 1 };
-    bool m_preservesPitch { true };
+    bool m_webkitPreservesPitch { true };
     NetworkState m_networkState { NETWORK_EMPTY };
     ReadyState m_readyState { HAVE_NOTHING };
     ReadyState m_readyStateMaximum { HAVE_NOTHING };
@@ -1092,13 +1081,17 @@ private:
 
     struct PendingSeek {
         WTF_MAKE_STRUCT_FAST_ALLOCATED;
-        PendingSeek(const MediaTime& now, const SeekTarget& inTarget)
+        PendingSeek(const MediaTime& now, const MediaTime& targetTime, const MediaTime& negativeTolerance, const MediaTime& positiveTolerance)
             : now(now)
-            , target(inTarget)
+            , targetTime(targetTime)
+            , negativeTolerance(negativeTolerance)
+            , positiveTolerance(positiveTolerance)
         {
         }
         MediaTime now;
-        SeekTarget target;
+        MediaTime targetTime;
+        MediaTime negativeTolerance;
+        MediaTime positiveTolerance;
     };
     std::unique_ptr<PendingSeek> m_pendingSeek;
     SeekType m_pendingSeekType { NoSeek };
@@ -1194,6 +1187,7 @@ private:
     bool m_pausedInternal : 1;
 
     bool m_closedCaptionsVisible : 1;
+    bool m_webkitLegacyClosedCaptionOverride : 1;
     bool m_completelyLoaded : 1;
     bool m_havePreparedToPlay : 1;
     bool m_parsingInProgress : 1;
@@ -1220,8 +1214,7 @@ private:
     bool m_shouldVideoPlaybackRequireUserGesture : 1;
     bool m_volumeLocked : 1;
 
-    enum class ControlsState : uint8_t { None, Initializing, Ready, PartiallyDeinitialized };
-    friend String convertEnumerationToString(HTMLMediaElement::ControlsState enumerationValue);
+    enum class ControlsState : uint8_t { None, Initializing, Ready };
     ControlsState m_controlsState { ControlsState::None };
 
     AutoplayEventPlaybackState m_autoplayEventPlaybackState { AutoplayEventPlaybackState::None };
@@ -1329,7 +1322,7 @@ private:
     bool m_userPrefersExtendedDescriptions { false };
     bool m_changingSynthesisState { false };
 
-    FloatSize m_videoLayerSize { };
+    FloatSize m_videoInlineSize { };
 
 #if !RELEASE_LOG_DISABLED
     RefPtr<Logger> m_logger;
@@ -1360,11 +1353,7 @@ template<> struct LogArgument<WebCore::HTMLMediaElement::SpeechSynthesisState> {
 
 SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::HTMLMediaElement)
     static bool isType(const WebCore::Element& element) { return element.isMediaElement(); }
-    static bool isType(const WebCore::Node& node)
-    {
-        auto* element = dynamicDowncast<WebCore::Element>(node);
-        return element && isType(*element);
-    }
+    static bool isType(const WebCore::Node& node) { return is<WebCore::Element>(node) && isType(downcast<WebCore::Element>(node)); }
 SPECIALIZE_TYPE_TRAITS_END()
 
 #endif

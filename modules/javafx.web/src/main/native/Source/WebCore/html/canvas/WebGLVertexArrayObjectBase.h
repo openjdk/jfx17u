@@ -29,7 +29,7 @@
 
 #include "GraphicsContextGL.h"
 #include "WebGLBuffer.h"
-#include "WebGLObject.h"
+#include "WebGLContextObject.h"
 #include <optional>
 
 namespace JSC {
@@ -44,7 +44,7 @@ namespace WebCore {
 
 class WebCoreOpaqueRoot;
 
-class WebGLVertexArrayObjectBase : public WebGLObject {
+class WebGLVertexArrayObjectBase : public WebGLContextObject {
 public:
     enum class Type { Default, User };
 
@@ -54,7 +54,7 @@ public:
         bool validateBinding() const { return !enabled || isBound(); }
 
         bool enabled { false };
-        WebGLBindingPoint<WebGLBuffer, GraphicsContextGL::ARRAY_BUFFER> bufferBinding;
+        RefPtr<WebGLBuffer> bufferBinding;
         GCGLsizei bytesPerElement { 0 };
         GCGLint size { 4 };
         GCGLenum type { GraphicsContextGL::FLOAT };
@@ -68,7 +68,8 @@ public:
 
     bool isDefaultObject() const { return m_type == Type::Default; }
 
-    void didBind() { m_hasEverBeenBound = true; }
+    bool hasEverBeenBound() const { return object() && m_hasEverBeenBound; }
+    void setHasEverBeenBound() { m_hasEverBeenBound = true; }
 
     WebGLBuffer* getElementArrayBuffer() const { return m_boundElementArrayBuffer.get(); }
     void setElementArrayBuffer(const AbstractLocker&, WebGLBuffer*);
@@ -84,17 +85,13 @@ public:
     void addMembersToOpaqueRoots(const AbstractLocker&, JSC::AbstractSlotVisitor&);
 
     bool areAllEnabledAttribBuffersBound();
-
-    bool isUsable() const { return object() && !isDeleted(); }
-    bool isInitialized() const { return m_hasEverBeenBound; }
-
 protected:
-    WebGLVertexArrayObjectBase(WebGLRenderingContextBase&, PlatformGLObject, Type);
+    WebGLVertexArrayObjectBase(WebGLRenderingContextBase&, Type);
     void deleteObjectImpl(const AbstractLocker&, GraphicsContextGL*, PlatformGLObject) override = 0;
 
     Type m_type;
     bool m_hasEverBeenBound { false };
-    WebGLBindingPoint<WebGLBuffer, GraphicsContextGL::ELEMENT_ARRAY_BUFFER> m_boundElementArrayBuffer;
+    RefPtr<WebGLBuffer> m_boundElementArrayBuffer;
     Vector<VertexAttribState> m_vertexAttribState;
     std::optional<bool> m_allEnabledAttribBuffersBoundCache;
 };

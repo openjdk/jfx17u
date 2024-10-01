@@ -81,7 +81,10 @@ private:
     FixedVector<Identifier> m_functionHoistingCandidates;
 
 public:
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue proto)
+    {
+        return Structure::create(vm, globalObject, proto, TypeInfo(UnlinkedEvalCodeBlockType, StructureFlags), info());
+    }
 
     DECLARE_INFO;
 };

@@ -31,7 +31,7 @@
 namespace WebCore {
 
 class FEMorphology;
-enum class MorphologyOperatorType : uint8_t;
+enum class MorphologyOperatorType;
 
 class FEMorphologySoftwareApplier final : public FilterEffectConcreteApplier<FEMorphology> {
     WTF_MAKE_FAST_ALLOCATED;

@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "Event.h"
 #include "ExtendableEventInit.h"
 #include <wtf/WeakPtr.h>
@@ -63,3 +65,5 @@ private:
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

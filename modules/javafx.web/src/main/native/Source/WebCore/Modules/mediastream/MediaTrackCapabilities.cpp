@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2016 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,17 +27,21 @@
 
 #if ENABLE(MEDIA_STREAM)
 
-#include "JSMeteringMode.h"
 #include "RealtimeMediaSourceCapabilities.h"
 
 namespace WebCore {
 
-static DoubleRange capabilityDoubleRange(const CapabilityRange& value)
+static DoubleRange capabilityDoubleRange(const CapabilityValueOrRange& value)
 {
-    if (value.type() == CapabilityRange::Type::DoubleRange) {
     DoubleRange range;
-        auto min = value.doubleRange().min;
-        auto max = value.doubleRange().max;
+    switch (value.type()) {
+    case CapabilityValueOrRange::Double:
+        range.min = value.value().asDouble;
+        range.max = range.min;
+        break;
+    case CapabilityValueOrRange::DoubleRange: {
+        auto min = value.rangeMin().asDouble;
+        auto max = value.rangeMax().asDouble;
 
         ASSERT(min != std::numeric_limits<double>::min() || max != std::numeric_limits<double>::max());
 
@@ -45,34 +49,42 @@ static DoubleRange capabilityDoubleRange(const CapabilityRange& value)
             range.min = min;
         if (max != std::numeric_limits<double>::max())
             range.max = max;
-
-        return range;
+        break;
     }
-
+    case CapabilityValueOrRange::Undefined:
+    case CapabilityValueOrRange::ULong:
+    case CapabilityValueOrRange::ULongRange:
         ASSERT_NOT_REACHED();
-    return { };
+        break;
+    }
+    return range;
 }
 
-static LongRange capabilityIntRange(const CapabilityRange& value)
+static LongRange capabilityIntRange(const CapabilityValueOrRange& value)
 {
-    if (value.type() == CapabilityRange::Type::LongRange)
-        return { value.longRange().max, value.longRange().min };
-
+    LongRange range;
+    switch (value.type()) {
+    case CapabilityValueOrRange::ULong:
+        range.min = value.value().asInt;
+        range.max = range.min;
+        break;
+    case CapabilityValueOrRange::ULongRange:
+        range.min = value.rangeMin().asInt;
+        range.max = value.rangeMax().asInt;
+        break;
+    case CapabilityValueOrRange::Undefined:
+    case CapabilityValueOrRange::Double:
+    case CapabilityValueOrRange::DoubleRange:
         ASSERT_NOT_REACHED();
-    return { };
+        break;
+    }
+    return range;
 }
 
 static Vector<String> capabilityStringVector(const Vector<VideoFacingMode>& modes)
 {
     return modes.map([](auto& mode) {
-        return convertEnumerationToString(mode);
-    });
-}
-
-static Vector<String> capabilityStringVector(const Vector<MeteringMode>& modes)
-{
-    return modes.map([](auto& mode) {
-        return convertEnumerationToString(mode);
+        return RealtimeMediaSourceSettings::facingMode(mode);
     });
 }
 
@@ -80,9 +92,9 @@ static Vector<bool> capabilityBooleanVector(RealtimeMediaSourceCapabilities::Ech
 {
     Vector<bool> result;
     result.reserveInitialCapacity(2);
-    result.append(true);
+    result.uncheckedAppend(true);
     if (cancellation == RealtimeMediaSourceCapabilities::EchoCancellation::ReadWrite)
-        result.append(false);
+        result.uncheckedAppend(false);
     return result;
 }
 
@@ -113,12 +125,8 @@ MediaTrackCapabilities toMediaTrackCapabilities(const RealtimeMediaSourceCapabil
         result.groupId = groupId;
     if (capabilities.supportsFocusDistance())
         result.focusDistance = capabilityDoubleRange(capabilities.focusDistance());
-    if (capabilities.supportsWhiteBalanceMode())
-        result.whiteBalanceMode = capabilityStringVector(capabilities.whiteBalanceModes());
     if (capabilities.supportsZoom())
         result.zoom = capabilityDoubleRange(capabilities.zoom());
-    if (capabilities.supportsTorch())
-        result.torch = capabilities.torch();
 
     return result;
 }

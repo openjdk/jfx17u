@@ -165,9 +165,9 @@ void SelectorFilter::collectSimpleSelectorHash(CollectedSelectorHashes& collecte
         break;
     }
     case CSSSelector::Match::PseudoClass:
-        switch (selector.pseudoClass()) {
-        case CSSSelector::PseudoClass::Is:
-        case CSSSelector::PseudoClass::Where:
+        switch (selector.pseudoClassType()) {
+        case CSSSelector::PseudoClassType::Is:
+        case CSSSelector::PseudoClassType::Where:
             // We can use the filter in the trivial case of single argument :is()/:where().
             // Supporting the multiargument case would require more than one hash.
             if (selector.selectorList()->listSize() == 1)
@@ -188,25 +188,25 @@ void SelectorFilter::collectSelectorHashes(CollectedSelectorHashes& collectedHas
         if (includeRightmost == IncludeRightmost::No)
             return std::tuple { rightmostSelector.tagHistory(), rightmostSelector.relation(), true };
 
-        return std::tuple { &rightmostSelector, CSSSelector::Relation::Subselector, false };
+        return std::tuple { &rightmostSelector, CSSSelector::RelationType::Subselector, false };
     }();
 
     for (; selector; selector = selector->tagHistory()) {
         // Only collect identifiers that match ancestors.
         switch (relation) {
-        case CSSSelector::Relation::Subselector:
+        case CSSSelector::RelationType::Subselector:
             if (!skipOverSubselectors)
                 collectSimpleSelectorHash(collectedHashes, *selector);
             break;
-        case CSSSelector::Relation::DirectAdjacent:
-        case CSSSelector::Relation::IndirectAdjacent:
-        case CSSSelector::Relation::ShadowDescendant:
-        case CSSSelector::Relation::ShadowPartDescendant:
-        case CSSSelector::Relation::ShadowSlotted:
+        case CSSSelector::RelationType::DirectAdjacent:
+        case CSSSelector::RelationType::IndirectAdjacent:
+        case CSSSelector::RelationType::ShadowDescendant:
+        case CSSSelector::RelationType::ShadowPartDescendant:
+        case CSSSelector::RelationType::ShadowSlotted:
             skipOverSubselectors = true;
             break;
-        case CSSSelector::Relation::DescendantSpace:
-        case CSSSelector::Relation::Child:
+        case CSSSelector::RelationType::DescendantSpace:
+        case CSSSelector::RelationType::Child:
             skipOverSubselectors = false;
             collectSimpleSelectorHash(collectedHashes, *selector);
             break;

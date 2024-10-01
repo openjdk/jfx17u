@@ -26,9 +26,8 @@
 #include "config.h"
 #include "Widget.h"
 
-#include "FrameView.h"
-#include "HostWindow.h"
 #include "IntRect.h"
+#include "LocalFrameView.h"
 #include "NotImplemented.h"
 #include <wtf/Assertions.h>
 
@@ -56,13 +55,13 @@ void Widget::setParent(ScrollView* view)
         setParentVisible(true);
 }
 
-FrameView* Widget::root() const
+LocalFrameView* Widget::root() const
 {
     const Widget* top = this;
     while (top->parent())
         top = top->parent();
-    if (auto* frameView = dynamicDowncast<FrameView>(top))
-        return const_cast<FrameView*>(frameView);
+    if (is<LocalFrameView>(*top))
+        return const_cast<LocalFrameView*>(downcast<LocalFrameView>(top));
     return nullptr;
 }
 
@@ -71,13 +70,6 @@ void Widget::removeFromParent()
     if (parent())
         parent()->removeChild(*this);
 }
-#if !PLATFORM(JAVA)
-void Widget::setCursor(const Cursor& cursor)
-{
-    if (auto* view = root())
-        view->hostWindow()->setCursor(cursor);
-}
-#endif
 
 IntRect Widget::convertFromRootView(const IntRect& rootRect) const
 {
@@ -133,6 +125,7 @@ IntPoint Widget::convertToRootView(const IntPoint& localPoint) const
     return localPoint;
 }
 
+
 FloatPoint Widget::convertFromRootView(const FloatPoint& rootPoint) const
 {
     if (const ScrollView* parentScrollView = parent()) {
@@ -187,66 +180,6 @@ IntPoint Widget::convertToContainingWindow(const IntPoint& localPoint) const
     return convertFromRootToContainingWindow(this, localPoint);
 }
 
-IntRect Widget::convertToContainingView(const IntRect& localRect) const
-{
-    if (const ScrollView* parentScrollView = parent()) {
-        IntRect parentRect(localRect);
-        parentRect.setLocation(parentScrollView->convertChildToSelf(this, localRect.location()));
-        return parentRect;
-    }
-    return localRect;
-}
-
-IntRect Widget::convertFromContainingView(const IntRect& parentRect) const
-{
-    if (const auto* parentScrollView = parent()) {
-        auto localRect = parentRect;
-        localRect.setLocation(parentScrollView->convertSelfToChild(this, localRect.location()));
-        return localRect;
-    }
-
-    return parentRect;
-}
-
-FloatRect Widget::convertToContainingView(const FloatRect& localRect) const
-{
-    return convertToContainingView(IntRect(localRect));
-}
-
-FloatRect Widget::convertFromContainingView(const FloatRect& parentRect) const
-{
-    return convertFromContainingView(IntRect(parentRect));
-}
-
-IntPoint Widget::convertToContainingView(const IntPoint& localPoint) const
-{
-    if (const auto* parentScrollView = parent())
-        return parentScrollView->convertChildToSelf(this, localPoint);
-
-    return localPoint;
-}
-
-IntPoint Widget::convertFromContainingView(const IntPoint& parentPoint) const
-{
-    if (const auto* parentScrollView = parent())
-        return parentScrollView->convertSelfToChild(this, parentPoint);
-
-    return parentPoint;
-}
-
-FloatPoint Widget::convertToContainingView(const FloatPoint& localPoint) const
-{
-    if (const ScrollView* parentScrollView = parent())
-        return parentScrollView->convertChildToSelf(this, localPoint);
-
-    return localPoint;
-}
-
-FloatPoint Widget::convertFromContainingView(const FloatPoint& parentPoint) const
-{
-    return convertFromContainingView(IntPoint(parentPoint));
-}
-
 #if !PLATFORM(COCOA) && !PLATFORM(JAVA)
 
 Widget::Widget(PlatformWidget widget)
@@ -254,39 +187,9 @@ Widget::Widget(PlatformWidget widget)
     init(widget);
 }
 
-Widget::~Widget()
-{
-    ASSERT(!parent());
-}
-
-void Widget::setFrameRect(const IntRect& rect)
-{
-    m_frame = rect;
-}
-
 IntRect Widget::frameRect() const
 {
     return m_frame;
-}
-
-void Widget::show()
-{
-}
-
-void Widget::hide()
-{
-}
-
-void Widget::setFocus(bool)
-{
-}
-
-void Widget::setIsSelected(bool)
-{
-}
-
-void Widget::paint(GraphicsContext&, const IntRect&, SecurityOriginPaintPolicy, RegionContext*)
-{
 }
 
 IntRect Widget::convertFromRootToContainingWindow(const Widget*, const IntRect& rect)
@@ -310,5 +213,111 @@ IntPoint Widget::convertFromContainingWindowToRoot(const Widget*, const IntPoint
 }
 
 #endif // !PLATFORM(COCOA)
+
+IntRect Widget::convertToContainingView(const IntRect& localRect) const
+{
+    if (const ScrollView* parentScrollView = parent()) {
+        IntRect parentRect(localRect);
+        parentRect.setLocation(parentScrollView->convertChildToSelf(this, localRect.location()));
+        return parentRect;
+    }
+    return localRect;
+}
+
+IntRect Widget::convertFromContainingView(const IntRect& parentRect) const
+{
+    if (const ScrollView* parentScrollView = parent()) {
+        IntRect localRect = parentRect;
+        localRect.setLocation(parentScrollView->convertSelfToChild(this, localRect.location()));
+        return localRect;
+    }
+
+    return parentRect;
+}
+
+FloatRect Widget::convertToContainingView(const FloatRect& localRect) const
+{
+    return convertToContainingView(IntRect(localRect));
+}
+
+FloatRect Widget::convertFromContainingView(const FloatRect& parentRect) const
+{
+    return convertFromContainingView(IntRect(parentRect));
+}
+
+IntPoint Widget::convertToContainingView(const IntPoint& localPoint) const
+{
+    if (const ScrollView* parentScrollView = parent())
+        return parentScrollView->convertChildToSelf(this, localPoint);
+
+    return localPoint;
+}
+
+IntPoint Widget::convertFromContainingView(const IntPoint& parentPoint) const
+{
+    if (const ScrollView* parentScrollView = parent())
+        return parentScrollView->convertSelfToChild(this, parentPoint);
+
+    return parentPoint;
+}
+
+FloatPoint Widget::convertToContainingView(const FloatPoint& localPoint) const
+{
+    if (const ScrollView* parentScrollView = parent())
+        return parentScrollView->convertChildToSelf(this, localPoint);
+
+    return localPoint;
+}
+
+FloatPoint Widget::convertFromContainingView(const FloatPoint& parentPoint) const
+{
+    return convertFromContainingView(IntPoint(parentPoint));
+}
+
+#if !PLATFORM(COCOA) && !PLATFORM(GTK) && !PLATFORM(WIN) && !PLATFORM(PLAYSTATION) && !PLATFORM(JAVA)
+
+Widget::~Widget()
+{
+    ASSERT(!parent());
+    notImplemented();
+}
+
+void Widget::setFrameRect(const IntRect& rect)
+{
+    m_frame = rect;
+    notImplemented();
+}
+
+void Widget::paint(GraphicsContext&, const IntRect&, SecurityOriginPaintPolicy, RegionContext*)
+{
+    notImplemented();
+}
+
+void Widget::setFocus(bool)
+{
+    notImplemented();
+}
+
+void Widget::setCursor(const Cursor&)
+{
+    notImplemented();
+}
+
+void Widget::show()
+{
+    notImplemented();
+}
+
+void Widget::hide()
+{
+    notImplemented();
+}
+
+void Widget::setIsSelected(bool)
+{
+    notImplemented();
+}
+
+#endif // !PLATFORM(COCOA) && !PLATFORM(GTK) && !PLATFORM(WIN) && !PLATFORM(PLAYSTATION) && !PLATFORM(JAVA)
 
 } // namespace WebCore

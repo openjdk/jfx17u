@@ -104,9 +104,6 @@ void printInternal(PrintStream& out, MacroAssembler::RelationalCondition cond)
 void printInternal(PrintStream& out, MacroAssembler::ResultCondition cond)
 {
     switch (cond) {
-    case MacroAssembler::Carry:
-        out.print("Carry");
-        return;
     case MacroAssembler::Overflow:
         out.print("Overflow");
         return;

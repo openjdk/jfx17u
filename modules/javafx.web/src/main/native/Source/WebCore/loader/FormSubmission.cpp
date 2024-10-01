@@ -86,13 +86,11 @@ static void appendMailtoPostFormDataToURL(URL& url, const FormData& data, const 
         url.setQuery(makeString(query, '&', body));
 }
 
-ASCIILiteral FormSubmission::Attributes::methodString(Method method)
+ASCIILiteral FormSubmission::Attributes::methodString(Method method, bool dialogElementEnabled)
 {
-    if (method == Method::Dialog)
+    if (dialogElementEnabled && method == Method::Dialog)
         return "dialog"_s;
-    if (method == Method::Post)
-        return "post"_s;
-    return "get"_s;
+    return method == Method::Post ? "post"_s : "get"_s;
 }
 
 void FormSubmission::Attributes::parseAction(const String& action)
@@ -116,9 +114,9 @@ void FormSubmission::Attributes::updateEncodingType(const String& type)
     m_isMultiPartForm = (m_encodingType == "multipart/form-data"_s);
 }
 
-FormSubmission::Method FormSubmission::Attributes::parseMethodType(const String& type)
+FormSubmission::Method FormSubmission::Attributes::parseMethodType(const String& type, bool dialogElementEnabled)
 {
-    if (equalLettersIgnoringASCIICase(type, "dialog"_s))
+    if (dialogElementEnabled && equalLettersIgnoringASCIICase(type, "dialog"_s))
         return FormSubmission::Method::Dialog;
 
     if (equalLettersIgnoringASCIICase(type, "post"_s))
@@ -127,9 +125,9 @@ FormSubmission::Method FormSubmission::Attributes::parseMethodType(const String&
     return FormSubmission::Method::Get;
 }
 
-void FormSubmission::Attributes::updateMethodType(const String& type)
+void FormSubmission::Attributes::updateMethodType(const String& type, bool dialogElementEnabled)
 {
-    m_method = parseMethodType(type);
+    m_method = parseMethodType(type, dialogElementEnabled);
 }
 
 inline FormSubmission::FormSubmission(Method method, const String& returnValue, const URL& action, const AtomString& target, const String& contentType, LockHistory lockHistory, Event* event)
@@ -181,16 +179,16 @@ Ref<FormSubmission> FormSubmission::create(HTMLFormElement& form, HTMLFormContro
         if (!(attributeValue = submitter->attributeWithoutSynchronization(formenctypeAttr)).isNull())
             copiedAttributes.updateEncodingType(attributeValue);
         if (!(attributeValue = submitter->attributeWithoutSynchronization(formmethodAttr)).isNull())
-            copiedAttributes.updateMethodType(attributeValue);
+            copiedAttributes.updateMethodType(attributeValue, form.document().settings().dialogElementEnabled());
         if (!(attributeValue = submitter->attributeWithoutSynchronization(formtargetAttr)).isNull())
             copiedAttributes.setTarget(attributeValue);
     }
 
-    Ref document = form.document();
+    auto& document = form.document();
     auto encodingType = copiedAttributes.encodingType();
-    auto actionURL = document->completeURL(copiedAttributes.action().isEmpty() ? document->url().string() : copiedAttributes.action());
+    auto actionURL = document.completeURL(copiedAttributes.action().isEmpty() ? document.url().string() : copiedAttributes.action());
 
-    if (copiedAttributes.method() == Method::Dialog) {
+    if (document.settings().dialogElementEnabled() && copiedAttributes.method() == Method::Dialog) {
         String returnValue = submitter ? submitter->resultForDialogSubmit() : emptyString();
         return adoptRef(*new FormSubmission(copiedAttributes.method(), returnValue, actionURL, form.effectiveTarget(event, submitter.get()), encodingType, lockHistory, event));
     }
@@ -200,7 +198,7 @@ Ref<FormSubmission> FormSubmission::create(HTMLFormElement& form, HTMLFormContro
     bool isMailtoForm = actionURL.protocolIs("mailto"_s);
     bool isMultiPartForm = false;
 
-    document->checkedContentSecurityPolicy()->upgradeInsecureRequestIfNeeded(actionURL, ContentSecurityPolicy::InsecureRequestType::FormSubmission);
+    document.contentSecurityPolicy()->upgradeInsecureRequestIfNeeded(actionURL, ContentSecurityPolicy::InsecureRequestType::FormSubmission);
 
     if (copiedAttributes.method() == Method::Post) {
         isMultiPartForm = copiedAttributes.isMultiPartForm();
@@ -211,7 +209,7 @@ Ref<FormSubmission> FormSubmission::create(HTMLFormElement& form, HTMLFormContro
     }
 
     auto dataEncoding = isMailtoForm ? PAL::UTF8Encoding() : encodingFromAcceptCharset(copiedAttributes.acceptCharset(), document);
-    auto domFormData = DOMFormData::create(document.ptr(), dataEncoding.encodingForFormSubmissionOrURLParsing());
+    auto domFormData = DOMFormData::create(&document, dataEncoding.encodingForFormSubmissionOrURLParsing());
     StringPairVector formValues;
 
     auto result = form.constructEntryList(submitter.copyRef(), WTFMove(domFormData), &formValues);
@@ -249,11 +247,6 @@ URL FormSubmission::requestURL() const
     if (m_method == Method::Get && !requestURL.protocolIsJavaScript())
         requestURL.setQuery(m_formData->flattenToString());
     return requestURL;
-}
-
-RefPtr<Event> FormSubmission::protectedEvent() const
-{
-    return m_event;
 }
 
 void FormSubmission::populateFrameLoadRequest(FrameLoadRequest& frameRequest)

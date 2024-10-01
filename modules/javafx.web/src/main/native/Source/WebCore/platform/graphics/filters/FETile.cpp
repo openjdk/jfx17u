@@ -28,13 +28,13 @@
 
 namespace WebCore {
 
-Ref<FETile> FETile::create(DestinationColorSpace colorSpace)
+Ref<FETile> FETile::create()
 {
-    return adoptRef(*new FETile(colorSpace));
+    return adoptRef(*new FETile());
 }
 
-FETile::FETile(DestinationColorSpace colorSpace)
-    : FilterEffect(FilterEffect::Type::FETile, colorSpace)
+FETile::FETile()
+    : FilterEffect(FilterEffect::Type::FETile)
 {
 }
 

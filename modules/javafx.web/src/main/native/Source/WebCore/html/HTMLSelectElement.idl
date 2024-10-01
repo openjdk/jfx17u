@@ -52,7 +52,6 @@
     boolean checkValidity();
     [EnabledBySetting=InteractiveFormValidationEnabled] boolean reportValidity();
     undefined setCustomValidity(DOMString error);
-    [EnabledBySetting=SelectShowPickerEnabled] undefined showPicker();
 
     readonly attribute NodeList labels;
 };

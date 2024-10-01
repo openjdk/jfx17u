@@ -27,31 +27,29 @@
 
 #if ENABLE(THREADED_ANIMATION_RESOLUTION)
 
-#include "AcceleratedEffect.h"
 #include "AcceleratedEffectValues.h"
 
 namespace WebCore {
 
+class AcceleratedEffect;
+
 using AcceleratedEffects = Vector<Ref<AcceleratedEffect>>;
 
-class WEBCORE_EXPORT AcceleratedEffectStack : public RefCounted<AcceleratedEffectStack> {
-    WTF_MAKE_ISO_ALLOCATED(AcceleratedEffectStack);
+class AcceleratedEffectStack {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
-    static Ref<AcceleratedEffectStack> create();
+    WEBCORE_EXPORT explicit AcceleratedEffectStack();
+    WEBCORE_EXPORT ~AcceleratedEffectStack();
 
-    bool hasEffects() const;
+    WEBCORE_EXPORT bool hasEffects() const;
     const AcceleratedEffects& primaryLayerEffects() const { return m_primaryLayerEffects; }
     const AcceleratedEffects& backdropLayerEffects() const { return m_backdropLayerEffects; }
-    void setEffects(AcceleratedEffects&&);
+    WEBCORE_EXPORT void setEffects(AcceleratedEffects&&);
 
     const AcceleratedEffectValues& baseValues() { return m_baseValues; }
-    void setBaseValues(AcceleratedEffectValues&&);
+    WEBCORE_EXPORT void setBaseValues(AcceleratedEffectValues&&);
 
-    virtual ~AcceleratedEffectStack() = default;
-
-protected:
-    WEBCORE_EXPORT explicit AcceleratedEffectStack();
-
+private:
     AcceleratedEffectValues m_baseValues;
     AcceleratedEffects m_primaryLayerEffects;
     AcceleratedEffects m_backdropLayerEffects;

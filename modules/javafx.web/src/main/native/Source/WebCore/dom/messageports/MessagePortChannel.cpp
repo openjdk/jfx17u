@@ -52,17 +52,12 @@ MessagePortChannel::MessagePortChannel(MessagePortChannelRegistry& registry, con
     m_processes[1] = port2.processIdentifier;
     m_entangledToProcessProtectors[1] = this;
 
-    checkedRegistry()->messagePortChannelCreated(*this);
+    m_registry.messagePortChannelCreated(*this);
 }
 
 MessagePortChannel::~MessagePortChannel()
 {
-    checkedRegistry()->messagePortChannelDestroyed(*this);
-}
-
-CheckedRef<MessagePortChannelRegistry> MessagePortChannel::checkedRegistry() const
-{
-    return m_registry;
+    m_registry.messagePortChannelDestroyed(*this);
 }
 
 std::optional<ProcessIdentifier> MessagePortChannel::processForPort(const MessagePortIdentifier& port)
@@ -123,6 +118,10 @@ void MessagePortChannel::closePort(const MessagePortIdentifier& port)
     m_processes[i] = std::nullopt;
     m_isClosed[i] = true;
 
+    // This set of steps is to guarantee that the lock is unlocked before the
+    // last ref to this object is released.
+    Ref protectedThis { *this };
+
     m_pendingMessages[i].clear();
     m_pendingMessagePortTransfers[i].clear();
     m_pendingMessageProtectors[i] = nullptr;
@@ -162,7 +161,7 @@ void MessagePortChannel::takeAllMessagesForPort(const MessagePortIdentifier& por
         return;
     }
 
-    ASSERT(m_pendingMessageProtectors[i] == this);
+    ASSERT(m_pendingMessageProtectors[i]);
 
     Vector<MessageWithMessagePorts> result;
     result.swap(m_pendingMessages[i]);
@@ -172,13 +171,13 @@ void MessagePortChannel::takeAllMessagesForPort(const MessagePortIdentifier& por
     LOG(MessagePorts, "There are %zu messages to take for port %s. Taking them now, messages in flight is now %" PRIu64, result.size(), port.logString().utf8().data(), m_messageBatchesInFlight);
 
     auto size = result.size();
-    callback(WTFMove(result), [size, port, protectedThis = WTFMove(m_pendingMessageProtectors[i])] {
+    callback(WTFMove(result), [size, this, port, protectedThis = WTFMove(m_pendingMessageProtectors[i])] {
         UNUSED_PARAM(port);
 #if LOG_DISABLED
         UNUSED_PARAM(size);
 #endif
-        --(protectedThis->m_messageBatchesInFlight);
-        LOG(MessagePorts, "Message port channel %s was notified that a batch of %zu message port messages targeted for port %s just completed dispatch, in flight is now %" PRIu64, protectedThis->logString().utf8().data(), size, port.logString().utf8().data(), protectedThis->m_messageBatchesInFlight);
+        --m_messageBatchesInFlight;
+        LOG(MessagePorts, "Message port channel %s was notified that a batch of %zu message port messages targeted for port %s just completed dispatch, in flight is now %" PRIu64, logString().utf8().data(), size, port.logString().utf8().data(), m_messageBatchesInFlight);
 
     });
 }

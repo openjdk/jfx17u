@@ -30,10 +30,6 @@
 #include <wtf/Forward.h>
 #include <wtf/Noncopyable.h>
 
-namespace JSC {
-class VM;
-}
-
 namespace WebCore {
 
 class GCController {

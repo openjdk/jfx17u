@@ -26,6 +26,7 @@
 #pragma once
 
 #include <cstdint>
+#include <wtf/EnumTraits.h>
 
 namespace WebCore::WebGPU {
 
@@ -38,3 +39,18 @@ enum class TextureSampleType : uint8_t {
 };
 
 } // namespace WebCore::WebGPU
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::WebGPU::TextureSampleType> {
+    using values = EnumValues<
+        WebCore::WebGPU::TextureSampleType,
+        WebCore::WebGPU::TextureSampleType::Float,
+        WebCore::WebGPU::TextureSampleType::UnfilterableFloat,
+        WebCore::WebGPU::TextureSampleType::Depth,
+        WebCore::WebGPU::TextureSampleType::Sint,
+        WebCore::WebGPU::TextureSampleType::Uint
+    >;
+};
+
+} // namespace WTF

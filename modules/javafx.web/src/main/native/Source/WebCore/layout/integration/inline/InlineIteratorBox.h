@@ -102,7 +102,6 @@ public:
     InlineBoxIterator parentInlineBox() const;
 
     LineBoxIterator lineBox() const;
-    size_t lineIndex() const;
 
     const BoxModernPath& modernPath() const;
     const BoxLegacyPath& legacyPath() const;
@@ -212,13 +211,6 @@ inline unsigned char Box::bidiLevel() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.bidiLevel();
-    });
-}
-
-inline size_t Box::lineIndex() const
-{
-    return WTF::switchOn(m_pathVariant, [](auto& path) {
-        return path.lineIndex();
     });
 }
 

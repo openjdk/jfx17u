@@ -51,11 +51,15 @@ void MessagePortChannelRegistry::messagePortChannelCreated(MessagePortChannel& c
 {
     ASSERT(isMainThread());
 
-    auto result = m_openChannels.add(channel.port1(), channel);
-    ASSERT_UNUSED(result, result.isNewEntry);
+    auto result = m_openChannels.ensure(channel.port1(), [channel = &channel] {
+        return channel;
+    });
+    ASSERT(result.isNewEntry);
 
-    result = m_openChannels.add(channel.port2(), channel);
-    ASSERT_UNUSED(result, result.isNewEntry);
+    result = m_openChannels.ensure(channel.port2(), [channel = &channel] {
+        return channel;
+    });
+    ASSERT(result.isNewEntry);
 }
 
 void MessagePortChannelRegistry::messagePortChannelDestroyed(MessagePortChannel& channel)
@@ -76,7 +80,7 @@ void MessagePortChannelRegistry::didEntangleLocalToRemote(const MessagePortIdent
     ASSERT(isMainThread());
 
     // The channel might be gone if the remote side was closed.
-    RefPtr channel = m_openChannels.get(local);
+    auto* channel = m_openChannels.get(local);
     if (!channel)
         return;
 
@@ -90,7 +94,10 @@ void MessagePortChannelRegistry::didDisentangleMessagePort(const MessagePortIden
     ASSERT(isMainThread());
 
     // The channel might be gone if the remote side was closed.
-    if (RefPtr channel = m_openChannels.get(port))
+    auto* channel = m_openChannels.get(port);
+    if (!channel)
+        return;
+
     channel->disentanglePort(port);
 }
 
@@ -100,7 +107,7 @@ void MessagePortChannelRegistry::didCloseMessagePort(const MessagePortIdentifier
 
     LOG(MessagePorts, "Registry: MessagePort %s closed in registry", port.logString().utf8().data());
 
-    RefPtr channel = m_openChannels.get(port);
+    auto* channel = m_openChannels.get(port);
     if (!channel)
         return;
 
@@ -122,7 +129,7 @@ bool MessagePortChannelRegistry::didPostMessageToRemote(MessageWithMessagePorts&
     LOG(MessagePorts, "Registry: Posting message to MessagePort %s in registry", remoteTarget.logString().utf8().data());
 
     // The channel might be gone if the remote side was closed.
-    RefPtr channel = m_openChannels.get(remoteTarget);
+    auto* channel = m_openChannels.get(remoteTarget);
     if (!channel) {
         LOG(MessagePorts, "Registry: Could not find MessagePortChannel for port %s; It was probably closed. Message will be dropped.", remoteTarget.logString().utf8().data());
         return false;
@@ -138,7 +145,7 @@ void MessagePortChannelRegistry::takeAllMessagesForPort(const MessagePortIdentif
     LOG(MessagePorts, "Registry: Taking all messages for MessagePort %s", port.logString().utf8().data());
 
     // The channel might be gone if the remote side was closed.
-    RefPtr channel = m_openChannels.get(port);
+    auto* channel = m_openChannels.get(port);
     if (!channel) {
         callback({ }, [] { });
         return;

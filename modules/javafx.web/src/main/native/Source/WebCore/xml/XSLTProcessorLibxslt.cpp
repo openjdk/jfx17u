@@ -27,7 +27,7 @@
 #include "XSLTProcessor.h"
 
 #include "CachedResourceLoader.h"
-#include "DocumentInlines.h"
+#include "Document.h"
 #include "FrameDestructionObserverInlines.h"
 #include "FrameLoader.h"
 #include "LocalFrame.h"
@@ -162,13 +162,39 @@ static inline void setXSLTLoadCallBack(xsltDocLoaderFunc func, XSLTProcessor* pr
 
 static int writeToStringBuilder(void* context, const char* buffer, int length)
 {
-    auto& builder = *static_cast<StringBuilder*>(context);
-    FromUTF8 adapter(buffer, length);
-    ASSERT(!adapter.conversionFailed);
-    if (adapter.conversionFailed)
+    StringBuilder& resultOutput = *static_cast<StringBuilder*>(context);
+
+    // FIXME: Consider ways to make this more efficient by moving it into a
+    // StringBuilder::appendUTF8 function, and then optimizing to not need a
+    // Vector<UChar> and possibly optimize cases that can produce 8-bit Latin-1
+    // strings, but that would need to be sophisticated about not processing
+    // trailing incomplete sequences and communicating that to the caller.
+
+    Vector<UChar> outputBuffer(length);
+
+    UBool error = false;
+    int inputOffset = 0;
+    int outputOffset = 0;
+    while (inputOffset < length) {
+        UChar32 character;
+        int nextInputOffset = inputOffset;
+        U8_NEXT(reinterpret_cast<const uint8_t*>(buffer), nextInputOffset, length, character);
+        if (character < 0) {
+            if (nextInputOffset == length)
+                break;
+            ASSERT_NOT_REACHED();
             return -1;
-    builder.append(adapter);
-    return adapter.lengthUTF8;
+        }
+        inputOffset = nextInputOffset;
+        U16_APPEND(outputBuffer.data(), outputOffset, length, character, error);
+        if (error) {
+            ASSERT_NOT_REACHED();
+            return -1;
+        }
+    }
+
+    resultOutput.appendCharacters(outputBuffer.data(), outputOffset);
+    return inputOffset;
 }
 
 static bool saveResultToString(xmlDocPtr resultDoc, xsltStylesheetPtr sheet, String& resultString)
@@ -210,7 +236,7 @@ static const char** xsltParamArrayFromParameterMap(XSLTProcessor::ParameterMap& 
     }
     parameterArray[index] = nullptr;
 
-#if !PLATFORM(WIN) && !PLATFORM(COCOA)
+#if !PLATFORM(WIN) && !HAVE(LIBXSLT_FIX_FOR_RADAR_71864140)
     RELEASE_ASSERT(index <= std::numeric_limits<int>::max());
 #endif
 
@@ -276,11 +302,11 @@ static inline String resultMIMEType(xmlDocPtr resultDoc, xsltStylesheetPtr sheet
         resultType = (const xmlChar*)"html";
 
     if (xmlStrEqual(resultType, (const xmlChar*)"html"))
-        return textHTMLContentTypeAtom();
+        return "text/html"_s;
     if (xmlStrEqual(resultType, (const xmlChar*)"text"))
-        return textPlainContentTypeAtom();
+        return "text/plain"_s;
 
-    return applicationXMLContentTypeAtom();
+    return "application/xml"_s;
 }
 
 bool XSLTProcessor::transformToString(Node& sourceNode, String& mimeType, String& resultString, String& resultEncoding)
@@ -300,7 +326,7 @@ bool XSLTProcessor::transformToString(Node& sourceNode, String& mimeType, String
     xsltMaxDepth = 1000;
 
     xmlChar* origMethod = sheet->method;
-    if (!origMethod && mimeType == textHTMLContentTypeAtom())
+    if (!origMethod && mimeType == "text/html"_s)
         sheet->method = reinterpret_cast<xmlChar*>(const_cast<char*>("html"));
 
     bool success = false;

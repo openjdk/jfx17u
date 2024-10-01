@@ -73,7 +73,7 @@ public:
 #endif
 
 private:
-    static ASCIILiteral supplementName() { return "HTMLVideoElementPictureInPicture"_s; }
+    static const char* supplementName() { return "HTMLVideoElementPictureInPicture"; }
 
     bool m_autoPictureInPicture { false };
     bool m_disablePictureInPicture { false };

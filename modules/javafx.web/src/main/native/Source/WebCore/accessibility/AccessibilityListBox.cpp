@@ -137,7 +137,7 @@ AccessibilityObject* AccessibilityListBox::listBoxOptionAccessibilityObject(HTML
     return nullptr;
 }
 
-AccessibilityObject* AccessibilityListBox::elementAccessibilityHitTest(const IntPoint& point) const
+AXCoreObject* AccessibilityListBox::elementAccessibilityHitTest(const IntPoint& point) const
 {
     // the internal HTMLSelectElement methods for returning a listbox option at a point
     // ignore optgroup elements.
@@ -150,14 +150,14 @@ AccessibilityObject* AccessibilityListBox::elementAccessibilityHitTest(const Int
 
     LayoutRect parentRect = boundingBoxRect();
 
-    AccessibilityObject* listBoxOption = nullptr;
+    AXCoreObject* listBoxOption = nullptr;
     unsigned length = m_children.size();
     for (unsigned i = 0; i < length; ++i) {
         LayoutRect rect = downcast<RenderListBox>(*m_renderer).itemBoundingBoxRect(parentRect.location(), i);
         // The cast to HTMLElement below is safe because the only other possible listItem type
         // would be a WMLElement, but WML builds don't use accessibility features at all.
         if (rect.contains(point)) {
-            listBoxOption = dynamicDowncast<AccessibilityObject>(m_children[i].get());
+            listBoxOption = m_children[i].get();
             break;
         }
     }

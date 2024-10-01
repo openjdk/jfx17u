@@ -75,7 +75,9 @@ JSHeapData::JSHeapData(Heap& heap)
     , m_heapCellTypeForJSWorkerGlobalScope(JSC::IsoHeapCellType::Args<JSWorkerGlobalScope>())
     , m_heapCellTypeForJSSharedWorkerGlobalScope(JSC::IsoHeapCellType::Args<JSSharedWorkerGlobalScope>())
     , m_heapCellTypeForJSShadowRealmGlobalScope(JSC::IsoHeapCellType::Args<JSShadowRealmGlobalScope>())
+#if ENABLE(SERVICE_WORKER)
     , m_heapCellTypeForJSServiceWorkerGlobalScope(JSC::IsoHeapCellType::Args<JSServiceWorkerGlobalScope>())
+#endif
     , m_heapCellTypeForJSWorkletGlobalScope(JSC::IsoHeapCellType::Args<JSWorkletGlobalScope>())
 #if ENABLE(CSS_PAINTING_API)
     , m_heapCellTypeForJSPaintWorkletGlobalScope(JSC::IsoHeapCellType::Args<JSPaintWorkletGlobalScope>())
@@ -163,7 +165,7 @@ void JSVMClientData::getAllWorlds(Vector<Ref<DOMWrapperWorld>>& worlds)
 
     // Add main normal world.
     if (m_worldSet.contains(&mainNormalWorld))
-        worlds.append(mainNormalWorld);
+        worlds.uncheckedAppend(mainNormalWorld);
 
     // Add other normal worlds.
     for (auto* world : m_worldSet) {
@@ -171,14 +173,14 @@ void JSVMClientData::getAllWorlds(Vector<Ref<DOMWrapperWorld>>& worlds)
             continue;
         if (world == &mainNormalWorld)
             continue;
-        worlds.append(*world);
+        worlds.uncheckedAppend(*world);
     }
 
     // Add non-normal worlds.
     for (auto* world : m_worldSet) {
         if (world->type() == DOMWrapperWorld::Type::Normal)
             continue;
-        worlds.append(*world);
+        worlds.uncheckedAppend(*world);
     }
 }
 

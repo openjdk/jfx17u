@@ -27,11 +27,10 @@
 
 #include "PluginData.h"
 #include <wtf/WeakHashSet.h>
-#include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
-class WEBCORE_EXPORT PluginInfoProvider : public RefCounted<PluginInfoProvider>, public CanMakeWeakPtr<PluginInfoProvider> {
+class WEBCORE_EXPORT PluginInfoProvider : public RefCounted<PluginInfoProvider> {
 public:
     virtual ~PluginInfoProvider();
 
@@ -47,7 +46,7 @@ public:
 private:
     virtual void refreshPlugins() = 0;
 
-    SingleThreadWeakHashSet<Page> m_pages;
+    WeakHashSet<Page> m_pages;
 };
 
 }

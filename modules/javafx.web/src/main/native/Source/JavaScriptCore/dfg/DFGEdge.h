@@ -47,10 +47,7 @@ public:
     }
 
 #if USE(JSVALUE64)
-    static constexpr uintptr_t shift() { return 48; }
-    static constexpr uintptr_t addressMask() { return ~(0xffull << shift()); }
-
-    Node* node() const { return bitwise_cast<Node*>(m_encodedWord & addressMask()); }
+    Node* node() const { return bitwise_cast<Node*>(m_encodedWord >> shift()); }
 #else
     Node* node() const { return m_node; }
 #endif
@@ -70,7 +67,8 @@ public:
     UseKind useKindUnchecked() const
     {
 #if USE(JSVALUE64)
-        unsigned shifted = m_encodedWord >> (2 + shift()) & 0x3f;
+        unsigned masked = m_encodedWord & (((1 << shift()) - 1));
+        unsigned shifted = masked >> 2;
 #else
         unsigned shifted = static_cast<UseKind>(m_encodedWord) >> 2;
 #endif
@@ -96,11 +94,7 @@ public:
 
     ProofStatus proofStatusUnchecked() const
     {
-#if USE(JSVALUE64)
-        return proofStatusForIsProved(m_encodedWord >> shift() & 1);
-#else
         return proofStatusForIsProved(m_encodedWord & 1);
-#endif
     }
     ProofStatus proofStatus() const
     {
@@ -132,11 +126,7 @@ public:
 
     KillStatus killStatusUnchecked() const
     {
-#if USE(JSVALUE64)
-        return killStatusForDoesKill(m_encodedWord >> shift() & 2);
-#else
         return killStatusForDoesKill(m_encodedWord & 2);
-#endif
     }
     KillStatus killStatus() const
     {
@@ -170,7 +160,14 @@ public:
     bool operator!() const { return !isSet(); }
     explicit operator bool() const { return isSet(); }
 
-    friend bool operator==(const Edge&, const Edge&) = default;
+    bool operator==(Edge other) const
+    {
+#if USE(JSVALUE64)
+        return m_encodedWord == other.m_encodedWord;
+#else
+        return m_node == other.m_node && m_encodedWord == other.m_encodedWord;
+#endif
+    }
 
     void dump(PrintStream&) const;
 
@@ -187,17 +184,16 @@ private:
     friend class AdjacencyList;
 
 #if USE(JSVALUE64)
+    static constexpr uint32_t shift() { return 8; }
+
     static uintptr_t makeWord(Node* node, UseKind useKind, ProofStatus proofStatus, KillStatus killStatus)
     {
         ASSERT(sizeof(node) == 8);
-        uintptr_t maskedPointer = bitwise_cast<uintptr_t>(node) & addressMask();
-        ASSERT(maskedPointer == bitwise_cast<uintptr_t>(node));
-        ASSERT(useKind < LastUseKind);
+        uintptr_t shiftedValue = bitwise_cast<uintptr_t>(node) << shift();
+        ASSERT((shiftedValue >> shift()) == bitwise_cast<uintptr_t>(node));
+        ASSERT(useKind >= 0 && useKind < LastUseKind);
         static_assert((static_cast<uintptr_t>(LastUseKind) << 2) < (static_cast<uintptr_t>(1) << shift()), "We rely on this being true to not clobber the node pointer.");
-        uintptr_t kindBits = (static_cast<uintptr_t>(useKind) << 2) | (DFG::doesKill(killStatus) << 1) | static_cast<uintptr_t>(DFG::isProved(proofStatus));
-        kindBits <<= shift();
-        uintptr_t result = maskedPointer | kindBits;
-
+        uintptr_t result = shiftedValue | (static_cast<uintptr_t>(useKind) << 2) | (DFG::doesKill(killStatus) << 1) | static_cast<uintptr_t>(DFG::isProved(proofStatus));
         if (ASSERT_ENABLED) {
             union U {
                 U() { word = 0; }

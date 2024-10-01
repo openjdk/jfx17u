@@ -44,8 +44,7 @@ public:
         Box,
         InlineBoxStart,
         InlineBoxEnd,
-        Float,
-        Opaque
+        Float
     };
     InlineItem(const Box& layoutBox, Type, UBiDiLevel = UBIDI_DEFAULT_LTR);
 
@@ -65,7 +64,6 @@ public:
     bool isHardLineBreak() const { return type() == Type::HardLineBreak; }
     bool isInlineBoxStart() const { return type() == Type::InlineBoxStart; }
     bool isInlineBoxEnd() const { return type() == Type::InlineBoxEnd; }
-    bool isOpaque() const { return type() == Type::Opaque; }
 
 private:
     friend class InlineItemsBuilder;
@@ -84,7 +82,7 @@ protected:
 private:
     UBiDiLevel m_bidiLevel { UBIDI_DEFAULT_LTR };
 
-    Type m_type : 4 { };
+    Type m_type : 3 { };
 
 protected:
     // For InlineTextItem
@@ -108,8 +106,6 @@ inline void InlineItem::setWidth(InlineLayoutUnit width)
     m_width = width;
     m_hasWidth = true;
 }
-
-using InlineItemList = Vector<InlineItem>;
 
 #define SPECIALIZE_TYPE_TRAITS_INLINE_ITEM(ToValueTypeName, predicate) \
 SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::Layout::ToValueTypeName) \

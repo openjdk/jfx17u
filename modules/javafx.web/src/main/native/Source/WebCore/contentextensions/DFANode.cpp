@@ -38,9 +38,11 @@ namespace ContentExtensions {
 Vector<uint64_t> DFANode::actions(const DFA& dfa) const
 {
     // FIXME: Use iterators instead of copying the Vector elements.
-    return Vector<uint64_t>(m_actionsLength, [&](size_t i) {
-        return dfa.actions[m_actionsStart + i];
-    });
+    Vector<uint64_t> vector;
+    vector.reserveInitialCapacity(m_actionsLength);
+    for (uint32_t i = m_actionsStart; i < m_actionsStart + m_actionsLength; ++i)
+        vector.uncheckedAppend(dfa.actions[i]);
+    return vector;
 }
 
 bool DFANode::containsTransition(char transition, const DFA& dfa) const

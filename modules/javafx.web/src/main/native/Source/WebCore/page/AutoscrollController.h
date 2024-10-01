@@ -77,7 +77,7 @@ private:
 #endif
 
     Timer m_autoscrollTimer;
-    SingleThreadWeakPtr<RenderBox> m_autoscrollRenderer;
+    WeakPtr<RenderBox> m_autoscrollRenderer;
     AutoscrollType m_autoscrollType { NoAutoscroll };
     IntPoint m_dragAndDropAutoscrollReferencePosition;
     WallTime m_dragAndDropAutoscrollStartTime;

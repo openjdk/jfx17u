@@ -131,7 +131,6 @@ class DoubleToStringConverter {
 
   // Returns a converter following the EcmaScript specification.
   WTF_EXPORT_PRIVATE static const DoubleToStringConverter& EcmaScriptConverter();
-  WTF_EXPORT_PRIVATE static const DoubleToStringConverter& EcmaScriptConverterWithTrailingPoint();
 
   WTF_EXPORT_PRIVATE static const DoubleToStringConverter& CSSConverter();
 

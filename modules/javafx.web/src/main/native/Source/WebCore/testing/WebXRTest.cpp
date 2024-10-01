@@ -71,7 +71,7 @@ void WebXRTest::simulateDeviceConnection(ScriptExecutionContext& context, const 
 
         if (init.boundsCoordinates) {
             if (init.boundsCoordinates->size() < 3) {
-                promise.reject(Exception { ExceptionCode::TypeError });
+                promise.reject(Exception { TypeError });
                 return;
             }
             simulatedDevice.setNativeBoundsGeometry(init.boundsCoordinates.value());
@@ -110,7 +110,7 @@ void WebXRTest::simulateUserActivation(Document& document, XRSimulateUserActivat
 {
     // https://immersive-web.github.io/webxr-test-api/#dom-xrtest-simulateuseractivation
     // Invoke function as if it had transient activation.
-    UserGestureIndicator gestureIndicator(IsProcessingUserGesture::Yes, &document);
+    UserGestureIndicator gestureIndicator(ProcessingUserGesture, &document);
     function.handleEvent();
 }
 

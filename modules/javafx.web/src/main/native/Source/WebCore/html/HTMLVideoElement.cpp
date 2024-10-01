@@ -52,7 +52,7 @@
 #include <wtf/text/TextStream.h>
 
 #if ENABLE(VIDEO_PRESENTATION_MODE)
-#include "VideoPresentationModel.h"
+#include "VideoFullscreenModel.h"
 #endif
 
 #if ENABLE(PICTURE_IN_PICTURE_API)
@@ -289,7 +289,12 @@ std::optional<DestinationColorSpace> HTMLVideoElement::colorSpace() const
 RefPtr<ImageBuffer> HTMLVideoElement::createBufferForPainting(const FloatSize& size, RenderingMode renderingMode, const DestinationColorSpace& colorSpace, PixelFormat pixelFormat) const
 {
     auto* hostWindow = document().view() && document().view()->root() ? document().view()->root()->hostWindow() : nullptr;
-    return ImageBuffer::create(size, RenderingPurpose::MediaPainting, 1, colorSpace, pixelFormat, bufferOptionsForRendingMode(renderingMode), hostWindow);
+
+    auto bufferOptions = bufferOptionsForRendingMode(renderingMode);
+    if (document().settings().displayListDrawingEnabled())
+        bufferOptions.add(ImageBufferOptions::UseDisplayList);
+
+    return ImageBuffer::create(size, RenderingPurpose::MediaPainting, 1, colorSpace, pixelFormat, bufferOptions, { hostWindow });
 }
 
 void HTMLVideoElement::paintCurrentFrameInContext(GraphicsContext& context, const FloatRect& destRect)
@@ -339,7 +344,7 @@ ExceptionOr<void> HTMLVideoElement::webkitEnterFullscreen()
     // Generate an exception if this isn't called in response to a user gesture, or if the
     // element does not support fullscreen, or the element is changing fullscreen mode.
     if (!mediaSession().fullscreenPermitted() || !supportsFullscreen(HTMLMediaElementEnums::VideoFullscreenModeStandard) || isChangingVideoFullscreenMode())
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
 
     enterFullscreen();
     return { };
@@ -448,8 +453,6 @@ static inline HTMLMediaElementEnums::VideoFullscreenMode toFullscreenMode(HTMLVi
         return HTMLMediaElementEnums::VideoFullscreenModePictureInPicture;
     case HTMLVideoElement::VideoPresentationMode::Inline:
         return HTMLMediaElementEnums::VideoFullscreenModeNone;
-    case HTMLVideoElement::VideoPresentationMode::InWindow:
-        return HTMLMediaElementEnums::VideoFullscreenModeInWindow;
     }
     ASSERT_NOT_REACHED();
     return HTMLMediaElementEnums::VideoFullscreenModeNone;
@@ -466,18 +469,12 @@ HTMLVideoElement::VideoPresentationMode HTMLVideoElement::toPresentationMode(HTM
     if (mode == HTMLMediaElementEnums::VideoFullscreenModeNone)
         return HTMLVideoElement::VideoPresentationMode::Inline;
 
-    if (mode == HTMLMediaElementEnums::VideoFullscreenModeInWindow)
-        return HTMLVideoElement::VideoPresentationMode::InWindow;
-
     ASSERT_NOT_REACHED();
     return HTMLVideoElement::VideoPresentationMode::Inline;
 }
 
 void HTMLVideoElement::webkitSetPresentationMode(VideoPresentationMode mode)
 {
-    if (mode == VideoPresentationMode::InWindow && !document().settings().inWindowFullscreenEnabled())
-        return;
-
     INFO_LOG(LOGIDENTIFIER, ", mode = ",  mode);
     if (!isChangingVideoFullscreenMode())
         setPresentationMode(mode);
@@ -674,10 +671,8 @@ void HTMLVideoElement::mediaPlayerEngineUpdated()
     HTMLMediaElement::mediaPlayerEngineUpdated();
     if (!m_videoFrameRequests.isEmpty() && player())
         player()->startVideoFrameMetadataGathering();
-    // If the RenderLayerCompositor had queried the element's MediaPlayer::supportsAcceleratedRendering prior the player having been created it would have been set to false.
-    HTMLMediaElement::mediaPlayerRenderingModeChanged();
 }
 
-} // namespace WebCore
+}
 
-#endif // ENABLE(VIDEO)
+#endif

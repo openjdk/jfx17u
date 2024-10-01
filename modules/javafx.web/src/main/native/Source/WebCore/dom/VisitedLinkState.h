@@ -31,15 +31,13 @@
 #include "Element.h"
 #include "RenderStyleConstants.h"
 #include "SharedStringHash.h"
-#include <wtf/CheckedPtr.h>
 #include <wtf/HashSet.h>
-#include <wtf/WeakRef.h>
 
 namespace WebCore {
 
 class Document;
 
-class VisitedLinkState : public CanMakeCheckedPtr {
+class VisitedLinkState {
     WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit VisitedLinkState(Document&);
@@ -51,7 +49,7 @@ public:
 private:
     InsideLink determineLinkStateSlowCase(const Element&);
 
-    WeakRef<Document, WeakPtrImplWithEventTargetData> m_document;
+    Document& m_document;
     HashSet<SharedStringHash, SharedStringHashHash> m_linksCheckedForVisitedState;
 };
 

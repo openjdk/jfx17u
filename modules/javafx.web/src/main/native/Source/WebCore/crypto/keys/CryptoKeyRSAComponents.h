@@ -33,7 +33,7 @@ namespace WebCore {
 
 class CryptoKeyRSAComponents {
 public:
-    enum class Type : bool {
+    enum class Type {
         Public,
         Private
     };

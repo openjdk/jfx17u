@@ -25,7 +25,7 @@
 const CalleeSaveSpaceAsVirtualRegisters = constexpr Wasm::numberOfLLIntCalleeSaveRegisters + constexpr Wasm::numberOfLLIntInternalRegisters
 const CalleeSaveSpaceStackAligned = (CalleeSaveSpaceAsVirtualRegisters * SlotSize + StackAlignment - 1) & ~StackAlignmentMask
 const WasmEntryPtrTag = constexpr WasmEntryPtrTag
-const UnboxedWasmCalleeStackSlot = CallerFrame - constexpr Wasm::numberOfLLIntCalleeSaveRegisters * SlotSize - MachineRegisterSize
+const WasmCodeBlock = CallerFrame - constexpr Wasm::numberOfLLIntCalleeSaveRegisters * SlotSize - MachineRegisterSize
 
 if HAVE_FAST_TLS
     const WTF_WASM_CONTEXT_KEY = constexpr WTF_WASM_CONTEXT_KEY
@@ -33,8 +33,6 @@ end
 
 if X86_64
     const NumberOfWasmArgumentJSRs = 6
-elsif X86_64_WIN
-    const NumberOfWasmArgumentJSRs = 4
 elsif ARM64 or ARM64E or RISCV64
     const NumberOfWasmArgumentJSRs = 8
 elsif ARMv7
@@ -49,15 +47,11 @@ const NumberOfWasmArguments = NumberOfWasmArgumentJSRs + NumberOfWasmArgumentFPR
 
 # All callee saves must match the definition in WasmCallee.cpp
 
-# These must match the definition in GPRInfo.h
+# These must match the definition in WasmMemoryInformation.cpp
 if X86_64 or ARM64 or ARM64E or RISCV64
     const wasmInstance = csr0
     const memoryBase = csr3
     const boundsCheckingSize = csr4
-elsif X86_64_WIN
-    const wasmInstance = csr0
-    const memoryBase = csr5
-    const boundsCheckingSize = csr6
 elsif ARMv7
     const wasmInstance = csr0
     const memoryBase = invalidGPR
@@ -69,8 +63,6 @@ end
 # This must match the definition in LowLevelInterpreter.asm
 if X86_64
     const PB = csr2
-elsif X86_64_WIN
-    const PB = csr4
 elsif ARM64 or ARM64E or RISCV64
     const PB = csr7
 elsif ARMv7
@@ -91,11 +83,6 @@ macro forEachArgumentJSR(fn)
         fn(2 * 8, wa2, wa3)
         fn(4 * 8, wa4, wa5)
         fn(6 * 8, wa6, wa7)
-    elsif X86_64_WIN
-        fn(0 * 8, wa0)
-        fn(1 * 8, wa1)
-        fn(2 * 8, wa2)
-        fn(3 * 8, wa3)
     elsif JSVALUE64
         fn(0 * 8, wa0)
         fn(1 * 8, wa1)
@@ -158,14 +145,14 @@ macro wasmNextInstructionWide32()
 end
 
 macro checkSwitchToJIT(increment, action)
-    loadp UnboxedWasmCalleeStackSlot[cfr], ws0
+    loadp WasmCodeBlock[cfr], ws0
     baddis increment, Wasm::LLIntCallee::m_tierUpCounter + Wasm::LLIntTierUpCounter::m_counter[ws0], .continue
     action()
     .continue:
 end
 
 macro checkSwitchToJITForPrologue(codeBlockRegister)
-    if WEBASSEMBLY_BBQJIT or WEBASSEMBLY_OMGJIT
+    if WEBASSEMBLY_B3JIT
     checkSwitchToJIT(
         5,
         macro()
@@ -208,17 +195,17 @@ end
                 jmp ws0, WasmEntryPtrTag
             end
         .recover:
-            loadp UnboxedWasmCalleeStackSlot[cfr], codeBlockRegister
+            loadp WasmCodeBlock[cfr], codeBlockRegister
         end)
     end
 end
 
 macro checkSwitchToJITForLoop()
-    if WEBASSEMBLY_OMGJIT
+    if WEBASSEMBLY_B3JIT
     checkSwitchToJIT(
         1,
         macro()
-            storei PC, CallSiteIndex[cfr]
+            storei PC, ArgumentCountIncludingThis + TagOffset[cfr]
             prepareStateForCCall()
             move cfr, a0
             move PC, a1
@@ -236,13 +223,13 @@ macro checkSwitchToJITForLoop()
                 jmp r1, WasmEntryPtrTag
             end
         .recover:
-            loadi CallSiteIndex[cfr], PC
+            loadi ArgumentCountIncludingThis + TagOffset[cfr], PC
         end)
     end
 end
 
 macro checkSwitchToJITForEpilogue()
-    if WEBASSEMBLY_BBQJIT or WEBASSEMBLY_OMGJIT
+    if WEBASSEMBLY_B3JIT
     checkSwitchToJIT(
         10,
         macro ()
@@ -262,11 +249,6 @@ macro preserveCalleeSavesUsedByWasm()
     elsif X86_64 or RISCV64
         storep PB, -0x8[cfr]
         storep wasmInstance, -0x10[cfr]
-    elsif X86_64_WIN
-        # On Windows, ws1 = csr2 so we need to save / restore it
-        storep PB, -0x8[cfr]
-        storep wasmInstance, -0x10[cfr]
-        storep ws1, -0x18[cfr]
     elsif ARMv7
         storep PB, -4[cfr]
         storep wasmInstance, -8[cfr]
@@ -284,11 +266,6 @@ macro restoreCalleeSavesUsedByWasm()
     elsif X86_64 or RISCV64
         loadp -0x8[cfr], PB
         loadp -0x10[cfr], wasmInstance
-    elsif X86_64_WIN
-        # On Windows, ws1 = csr2 so we need to save / restore it
-        loadp -0x8[cfr], PB
-        loadp -0x10[cfr], wasmInstance
-        loadp -0x18[cfr], ws1
     elsif ARMv7
         loadp -4[cfr], PB
         loadp -8[cfr], wasmInstance
@@ -300,7 +277,7 @@ end
 macro preserveGPRsUsedByTailCall(gpr0, gpr1)
     if ARM64 or ARM64E
         storepairq gpr0, gpr1, CodeBlock[sp]
-    elsif ARMv7 or X86_64 or X86_64_WIN or RISCV64
+    elsif ARMv7 or X86_64 or RISCV64
         storep gpr0, CodeBlock[sp]
         storep gpr1, Callee[sp]
     else
@@ -311,7 +288,7 @@ end
 macro restoreGPRsUsedByTailCall(gpr0, gpr1)
     if ARM64 or ARM64E
         loadpairq CodeBlock[sp], gpr0, gpr1
-    elsif ARMv7 or X86_64 or X86_64_WIN or RISCV64
+    elsif ARMv7 or X86_64 or RISCV64
         loadp CodeBlock[sp], gpr0
         loadp Callee[sp], gpr1
     else
@@ -320,7 +297,7 @@ macro restoreGPRsUsedByTailCall(gpr0, gpr1)
 end
 
 macro preserveReturnAddress(scratch)
-if X86_64 or X86_64_WIN
+if X86_64
     loadp ReturnPC[cfr], scratch
     storep scratch, ReturnPC[sp]
 elsif ARM64 or ARM64E or ARMv7 or RISCV64
@@ -331,7 +308,7 @@ end
 macro usePreviousFrame()
     if ARM64 or ARM64E
         loadpairq -PtrSize[cfr], PB, cfr
-    elsif ARMv7 or X86_64 or X86_64_WIN or RISCV64
+    elsif ARMv7 or X86_64 or RISCV64
         loadp -PtrSize[cfr], PB
         loadp [cfr], cfr
     else
@@ -339,11 +316,11 @@ macro usePreviousFrame()
     end
 end
 
-macro reloadMemoryRegistersFromInstance(instance, scratch1)
+macro reloadMemoryRegistersFromInstance(instance, scratch1, scratch2)
 if not ARMv7
     loadp Wasm::Instance::m_cachedMemory[instance], memoryBase
     loadp Wasm::Instance::m_cachedBoundsCheckingSize[instance], boundsCheckingSize
-    cagedPrimitiveMayBeNull(memoryBase, scratch1) # If boundsCheckingSize is 0, pointer can be a nullptr.
+    cagedPrimitiveMayBeNull(memoryBase, boundsCheckingSize, scratch1, scratch2) # If boundsCheckingSize is 0, pointer can be a nullptr.
 end
 end
 
@@ -353,27 +330,27 @@ macro throwException(exception)
 end
 
 macro callWasmSlowPath(slowPath)
-    storei PC, CallSiteIndex[cfr]
+    storei PC, ArgumentCountIncludingThis + TagOffset[cfr]
     prepareStateForCCall()
     move cfr, a0
     move PC, a1
     move wasmInstance, a2
-    cCall3(slowPath)
+    cCall4(slowPath)
     restoreStateAfterCCall()
 end
 
 macro callWasmCallSlowPath(slowPath, action)
-    storei PC, CallSiteIndex[cfr]
+    storei PC, ArgumentCountIncludingThis + TagOffset[cfr]
     prepareStateForCCall()
     move cfr, a0
     move PC, a1
     move wasmInstance, a2
-    cCall3(slowPath)
+    cCall4(slowPath)
     action(r0, r1)
 end
 
 macro restoreStackPointerAfterCall()
-    loadp UnboxedWasmCalleeStackSlot[cfr], ws1
+    loadp WasmCodeBlock[cfr], ws1
     loadi Wasm::LLIntCallee::m_numCalleeLocals[ws1], ws1
     lshiftp 3, ws1
     addp maxFrameExtentForSlowPathCall, ws1
@@ -389,17 +366,17 @@ macro wasmPrologue()
     # Set up the call frame and check if we should OSR.
     preserveCallerPCAndCFR()
     preserveCalleeSavesUsedByWasm()
-    reloadMemoryRegistersFromInstance(wasmInstance, ws0)
+    reloadMemoryRegistersFromInstance(wasmInstance, ws0, ws1)
 
     storep wasmInstance, CodeBlock[cfr]
     loadp Callee[cfr], ws0
 if JSVALUE64
-    andp ~(constexpr JSValue::NativeCalleeTag), ws0
+    andp ~(constexpr JSValue::WasmTag), ws0
 end
     leap WTFConfig + constexpr WTF::offsetOfWTFConfigLowestAccessibleAddress, ws1
     loadp [ws1], ws1
     addp ws1, ws0
-    storep ws0, UnboxedWasmCalleeStackSlot[cfr]
+    storep ws0, WasmCodeBlock[cfr]
 
     # Get new sp in ws1 and check stack height.
     loadi Wasm::LLIntCallee::m_numCalleeLocals[ws0], ws1
@@ -443,7 +420,7 @@ else
     end)
 end
 
-    loadp UnboxedWasmCalleeStackSlot[cfr], ws0
+    loadp WasmCodeBlock[cfr], ws0
     checkSwitchToJITForPrologue(ws0)
 
     # Set up the PC.
@@ -453,10 +430,8 @@ end
     loadi Wasm::LLIntCallee::m_numVars[ws0], ws1
     subi NumberOfWasmArguments + CalleeSaveSpaceAsVirtualRegisters, ws1
     btiz ws1, .zeroInitializeLocalsDone
-
     lshifti 3, ws1
     negi ws1
-
 if JSVALUE64
     sxi2q ws1, ws1
 end
@@ -482,20 +457,20 @@ end
 
 # Tier up immediately, while saving full vectors in argument FPRs
 macro wasmPrologueSIMD()
-if (WEBASSEMBLY_BBQJIT or WEBASSEMBLY_OMGJIT) and not ARMv7
+if WEBASSEMBLY_B3JIT and not ARMv7
     preserveCallerPCAndCFR()
     preserveCalleeSavesUsedByWasm()
-    reloadMemoryRegistersFromInstance(wasmInstance, ws0)
+    reloadMemoryRegistersFromInstance(wasmInstance, ws0, ws1)
 
     storep wasmInstance, CodeBlock[cfr]
     loadp Callee[cfr], ws0
 if JSVALUE64
-    andp ~(constexpr JSValue::NativeCalleeTag), ws0
+    andp ~(constexpr JSValue::WasmTag), ws0
 end
     leap WTFConfig + constexpr WTF::offsetOfWTFConfigLowestAccessibleAddress, ws1
     loadp [ws1], ws1
     addp ws1, ws0
-    storep ws0, UnboxedWasmCalleeStackSlot[cfr]
+    storep ws0, WasmCodeBlock[cfr]
 
     # Get new sp in ws1 and check stack height.
     # This should match the calculation of m_stackSize, but with double the size for fpr arg storage and no locals.
@@ -638,7 +613,7 @@ macro loadConstantOrVariable(ctx, index, loader)
         loader([cfr, index, 8])
         jmp .done
     .constant:
-        loadp UnboxedWasmCalleeStackSlot[cfr], t6
+        loadp WasmCodeBlock[cfr], t6
         loadp Wasm::LLIntCallee::m_constants[t6], t6
         subp firstConstantIndex, index
         loader((constexpr (Int64FixedVector::Storage::offsetOfData()))[t6, index, 8])
@@ -805,11 +780,12 @@ op(wasm_throw_from_slow_path_trampoline, macro ()
     copyCalleeSavesToEntryFrameCalleeSavesBuffer(t5)
 
     move cfr, a0
-    move wasmInstance, a1
+    addp PB, PC, a1
+    move wasmInstance, a2
     # Slow paths and the throwException macro store the exception code in the ArgumentCountIncludingThis slot
-    loadi ArgumentCountIncludingThis + PayloadOffset[cfr], a2
-    storei 0, CallSiteIndex[cfr]
-    cCall3(_slow_path_wasm_throw_exception)
+    loadi ArgumentCountIncludingThis + PayloadOffset[cfr], a3
+    storei 0, ArgumentCountIncludingThis + TagOffset[cfr]
+    cCall4(_slow_path_wasm_throw_exception)
     jumpToException()
 end)
 
@@ -819,12 +795,11 @@ macro wasm_throw_from_fault_handler(instance)
     loadp VM::topEntryFrame[a0], a0
     copyCalleeSavesToEntryFrameCalleeSavesBuffer(a0)
 
+    move constexpr Wasm::ExceptionType::OutOfBoundsMemoryAccess, a3
+    move 0, a1
     move cfr, a0
-    move a2, a1
-    move constexpr Wasm::ExceptionType::OutOfBoundsMemoryAccess, a2
-
-    storei 0, CallSiteIndex[cfr]
-    cCall3(_slow_path_wasm_throw_exception)
+    storei 0, ArgumentCountIncludingThis + TagOffset[cfr]
+    cCall4(_slow_path_wasm_throw_exception)
     jumpToException()
 end
 
@@ -854,14 +829,13 @@ slowWasmOp(memory_atomic_notify)
 slowWasmOp(array_new)
 slowWasmOp(array_get)
 slowWasmOp(array_set)
-slowWasmOp(array_fill)
 slowWasmOp(struct_new)
 slowWasmOp(struct_get)
 slowWasmOp(struct_set)
 
 wasmOp(grow_memory, WasmGrowMemory, macro(ctx)
     callWasmSlowPath(_slow_path_wasm_grow_memory)
-    reloadMemoryRegistersFromInstance(wasmInstance, ws0)
+    reloadMemoryRegistersFromInstance(wasmInstance, ws0, ws1)
     dispatch(ctx)
 end)
 
@@ -876,8 +850,8 @@ _wasm_wide32:
 _wasm_enter:
     traceExecution()
     checkStackPointerAlignment(t2, 0xdead00e1)
-    loadp UnboxedWasmCalleeStackSlot[cfr], t2 // t2<UnboxedWasmCalleeStackSlot> = cfr.UnboxedWasmCalleeStackSlot
-    loadi Wasm::LLIntCallee::m_numVars[t2], t2 // t2<size_t> = t2<UnboxedWasmCalleeStackSlot>.m_numVars
+    loadp WasmCodeBlock[cfr], t2                // t2<WasmCodeBlock> = cfr.WasmCodeBlock
+    loadi Wasm::LLIntCallee::m_numVars[t2], t2      // t2<size_t> = t2<WasmCodeBlock>.m_numVars
     subi CalleeSaveSpaceAsVirtualRegisters + NumberOfWasmArguments, t2
     btiz t2, .opEnterDone
     subp cfr, (CalleeSaveSpaceAsVirtualRegisters + NumberOfWasmArguments) * SlotSize, t1
@@ -927,7 +901,7 @@ wasmOp(switch, WasmSwitch, macro(ctx)
     mloadi(ctx, m_scrutinee, t0)
     wgetu(ctx, m_tableIndex, t1)
 
-    loadp UnboxedWasmCalleeStackSlot[cfr], t2
+    loadp WasmCodeBlock[cfr], t2
     loadp Wasm::LLIntCallee::m_jumpTables[t2], t2
     muli sizeof Wasm::JumpTable, t1
     addp t1, t2
@@ -995,8 +969,17 @@ wasmOp(ret_void, WasmRetVoid, macro(ctx)
 end)
 
 macro slowPathForWasmCall(ctx, slowPath, storeWasmInstance)
-    # First, prepare the new stack frame
-    # We do this before the CCall so it can write stuff into the new frame from CPP
+    callWasmCallSlowPath(
+        slowPath,
+        # callee is r0 and targetWasmInstance is r1
+        macro (calleeEntryPoint, targetWasmInstance)
+            move calleeEntryPoint, ws0
+
+            loadi ArgumentCountIncludingThis + TagOffset[cfr], PC
+
+            # the call might throw (e.g. indirect call with bad signature)
+            btpz targetWasmInstance, .throw
+
             wgetu(ctx, m_stackOffset, ws1)
             lshifti 3, ws1
 if ARMv7
@@ -1006,36 +989,13 @@ else
             subp cfr, ws1, sp
 end
 
-if ASSERT_ENABLED
-    if ARMv7
-        move 0xBEEF, a0
-        storep a0, PayloadOffset + Callee[sp]
-        move 0, a0
-        storep a0, TagOffset + Callee[sp]
-    else
-        move 0xBEEF, a0
-        storep a0, Callee[sp]
-    end
-end
-
-    callWasmCallSlowPath(
-        slowPath,
-        # callee is r0 and targetWasmInstance is r1
-        macro (calleeEntryPoint, targetWasmInstance)
-            loadi CallSiteIndex[cfr], PC
-
-            move calleeEntryPoint, ws0
-
-            # the call might throw (e.g. indirect call with bad signature)
-            btpz targetWasmInstance, .throw
-
             wgetu(ctx, m_numberOfStackArgs, ws1)
 
             # Preserve the current instance
             move wasmInstance, PB
 
             storeWasmInstance(targetWasmInstance)
-            reloadMemoryRegistersFromInstance(targetWasmInstance, wa0)
+            reloadMemoryRegistersFromInstance(targetWasmInstance, wa0, wa1)
             loadp Wasm::Instance::m_owner[wasmInstance], wa0
             storep wa0, ThisArgumentOffset[sp] # Anchor new JSWebAssemblyInstance in ThisArgumentOffset.
 
@@ -1107,8 +1067,8 @@ else
             move PC, memoryBase
 end
             move PB, wasmInstance
-            loadi CallSiteIndex[cfr], PC
-            loadp UnboxedWasmCalleeStackSlot[cfr], PB
+            loadi ArgumentCountIncludingThis + TagOffset[cfr], PC
+            loadp WasmCodeBlock[cfr], PB
             loadp Wasm::LLIntCallee::m_instructionsRawPointer[PB], PB
 
             wgetu(ctx, m_stackOffset, ws1)
@@ -1151,10 +1111,10 @@ else
             end)
 end
 
-            loadi CallSiteIndex[cfr], PC
+            loadi ArgumentCountIncludingThis + TagOffset[cfr], PC
 
             storeWasmInstance(wasmInstance)
-            reloadMemoryRegistersFromInstance(wasmInstance, ws0)
+            reloadMemoryRegistersFromInstance(wasmInstance, ws0, ws1)
 
             dispatch(ctx)
 
@@ -1171,7 +1131,7 @@ macro slowPathForWasmTailCall(ctx, slowPath, storeWasmInstance, restoreCalleeSav
         macro (calleeEntryPoint, targetWasmInstance)
             move calleeEntryPoint, ws0
 
-            loadi CallSiteIndex[cfr], PC
+            loadi ArgumentCountIncludingThis + TagOffset[cfr], PC
 
             # the call might throw (e.g. indirect call with bad signature)
             btpz targetWasmInstance, .throw
@@ -1187,7 +1147,7 @@ else
 end
 
             storeWasmInstance(targetWasmInstance)
-            reloadMemoryRegistersFromInstance(targetWasmInstance, wa0)
+            reloadMemoryRegistersFromInstance(targetWasmInstance, wa0, wa1)
 
             wgetu(ctx, m_numberOfCalleeStackArgs, ws1)
 
@@ -1225,7 +1185,7 @@ end
             move PC, ws1
 
             # Reload PC
-            loadi CallSiteIndex[cfr], PC
+            loadi ArgumentCountIncludingThis + TagOffset[cfr], PC
 
             # Compute old stack size
             wgetu(ctx, m_numberOfCallerStackArgs, wa0)
@@ -1278,7 +1238,7 @@ end
             # ws1 is the new stack pointer.
             # cfr is the caller's caller's frame pointer.
 
-if X86_64 or X86_64_WIN
+if X86_64
             addp PtrSize, ws1, sp
 elsif ARMv7
             addp CallerFrameAndPCSize, ws1
@@ -1520,7 +1480,7 @@ end)
 
 wasmI64ToFOp(f32_convert_u_i64, WasmF32ConvertUI64, macro (ctx)
     mloadq(ctx, m_operand, t0)
-    if X86_64 or X86_64_WIN
+    if X86_64
         cq2f t0, t1, ft0
     else
         cq2f t0, ft0
@@ -1530,7 +1490,7 @@ end)
 
 wasmI64ToFOp(f64_convert_u_i64, WasmF64ConvertUI64, macro (ctx)
     mloadq(ctx, m_operand, t0)
-    if X86_64 or X86_64_WIN
+    if X86_64
         cq2d t0, t1, ft0
     else
         cq2d t0, ft0
@@ -2150,9 +2110,9 @@ macro commonCatchImpl(ctx)
     restoreStackPointerAfterCall()
 
     loadp CodeBlock[cfr], wasmInstance
-    reloadMemoryRegistersFromInstance(wasmInstance, ws0)
+    reloadMemoryRegistersFromInstance(wasmInstance, ws0, ws1)
 
-    loadp UnboxedWasmCalleeStackSlot[cfr], PB
+    loadp WasmCodeBlock[cfr], PB
     loadp Wasm::LLIntCallee::m_instructionsRawPointer[PB], PB
     loadp VM::targetInterpreterPCForThrow[t3], PC
     subp PB, PC

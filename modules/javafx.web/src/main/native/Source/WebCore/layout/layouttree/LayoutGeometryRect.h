@@ -37,7 +37,6 @@ public:
     Rect(LayoutUnit top, LayoutUnit left, LayoutUnit width, LayoutUnit height);
     Rect(LayoutPoint topLeft, LayoutUnit width, LayoutUnit height);
     Rect(const LayoutPoint& topLeft, const LayoutSize&);
-    explicit Rect(const FloatRect&);
 
     LayoutUnit top() const;
     LayoutUnit left() const;
@@ -77,7 +76,6 @@ public:
 
     Rect clone() const;
     operator LayoutRect() const;
-    operator FloatRect() const;
 
 private:
 #if ASSERT_ENABLED
@@ -120,11 +118,6 @@ inline Rect::Rect(LayoutPoint topLeft, LayoutUnit width, LayoutUnit height)
 
 inline Rect::Rect(const LayoutPoint& topLeft, const LayoutSize& size)
     : Rect(topLeft.y(), topLeft.x(), size.width(), size.height())
-{
-}
-
-inline Rect::Rect(const FloatRect& rect)
-    : Rect(LayoutPoint(rect.location()), LayoutSize(rect.size()))
 {
 }
 
@@ -321,12 +314,6 @@ inline Rect Rect::clone() const
 }
 
 inline Rect::operator LayoutRect() const
-{
-    ASSERT(hasValidGeometry());
-    return m_rect;
-}
-
-inline Rect::operator FloatRect() const
 {
     ASSERT(hasValidGeometry());
     return m_rect;

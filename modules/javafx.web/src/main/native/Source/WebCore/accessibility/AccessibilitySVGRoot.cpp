@@ -66,10 +66,12 @@ AccessibilityObject* AccessibilitySVGRoot::parentObject() const
     return AccessibilitySVGElement::parentObject();
 }
 
-AccessibilityRole AccessibilitySVGRoot::determineAccessibilityRole()
+AccessibilityRole AccessibilitySVGRoot::roleValue() const
 {
-    if ((m_ariaRole = determineAriaRoleAttribute()) != AccessibilityRole::Unknown)
-        return m_ariaRole;
+    AccessibilityRole ariaRole = ariaRoleAttribute();
+    if (ariaRole != AccessibilityRole::Unknown)
+        return ariaRole;
+
     return AccessibilityRole::Group;
 }
 

@@ -33,7 +33,14 @@
 namespace WebCore {
 
 JSC::JSValue convertToJSValue(JSC::JSGlobalObject&, JSDOMGlobalObject&, const WebGLAny&);
-JSC::JSValue convertToJSValue(JSC::JSGlobalObject&, JSDOMGlobalObject&, WebGLExtensionAny);
+JSC::JSValue convertToJSValue(JSC::JSGlobalObject&, JSDOMGlobalObject&, WebGLExtension&);
+
+inline JSC::JSValue convertToJSValue(JSC::JSGlobalObject& lexicalGlobalObject, JSDOMGlobalObject& globalObject, WebGLExtension* extension)
+{
+    if (!extension)
+        return JSC::jsNull();
+    return convertToJSValue(lexicalGlobalObject, globalObject, *extension);
+}
 
 template<> struct JSConverter<IDLWebGLAny> {
     static constexpr bool needsState = true;
@@ -45,13 +52,14 @@ template<> struct JSConverter<IDLWebGLAny> {
     }
 };
 
-template<> struct JSConverter<IDLWebGLExtensionAny> {
+template<> struct JSConverter<IDLWebGLExtension> {
     static constexpr bool needsState = true;
     static constexpr bool needsGlobalObject = true;
 
-    static JSC::JSValue convert(JSC::JSGlobalObject& lexicalGlobalObject, JSDOMGlobalObject& globalObject, WebGLExtensionAny value)
+    template <typename T>
+    static JSC::JSValue convert(JSC::JSGlobalObject& lexicalGlobalObject, JSDOMGlobalObject& globalObject, const T& value)
     {
-        return convertToJSValue(lexicalGlobalObject, globalObject, WTFMove(value));
+        return convertToJSValue(lexicalGlobalObject, globalObject, Detail::getPtrOrRef(value));
     }
 };
 

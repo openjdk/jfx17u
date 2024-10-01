@@ -26,6 +26,8 @@
 #include "config.h"
 #include "SWServerToContextConnection.h"
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "SWServer.h"
 #include "SWServerWorker.h"
 #include <wtf/CompletionHandler.h>
@@ -55,50 +57,45 @@ SWServer* SWServerToContextConnection::server() const
     return m_server.get();
 }
 
-RefPtr<SWServer> SWServerToContextConnection::protectedServer() const
-{
-    return m_server.get();
-}
-
 void SWServerToContextConnection::scriptContextFailedToStart(const std::optional<ServiceWorkerJobDataIdentifier>& jobDataIdentifier, ServiceWorkerIdentifier serviceWorkerIdentifier, const String& message)
 {
-    if (RefPtr worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier))
+    if (auto* worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier))
         worker->scriptContextFailedToStart(jobDataIdentifier, message);
 }
 
 void SWServerToContextConnection::scriptContextStarted(const std::optional<ServiceWorkerJobDataIdentifier>& jobDataIdentifier, ServiceWorkerIdentifier serviceWorkerIdentifier, bool doesHandleFetch)
 {
-    if (RefPtr worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier))
+    if (auto* worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier))
         worker->scriptContextStarted(jobDataIdentifier, doesHandleFetch);
 }
 
 void SWServerToContextConnection::didFinishInstall(const std::optional<ServiceWorkerJobDataIdentifier>& jobDataIdentifier, ServiceWorkerIdentifier serviceWorkerIdentifier, bool wasSuccessful)
 {
-    if (RefPtr worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier))
+    if (auto* worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier))
         worker->didFinishInstall(jobDataIdentifier, wasSuccessful);
 }
 
 void SWServerToContextConnection::didFinishActivation(ServiceWorkerIdentifier serviceWorkerIdentifier)
 {
-    if (RefPtr worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier))
+    if (auto* worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier))
         worker->didFinishActivation();
 }
 
 void SWServerToContextConnection::setServiceWorkerHasPendingEvents(ServiceWorkerIdentifier serviceWorkerIdentifier, bool hasPendingEvents)
 {
-    if (RefPtr worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier))
+    if (auto* worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier))
         worker->setHasPendingEvents(hasPendingEvents);
 }
 
 void SWServerToContextConnection::workerTerminated(ServiceWorkerIdentifier serviceWorkerIdentifier)
 {
-    if (RefPtr worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier))
+    if (auto* worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier))
         worker->contextTerminated();
 }
 
 void SWServerToContextConnection::matchAll(uint64_t requestIdentifier, ServiceWorkerIdentifier serviceWorkerIdentifier, const ServiceWorkerClientQueryOptions& options)
 {
-    if (RefPtr worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier)) {
+    if (auto* worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier)) {
         worker->matchAll(options, [&] (auto&& data) {
             worker->contextConnection()->matchAllCompleted(requestIdentifier, data);
         });
@@ -107,7 +104,7 @@ void SWServerToContextConnection::matchAll(uint64_t requestIdentifier, ServiceWo
 
 void SWServerToContextConnection::findClientByVisibleIdentifier(ServiceWorkerIdentifier serviceWorkerIdentifier, const String& clientIdentifier, CompletionHandler<void(std::optional<WebCore::ServiceWorkerClientData>&&)>&& callback)
 {
-    if (RefPtr worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier))
+    if (auto* worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier))
         worker->findClientByVisibleIdentifier(clientIdentifier, WTFMove(callback));
     else
         callback({ });
@@ -115,26 +112,26 @@ void SWServerToContextConnection::findClientByVisibleIdentifier(ServiceWorkerIde
 
 void SWServerToContextConnection::claim(ServiceWorkerIdentifier serviceWorkerIdentifier, CompletionHandler<void(std::optional<ExceptionData>&&)>&& callback)
 {
-    RefPtr worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier);
-    RefPtr server = worker ? worker->server() : nullptr;
+    auto* worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier);
+    auto* server = worker ? worker->server() : nullptr;
     callback(server ? server->claim(*worker) : std::nullopt);
 }
 
 void SWServerToContextConnection::setScriptResource(ServiceWorkerIdentifier serviceWorkerIdentifier, URL&& scriptURL, ServiceWorkerContextData::ImportedScript&& script)
 {
-    if (RefPtr worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier))
+    if (auto* worker = SWServerWorker::existingWorkerForIdentifier(serviceWorkerIdentifier))
         worker->setScriptResource(WTFMove(scriptURL), WTFMove(script));
 }
 
 void SWServerToContextConnection::didFailHeartBeatCheck(ServiceWorkerIdentifier identifier)
 {
-    if (RefPtr worker = SWServerWorker::existingWorkerForIdentifier(identifier))
+    if (auto* worker = SWServerWorker::existingWorkerForIdentifier(identifier))
         worker->didFailHeartBeatCheck();
 }
 
 void SWServerToContextConnection::setAsInspected(ServiceWorkerIdentifier identifier, bool isInspected)
 {
-    if (RefPtr worker = SWServerWorker::existingWorkerForIdentifier(identifier))
+    if (auto* worker = SWServerWorker::existingWorkerForIdentifier(identifier))
         worker->setAsInspected(isInspected);
 }
 
@@ -143,8 +140,8 @@ void SWServerToContextConnection::terminateWhenPossible()
     m_shouldTerminateWhenPossible = true;
 
     bool hasServiceWorkerWithPendingEvents = false;
-    protectedServer()->forEachServiceWorker([&](auto& worker) {
-        if (worker.isRunning() && worker.topRegistrableDomain() == m_registrableDomain && worker.hasPendingEvents()) {
+    server()->forEachServiceWorker([&](auto& worker) {
+        if (worker.isRunning() && worker.registrableDomain() == m_registrableDomain && worker.hasPendingEvents()) {
             hasServiceWorkerWithPendingEvents = true;
             return false;
         }
@@ -158,3 +155,5 @@ void SWServerToContextConnection::terminateWhenPossible()
 }
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

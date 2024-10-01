@@ -28,31 +28,30 @@
 #if ENABLE(WEBGL)
 #include "WebGLSampler.h"
 
+#include "WebGLContextGroup.h"
 #include "WebGLRenderingContextBase.h"
 #include <wtf/Lock.h>
 #include <wtf/Locker.h>
 
 namespace WebCore {
 
-RefPtr<WebGLSampler> WebGLSampler::create(WebGLRenderingContextBase& context)
+Ref<WebGLSampler> WebGLSampler::create(WebGLRenderingContextBase& ctx)
 {
-    auto object = context.protectedGraphicsContextGL()->createSampler();
-    if (!object)
-        return nullptr;
-    return adoptRef(*new WebGLSampler { context, object });
+    return adoptRef(*new WebGLSampler(ctx));
 }
 
 WebGLSampler::~WebGLSampler()
 {
-    if (!m_context)
+    if (!hasGroupOrContext())
         return;
 
     runDestructor();
 }
 
-WebGLSampler::WebGLSampler(WebGLRenderingContextBase& context, PlatformGLObject object)
-    : WebGLObject(context, object)
+WebGLSampler::WebGLSampler(WebGLRenderingContextBase& ctx)
+    : WebGLSharedObject(ctx)
 {
+    setObject(ctx.graphicsContextGL()->createSampler());
 }
 
 void WebGLSampler::deleteObjectImpl(const AbstractLocker&, GraphicsContextGL* context3d, PlatformGLObject object)

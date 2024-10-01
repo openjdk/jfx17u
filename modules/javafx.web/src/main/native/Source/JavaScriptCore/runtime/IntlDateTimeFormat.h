@@ -70,9 +70,7 @@ public:
 
     DECLARE_INFO;
 
-    enum class RequiredComponent : uint8_t { Date, Time, Any };
-    enum class Defaults : uint8_t { Date, Time, All };
-    void initializeDateTimeFormat(JSGlobalObject*, JSValue locales, JSValue options, RequiredComponent, Defaults);
+    void initializeDateTimeFormat(JSGlobalObject*, JSValue locales, JSValue options);
     JSValue format(JSGlobalObject*, double value) const;
     JSValue formatToParts(JSGlobalObject*, double value, JSString* sourceType = nullptr) const;
     JSValue formatRange(JSGlobalObject*, double startDate, double endDate);
@@ -128,7 +126,6 @@ private:
     static HourCycle parseHourCycle(const String&);
     static void replaceHourCycleInSkeleton(Vector<UChar, 32>&, bool hour12);
     static void replaceHourCycleInPattern(Vector<UChar, 32>&, HourCycle);
-    static String buildSkeleton(Weekday, Era, Year, Month, Day, TriState, HourCycle, Hour, DayPeriod, Minute, Second, unsigned, TimeZoneName);
 
     using UDateFormatDeleter = ICUDeleter<udat_close>;
 
@@ -141,7 +138,6 @@ private:
     String m_calendar;
     String m_numberingSystem;
     String m_timeZone;
-    String m_timeZoneForICU;
     HourCycle m_hourCycle { HourCycle::None };
     Weekday m_weekday { Weekday::None };
     Era m_era { Era::None };

@@ -334,7 +334,7 @@ static WARN_UNUSED_RETURN bool decodeKey(const uint8_t*& data, const uint8_t* en
             uint16_t ch;
             if (!readLittleEndian(data, end, ch))
                 return false;
-            buffer.append(ch);
+            buffer.uncheckedAppend(ch);
         }
 
         result.setStringValue(String::adopt(WTFMove(buffer)));
@@ -379,7 +379,7 @@ static WARN_UNUSED_RETURN bool decodeKey(const uint8_t*& data, const uint8_t* en
                 return false;
 
             ASSERT(keyData.isValid());
-            array.append(WTFMove(keyData));
+            array.uncheckedAppend(WTFMove(keyData));
         }
 
         result.setArrayValue(array);

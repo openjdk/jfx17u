@@ -110,8 +110,8 @@ LayoutSize RenderImageResource::imageSize(float multiplier, CachedImage::SizeTyp
     if (!m_cachedImage)
         return LayoutSize();
     LayoutSize size = m_cachedImage->imageSizeForRenderer(m_renderer.get(), multiplier, type);
-    if (auto* renderImage = dynamicDowncast<RenderImage>(m_renderer.get()))
-        size.scale(renderImage->imageDevicePixelRatio());
+    if (is<RenderImage>(m_renderer))
+        size.scale(downcast<RenderImage>(*m_renderer).imageDevicePixelRatio());
     return size;
 }
 

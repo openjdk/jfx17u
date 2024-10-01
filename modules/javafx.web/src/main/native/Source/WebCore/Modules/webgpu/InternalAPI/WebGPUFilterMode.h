@@ -26,6 +26,7 @@
 #pragma once
 
 #include <cstdint>
+#include <wtf/EnumTraits.h>
 
 namespace WebCore::WebGPU {
 
@@ -40,3 +41,23 @@ enum class MipmapFilterMode : uint8_t {
 };
 
 } // namespace WebCore::WebGPU
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::WebGPU::FilterMode> {
+    using values = EnumValues<
+        WebCore::WebGPU::FilterMode,
+        WebCore::WebGPU::FilterMode::Nearest,
+        WebCore::WebGPU::FilterMode::Linear
+    >;
+};
+
+template<> struct EnumTraits<WebCore::WebGPU::MipmapFilterMode> {
+    using values = EnumValues<
+        WebCore::WebGPU::MipmapFilterMode,
+        WebCore::WebGPU::MipmapFilterMode::Nearest,
+        WebCore::WebGPU::MipmapFilterMode::Linear
+    >;
+};
+
+} // namespace WTF

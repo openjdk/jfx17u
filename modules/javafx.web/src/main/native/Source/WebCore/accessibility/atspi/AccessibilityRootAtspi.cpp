@@ -33,7 +33,6 @@
 #include <locale.h>
 
 namespace WebCore {
-DEFINE_ALLOCATOR_WITH_HEAP_IDENTIFIER(AccessibilityRootAtspi);
 
 Ref<AccessibilityRootAtspi> AccessibilityRootAtspi::create(Page& page)
 {

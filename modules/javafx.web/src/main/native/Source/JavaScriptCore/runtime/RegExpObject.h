@@ -111,7 +111,10 @@ public:
 
     DECLARE_EXPORT_INFO;
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        return Structure::create(vm, globalObject, prototype, TypeInfo(RegExpObjectType, StructureFlags), info());
+    }
 
     static ptrdiff_t offsetOfRegExpAndFlags()
     {

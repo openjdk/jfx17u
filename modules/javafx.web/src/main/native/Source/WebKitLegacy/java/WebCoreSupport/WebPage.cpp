@@ -523,7 +523,7 @@ bool WebPage::keyEvent(const PlatformKeyboardEvent& event)
             // handle non-US keyboards.)
             Node* node = focusedWebCoreNode();
             if (!node || !node->renderer()
-                    || !node->renderer()->isRenderEmbeddedObject())
+                    || !node->renderer()->isEmbeddedObject())
                 m_suppressNextKeypressEvent = true;
         }
         return true;
@@ -615,35 +615,35 @@ bool WebPage::mapKeyCodeForScroll(int keyCode,
 {
     switch (keyCode) {
     case VKEY_LEFT:
-        *scrollDirection = ScrollDirection::ScrollLeft;
+        *scrollDirection = ScrollLeft;
         *scrollGranularity = ScrollGranularity::Line;
         break;
     case VKEY_RIGHT:
-        *scrollDirection = ScrollDirection::ScrollRight;
+        *scrollDirection = ScrollRight;
         *scrollGranularity = ScrollGranularity::Line;
         break;
     case VKEY_UP:
-        *scrollDirection = ScrollDirection::ScrollUp;
+        *scrollDirection = ScrollUp;
         *scrollGranularity = ScrollGranularity::Line;
         break;
     case VKEY_DOWN:
-        *scrollDirection = ScrollDirection::ScrollDown;
+        *scrollDirection = ScrollDown;
         *scrollGranularity = ScrollGranularity::Line;
         break;
     case VKEY_HOME:
-        *scrollDirection = ScrollDirection::ScrollUp;
+        *scrollDirection = ScrollUp;
         *scrollGranularity = ScrollGranularity::Document;
         break;
     case VKEY_END:
-        *scrollDirection = ScrollDirection::ScrollDown;
+        *scrollDirection = ScrollDown;
         *scrollGranularity = ScrollGranularity::Document;
         break;
     case VKEY_PRIOR:  // page up
-        *scrollDirection = ScrollDirection::ScrollUp;
+        *scrollDirection = ScrollUp;
         *scrollGranularity = ScrollGranularity::Page;
         break;
     case VKEY_NEXT:  // page down
-        *scrollDirection = ScrollDirection::ScrollDown;
+        *scrollDirection = ScrollDown;
         *scrollGranularity = ScrollGranularity::Page;
         break;
     default:
@@ -679,9 +679,10 @@ LocalFrame* WebPage::focusedWebCoreFrame()
 
 Node* WebPage::focusedWebCoreNode()
 {
-    LocalFrame* frame = m_page->focusController().focusedLocalFrame();
+    LocalFrame* frame = m_page->focusController().focusedFrame();
     if (!frame)
         return 0;
+
     Document* document = frame->document();
     if (!document)
         return 0;
@@ -808,7 +809,7 @@ public:
     }
 private:
     String m_localStorageDatabasePath;
-        SingleThreadWeakHashMap<WebCore::Page, HashMap<WebCore::SecurityOriginData, RefPtr<WebCore::StorageNamespace>>> m_sessionStorageNamespaces;
+        WeakHashMap<WebCore::Page, HashMap<WebCore::SecurityOriginData, RefPtr<WebCore::StorageNamespace>>> m_sessionStorageNamespaces;
 
         RefPtr<StorageNamespace> sessionStorageNamespace(const SecurityOrigin& topLevelOrigin, Page& page, ShouldCreateNamespace shouldCreate) override{
             if (m_sessionStorageNamespaces.find(page) == m_sessionStorageNamespaces.end()) {
@@ -1339,9 +1340,9 @@ JNIEXPORT void JNICALL Java_com_sun_webkit_WebPage_twkOverridePreference
         settings.setCSSCounterStyleAtRulesEnabled(nativePropertyValue == "true"_s);
     } else if (nativePropertyName == "CSSCounterStyleAtRuleImageSymbolsEnabled"_s) {
         settings.setCSSCounterStyleAtRuleImageSymbolsEnabled(nativePropertyValue == "true"_s);
-    } /*else if (nativePropertyName == "CSSIndividualTransformPropertiesEnabled"_s) {
+    } else if (nativePropertyName == "CSSIndividualTransformPropertiesEnabled"_s) {
         settings.setCSSIndividualTransformPropertiesEnabled(nativePropertyValue == "true"_s);
-    } */else if (nativePropertyName == "CSSColorContrastEnabled"_s) {
+    } else if (nativePropertyName == "CSSColorContrastEnabled"_s) {
         settings.setCSSColorContrastEnabled(nativePropertyValue == "true"_s);
     } else if (nativePropertyName == "WebKitTextAreasAreResizable"_s) {
         settings.setTextAreasAreResizable(parseIntegerAllowingTrailingJunk<int>(nativePropertyString).value());
@@ -1463,14 +1464,14 @@ JNIEXPORT void JNICALL Java_com_sun_webkit_WebPage_twkResetToConsistentStateBefo
     // Shrinks standalone images to fit: YES
     settings.setJavaScriptCanOpenWindowsAutomatically(true);
     settings.setJavaScriptCanAccessClipboard(true);
-   // settings.setOfflineWebApplicationCacheEnabled(true);
+    settings.setOfflineWebApplicationCacheEnabled(true);
     settings.setDataTransferItemsEnabled(true);
     // settings.setDeveloperExtrasEnabled(false);
     settings.setJavaScriptRuntimeFlags(JSC::RuntimeFlags(0));
     // Set JS experiments enabled: YES
     //settings.setLoadsImagesAutomatically(true);
     //settings.setLoadsSiteIconsIgnoringImageLoadingSetting(false);
-    //settings.setFrameFlattening(FrameFlattening::Disabled);
+    settings.setFrameFlattening(FrameFlattening::Disabled);
     //settings.setFontRenderingMode(FontRenderingMode::Normal);
     // Doesn't work well with DRT
     settings.setScrollAnimatorEnabled(false);
@@ -1482,7 +1483,7 @@ JNIEXPORT void JNICALL Java_com_sun_webkit_WebPage_twkResetToConsistentStateBefo
     // Async spellcheck: NO
     DeprecatedGlobalSettings::setMockScrollbarsEnabled(true);
 
-    //DeprecatedGlobalSettings::setHighlightAPIEnabled(true);
+    DeprecatedGlobalSettings::setHighlightAPIEnabled(true);
     // RuntimeEnabledFeatures::sharedFeatures().setModernMediaControlsEnabled(false);
     //DeprecatedGlobalSettings::setInspectorAdditionsEnabled(true); // deprecated and not enable
     // RuntimeEnabledFeatures::sharedFeatures().clearNetworkLoaderSession();
@@ -1781,7 +1782,7 @@ JNIEXPORT void JNICALL Java_com_sun_webkit_WebPage_twkProcessFocusEvent
 
     FocusController& focusController = page->focusController();
 
-    LocalFrame* focusedFrame = focusController.focusedLocalFrame();
+    LocalFrame* focusedFrame = focusController.focusedFrame();
     switch (id) {
         case com_sun_webkit_event_WCFocusEvent_FOCUS_GAINED:
             focusController.setActive(true); // window activation
@@ -1861,14 +1862,14 @@ JNIEXPORT jboolean JNICALL Java_com_sun_webkit_WebPage_twkProcessMouseEvent
     case com_sun_webkit_event_WCMouseEvent_MOUSE_PRESSED:
         //frame->focusWindow();
         page->chrome().focus();
-        consumeEvent = eventHandler.handleMousePressEvent(mouseEvent).wasHandled();
+        consumeEvent = eventHandler.handleMousePressEvent(mouseEvent);
         break;
     case com_sun_webkit_event_WCMouseEvent_MOUSE_RELEASED:
-        consumeEvent = eventHandler.handleMouseReleaseEvent(mouseEvent).wasHandled();
+        consumeEvent = eventHandler.handleMouseReleaseEvent(mouseEvent);
         break;
     case com_sun_webkit_event_WCMouseEvent_MOUSE_MOVED:
     case com_sun_webkit_event_WCMouseEvent_MOUSE_DRAGGED:
-        consumeEvent = eventHandler.mouseMoved(mouseEvent).wasHandled();
+        consumeEvent = eventHandler.mouseMoved(mouseEvent);
         break;
     }
 
@@ -1923,7 +1924,7 @@ JNIEXPORT jboolean JNICALL Java_com_sun_webkit_WebPage_twkProcessMouseWheelEvent
         WheelEventProcessingSteps::SynchronousScrolling,
         WheelEventProcessingSteps::BlockingDOMEventDispatch
     };
-    bool consumeEvent = frame->eventHandler().handleWheelEvent(wheelEvent, processingSteps).wasHandled();
+    bool consumeEvent = frame->eventHandler().handleWheelEvent(wheelEvent, processingSteps);
 
     return bool_to_jbool(consumeEvent);
 }
@@ -2115,7 +2116,7 @@ JNIEXPORT jint JNICALL Java_com_sun_webkit_WebPage_twkGetCommittedTextLength
     jint length = 0;
     Editor &editor = frame->editor();
     if (editor.canEdit()) {
-        SimpleRange range = makeRangeSelectingNodeContents(*(Node*)frame->selection().selection().start().anchorElementAncestor().get());
+        SimpleRange range = makeRangeSelectingNodeContents(*(Node*)frame->selection().selection().start().element());
         for (auto& node : intersectingNodes(range)) {
             if (node.nodeType() == Node::TEXT_NODE || node.nodeType() == Node::CDATA_SECTION_NODE) {
                 length += downcast<CharacterData>(node).data().length();
@@ -2142,7 +2143,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_WebPage_twkGetCommittedText
 
     Editor &editor = frame->editor();
     if (editor.canEdit()) {
-        auto range = makeRangeSelectingNodeContents(*(Node*)frame->selection().selection().start().anchorElementAncestor().get());
+        auto range = makeRangeSelectingNodeContents(*(Node*)frame->selection().selection().start().element());
         if (!range.collapsed()) {
             String t = plainText(range);
             // Exclude the composition text if any
@@ -2242,16 +2243,17 @@ JNIEXPORT jint JNICALL Java_com_sun_webkit_WebPage_twkProcessDrag
             IntPoint(screenX, screenY),
             keyStateToDragOperation(javaAction));
         DragController& dc = WebPage::pageFromJLong(pPage)->dragController();
-        RefPtr localMainFrame = dynamicDowncast<WebCore::LocalFrame>(WebPage::pageFromJLong(pPage)->mainFrame());
-        if (!localMainFrame)
-        return 0;
+
         setCopyKeyState(ACTION_COPY == javaAction);
         switch(actionId){
         case com_sun_webkit_WebPage_DND_DST_EXIT:
-            dc.dragExited(*localMainFrame,WTFMove(dragData));
+            dc.dragExited(WTFMove(dragData));
             return 0;
+        case com_sun_webkit_WebPage_DND_DST_ENTER:
+            return dragOperationToDragCursor(dc.dragEntered(WTFMove(dragData)));
         case com_sun_webkit_WebPage_DND_DST_OVER:
-
+        case com_sun_webkit_WebPage_DND_DST_CHANGE:
+            return dragOperationToDragCursor(dc.dragUpdated(WTFMove(dragData)));
         case com_sun_webkit_WebPage_DND_DST_DROP:
             {
                 int ret = dc.performDragOperation(WTFMove(dragData)) ? 1 : 0;
@@ -2270,8 +2272,8 @@ JNIEXPORT jint JNICALL Java_com_sun_webkit_WebPage_twkProcessDrag
             IntPoint(x, y),
             IntPoint(screenX, screenY),
             com_sun_webkit_WebPage_DND_SRC_DROP!=actionId
-                ? MouseButton::Left
-                : MouseButton::None,
+                ? LeftButton
+                : NoButton,
             PlatformEvent::Type::MouseMoved,
             0,
             { }, WallTime {}, ForceAtClick, SyntheticClickType::NoTap); // TODO-java: handle force?

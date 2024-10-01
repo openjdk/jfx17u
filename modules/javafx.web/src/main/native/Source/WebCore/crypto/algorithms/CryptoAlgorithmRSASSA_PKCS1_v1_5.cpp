@@ -57,7 +57,7 @@ CryptoAlgorithmIdentifier CryptoAlgorithmRSASSA_PKCS1_v1_5::identifier() const
 void CryptoAlgorithmRSASSA_PKCS1_v1_5::sign(const CryptoAlgorithmParameters&, Ref<CryptoKey>&& key, Vector<uint8_t>&& data, VectorCallback&& callback, ExceptionCallback&& exceptionCallback, ScriptExecutionContext& context, WorkQueue& workQueue)
 {
     if (key->type() != CryptoKeyType::Private) {
-        exceptionCallback(ExceptionCode::InvalidAccessError);
+        exceptionCallback(InvalidAccessError);
         return;
     }
 
@@ -70,7 +70,7 @@ void CryptoAlgorithmRSASSA_PKCS1_v1_5::sign(const CryptoAlgorithmParameters&, Re
 void CryptoAlgorithmRSASSA_PKCS1_v1_5::verify(const CryptoAlgorithmParameters&, Ref<CryptoKey>&& key, Vector<uint8_t>&& signature, Vector<uint8_t>&& data, BoolCallback&& callback, ExceptionCallback&& exceptionCallback, ScriptExecutionContext& context, WorkQueue& workQueue)
 {
     if (key->type() != CryptoKeyType::Public) {
-        exceptionCallback(ExceptionCode::InvalidAccessError);
+        exceptionCallback(InvalidAccessError);
         return;
     }
 
@@ -85,7 +85,7 @@ void CryptoAlgorithmRSASSA_PKCS1_v1_5::generateKey(const CryptoAlgorithmParamete
     const auto& rsaParameters = downcast<CryptoAlgorithmRsaHashedKeyGenParams>(parameters);
 
     if (usages & (CryptoKeyUsageDecrypt | CryptoKeyUsageEncrypt | CryptoKeyUsageDeriveKey | CryptoKeyUsageDeriveBits | CryptoKeyUsageWrapKey | CryptoKeyUsageUnwrapKey)) {
-        exceptionCallback(ExceptionCode::SyntaxError);
+        exceptionCallback(SyntaxError);
         return;
     }
 
@@ -95,7 +95,7 @@ void CryptoAlgorithmRSASSA_PKCS1_v1_5::generateKey(const CryptoAlgorithmParamete
         capturedCallback(WTFMove(pair));
     };
     auto failureCallback = [capturedCallback = WTFMove(exceptionCallback)]() {
-        capturedCallback(ExceptionCode::OperationError);
+        capturedCallback(OperationError);
     };
     CryptoKeyRSA::generatePair(CryptoAlgorithmIdentifier::RSASSA_PKCS1_v1_5, rsaParameters.hashIdentifier, true, rsaParameters.modulusLength, rsaParameters.publicExponentVector(), extractable, usages, WTFMove(keyPairCallback), WTFMove(failureCallback), &context);
 }
@@ -112,11 +112,11 @@ void CryptoAlgorithmRSASSA_PKCS1_v1_5::importKey(CryptoKeyFormat format, KeyData
         JsonWebKey key = WTFMove(std::get<JsonWebKey>(data));
 
         if (usages && ((!key.d.isNull() && (usages ^ CryptoKeyUsageSign)) || (key.d.isNull() && (usages ^ CryptoKeyUsageVerify)))) {
-            exceptionCallback(ExceptionCode::SyntaxError);
+            exceptionCallback(SyntaxError);
             return;
         }
         if (usages && !key.use.isNull() && key.use != "sig"_s) {
-            exceptionCallback(ExceptionCode::DataError);
+            exceptionCallback(DataError);
             return;
         }
 
@@ -141,7 +141,7 @@ void CryptoAlgorithmRSASSA_PKCS1_v1_5::importKey(CryptoKeyFormat format, KeyData
             break;
         }
         if (!isMatched) {
-            exceptionCallback(ExceptionCode::DataError);
+            exceptionCallback(DataError);
             return;
         }
 
@@ -150,7 +150,7 @@ void CryptoAlgorithmRSASSA_PKCS1_v1_5::importKey(CryptoKeyFormat format, KeyData
     }
     case CryptoKeyFormat::Spki: {
         if (usages && (usages ^ CryptoKeyUsageVerify)) {
-            exceptionCallback(ExceptionCode::SyntaxError);
+            exceptionCallback(SyntaxError);
             return;
         }
         // FIXME: <webkit.org/b/165436>
@@ -159,7 +159,7 @@ void CryptoAlgorithmRSASSA_PKCS1_v1_5::importKey(CryptoKeyFormat format, KeyData
     }
     case CryptoKeyFormat::Pkcs8: {
         if (usages && (usages ^ CryptoKeyUsageSign)) {
-            exceptionCallback(ExceptionCode::SyntaxError);
+            exceptionCallback(SyntaxError);
             return;
         }
         // FIXME: <webkit.org/b/165436>
@@ -167,11 +167,11 @@ void CryptoAlgorithmRSASSA_PKCS1_v1_5::importKey(CryptoKeyFormat format, KeyData
         break;
     }
     default:
-        exceptionCallback(ExceptionCode::NotSupportedError);
+        exceptionCallback(NotSupportedError);
         return;
     }
     if (!result) {
-        exceptionCallback(ExceptionCode::DataError);
+        exceptionCallback(DataError);
         return;
     }
 
@@ -184,7 +184,7 @@ void CryptoAlgorithmRSASSA_PKCS1_v1_5::exportKey(CryptoKeyFormat format, Ref<Cry
     const auto& rsaKey = downcast<CryptoKeyRSA>(key.get());
 
     if (!rsaKey.keySizeInBits()) {
-        exceptionCallback(ExceptionCode::OperationError);
+        exceptionCallback(OperationError);
         return;
     }
 
@@ -233,7 +233,7 @@ void CryptoAlgorithmRSASSA_PKCS1_v1_5::exportKey(CryptoKeyFormat format, Ref<Cry
         break;
     }
     default:
-        exceptionCallback(ExceptionCode::NotSupportedError);
+        exceptionCallback(NotSupportedError);
         return;
     }
 

@@ -42,7 +42,7 @@ struct ResourceLoaderOptions;
 
 class StyleGeneratedImage : public StyleImage {
 public:
-    const SingleThreadWeakHashCountedSet<RenderElement>& clients() const { return m_clients; }
+    const WeakHashCountedSet<RenderElement>& clients() const { return m_clients; }
 
 protected:
     explicit StyleGeneratedImage(StyleImage::Type, bool fixedSize);
@@ -76,7 +76,7 @@ protected:
 
     FloatSize m_containerSize;
     bool m_fixedSize;
-    SingleThreadWeakHashCountedSet<RenderElement> m_clients;
+    WeakHashCountedSet<RenderElement> m_clients;
     HashMap<FloatSize, std::unique_ptr<CachedGeneratedImage>> m_images;
 };
 

@@ -62,6 +62,9 @@ struct GreaterThanOrSameSizeAsStyleRareInheritedData : public RefCounted<Greater
 #if ENABLE(DARK_MODE_CSS)
     StyleColorScheme colorScheme;
 #endif
+    TextSpacingTrim textSpacingTrim;
+    TextAutospace textAutospace;
+
     ListStyleType listStyleType;
 
     Markable<ScrollbarColor> scrollbarColor;
@@ -137,7 +140,7 @@ StyleRareInheritedData::StyleRareInheritedData()
     , hasAutoAccentColor(true)
     , effectiveInert(false)
     , isInSubtreeWithBlendMode(false)
-    , effectiveContentVisibility(static_cast<unsigned>(ContentVisibility::Visible))
+    , effectiveSkippedContent(false)
     , effectiveTouchActions(RenderStyle::initialTouchActions())
     , strokeWidth(RenderStyle::initialStrokeWidth())
     , strokeColor(RenderStyle::initialStrokeColor())
@@ -153,6 +156,8 @@ StyleRareInheritedData::StyleRareInheritedData()
 #if ENABLE(TOUCH_EVENTS)
     , tapHighlightColor(RenderStyle::initialTapHighlightColor())
 #endif
+    , textSpacingTrim(RenderStyle::initialTextSpacingTrim())
+    , textAutospace(RenderStyle::initialTextAutospace())
     , listStyleType(RenderStyle::initialListStyleType())
     , scrollbarColor(RenderStyle::initialScrollbarColor())
 {
@@ -228,7 +233,7 @@ inline StyleRareInheritedData::StyleRareInheritedData(const StyleRareInheritedDa
     , hasAutoAccentColor(o.hasAutoAccentColor)
     , effectiveInert(o.effectiveInert)
     , isInSubtreeWithBlendMode(o.isInSubtreeWithBlendMode)
-    , effectiveContentVisibility(o.effectiveContentVisibility)
+    , effectiveSkippedContent(o.effectiveSkippedContent)
     , effectiveTouchActions(o.effectiveTouchActions)
     , eventListenerRegionTypes(o.eventListenerRegionTypes)
     , strokeWidth(o.strokeWidth)
@@ -251,6 +256,8 @@ inline StyleRareInheritedData::StyleRareInheritedData(const StyleRareInheritedDa
 #if ENABLE(TOUCH_EVENTS)
     , tapHighlightColor(o.tapHighlightColor)
 #endif
+    , textSpacingTrim(o.textSpacingTrim)
+    , textAutospace(o.textAutospace)
     , listStyleType(o.listStyleType)
     , scrollbarColor(o.scrollbarColor)
 {
@@ -352,13 +359,15 @@ bool StyleRareInheritedData::operator==(const StyleRareInheritedData& o) const
         && effectiveTouchActions == o.effectiveTouchActions
         && eventListenerRegionTypes == o.eventListenerRegionTypes
         && effectiveInert == o.effectiveInert
-        && effectiveContentVisibility == o.effectiveContentVisibility
+        && effectiveSkippedContent == o.effectiveSkippedContent
         && strokeWidth == o.strokeWidth
         && strokeColor == o.strokeColor
         && visitedLinkStrokeColor == o.visitedLinkStrokeColor
         && customProperties == o.customProperties
         && arePointingToEqualData(listStyleImage, o.listStyleImage)
         && listStyleType == o.listStyleType
+        && textSpacingTrim == o.textSpacingTrim
+        && textAutospace == o.textAutospace
         && scrollbarColor == o.scrollbarColor;
 }
 

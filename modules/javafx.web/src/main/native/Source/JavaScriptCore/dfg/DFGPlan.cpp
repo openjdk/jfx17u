@@ -203,8 +203,7 @@ Plan::CompilationPath Plan::compileInThreadImpl()
 
     {
         CompilerTimingScope timingScope("DFG", "bytecode parser");
-        if (!parse(dfg))
-            return CancelPath;
+        parse(dfg);
     }
 
     bool changed = false;
@@ -538,10 +537,6 @@ void Plan::reallyAdd(CommonData* commonData)
         ConcurrentJSLocker locker(m_codeBlock->m_lock);
         commonData->recordedStatuses = WTFMove(m_recordedStatuses);
     }
-
-    ASSERT(m_vm->heap.isDeferred());
-    for (auto* callLinkInfo : commonData->m_directCallLinkInfos)
-        callLinkInfo->validateSpeculativeRepatchOnMainThread(*m_vm);
 }
 
 bool Plan::isStillValidOnMainThread()
@@ -708,7 +703,7 @@ void Plan::cleanMustHandleValuesIfNecessary()
     }
 }
 
-std::unique_ptr<JITData> Plan::tryFinalizeJITData(const DFG::JITCode& jitCode)
+std::unique_ptr<JITData> Plan::tryFinalizeJITData(const JITCode& jitCode)
 {
     auto osrExitThunk = m_vm->getCTIStub(osrExitGenerationThunkGenerator).retagged<OSRExitPtrTag>();
     auto exits = JITData::ExitVector::createWithSizeAndConstructorArguments(jitCode.m_osrExit.size(), osrExitThunk);

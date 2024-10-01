@@ -88,8 +88,6 @@ void WindowProxy::detachFromFrame()
 
 void WindowProxy::replaceFrame(Frame& frame)
 {
-    ASSERT(m_frame);
-    ASSERT(is<LocalFrame>(m_frame) != is<LocalFrame>(frame));
     m_frame = frame;
     setDOMWindow(frame.window());
 }
@@ -134,8 +132,8 @@ JSWindowProxy& WindowProxy::createJSWindowProxyWithInitializedScript(DOMWrapperW
 
     JSLockHolder lock(world.vm());
     auto& windowProxy = createJSWindowProxy(world);
-    if (auto* localFrame = dynamicDowncast<LocalFrame>(*m_frame))
-        localFrame->script().initScriptForWindowProxy(windowProxy);
+    if (is<LocalFrame>(*m_frame))
+        downcast<LocalFrame>(*m_frame).script().initScriptForWindowProxy(windowProxy);
     return windowProxy;
 }
 
@@ -182,9 +180,10 @@ void WindowProxy::setDOMWindow(DOMWindow* newDOMWindow)
 
         ScriptController* scriptController = nullptr;
         Page* page = nullptr;
-        if (auto* localFrame = dynamicDowncast<LocalFrame>(*m_frame)) {
-            scriptController = &localFrame->script();
-            page = localFrame->page();
+        if (is<LocalFrame>(*m_frame)) {
+            auto& frame = downcast<LocalFrame>(*m_frame);
+            scriptController = &frame.script();
+            page = frame.page();
         }
 
         // ScriptController's m_cacheableBindingRootObject persists between page navigations

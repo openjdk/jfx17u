@@ -45,7 +45,10 @@ public:
 
     static AsyncFromSyncIteratorPrototype* create(VM&, JSGlobalObject*, Structure*);
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue proto)
+    {
+        return Structure::create(vm, globalObject, proto, TypeInfo(ObjectType, StructureFlags), info());
+    }
 
 private:
     AsyncFromSyncIteratorPrototype(VM&, Structure*);

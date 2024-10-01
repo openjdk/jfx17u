@@ -29,7 +29,7 @@
 
 namespace WebCore {
 
-enum class CryptoAlgorithmIdentifier : uint8_t {
+enum class CryptoAlgorithmIdentifier {
     RSAES_PKCS1_v1_5 = 1,
     RSASSA_PKCS1_v1_5,
     RSA_PSS,
@@ -49,8 +49,7 @@ enum class CryptoAlgorithmIdentifier : uint8_t {
     SHA_512,
     HKDF,
     PBKDF2,
-    Ed25519,
-    X25519
+    Ed25519
 };
 
 } // namespace WebCore

@@ -141,9 +141,4 @@ ALWAYS_INLINE JSString* objectPrototypeToString(JSGlobalObject* globalObject, JS
     RELEASE_AND_RETURN(scope, objectPrototypeToStringSlow(globalObject, thisObject));
 }
 
-inline Structure* ObjectPrototype::createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
-{
-    return Structure::create(vm, globalObject, prototype, TypeInfo(ObjectType, StructureFlags), info());
-}
-
 } // namespace JSC

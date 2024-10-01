@@ -24,6 +24,7 @@
  */
 
 [
+    Conditional=SERVICE_WORKER,
     ExportMacro=WEBCORE_TESTSUPPORT_EXPORT,
     LegacyNoInterfaceObject,
 ] interface ServiceWorkerInternals {

@@ -37,10 +37,12 @@
 #include <WebCore/IDBResultData.h>
 #include <WebCore/IDBTransactionInfo.h>
 #include <WebCore/IDBValue.h>
-#include <wtf/WorkQueue.h>
+#include <WebCore/StorageQuotaManager.h>
 #include <wtf/threads/BinarySemaphore.h>
 
 using namespace WebCore;
+
+static constexpr uint64_t defaultPerOriginQuota =  1000 * MB;
 
 Ref<InProcessIDBServer> InProcessIDBServer::create(PAL::SessionID sessionID)
 {
@@ -70,18 +72,35 @@ InProcessIDBServer::~InProcessIDBServer()
     semaphore.wait();
 }
 
+StorageQuotaManager* InProcessIDBServer::quotaManager(const ClientOrigin& origin)
+{
+    return m_quotaManagers.ensure(origin, [] {
+        return StorageQuotaManager::create(defaultPerOriginQuota, [] {
+            return 0;
+        }, [](uint64_t quota, uint64_t currentSpace, uint64_t spaceIncrease, auto callback) {
+            callback(quota + currentSpace + spaceIncrease);
+        });
+    }).iterator->value.get();
+}
+
+static inline IDBServer::IDBServer::StorageQuotaManagerSpaceRequester storageQuotaManagerSpaceRequester(InProcessIDBServer& server)
+{
+    return [server = &server, weakServer = WeakPtr { server }](const ClientOrigin& origin, uint64_t spaceRequested) mutable {
+        auto* storageQuotaManager = weakServer ? server->quotaManager(origin) : nullptr;
+        return storageQuotaManager ? storageQuotaManager->requestSpaceOnBackgroundThread(spaceRequested) : StorageQuotaManager::Decision::Deny;
+    };
+}
+
 InProcessIDBServer::InProcessIDBServer(PAL::SessionID sessionID, const String& databaseDirectoryPath)
     : m_queue(WorkQueue::create("com.apple.WebKit.IndexedDBServer"))
 {
     ASSERT(isMainThread());
     m_connectionToServer = IDBClient::IDBConnectionToServer::create(*this);
-    dispatchTask([this, protectedThis = Ref { *this }, directory = databaseDirectoryPath.isolatedCopy()] () mutable {
+    dispatchTask([this, protectedThis = Ref { *this }, sessionID, directory = databaseDirectoryPath.isolatedCopy(), spaceRequester = storageQuotaManagerSpaceRequester(*this)] () mutable {
         m_connectionToClient = IDBServer::IDBConnectionToClient::create(*this);
 
         Locker locker { m_serverLock };
-        m_server = makeUnique<IDBServer::IDBServer>(directory, [](const ClientOrigin&, uint64_t) {
-            return true;
-        }, m_serverLock);
+        m_server = makeUnique<IDBServer::IDBServer>(sessionID, directory, WTFMove(spaceRequester), m_serverLock);
         m_server->registerConnection(*m_connectionToClient);
     });
 }

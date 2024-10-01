@@ -42,7 +42,7 @@ namespace WebCore {
 
 class SerializedScriptValue;
 
-class BroadcastChannel : public ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr<BroadcastChannel>, public EventTarget, public ActiveDOMObject {
+class BroadcastChannel : public RefCounted<BroadcastChannel>, public EventTarget, public ActiveDOMObject {
     WTF_MAKE_ISO_ALLOCATED(BroadcastChannel);
 public:
     static Ref<BroadcastChannel> create(ScriptExecutionContext& context, const String& name)
@@ -53,8 +53,8 @@ public:
     }
     ~BroadcastChannel();
 
-    using ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr::ref;
-    using ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr::deref;
+    using RefCounted<BroadcastChannel>::ref;
+    using RefCounted<BroadcastChannel>::deref;
 
     BroadcastChannelIdentifier identifier() const;
     String name() const;
@@ -74,8 +74,8 @@ private:
     // EventTarget
     EventTargetInterface eventTargetInterface() const final { return BroadcastChannelEventTargetInterfaceType; }
     ScriptExecutionContext* scriptExecutionContext() const final { return ActiveDOMObject::scriptExecutionContext(); }
-    void refEventTarget() final { ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr::ref(); }
-    void derefEventTarget() final { ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr::deref(); }
+    void refEventTarget() final { RefCounted<BroadcastChannel>::ref(); }
+    void derefEventTarget() final { RefCounted<BroadcastChannel>::deref(); }
     void eventListenersDidChange() final;
 
     // ActiveDOMObject
@@ -84,8 +84,6 @@ private:
     void stop() final { close(); }
 
     class MainThreadBridge;
-    Ref<MainThreadBridge> protectedMainThreadBridge() const;
-
     Ref<MainThreadBridge> m_mainThreadBridge;
     bool m_isClosed { false };
     bool m_hasRelevantEventListener { false };

@@ -44,6 +44,7 @@ public:
     void updateFromStyle() final;
 
 private:
+    bool isSVGViewportContainer() const final { return true; }
     ASCIILiteral renderName() const final { return "RenderSVGViewportContainer"_s; }
 
     void element() const = delete;
@@ -62,11 +63,11 @@ private:
 
     AffineTransform m_supplementalLayerTransform;
     FloatRect m_viewport;
-    SingleThreadWeakPtr<RenderSVGRoot> m_owningSVGRoot;
+    WeakPtr<RenderSVGRoot> m_owningSVGRoot;
 };
 
 } // namespace WebCore
 
-SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderSVGViewportContainer, isRenderSVGViewportContainer())
+SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderSVGViewportContainer, isSVGViewportContainer())
 
 #endif // ENABLE(LAYER_BASED_SVG_ENGINE)

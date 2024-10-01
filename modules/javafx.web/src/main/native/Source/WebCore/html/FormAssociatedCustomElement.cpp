@@ -60,13 +60,13 @@ ExceptionOr<void> FormAssociatedCustomElement::setValidity(ValidityStateFlags va
     ASSERT(m_element->isPrecustomizedOrDefinedCustomElement());
 
     if (!validityStateFlags.isValid() && message.isEmpty())
-        return Exception { ExceptionCode::TypeError };
+        return Exception { TypeError };
 
     m_validityStateFlags = validityStateFlags;
     setCustomValidity(validityStateFlags.isValid() ? emptyString() : WTFMove(message));
 
     if (validationAnchor && !validationAnchor->isDescendantOrShadowDescendantOf(*m_element))
-        return Exception { ExceptionCode::NotFoundError };
+        return Exception { NotFoundError };
 
     m_validationAnchor = validationAnchor;
 

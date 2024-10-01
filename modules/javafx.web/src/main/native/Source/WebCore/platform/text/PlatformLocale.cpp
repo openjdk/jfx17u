@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2016 Google Inc. All rights reserved.
+ * Copyright (C) 2011,2012 Google Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -307,10 +307,6 @@ String Locale::convertFromLocalizedNumber(const String& localized)
     if (!detectSignAndGetDigitRange(input, isNegative, startIndex, endIndex))
         return input;
 
-    // Ignore leading '+', but will reject '+'-only string later.
-    if (!isNegative && endIndex - startIndex >= 2 && input[startIndex] == '+')
-        ++startIndex;
-
     StringBuilder builder;
     builder.reserveCapacity(input.length());
     if (isNegative)
@@ -326,11 +322,7 @@ String Locale::convertFromLocalizedNumber(const String& localized)
         else
             builder.append(static_cast<UChar>('0' + symbolIndex));
     }
-    String converted = builder.toString();
-    // Ignore trailing '.', but will reject '.'-only string later.
-    if (converted.length() >= 2 && converted[converted.length() - 1] == '.')
-        converted = converted.left(converted.length() - 1);
-    return converted;
+    return builder.toString();
 }
 
 #if ENABLE(DATE_AND_TIME_INPUT_TYPES)

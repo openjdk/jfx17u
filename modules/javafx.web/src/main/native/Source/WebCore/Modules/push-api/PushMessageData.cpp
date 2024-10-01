@@ -26,6 +26,8 @@
 #include "config.h"
 #include "PushMessageData.h"
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "Blob.h"
 #include "JSDOMGlobalObject.h"
 #include "TextResourceDecoder.h"
@@ -42,7 +44,7 @@ ExceptionOr<RefPtr<JSC::ArrayBuffer>> PushMessageData::arrayBuffer()
 {
     auto buffer = ArrayBuffer::tryCreate(m_data.data(), m_data.size());
     if (!buffer)
-        return Exception { ExceptionCode::OutOfMemoryError };
+        return Exception { OutOfMemoryError };
     return buffer;
 }
 
@@ -57,7 +59,7 @@ ExceptionOr<JSC::JSValue> PushMessageData::json(JSDOMGlobalObject& globalObject)
 
     auto value = JSC::JSONParse(&globalObject, text());
     if (!value)
-        return Exception { ExceptionCode::SyntaxError, "JSON parsing failed"_s };
+        return Exception { SyntaxError, "JSON parsing failed"_s };
 
     return value;
 }
@@ -68,3 +70,5 @@ String PushMessageData::text()
 }
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

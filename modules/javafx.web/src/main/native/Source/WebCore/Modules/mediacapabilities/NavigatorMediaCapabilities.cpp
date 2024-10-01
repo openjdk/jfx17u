@@ -38,9 +38,9 @@ NavigatorMediaCapabilities::NavigatorMediaCapabilities()
 
 NavigatorMediaCapabilities::~NavigatorMediaCapabilities() = default;
 
-ASCIILiteral NavigatorMediaCapabilities::supplementName()
+const char* NavigatorMediaCapabilities::supplementName()
 {
-    return "NavigatorMediaCapabilities"_s;
+    return "NavigatorMediaCapabilities";
 }
 
 NavigatorMediaCapabilities& NavigatorMediaCapabilities::from(Navigator& navigator)

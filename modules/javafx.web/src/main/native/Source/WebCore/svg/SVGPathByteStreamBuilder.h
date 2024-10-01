@@ -27,8 +27,6 @@
 
 namespace WebCore {
 
-enum class SVGPathSegType : uint8_t;
-
 class SVGPathByteStreamBuilder final : public SVGPathConsumer {
 public:
     SVGPathByteStreamBuilder(SVGPathByteStream&);
@@ -51,22 +49,39 @@ private:
     void curveToQuadraticSmooth(const FloatPoint&, PathCoordinateMode) final;
     void arcTo(float, float, float, bool largeArcFlag, bool sweepFlag, const FloatPoint&, PathCoordinateMode) final;
 
-    template<typename DataType>
-    void writeType(const DataType& data)
+    template<typename ByteType>
+    void writeType(const ByteType& type)
     {
-        typedef union {
-            DataType value;
-            uint8_t bytes[sizeof(DataType)];
-        } ByteType;
-
-        ByteType type = { data };
-        m_byteStream.append(std::span { type.bytes, sizeof(ByteType) });
+        size_t typeSize = sizeof(ByteType);
+        for (size_t i = 0; i < typeSize; ++i)
+            m_byteStream.append(type.bytes[i]);
     }
 
-    void writeSegmentType(SVGPathSegType type)
+    void writeFlag(bool value)
     {
-        static_assert(std::is_same_v<std::underlying_type_t<SVGPathSegType>, uint8_t>);
-        m_byteStream.append(enumToUnderlyingType(type));
+        BoolByte data;
+        data.value = value;
+        writeType(data);
+    }
+
+    void writeFloat(float value)
+    {
+        FloatByte data;
+        data.value = value;
+        writeType(data);
+    }
+
+    void writeFloatPoint(const FloatPoint& point)
+    {
+        writeFloat(point.x());
+        writeFloat(point.y());
+    }
+
+    void writeSegmentType(unsigned short value)
+    {
+        UnsignedShortByte data;
+        data.value = value;
+        writeType(data);
     }
 
     SVGPathByteStream& m_byteStream;

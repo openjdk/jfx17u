@@ -25,7 +25,7 @@
 
 #pragma once
 
-#if USE(LIBWEBRTC)
+#if ENABLE(WEB_CODECS) && USE(LIBWEBRTC)
 
 #include "VideoDecoder.h"
 #include <wtf/FastMalloc.h>
@@ -41,12 +41,11 @@ public:
     enum class Type {
         VP8,
         VP9,
-        VP9_P2,
         AV1
     };
-    static void create(Type, const Config&, CreateCallback&&, OutputCallback&&, PostTaskCallback&&);
+    static void create(Type, CreateCallback&&, OutputCallback&&, PostTaskCallback&&);
 
-    LibWebRTCVPXVideoDecoder(Type, const Config&, OutputCallback&&, PostTaskCallback&&);
+    LibWebRTCVPXVideoDecoder(Type, OutputCallback&&, PostTaskCallback&&);
     ~LibWebRTCVPXVideoDecoder();
 
 private:
@@ -60,4 +59,4 @@ private:
 
 }
 
-#endif // USE(LIBWEBRTC)
+#endif // ENABLE(WEB_CODECS) && USE(LIBWEBRTC)

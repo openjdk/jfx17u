@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,7 +27,6 @@
 
 #include <unicode/udatpg.h>
 #include <wtf/Noncopyable.h>
-#include <wtf/TZoneMalloc.h>
 #include <wtf/text/CString.h>
 #include <wtf/unicode/icu/ICUHelpers.h>
 
@@ -35,7 +34,7 @@ namespace JSC {
 
 class IntlCache {
     WTF_MAKE_NONCOPYABLE(IntlCache);
-    WTF_MAKE_TZONE_ALLOCATED(IntlCache);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     IntlCache() = default;
 

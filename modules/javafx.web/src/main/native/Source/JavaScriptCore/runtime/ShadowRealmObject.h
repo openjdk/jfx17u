@@ -42,7 +42,10 @@ public:
         return vm.shadowRealmSpace<mode>();
     }
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        return Structure::create(vm, globalObject, prototype, TypeInfo(ShadowRealmType, StructureFlags), info());
+    }
 
     DECLARE_INFO;
 

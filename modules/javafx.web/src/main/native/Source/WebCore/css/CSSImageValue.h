@@ -61,8 +61,6 @@ public:
     Ref<DeprecatedCSSOMValue> createDeprecatedCSSOMWrapper(CSSStyleDeclaration&) const;
 
     bool customTraverseSubresources(const Function<bool(const CachedResource&)>&) const;
-    void customSetReplacementURLForSubresources(const HashMap<String, String>&);
-    void customClearReplacementURLForSubresources();
 
     bool equals(const CSSImageValue&) const;
 
@@ -82,7 +80,6 @@ private:
     LoadedFromOpaqueSource m_loadedFromOpaqueSource { LoadedFromOpaqueSource::No };
     RefPtr<CSSImageValue> m_unresolvedValue;
     bool m_isInvalid { false };
-    String m_replacementURLString;
 };
 
 } // namespace WebCore

@@ -297,7 +297,7 @@ void Blob::arrayBuffer(Ref<DeferredPromise>&& promise)
         }
         auto arrayBuffer = blobLoader.arrayBufferResult();
         if (!arrayBuffer) {
-            promise->reject(Exception { ExceptionCode::InvalidStateError });
+            promise->reject(Exception { InvalidStateError });
             return;
         }
         promise->resolve<IDLArrayBuffer>(*arrayBuffer);
@@ -306,7 +306,7 @@ void Blob::arrayBuffer(Ref<DeferredPromise>&& promise)
 
 ExceptionOr<Ref<ReadableStream>> Blob::stream()
 {
-    class BlobStreamSource : public FileReaderLoaderClient, public RefCountedReadableStreamSource {
+    class BlobStreamSource : public FileReaderLoaderClient, public ReadableStreamSource {
     public:
         BlobStreamSource(ScriptExecutionContext& scriptExecutionContext, Blob& blob)
             : m_loader(makeUniqueRef<FileReaderLoader>(FileReaderLoader::ReadType::ReadAsBinaryChunks, this))
@@ -361,7 +361,7 @@ ExceptionOr<Ref<ReadableStream>> Blob::stream()
     auto* context = scriptExecutionContext();
     auto* globalObject = context ? context->globalObject() : nullptr;
     if (!globalObject)
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
     return ReadableStream::create(*JSC::jsCast<JSDOMGlobalObject*>(globalObject), adoptRef(*new BlobStreamSource(*context, *this)));
 }
 

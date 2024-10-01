@@ -44,11 +44,14 @@ static double performanceNow(ScriptExecutionContext& scriptExecutionContext)
     // FIXME: We should consider moving the Performance object to be owned by the
     // the ScriptExecutionContext to avoid this.
 
-    if (RefPtr document = dynamicDowncast<Document>(scriptExecutionContext)) {
-        if (auto window = document->domWindow())
+    if (is<Document>(scriptExecutionContext)) {
+        if (auto window = downcast<Document>(scriptExecutionContext).domWindow())
             return window->performance().now();
-    } else if (RefPtr workerGlobal = dynamicDowncast<WorkerGlobalScope>(scriptExecutionContext))
-        return workerGlobal->performance().now();
+        return 0;
+    }
+
+    if (is<WorkerGlobalScope>(scriptExecutionContext))
+        return downcast<WorkerGlobalScope>(scriptExecutionContext).performance().now();
 
     return 0;
 }
@@ -56,14 +59,14 @@ static double performanceNow(ScriptExecutionContext& scriptExecutionContext)
 ExceptionOr<Ref<PerformanceMark>> PerformanceMark::create(JSC::JSGlobalObject& globalObject, ScriptExecutionContext& scriptExecutionContext, const String& name, std::optional<PerformanceMarkOptions>&& markOptions)
 {
     if (is<Document>(scriptExecutionContext) && PerformanceUserTiming::isRestrictedMarkName(name))
-        return Exception { ExceptionCode::SyntaxError };
+        return Exception { SyntaxError };
 
     double startTime;
     JSC::JSValue detail;
     if (markOptions) {
         if (markOptions->startTime) {
             if (*markOptions->startTime < 0)
-                return Exception { ExceptionCode::TypeError };
+                return Exception { TypeError };
             startTime = *markOptions->startTime;
         } else
             startTime = performanceNow(scriptExecutionContext);

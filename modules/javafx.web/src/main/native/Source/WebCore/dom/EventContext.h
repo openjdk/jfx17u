@@ -46,12 +46,10 @@ public:
 
     EventContext(Type, Node*, EventTarget* currentTarget, EventTarget* origin, int closedShadowDepth);
     EventContext(Type, Node&, Node* currentTarget, EventTarget* origin, int closedShadowDepth);
-    ~EventContext() = default;
+    ~EventContext();
 
     Node* node() const { return m_node.get(); }
-    RefPtr<Node> protectedNode() const { return m_node; }
     EventTarget* currentTarget() const { return m_currentTarget.get(); }
-    RefPtr<EventTarget> protectedCurrentTarget() const { return m_currentTarget; }
     bool isCurrentTargetInShadowTree() const { return m_currentTargetIsInShadowTree; }
     EventTarget* target() const { return m_target.get(); }
     int closedShadowDepth() const { return m_closedShadowDepth; }
@@ -63,7 +61,7 @@ public:
     bool isWindowContext() const { return m_type == Type::Window; }
 
     Node* relatedTarget() const { return m_relatedTarget.get(); }
-    void setRelatedTarget(RefPtr<Node>&&);
+    void setRelatedTarget(Node*);
 
 #if ENABLE(TOUCH_EVENTS)
     enum class TouchListType : uint8_t { Touches, TargetTouches, ChangedTouches };
@@ -126,10 +124,10 @@ inline EventContext::EventContext(Type type, Node& node, Node* currentTarget, Ev
     m_contextNodeIsFormElement = is<HTMLFormElement>(node);
 }
 
-inline void EventContext::setRelatedTarget(RefPtr<Node>&& relatedTarget)
+inline void EventContext::setRelatedTarget(Node* relatedTarget)
 {
-    ASSERT(!isUnreachableNode(relatedTarget.get()));
-    m_relatedTarget = WTFMove(relatedTarget);
+    ASSERT(!isUnreachableNode(relatedTarget));
+    m_relatedTarget = relatedTarget;
     m_relatedTargetIsSet = true;
 }
 

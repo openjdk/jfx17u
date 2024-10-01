@@ -63,7 +63,6 @@ private:
     JSC::Strong<JSC::JSObject> m_function;
     FixedVector<JSC::Strong<JSC::Unknown>> m_arguments;
     String m_code;
-    JSC::SourceTaintedOrigin m_sourceTaintedOrigin;
 };
 
 } // namespace WebCore

@@ -35,9 +35,9 @@
 
 namespace WebCore {
 
-Ref<RemoteFrame> RemoteFrame::createMainFrame(Page& page, UniqueRef<RemoteFrameClient>&& client, FrameIdentifier identifier, Frame* opener)
+Ref<RemoteFrame> RemoteFrame::createMainFrame(Page& page, UniqueRef<RemoteFrameClient>&& client, FrameIdentifier identifier)
 {
-    return adoptRef(*new RemoteFrame(page, WTFMove(client), identifier, nullptr, nullptr, std::nullopt, opener));
+    return adoptRef(*new RemoteFrame(page, WTFMove(client), identifier, nullptr, nullptr, std::nullopt));
 }
 
 Ref<RemoteFrame> RemoteFrame::createSubframe(Page& page, UniqueRef<RemoteFrameClient>&& client, FrameIdentifier identifier, Frame& parent)
@@ -50,14 +50,12 @@ Ref<RemoteFrame> RemoteFrame::createSubframeWithContentsInAnotherProcess(Page& p
     return adoptRef(*new RemoteFrame(page, WTFMove(client), identifier, &ownerElement, ownerElement.document().frame(), layerHostingContextIdentifier));
 }
 
-RemoteFrame::RemoteFrame(Page& page, UniqueRef<RemoteFrameClient>&& client, FrameIdentifier frameID, HTMLFrameOwnerElement* ownerElement, Frame* parent, Markable<LayerHostingContextIdentifier> layerHostingContextIdentifier, Frame* opener)
+RemoteFrame::RemoteFrame(Page& page, UniqueRef<RemoteFrameClient>&& client, FrameIdentifier frameID, HTMLFrameOwnerElement* ownerElement, Frame* parent, Markable<LayerHostingContextIdentifier> layerHostingContextIdentifier)
     : Frame(page, frameID, FrameType::Remote, ownerElement, parent)
     , m_window(RemoteDOMWindow::create(*this, GlobalWindowIdentifier { Process::identifier(), WindowIdentifier::generate() }))
-    , m_opener(opener)
     , m_client(WTFMove(client))
     , m_layerHostingContextIdentifier(layerHostingContextIdentifier)
 {
-    setView(RemoteFrameView::create(*this));
 }
 
 RemoteFrame::~RemoteFrame() = default;
@@ -72,13 +70,9 @@ RemoteDOMWindow& RemoteFrame::window() const
     return m_window.get();
 }
 
-void RemoteFrame::disconnectView()
-{
-    m_view = nullptr;
-}
-
 void RemoteFrame::didFinishLoadInAnotherProcess()
 {
+    // FIXME: We also need to set this to false if the load fails in another process.
     m_preventsParentFromBeingComplete = false;
 
     if (auto* ownerElement = this->ownerElement())
@@ -105,11 +99,6 @@ FrameView* RemoteFrame::virtualView() const
     return m_view.get();
 }
 
-FrameLoaderClient& RemoteFrame::loaderClient()
-{
-    return m_client.get();
-}
-
 void RemoteFrame::setView(RefPtr<RemoteFrameView>&& view)
 {
     m_view = WTFMove(view);
@@ -118,7 +107,6 @@ void RemoteFrame::setView(RefPtr<RemoteFrameView>&& view)
 void RemoteFrame::frameDetached()
 {
     m_client->frameDetached();
-    m_window->frameDetached();
 }
 
 String RemoteFrame::renderTreeAsText(size_t baseIndent, OptionSet<RenderAsTextFlag> behavior)

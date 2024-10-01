@@ -96,6 +96,7 @@ enum class GlyphOrientation : uint8_t {
 };
 
 enum class AlignmentBaseline : uint8_t {
+    Auto,
     Baseline,
     BeforeEdge,
     TextBeforeEdge,

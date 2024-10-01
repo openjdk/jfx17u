@@ -26,18 +26,16 @@
 #pragma once
 
 #include "WebGLExtension.h"
-#include "WebGLRenderingContextBase.h"
-#include <wtf/IsoMalloc.h>
-#include <wtf/Noncopyable.h>
 
 namespace WebCore {
 
-class EXTClipControl final : public WebGLExtension<WebGLRenderingContextBase> {
+class EXTClipControl final : public WebGLExtension {
     WTF_MAKE_ISO_ALLOCATED(EXTClipControl);
-    WTF_MAKE_NONCOPYABLE(EXTClipControl);
 public:
     explicit EXTClipControl(WebGLRenderingContextBase&);
-    ~EXTClipControl();
+    virtual ~EXTClipControl();
+
+    ExtensionName getName() const override;
 
     static bool supported(GraphicsContextGL&);
 

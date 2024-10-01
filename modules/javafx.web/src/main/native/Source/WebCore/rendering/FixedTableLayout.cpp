@@ -101,8 +101,6 @@ float FixedTableLayout::calcWidthArray()
         float effectiveColWidth = 0;
         if (colStyleLogicalWidth.isFixed() && colStyleLogicalWidth.value() > 0)
             effectiveColWidth = colStyleLogicalWidth.value();
-        else if (colStyleLogicalWidth.isCalculated())
-            colStyleLogicalWidth = Length { };
 
         unsigned span = col->span();
         while (span) {
@@ -120,7 +118,7 @@ float FixedTableLayout::calcWidthArray()
                 }
                 spanInCurrentEffectiveColumn = m_table->spanOfEffCol(currentEffectiveColumn);
             }
-            if ((colStyleLogicalWidth.isFixed() || colStyleLogicalWidth.isPercent()) && colStyleLogicalWidth.isPositive()) {
+            if ((colStyleLogicalWidth.isFixed() || colStyleLogicalWidth.isPercentOrCalculated()) && colStyleLogicalWidth.isPositive()) {
                 m_width[currentEffectiveColumn] = colStyleLogicalWidth;
                 m_width[currentEffectiveColumn] *= spanInCurrentEffectiveColumn;
                 usedWidth += effectiveColWidth * spanInCurrentEffectiveColumn;
@@ -147,8 +145,7 @@ float FixedTableLayout::calcWidthArray()
         if (logicalWidth.isFixed() && logicalWidth.isPositive()) {
             fixedBorderBoxLogicalWidth = cell->adjustBorderBoxLogicalWidthForBoxSizing(logicalWidth);
             logicalWidth.setValue(LengthType::Fixed, fixedBorderBoxLogicalWidth);
-        } else if (logicalWidth.isCalculated())
-            logicalWidth = Length { };
+        }
 
         unsigned usedSpan = 0;
         while (usedSpan < span && currentColumn < nEffCols) {

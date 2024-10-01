@@ -25,13 +25,11 @@
 
 #pragma once
 
-#include <wtf/WeakPtr.h>
-
 namespace WebCore {
 
 class LoadableScript;
 
-class LoadableScriptClient : public CanMakeWeakPtr<LoadableScriptClient> {
+class LoadableScriptClient {
 public:
     virtual ~LoadableScriptClient() = default;
 

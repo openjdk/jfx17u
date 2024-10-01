@@ -40,7 +40,11 @@ public:
     {
     }
 
-    friend bool operator==(const HeapFinalizerCallback&, const HeapFinalizerCallback&) = default;
+    bool operator==(const HeapFinalizerCallback& other) const
+    {
+        return m_finalizer == other.m_finalizer
+            && m_userData == other.m_userData;
+    }
 
     explicit operator bool() const
     {

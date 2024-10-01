@@ -59,7 +59,6 @@
 #include "LocalFrame.h"
 #include "MouseEvent.h"
 #include "Node.h"
-#include "OffscreenCanvasRenderingContext2D.h"
 #include "Page.h"
 #include "PagePasteboardContext.h"
 #include "Pasteboard.h"
@@ -125,7 +124,7 @@ private:
     void contextMenuItemSelected(ContextMenuAction action, const String&) override
     {
         if (m_frontendHost) {
-            UserGestureIndicator gestureIndicator(IsProcessingUserGesture::Yes, dynamicDowncast<Document>(executionContext(m_globalObject)));
+            UserGestureIndicator gestureIndicator(ProcessingUserGesture, dynamicDowncast<Document>(executionContext(m_globalObject)));
             int itemNumber = action - ContextMenuItemBaseCustomTag;
 
             ScriptFunctionCall function(m_globalObject, m_frontendApiObject.get(), "contextMenuItemSelected"_s, WebCore::functionCallHandlerFromAnyThread);
@@ -433,7 +432,8 @@ String InspectorFrontendHost::platformVersionName() const
 
 void InspectorFrontendHost::copyText(const String& text)
 {
-    auto pageID = m_frontendPage ? m_frontendPage->mainFrame().pageID() : std::nullopt;
+    auto* localMainFrame = dynamicDowncast<LocalFrame>(m_frontendPage->mainFrame());
+    auto pageID = m_frontendPage && localMainFrame ? localMainFrame->pageID() : std::nullopt;
     Pasteboard::createForCopyAndPaste(PagePasteboardContext::create(WTFMove(pageID)))->writePlainText(text, Pasteboard::CannotSmartReplace);
 }
 
@@ -489,13 +489,13 @@ bool InspectorFrontendHost::canLoad()
 void InspectorFrontendHost::load(const String& path, Ref<DeferredPromise>&& promise)
 {
     if (!m_client) {
-        promise->reject(ExceptionCode::InvalidStateError);
+        promise->reject(InvalidStateError);
         return;
     }
 
     m_client->load(path, [promise = WTFMove(promise)](const String& content) {
         if (!content)
-            promise->reject(ExceptionCode::NotFoundError);
+            promise->reject(NotFoundError);
         else
             promise->resolve<IDLDOMString>(content);
     });
@@ -511,7 +511,7 @@ bool InspectorFrontendHost::canPickColorFromScreen()
 void InspectorFrontendHost::pickColorFromScreen(Ref<DeferredPromise>&& promise)
 {
     if (!m_client) {
-        promise->reject(ExceptionCode::InvalidStateError);
+        promise->reject(InvalidStateError);
         return;
     }
 
@@ -547,7 +547,7 @@ static void populateContextMenu(Vector<InspectorFrontendHost::ContextMenuItem>&&
 {
     for (auto& item : items) {
         if (item.type == "separator"_s) {
-            menu.appendItem({ ContextMenuItemType::Separator, ContextMenuItemTagNoAction, { } });
+            menu.appendItem({ SeparatorType, ContextMenuItemTagNoAction, { } });
             continue;
         }
 
@@ -555,11 +555,11 @@ static void populateContextMenu(Vector<InspectorFrontendHost::ContextMenuItem>&&
             ContextMenu subMenu;
             populateContextMenu(WTFMove(*item.subItems), subMenu);
 
-            menu.appendItem({ ContextMenuItemType::Submenu, ContextMenuItemTagNoAction, item.label, &subMenu });
+            menu.appendItem({ SubmenuType, ContextMenuItemTagNoAction, item.label, &subMenu });
             continue;
         }
 
-        auto type = item.type == "checkbox"_s ? ContextMenuItemType::CheckableAction : ContextMenuItemType::Action;
+        auto type = item.type == "checkbox"_s ? CheckableActionType : ActionType;
         auto action = static_cast<ContextMenuAction>(ContextMenuItemBaseCustomTag + item.id.value_or(0));
         ContextMenuItem menuItem = { type, action, item.label };
         if (item.enabled)
@@ -816,20 +816,19 @@ ExceptionOr<JSC::JSValue> InspectorFrontendHost::evaluateScriptInExtensionTab(HT
 {
     auto* frame = dynamicDowncast<LocalFrame>(extensionFrameElement.contentFrame());
     if (!frame)
-        return Exception { ExceptionCode::InvalidStateError, "Unable to find global object for <iframe>"_s };
+        return Exception { InvalidStateError, "Unable to find global object for <iframe>"_s };
 
     Ref protectedFrame(*frame);
 
     JSDOMGlobalObject* frameGlobalObject = frame->script().globalObject(mainThreadNormalWorld());
     if (!frameGlobalObject)
-        return Exception { ExceptionCode::InvalidStateError, "Unable to find global object for <iframe>"_s };
-
+        return Exception { InvalidStateError, "Unable to find global object for <iframe>"_s };
 
     JSC::SuspendExceptionScope scope(frameGlobalObject->vm());
-    ValueOrException result = frame->script().evaluateInWorld(ScriptSourceCode(scriptSource, JSC::SourceTaintedOrigin::Untainted), mainThreadNormalWorld());
+    ValueOrException result = frame->script().evaluateInWorld(ScriptSourceCode(scriptSource), mainThreadNormalWorld());
 
     if (!result)
-        return Exception { ExceptionCode::InvalidStateError, result.error().message };
+        return Exception { InvalidStateError, result.error().message };
 
     return WTFMove(result.value());
 }
@@ -860,29 +859,5 @@ void InspectorFrontendHost::setPath(CanvasRenderingContext2D& context, Path2D& p
 {
     context.setPath(path);
 }
-
-#if ENABLE(OFFSCREEN_CANVAS)
-
-float InspectorFrontendHost::getCurrentX(const OffscreenCanvasRenderingContext2D& context) const
-{
-    return context.currentX();
-}
-
-float InspectorFrontendHost::getCurrentY(const OffscreenCanvasRenderingContext2D& context) const
-{
-    return context.currentY();
-}
-
-Ref<Path2D> InspectorFrontendHost::getPath(const OffscreenCanvasRenderingContext2D& context) const
-{
-    return context.getPath();
-}
-
-void InspectorFrontendHost::setPath(OffscreenCanvasRenderingContext2D& context, Path2D& path) const
-{
-    context.setPath(path);
-}
-
-#endif // ENABLE(OFFSCREEN_CANVAS)
 
 } // namespace WebCore

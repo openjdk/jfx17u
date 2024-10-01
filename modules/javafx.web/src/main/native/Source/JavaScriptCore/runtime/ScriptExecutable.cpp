@@ -199,7 +199,7 @@ void ScriptExecutable::installCode(VM& vm, CodeBlock* genericCodeBlock, CodeType
     }
 
     if (oldCodeBlock)
-        oldCodeBlock->unlinkOrUpgradeIncomingCalls(vm, genericCodeBlock);
+        oldCodeBlock->unlinkIncomingCalls();
 
     vm.writeBarrier(this);
 }
@@ -553,7 +553,7 @@ void ScriptExecutable::visitCodeBlockEdge(Visitor& visitor, CodeBlock* codeBlock
     if (codeBlock->shouldVisitStrongly(locker, visitor))
         visitor.appendUnbarriered(codeBlock);
 
-    if (JSC::JITCode::isOptimizingJIT(codeBlock->jitType())) {
+    if (JITCode::isOptimizingJIT(codeBlock->jitType())) {
         // If we jettison ourselves we'll install our alternative, so make sure that it
         // survives GC even if we don't.
         visitor.append(codeBlock->m_alternative);

@@ -53,7 +53,7 @@ void IncrementalSweeper::scheduleTimer()
     setTimeUntilFire(sweepTimeSlice * sweepTimeMultiplier);
 }
 
-IncrementalSweeper::IncrementalSweeper(JSC::Heap* heap)
+IncrementalSweeper::IncrementalSweeper(Heap* heap)
     : Base(heap->vm())
     , m_currentDirectory(nullptr)
 {
@@ -70,11 +70,6 @@ void IncrementalSweeper::doWorkUntil(VM& vm, MonotonicTime deadline)
 
 void IncrementalSweeper::doWork(VM& vm)
 {
-    if (m_lastOpportunisticTaskDidFinishSweeping) {
-        m_lastOpportunisticTaskDidFinishSweeping = false;
-        scheduleTimer();
-        return;
-    }
     doSweep(vm, MonotonicTime::now() + sweepTimeSlice, SweepTrigger::Timer);
 }
 
@@ -90,12 +85,8 @@ void IncrementalSweeper::doSweep(VM& vm, MonotonicTime deadline, SweepTrigger tr
 
         if (trigger == SweepTrigger::Timer)
         scheduleTimer();
-        else
-            m_lastOpportunisticTaskDidFinishSweeping = false;
         return;
     }
-    if (trigger == SweepTrigger::OpportunisticTask)
-        m_lastOpportunisticTaskDidFinishSweeping = true;
 
 #if !USE(SYSTEM_MALLOC)
 #if BUSE(LIBPAS)
@@ -132,7 +123,7 @@ bool IncrementalSweeper::sweepNextBlock(VM& vm, SweepTrigger trigger)
     return vm.heap.sweepNextLogicallyEmptyWeakBlock();
 }
 
-void IncrementalSweeper::startSweeping(JSC::Heap& heap)
+void IncrementalSweeper::startSweeping(Heap& heap)
 {
     scheduleTimer();
     m_currentDirectory = heap.objectSpace().firstDirectory();

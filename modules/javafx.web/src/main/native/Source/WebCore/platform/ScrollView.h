@@ -160,7 +160,7 @@ public:
         ~ProhibitScrollingWhenChangingContentSizeForScope();
 
     private:
-        SingleThreadWeakPtr<ScrollView> m_scrollView;
+        WeakPtr<ScrollView> m_scrollView;
     };
 
     std::unique_ptr<ProhibitScrollingWhenChangingContentSizeForScope> prohibitScrollingWhenChangingContentSizeForScope();
@@ -278,12 +278,8 @@ public:
 
     IntSize overhangAmount() const final;
 
-    void cacheCurrentScrollState();
+    void cacheCurrentScrollPosition() { m_cachedScrollPosition = scrollPosition(); }
     ScrollPosition cachedScrollPosition() const { return m_cachedScrollPosition; }
-#if PLATFORM(IOS_FAMILY)
-    IntRect cachedUnobscuredContentRect() const { return m_cachedUnobscuredContentRect; }
-    FloatRect cachedExposedContentRect() const { return m_cachedExposedContentRect; }
-#endif
 
     // Functions for scrolling the view.
     virtual void setScrollPosition(const ScrollPosition&, const ScrollPositionChangeOptions& = ScrollPositionChangeOptions::createProgrammatic());
@@ -359,9 +355,32 @@ public:
     // For platforms that need to hit test scrollbars from within the engine's event handlers (like Win32).
     Scrollbar* scrollbarAtPoint(const IntPoint& windowPoint);
 
-    IntPoint convertChildToSelf(const Widget*, IntPoint) const;
-    FloatPoint convertChildToSelf(const Widget*, FloatPoint) const;
-    IntPoint convertSelfToChild(const Widget*, IntPoint) const;
+    IntPoint convertChildToSelf(const Widget* child, const IntPoint& point) const
+    {
+        IntPoint newPoint = point;
+        if (!isScrollViewScrollbar(child))
+            newPoint = point - toIntSize(scrollPosition());
+        newPoint.moveBy(child->location());
+        return newPoint;
+    }
+
+    FloatPoint convertChildToSelf(const Widget* child, const FloatPoint& point) const
+    {
+        FloatPoint newPoint = point;
+        if (!isScrollViewScrollbar(child))
+            newPoint -= toFloatSize(scrollPosition());
+        newPoint.moveBy(child->location());
+        return newPoint;
+    }
+
+    IntPoint convertSelfToChild(const Widget* child, const IntPoint& point) const
+    {
+        IntPoint newPoint = point;
+        if (!isScrollViewScrollbar(child))
+            newPoint = point + toIntSize(scrollPosition());
+        newPoint.moveBy(-child->location());
+        return newPoint;
+    }
 
     // Widget override. Handles painting of the contents of the view as well as the scrollbars.
     WEBCORE_EXPORT void paint(GraphicsContext&, const IntRect&, Widget::SecurityOriginPaintPolicy = SecurityOriginPaintPolicy::AnyOrigin, RegionContext* = nullptr) final;
@@ -542,10 +561,6 @@ private:
 #endif
     ScrollPosition m_scrollPosition;
     IntPoint m_cachedScrollPosition;
-#if PLATFORM(IOS_FAMILY)
-    IntRect m_cachedUnobscuredContentRect;
-    FloatRect m_cachedExposedContentRect;
-#endif
     IntSize m_fixedLayoutSize;
     IntSize m_contentsSize;
 

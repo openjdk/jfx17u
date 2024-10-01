@@ -29,7 +29,7 @@
 #include "config.h"
 #include "NicosiaScene.h"
 
-#include "NicosiaCompositionLayer.h"
+#include "NicosiaPlatformLayer.h"
 
 namespace Nicosia {
 

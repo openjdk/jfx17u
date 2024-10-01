@@ -23,7 +23,7 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-[Exposed=Window]
+[EnabledBySetting=PopoverAttributeEnabled, Exposed=Window]
 interface ToggleEvent : Event {
     constructor([AtomString] DOMString type, optional ToggleEventInit eventInitDict = {});
     readonly attribute DOMString oldState;

@@ -115,11 +115,11 @@ bool SVGTransformList::parse(StringParsingBuffer<UChar>& buffer)
 String SVGTransformList::valueAsString() const
 {
     StringBuilder builder;
-    for (const auto& transform : m_items) {
+    for (const auto& transfrom : m_items) {
         if (builder.length())
             builder.append(' ');
 
-        builder.append(transform->value().valueAsString());
+        builder.append(transfrom->value().valueAsString());
     }
     return builder.toString();
 }

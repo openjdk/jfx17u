@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2015-2017 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,9 +33,7 @@
 #include "AirInstInlines.h"
 #include "AirStackSlot.h"
 #include "AirTmpInlines.h"
-#include <wtf/ForbidHeapAllocation.h>
 #include <wtf/IndexMap.h>
-#include <wtf/TZoneMalloc.h>
 
 namespace JSC { namespace B3 { namespace Air {
 
@@ -45,8 +43,6 @@ static constexpr bool verbose = false;
 
 template<typename Adapter>
 struct LivenessAdapter {
-    WTF_FORBID_HEAP_ALLOCATION;
-public:
     typedef Air::CFG CFG;
 
     typedef Vector<unsigned, 4> ActionsList;
@@ -149,8 +145,6 @@ public:
 
 template<Bank adapterBank, Arg::Temperature minimumTemperature = Arg::Cold>
 struct TmpLivenessAdapter : LivenessAdapter<TmpLivenessAdapter<adapterBank, minimumTemperature>> {
-    WTF_MAKE_TZONE_ALLOCATED(TmpLivenessAdapter);
-public:
     typedef LivenessAdapter<TmpLivenessAdapter<adapterBank, minimumTemperature>> Base;
 
     static constexpr const char* name = "TmpLiveness";
@@ -172,8 +166,6 @@ public:
 };
 
 struct UnifiedTmpLivenessAdapter : LivenessAdapter<UnifiedTmpLivenessAdapter> {
-    WTF_MAKE_TZONE_ALLOCATED(UnifiedTmpLivenessAdapter);
-public:
     typedef LivenessAdapter<UnifiedTmpLivenessAdapter> Base;
 
     static constexpr const char* name = "UnifiedTmpLiveness";
@@ -197,8 +189,6 @@ public:
 };
 
 struct StackSlotLivenessAdapter : LivenessAdapter<StackSlotLivenessAdapter> {
-    WTF_MAKE_TZONE_ALLOCATED(StackSlotLivenessAdapter);
-public:
     static constexpr const char* name = "StackSlotLiveness";
     typedef StackSlot* Thing;
 

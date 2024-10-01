@@ -71,7 +71,10 @@ private:
     VariableEnvironment m_lexicalDeclarations;
 
 public:
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue proto)
+    {
+        return Structure::create(vm, globalObject, proto, TypeInfo(UnlinkedProgramCodeBlockType, StructureFlags), info());
+    }
 
     DECLARE_INFO;
 };

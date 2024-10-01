@@ -26,6 +26,7 @@
 #pragma once
 
 #include <cstdint>
+#include <wtf/EnumTraits.h>
 
 namespace WebCore::WebGPU {
 
@@ -36,3 +37,16 @@ enum class SamplerBindingType : uint8_t {
 };
 
 } // namespace WebCore::WebGPU
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::WebGPU::SamplerBindingType> {
+    using values = EnumValues<
+        WebCore::WebGPU::SamplerBindingType,
+        WebCore::WebGPU::SamplerBindingType::Filtering,
+        WebCore::WebGPU::SamplerBindingType::NonFiltering,
+        WebCore::WebGPU::SamplerBindingType::Comparison
+    >;
+};
+
+} // namespace WTF

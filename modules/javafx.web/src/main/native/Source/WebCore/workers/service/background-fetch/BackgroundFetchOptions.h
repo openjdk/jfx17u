@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "BackgroundFetchUIOptions.h"
 #include <wtf/CrossThreadCopier.h>
 
@@ -45,3 +47,5 @@ struct BackgroundFetchOptions : BackgroundFetchUIOptions {
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

@@ -31,7 +31,7 @@ namespace JSC {
 
 class PreventCollectionScope {
 public:
-    PreventCollectionScope(JSC::Heap& heap)
+    PreventCollectionScope(Heap& heap)
         : m_heap(heap)
     {
         m_heap.preventCollection();
@@ -43,7 +43,7 @@ public:
     }
 
 private:
-    JSC::Heap& m_heap;
+    Heap& m_heap;
 };
 
 } // namespace JSC

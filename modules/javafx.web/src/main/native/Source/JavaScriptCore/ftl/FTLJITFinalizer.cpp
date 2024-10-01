@@ -33,11 +33,8 @@
 #include "FTLState.h"
 #include "ProfilerDatabase.h"
 #include "ThunkGenerators.h"
-#include <wtf/TZoneMallocInlines.h>
 
 namespace JSC { namespace FTL {
-
-WTF_MAKE_TZONE_ALLOCATED_IMPL(JITFinalizer);
 
 JITFinalizer::JITFinalizer(DFG::Plan& plan)
     : Finalizer(plan)

@@ -127,13 +127,6 @@ IntRect Chrome::rootViewToAccessibilityScreen(const IntRect& rect) const
     return m_client->rootViewToAccessibilityScreen(rect);
 }
 
-#if PLATFORM(IOS_FAMILY)
-void Chrome::relayAccessibilityNotification(const String& notificationName, const RetainPtr<NSData>& notificationData) const
-{
-    return m_client->relayAccessibilityNotification(notificationName, notificationData);
-}
-#endif
-
 PlatformPageClient Chrome::platformPageClient() const
 {
     return m_client->platformPageClient();
@@ -194,7 +187,7 @@ void Chrome::focusedElementChanged(Element* element)
     m_client->focusedElementChanged(element);
 }
 
-void Chrome::focusedFrameChanged(Frame* frame)
+void Chrome::focusedFrameChanged(LocalFrame* frame)
 {
     m_client->focusedFrameChanged(frame);
 }
@@ -204,11 +197,8 @@ Page* Chrome::createWindow(LocalFrame& frame, const WindowFeatures& features, co
     Page* newPage = m_client->createWindow(frame, features, action);
     if (!newPage)
         return nullptr;
-#if !PLATFORM(JAVA)
-    if (!features.wantsNoOpener())
-#else
-     if (!features.noopener && !features.noreferrer)
-#endif
+
+    if (!features.noopener && !features.noreferrer)
         m_page.storageNamespaceProvider().copySessionStorageNamespace(m_page, *newPage);
 
     return newPage;
@@ -374,11 +364,12 @@ void Chrome::getToolTip(const HitTestResult& result, String& toolTip, TextDirect
 
     // Next priority is a toolTip from a URL beneath the mouse (if preference is set to show those).
     if (toolTip.isEmpty() && m_page.settings().showsURLsInToolTips()) {
-        if (RefPtr element = result.innerNonSharedElement()) {
+        if (Element* element = result.innerNonSharedElement()) {
             // Get tooltip representing form action, if relevant
-            if (RefPtr input = dynamicDowncast<HTMLInputElement>(*element)) {
-                if (input->isSubmitButton()) {
-                    if (RefPtr form = input->form()) {
+            if (is<HTMLInputElement>(*element)) {
+                HTMLInputElement& input = downcast<HTMLInputElement>(*element);
+                if (input.isSubmitButton()) {
+                    if (HTMLFormElement* form = input.form()) {
                         toolTip = form->action();
                         if (form->renderer())
                             toolTipDirection = form->renderer()->style().direction();
@@ -407,9 +398,9 @@ void Chrome::getToolTip(const HitTestResult& result, String& toolTip, TextDirect
 
     // Lastly, for <input type="file"> that allow multiple files, we'll consider a tooltip for the selected filenames
     if (toolTip.isEmpty()) {
-        if (RefPtr element = result.innerNonSharedElement()) {
-            if (RefPtr input = dynamicDowncast<HTMLInputElement>(*element)) {
-                toolTip = input->defaultToolTip();
+        if (Element* element = result.innerNonSharedElement()) {
+            if (is<HTMLInputElement>(*element)) {
+                toolTip = downcast<HTMLInputElement>(*element).defaultToolTip();
 
                 // FIXME: We should obtain text direction of tooltip from
                 // ChromeClient or platform. As of October 2011, all client
@@ -553,9 +544,9 @@ void Chrome::setCursorHiddenUntilMouseMoves(bool hiddenUntilMouseMoves)
     m_client->setCursorHiddenUntilMouseMoves(hiddenUntilMouseMoves);
 }
 
-RefPtr<ImageBuffer> Chrome::createImageBuffer(const FloatSize& size, RenderingPurpose purpose, float resolutionScale, const DestinationColorSpace& colorSpace, PixelFormat pixelFormat, OptionSet<ImageBufferOptions> options) const
+RefPtr<ImageBuffer> Chrome::createImageBuffer(const FloatSize& size, RenderingMode renderingMode, RenderingPurpose purpose, float resolutionScale, const DestinationColorSpace& colorSpace, PixelFormat pixelFormat, bool avoidBackendSizeCheck) const
 {
-    return m_client->createImageBuffer(size, purpose, resolutionScale, colorSpace, pixelFormat, options);
+    return m_client->createImageBuffer(size, renderingMode, purpose, resolutionScale, colorSpace, pixelFormat, avoidBackendSizeCheck);
 }
 
 RefPtr<ImageBuffer> Chrome::sinkIntoImageBuffer(std::unique_ptr<SerializedImageBuffer> imageBuffer)
@@ -574,12 +565,11 @@ RefPtr<GraphicsContextGL> Chrome::createGraphicsContextGL(const GraphicsContextG
     return m_client->createGraphicsContextGL(attributes);
 }
 #endif
-#if HAVE(WEBGPU_IMPLEMENTATION)
+
 RefPtr<WebGPU::GPU> Chrome::createGPUForWebGPU() const
 {
     return m_client->createGPUForWebGPU();
 }
-#endif
 
 RefPtr<ShapeDetection::BarcodeDetector> Chrome::createBarcodeDetector(const ShapeDetection::BarcodeDetectorOptions& barcodeDetectorOptions) const
 {

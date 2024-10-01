@@ -153,7 +153,9 @@ private:
             m_workset->remove(liveIndexAtHead);
         ASSERT(!m_workset->isEmpty());
 
-        liveAtHead.appendRange(m_workset->begin(), m_workset->end());
+        liveAtHead.reserveCapacity(liveAtHead.size() + m_workset->size());
+        for (unsigned newValue : *m_workset)
+            liveAtHead.uncheckedAppend(newValue);
 
         bool changedPredecessor = false;
         for (BasicBlock* predecessor : block->predecessors) {

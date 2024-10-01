@@ -35,6 +35,11 @@
 namespace WebCore {
 namespace MQ {
 
+MediaQueryParser::MediaQueryParser(const MediaQueryParserContext& context)
+    : GenericMediaQueryParser(context)
+{
+}
+
 Vector<const FeatureSchema*> MediaQueryParser::featureSchemas()
 {
     return Features::allSchemas();
@@ -52,7 +57,8 @@ MediaQueryList MediaQueryParser::parse(const String& string, const MediaQueryPar
 
 MediaQueryList MediaQueryParser::parse(CSSParserTokenRange range, const MediaQueryParserContext& context)
 {
-    return consumeMediaQueryList(range, context);
+    MediaQueryParser parser { context };
+    return parser.consumeMediaQueryList(range);
 }
 
 std::optional<MediaQuery> MediaQueryParser::parseCondition(CSSParserTokenRange range, const MediaQueryParserContext& context)
@@ -62,14 +68,16 @@ std::optional<MediaQuery> MediaQueryParser::parseCondition(CSSParserTokenRange r
     if (range.atEnd())
         return MediaQuery { { }, allAtom() };
 
-    auto condition = consumeCondition(range, context);
+    MediaQueryParser parser { context };
+
+    auto condition = parser.consumeCondition(range);
     if (!condition)
         return { };
 
     return MediaQuery { { }, { }, condition };
 }
 
-MediaQueryList MediaQueryParser::consumeMediaQueryList(CSSParserTokenRange& range, const MediaQueryParserContext& context)
+MediaQueryList MediaQueryParser::consumeMediaQueryList(CSSParserTokenRange& range)
 {
     range.consumeWhitespace();
 
@@ -86,7 +94,7 @@ MediaQueryList MediaQueryParser::consumeMediaQueryList(CSSParserTokenRange& rang
         auto subrange = range.makeSubRange(begin, &range.peek());
 
         auto consumeMediaQueryOrNotAll = [&] {
-            if (auto query = consumeMediaQuery(subrange, context))
+            if (auto query = consumeMediaQuery(subrange))
                 return *query;
             // "A media query that does not match the grammar in the previous section must be replaced by not all during parsing."
             return MediaQuery { Prefix::Not, allAtom() };
@@ -102,12 +110,12 @@ MediaQueryList MediaQueryParser::consumeMediaQueryList(CSSParserTokenRange& rang
     return list;
 }
 
-std::optional<MediaQuery> MediaQueryParser::consumeMediaQuery(CSSParserTokenRange& range, const MediaQueryParserContext& context)
+std::optional<MediaQuery> MediaQueryParser::consumeMediaQuery(CSSParserTokenRange& range)
 {
     // <media-condition>
 
     auto rangeCopy = range;
-    if (auto condition = consumeCondition(range, context)) {
+    if (auto condition = consumeCondition(range)) {
         if (!range.atEnd())
             return { };
         return MediaQuery { { }, { }, condition };
@@ -162,7 +170,7 @@ std::optional<MediaQuery> MediaQueryParser::consumeMediaQuery(CSSParserTokenRang
 
     range.consumeIncludingWhitespace();
 
-    auto condition = consumeCondition(range, context);
+    auto condition = consumeCondition(range);
     if (!condition)
         return { };
 
@@ -175,12 +183,12 @@ std::optional<MediaQuery> MediaQueryParser::consumeMediaQuery(CSSParserTokenRang
     return MediaQuery { prefix, mediaType, condition };
 }
 
-const FeatureSchema* MediaQueryParser::schemaForFeatureName(const AtomString& name, const MediaQueryParserContext& context)
+const FeatureSchema* MediaQueryParser::schemaForFeatureName(const AtomString& name) const
 {
-    auto* schema = GenericMediaQueryParser<MediaQueryParser>::schemaForFeatureName(name, context);
+    auto* schema = GenericMediaQueryParser<MediaQueryParser>::schemaForFeatureName(name);
 
     if (schema == &Features::prefersDarkInterface()) {
-        if (!context.useSystemAppearance && !isUASheetBehavior(context.mode))
+        if (!m_context.useSystemAppearance && !isUASheetBehavior(m_context.mode))
             return nullptr;
     }
 

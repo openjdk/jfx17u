@@ -26,6 +26,7 @@
 #pragma once
 
 #include <cstdint>
+#include <wtf/EnumTraits.h>
 
 namespace WebCore::WebGPU {
 
@@ -38,3 +39,18 @@ enum class PrimitiveTopology : uint8_t {
 };
 
 } // namespace WebCore::WebGPU
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::WebGPU::PrimitiveTopology> {
+    using values = EnumValues<
+        WebCore::WebGPU::PrimitiveTopology,
+        WebCore::WebGPU::PrimitiveTopology::PointList,
+        WebCore::WebGPU::PrimitiveTopology::LineList,
+        WebCore::WebGPU::PrimitiveTopology::LineStrip,
+        WebCore::WebGPU::PrimitiveTopology::TriangleList,
+        WebCore::WebGPU::PrimitiveTopology::TriangleStrip
+    >;
+};
+
+} // namespace WTF

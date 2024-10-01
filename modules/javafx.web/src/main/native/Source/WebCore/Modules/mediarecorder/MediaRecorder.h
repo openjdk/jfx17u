@@ -142,8 +142,6 @@ private:
 
     unsigned m_audioBitsPerSecond { 0 };
     unsigned m_videoBitsPerSecond { 0 };
-
-    std::optional<Seconds> m_nextFireInterval;
 };
 
 } // namespace WebCore

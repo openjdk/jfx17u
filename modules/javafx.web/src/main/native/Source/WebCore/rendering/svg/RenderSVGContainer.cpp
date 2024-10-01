@@ -36,6 +36,9 @@
 #include "RenderView.h"
 #include "SVGContainerLayout.h"
 #include "SVGLayerTransformUpdater.h"
+#include "SVGRenderingContext.h"
+#include "SVGResources.h"
+#include "SVGResourcesCache.h"
 #include <wtf/IsoMallocInlines.h>
 #include <wtf/SetForScope.h>
 #include <wtf/StackStats.h>
@@ -44,13 +47,13 @@ namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderSVGContainer);
 
-RenderSVGContainer::RenderSVGContainer(Type type, Document& document, RenderStyle&& style, OptionSet<SVGModelObjectFlag> svgFlags)
-    : RenderSVGModelObject(type, document, WTFMove(style), svgFlags | SVGModelObjectFlag::IsContainer)
+RenderSVGContainer::RenderSVGContainer(Document& document, RenderStyle&& style)
+    : RenderSVGModelObject(document, WTFMove(style))
 {
 }
 
-RenderSVGContainer::RenderSVGContainer(Type type, SVGElement& element, RenderStyle&& style, OptionSet<SVGModelObjectFlag> svgFlags)
-    : RenderSVGModelObject(type, element, WTFMove(style), svgFlags | SVGModelObjectFlag::IsContainer)
+RenderSVGContainer::RenderSVGContainer(SVGElement& element, RenderStyle&& style)
+    : RenderSVGModelObject(element, WTFMove(style))
 {
 }
 
@@ -61,7 +64,7 @@ void RenderSVGContainer::layout()
     StackStats::LayoutCheckPoint layoutCheckPoint;
     ASSERT(needsLayout());
 
-    LayoutRepainter repainter(*this, checkForRepaintDuringLayout() && !isRenderSVGResourceMarker(), RepaintOutlineBounds::No);
+    LayoutRepainter repainter(*this, checkForRepaintDuringLayout(), RepaintOutlineBounds::No);
 
     // Update layer transform before laying out children (SVG needs access to the transform matrices during layout for on-screen text font-size calculations).
     // Eventually re-update if the transform reference box, relevant for transform-origin, has changed during layout.
@@ -77,6 +80,10 @@ void RenderSVGContainer::layout()
         layoutChildren();
     }
 
+    // Invalidate all resources of this client if our layout changed.
+    if (everHadLayout() && needsLayout())
+        SVGResourcesCache::clientLayoutChanged(*this);
+
     repainter.repaintAfterLayout();
     clearNeedsLayout();
 }
@@ -84,11 +91,10 @@ void RenderSVGContainer::layout()
 void RenderSVGContainer::layoutChildren()
 {
     SVGContainerLayout containerLayout(*this);
-    containerLayout.layoutChildren(selfNeedsLayout());
+    containerLayout.layoutChildren(selfNeedsLayout() || SVGRenderSupport::filtersForceContainerLayout(*this));
 
     SVGBoundingBoxComputation boundingBoxComputation(*this);
     m_objectBoundingBox = boundingBoxComputation.computeDecoratedBoundingBox(SVGBoundingBoxComputation::objectBoundingBoxDecoration, &m_objectBoundingBoxValid);
-    m_strokeBoundingBox = std::nullopt;
 
     if (auto objectBoundingBoxWithoutTransformations = overridenObjectBoundingBoxWithoutTransformations())
         m_objectBoundingBoxWithoutTransformations = objectBoundingBoxWithoutTransformations.value();
@@ -97,20 +103,10 @@ void RenderSVGContainer::layoutChildren()
         m_objectBoundingBoxWithoutTransformations = boundingBoxComputation.computeDecoratedBoundingBox(objectBoundingBoxDecorationWithoutTransformations);
     }
 
+    m_strokeBoundingBox = boundingBoxComputation.computeDecoratedBoundingBox(SVGBoundingBoxComputation::strokeBoundingBoxDecoration);
     setCurrentSVGLayoutRect(enclosingLayoutRect(m_objectBoundingBoxWithoutTransformations));
 
     containerLayout.positionChildrenRelativeToContainer();
-}
-
-FloatRect RenderSVGContainer::strokeBoundingBox() const
-{
-    if (!m_strokeBoundingBox) {
-        // Initialize m_strokeBoundingBox before calling computeDecoratedBoundingBox, since recursively referenced markers can cause us to re-enter here.
-        m_strokeBoundingBox = FloatRect { };
-        SVGBoundingBoxComputation boundingBoxComputation(*this);
-        m_strokeBoundingBox = boundingBoxComputation.computeDecoratedBoundingBox(SVGBoundingBoxComputation::strokeBoundingBoxDecoration);
-    }
-    return *m_strokeBoundingBox;
 }
 
 void RenderSVGContainer::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
@@ -120,13 +116,15 @@ void RenderSVGContainer::paint(PaintInfo& paintInfo, const LayoutPoint& paintOff
         return;
 
     if (paintInfo.phase == PaintPhase::ClippingMask) {
-        paintSVGClippingMask(paintInfo, objectBoundingBox());
+        // FIXME: [LBSE] Upstream SVGRenderSupport changes
+        // SVGRenderSupport::paintSVGClippingMask(*this, paintInfo);
         return;
     }
 
     auto adjustedPaintOffset = paintOffset + currentSVGLayoutLocation();
     if (paintInfo.phase == PaintPhase::Mask) {
-        paintSVGMask(paintInfo, adjustedPaintOffset);
+        // FIXME: [LBSE] Upstream SVGRenderSupport changes
+        // SVGRenderSupport::paintSVGMask(*this, paintInfo, adjustedPaintOffset);
         return;
     }
 

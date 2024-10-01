@@ -35,6 +35,7 @@
 #include "CanvasBase.h"
 #include "CanvasRenderingContext.h"
 #include "Database.h"
+#include "DeclarativeAnimation.h"
 #include "DocumentThreadableLoader.h"
 #include "Element.h"
 #include "Event.h"
@@ -48,7 +49,6 @@
 #include "ResourceLoader.h"
 #include "ResourceLoaderIdentifier.h"
 #include "StorageArea.h"
-#include "StyleOriginatedAnimation.h"
 #include "WebAnimation.h"
 #include "WorkerInspectorProxy.h"
 #include <JavaScriptCore/ConsoleMessage.h>
@@ -151,7 +151,7 @@ public:
     static void mouseDidMoveOverElement(Page&, const HitTestResult&, OptionSet<PlatformEventModifier>);
     static bool handleMousePress(LocalFrame&);
     static bool handleTouchEvent(LocalFrame&, Node&);
-    static bool forcePseudoState(const Element&, CSSSelector::PseudoClass);
+    static bool forcePseudoState(const Element&, CSSSelector::PseudoClassType);
 
     static void willSendXMLHttpRequest(ScriptExecutionContext*, const String& url);
     static void willFetch(ScriptExecutionContext&, const String& url);
@@ -301,7 +301,6 @@ public:
 
     static void didChangeCSSCanvasClientNodes(CanvasBase&);
     static void didCreateCanvasRenderingContext(CanvasRenderingContext&);
-    static void didChangeCanvasSize(CanvasRenderingContext&);
     static void didChangeCanvasMemory(CanvasRenderingContext&);
     static void didFinishRecordingCanvasFrame(CanvasRenderingContext&, bool forceDispatch = false);
 #if ENABLE(WEBGL)
@@ -380,7 +379,7 @@ private:
     static void mouseDidMoveOverElementImpl(InstrumentingAgents&, const HitTestResult&, OptionSet<PlatformEventModifier>);
     static bool handleMousePressImpl(InstrumentingAgents&);
     static bool handleTouchEventImpl(InstrumentingAgents&, Node&);
-    static bool forcePseudoStateImpl(InstrumentingAgents&, const Element&, CSSSelector::PseudoClass);
+    static bool forcePseudoStateImpl(InstrumentingAgents&, const Element&, CSSSelector::PseudoClassType);
 
     static void willSendXMLHttpRequestImpl(InstrumentingAgents&, const String& url);
     static void willFetchImpl(InstrumentingAgents&, const String& url);
@@ -514,7 +513,6 @@ private:
 
     static void didChangeCSSCanvasClientNodesImpl(InstrumentingAgents&, CanvasBase&);
     static void didCreateCanvasRenderingContextImpl(InstrumentingAgents&, CanvasRenderingContext&);
-    static void didChangeCanvasSizeImpl(InstrumentingAgents&, CanvasRenderingContext&);
     static void didChangeCanvasMemoryImpl(InstrumentingAgents&, CanvasRenderingContext&);
     static void didFinishRecordingCanvasFrameImpl(InstrumentingAgents&, CanvasRenderingContext&, bool forceDispatch = false);
 #if ENABLE(WEBGL)
@@ -623,7 +621,8 @@ inline void InspectorInstrumentation::didChangeRendererForDOMNode(Node& node)
 inline void InspectorInstrumentation::didAddOrRemoveScrollbars(LocalFrameView& frameView)
 {
     FAST_RETURN_IF_NO_FRONTENDS(void());
-    if (auto* agents = instrumentingAgents(frameView.frame().document()))
+    auto* localFrame = dynamicDowncast<LocalFrame>(frameView.frame());
+    if (auto* agents = localFrame ? instrumentingAgents(localFrame->document()) : nullptr)
         didAddOrRemoveScrollbarsImpl(*agents, frameView);
 }
 
@@ -788,7 +787,7 @@ inline bool InspectorInstrumentation::handleMousePress(LocalFrame& frame)
     return false;
 }
 
-inline bool InspectorInstrumentation::forcePseudoState(const Element& element, CSSSelector::PseudoClass pseudoState)
+inline bool InspectorInstrumentation::forcePseudoState(const Element& element, CSSSelector::PseudoClassType pseudoState)
 {
     FAST_RETURN_IF_NO_FRONTENDS(false);
     if (auto* agents = instrumentingAgents(element.document()))
@@ -1464,13 +1463,6 @@ inline void InspectorInstrumentation::didCreateCanvasRenderingContext(CanvasRend
     FAST_RETURN_IF_NO_FRONTENDS(void());
     if (auto* agents = instrumentingAgents(context.canvasBase().scriptExecutionContext()))
         didCreateCanvasRenderingContextImpl(*agents, context);
-}
-
-inline void InspectorInstrumentation::didChangeCanvasSize(CanvasRenderingContext& context)
-{
-    FAST_RETURN_IF_NO_FRONTENDS(void());
-    if (auto* agents = instrumentingAgents(context.canvasBase().scriptExecutionContext()))
-        didChangeCanvasSizeImpl(*agents, context);
 }
 
 inline void InspectorInstrumentation::didChangeCanvasMemory(CanvasRenderingContext& context)

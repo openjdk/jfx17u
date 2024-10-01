@@ -164,6 +164,7 @@ static SDKAlignedBehaviors computeSDKAlignedBehaviors()
     if (linkedBefore(dyld_fall_2021_os_versions, DYLD_IOS_VERSION_15_0, DYLD_MACOSX_VERSION_12_00)) {
         disableBehavior(SDKAlignedBehavior::NullOriginForNonSpecialSchemedURLs);
         disableBehavior(SDKAlignedBehavior::DOMWindowReuseRestriction);
+        disableBehavior(SDKAlignedBehavior::ApplicationCacheDisabledByDefault);
         disableBehavior(SDKAlignedBehavior::NoExpandoIndexedPropertiesOnWindow);
         disableBehavior(SDKAlignedBehavior::DoesNotDrainTheMicrotaskQueueWhenCallingObjC);
     }
@@ -199,11 +200,6 @@ static SDKAlignedBehaviors computeSDKAlignedBehaviors()
         disableBehavior(SDKAlignedBehavior::DoesNotOverrideUAFromNSUserDefault);
         disableBehavior(SDKAlignedBehavior::EvaluateJavaScriptWithoutTransientActivation);
         disableBehavior(SDKAlignedBehavior::ResettingTransitionCancelsRunningTransitionQuirk);
-    }
-
-    if (linkedBefore(dyld_2023_SU_C_os_versions, DYLD_IOS_VERSION_17_2, DYLD_MACOSX_VERSION_14_2)) {
-        disableBehavior(SDKAlignedBehavior::OnlyLoadWellKnownAboutURLs);
-        disableBehavior(SDKAlignedBehavior::ThrowIfCanDeclareGlobalFunctionFails);
     }
 
     disableAdditionalSDKAlignedBehaviors(behaviors);
@@ -253,20 +249,4 @@ bool linkedOnOrAfterSDKWithBehavior(SDKAlignedBehavior behavior)
     return sdkAlignedBehaviors().get(static_cast<size_t>(behavior));
 }
 
-static bool& processIsExtensionValue()
-{
-    static bool processIsExtension;
-    return processIsExtension;
 }
-
-bool processIsExtension()
-{
-    return processIsExtensionValue();
-}
-
-void setProcessIsExtension(bool processIsExtension)
-{
-    processIsExtensionValue() = processIsExtension;
-}
-
-} // namespace WTF

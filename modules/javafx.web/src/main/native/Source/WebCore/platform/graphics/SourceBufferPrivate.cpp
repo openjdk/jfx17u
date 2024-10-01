@@ -32,7 +32,6 @@
 #include "Logging.h"
 #include "MediaDescription.h"
 #include "MediaSample.h"
-#include "MediaSourcePrivate.h"
 #include "PlatformTimeRanges.h"
 #include "SampleMap.h"
 #include "SharedBuffer.h"
@@ -41,10 +40,10 @@
 #include "TrackBuffer.h"
 #include "VideoTrackPrivate.h"
 #include <wtf/CheckedArithmetic.h>
-#include <wtf/IteratorRange.h>
 #include <wtf/MainThread.h>
 #include <wtf/MediaTime.h>
 #include <wtf/StringPrintStream.h>
+#include <wtf/text/StringToIntegerConversion.h>
 
 namespace WebCore {
 
@@ -59,125 +58,209 @@ static const MediaTime discontinuityTolerance = MediaTime(1, 1);
 static const unsigned evictionAlgorithmInitialTimeChunk = 30000;
 static const unsigned evictionAlgorithmTimeChunkLowThreshold = 3000;
 
-SourceBufferPrivate::SourceBufferPrivate(MediaSourcePrivate& parent)
-    : m_mediaSource(&parent)
+SourceBufferPrivate::SourceBufferPrivate() = default;
+
+SourceBufferPrivate::~SourceBufferPrivate()
 {
-}
-
-SourceBufferPrivate::~SourceBufferPrivate() = default;
-
-void SourceBufferPrivate::removedFromMediaSource()
-{
-    ALWAYS_LOG(LOGIDENTIFIER);
-
-    // The SourceBufferClient holds a strong reference to SourceBufferPrivate at this stage
-    // and can be safely removed from the MediaSourcePrivate which also holds a strong reference.
-    if (RefPtr mediaSource = std::exchange(m_mediaSource, nullptr).get())
-        mediaSource->removeSourceBuffer(*this);
-}
-
-MediaTime SourceBufferPrivate::currentMediaTime() const
-{
-    if (RefPtr mediaSource = m_mediaSource.get())
-        return mediaSource->currentMediaTime();
-    return { };
-}
-
-MediaTime SourceBufferPrivate::mediaSourceDuration() const
-{
-    return m_mediaSourceDuration;
+    abortPendingOperations();
 }
 
 void SourceBufferPrivate::resetTimestampOffsetInTrackBuffers()
 {
-    iterateTrackBuffers([&](auto& trackBuffer) {
-        trackBuffer.resetTimestampOffset();
-    });
+    for (auto& trackBuffer : m_trackBufferMap.values())
+        trackBuffer->resetTimestampOffset();
 }
 
 void SourceBufferPrivate::resetTrackBuffers()
 {
-    iterateTrackBuffers([&](auto& trackBuffer) {
-        trackBuffer.reset();
-    });
+    for (auto& trackBuffer : m_trackBufferMap.values())
+        trackBuffer->reset();
 }
 
 void SourceBufferPrivate::updateHighestPresentationTimestamp()
 {
     MediaTime highestTime;
-    iterateTrackBuffers([&](auto& trackBuffer) {
-        auto lastSampleIter = trackBuffer.samples().presentationOrder().rbegin();
-        if (lastSampleIter != trackBuffer.samples().presentationOrder().rend())
+    for (auto& trackBuffer : m_trackBufferMap.values()) {
+        auto lastSampleIter = trackBuffer->samples().presentationOrder().rbegin();
+        if (lastSampleIter == trackBuffer->samples().presentationOrder().rend())
+            continue;
         highestTime = std::max(highestTime, lastSampleIter->first);
-    });
+    }
 
     if (m_highestPresentationTimestamp == highestTime)
         return;
 
     m_highestPresentationTimestamp = highestTime;
-    if (RefPtr client = this->client())
-        client->sourceBufferPrivateHighestPresentationTimestampChanged(m_highestPresentationTimestamp);
+    if (isAttached())
+        m_client->sourceBufferPrivateHighestPresentationTimestampChanged(m_highestPresentationTimestamp);
 }
 
-Ref<MediaPromise> SourceBufferPrivate::updateBuffered()
+void SourceBufferPrivate::setBufferedRanges(PlatformTimeRanges&& timeRanges, CompletionHandler<void()>&& completionHandler)
 {
-    if (RefPtr client = this->client())
-        return client->sourceBufferPrivateBufferedChanged(trackBuffersRanges(), totalTrackBufferSizeInBytes());
-    return MediaPromise::createAndReject(PlatformMediaError::BufferRemoved);
+    if (m_buffered == timeRanges) {
+        completionHandler();
+        return;
+    }
+    m_buffered = WTFMove(timeRanges);
+    if (isAttached())
+        m_client->sourceBufferPrivateBufferedChanged(buffered(), WTFMove(completionHandler));
+    else
+        completionHandler();
 }
 
 Vector<PlatformTimeRanges> SourceBufferPrivate::trackBuffersRanges() const
 {
-    auto iteratorRange = makeSizedIteratorRange(m_trackBufferMap, m_trackBufferMap.begin(), m_trackBufferMap.end());
-    return WTF::map(iteratorRange, [](auto& trackBuffer) {
-        return trackBuffer.second->buffered();
-    });
+    Vector<PlatformTimeRanges> trackBuffers;
+    trackBuffers.reserveInitialCapacity(m_trackBufferMap.size());
+    for (auto&& trackBuffer : m_trackBufferMap.values())
+        trackBuffers.uncheckedAppend(trackBuffer->buffered());
+    return trackBuffers;
 }
 
-void SourceBufferPrivate::reenqueSamples(TrackID trackID)
+void SourceBufferPrivate::clientReadyStateChanged(bool sourceIsEnded)
 {
-    RefPtr client = this->client();
-    if (!client)
-        return;
-
-    auto trackBuffer = m_trackBufferMap.find(trackID);
-    if (trackBuffer == m_trackBufferMap.end())
-        return;
-    trackBuffer->second->setNeedsReenqueueing(true);
-    reenqueueMediaForTime(trackBuffer->second, trackID, currentMediaTime());
+    updateBufferedFromTrackBuffers(trackBuffersRanges(), sourceIsEnded);
 }
 
-Ref<SourceBufferPrivate::ComputeSeekPromise> SourceBufferPrivate::computeSeekTime(const SeekTarget& target)
+void SourceBufferPrivate::updateBufferedFromTrackBuffers(const Vector<PlatformTimeRanges>& trackBuffers, bool sourceIsEnded, CompletionHandler<void()>&& completionHandler)
 {
-    RefPtr client = this->client();
-    if (!client)
-        return ComputeSeekPromise::createAndReject(PlatformMediaError::BufferRemoved);
+    // 3.1 Attributes, buffered
+    // https://rawgit.com/w3c/media-source/45627646344eea0170dd1cbc5a3d508ca751abb8/media-source-respec.html#dom-sourcebuffer-buffered
 
-    auto seekTime = target.time;
-
-    if (target.negativeThreshold || target.positiveThreshold) {
-        iterateTrackBuffers([&](auto& trackBuffer) {
-            // Find the sample which contains the target time.
-            auto trackSeekTime = trackBuffer.findSeekTimeForTargetTime(target.time, target.negativeThreshold, target.positiveThreshold);
-
-            if (trackSeekTime.isValid() && abs(target.time - trackSeekTime) > abs(target.time - seekTime))
-                seekTime = trackSeekTime;
-    });
+    // 2. Let highest end time be the largest track buffer ranges end time across all the track buffers managed by this SourceBuffer object.
+    MediaTime highestEndTime = MediaTime::negativeInfiniteTime();
+    for (auto& trackBuffer : trackBuffers) {
+        if (!trackBuffer.length())
+            continue;
+        highestEndTime = std::max(highestEndTime, trackBuffer.maximumBufferedTime());
     }
-    // When converting from a double-precision float to a MediaTime, a certain amount of precision is lost. If that
-    // results in a round-trip between `float in -> MediaTime -> float out` where in != out, we will wait forever for
-    // the time jump observer to fire.
-    if (seekTime.hasDoubleValue())
-        seekTime = MediaTime::createWithDouble(seekTime.toDouble(), MediaTime::DefaultTimeScale);
 
-    return ComputeSeekPromise::createAndResolve(seekTime);
+    // NOTE: Short circuit the following if none of the TrackBuffers have buffered ranges to avoid generating
+    // a single range of {0, 0}.
+    if (highestEndTime.isNegativeInfinite()) {
+        setBufferedRanges({ }, WTFMove(completionHandler));
+        return;
+    }
+
+    // 3. Let intersection ranges equal a TimeRange object containing a single range from 0 to highest end time.
+    PlatformTimeRanges intersectionRanges { MediaTime::zeroTime(), highestEndTime };
+
+    // 4. For each audio and video track buffer managed by this SourceBuffer, run the following steps:
+    for (auto& trackBuffer : trackBuffers) {
+        if (!trackBuffer.length())
+            continue;
+
+        // 4.1 Let track ranges equal the track buffer ranges for the current track buffer.
+        auto trackRanges = trackBuffer;
+
+        // 4.2 If readyState is "ended", then set the end time on the last range in track ranges to highest end time.
+        if (sourceIsEnded)
+            trackRanges.add(trackRanges.maximumBufferedTime(), highestEndTime);
+
+        // 4.3 Let new intersection ranges equal the intersection between the intersection ranges and the track ranges.
+        // 4.4 Replace the ranges in intersection ranges with the new intersection ranges.
+        intersectionRanges.intersectWith(trackRanges);
+    }
+
+    // 5. If intersection ranges does not contain the exact same range information as the current value of this attribute,
+    //    then update the current value of this attribute to intersection ranges.
+    setBufferedRanges(WTFMove(intersectionRanges), WTFMove(completionHandler));
+}
+
+void SourceBufferPrivate::advanceOperationState()
+{
+    switch (m_operationState) {
+    case OperationState::Idle:
+        m_operationState = OperationState::ProcessingAppend;
+        break;
+    case OperationState::ProcessingAppend:
+        m_operationState = OperationState::ProcessingInit;
+        break;
+    case OperationState::ProcessingInit:
+        ASSERT_NOT_REACHED();
+        break;
+    }
+}
+
+void SourceBufferPrivate::rewindOperationState()
+{
+    switch (m_operationState) {
+    case OperationState::Idle:
+        ASSERT_NOT_REACHED();
+        break;
+    case OperationState::ProcessingAppend:
+        m_operationState = OperationState::Idle;
+        break;
+    case OperationState::ProcessingInit:
+        m_operationState = OperationState::ProcessingAppend;
+        break;
+    }
+}
+
+void SourceBufferPrivate::appendCompleted(bool parsingSucceeded, bool isEnded, Function<void()>&& preAppendCompletedTask)
+{
+    DEBUG_LOG(LOGIDENTIFIER);
+
+    rewindOperationState();
+    if (parsingSucceeded)
+        queueOperation(AppendCompletedOperation { m_abortCount, isEnded, WTFMove(preAppendCompletedTask) });
+    else
+        queueOperation(ErrorOperation { });
+}
+
+void SourceBufferPrivate::processAppendCompletedOperation(AppendCompletedOperation&& operation)
+{
+    DEBUG_LOG(LOGIDENTIFIER);
+
+    operation.preTask();
+
+    // Resolve the changes in TrackBuffers' buffered ranges
+    // into the SourceBuffer's buffered ranges
+    auto trackBuffers = trackBuffersRanges();
+    if (isAttached())
+        m_client->sourceBufferPrivateTrackBuffersChanged(trackBuffers);
+
+    updateBufferedFromTrackBuffers(trackBuffers, operation.isEnded, [weakSelf = WeakPtr { *this }, this, operation = WTFMove(operation)] () mutable {
+        if (!weakSelf || !isAttached())
+            return;
+
+        auto completionHandler = CompletionHandler<void()>([weakSelf = WTFMove(weakSelf), this, operation = WTFMove(operation)] {
+            if (!weakSelf || !isAttached())
+                return;
+
+            if (operation.abortCount == m_abortCount)
+                m_client->sourceBufferPrivateAppendComplete(SourceBufferPrivateClient::AppendResult::Succeeded);
+        m_client->sourceBufferPrivateReportExtraMemoryCost(totalTrackBufferSizeInBytes());
+    });
+
+    // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-processing
+    // 5. If the media segment contains data beyond the current duration, then run the duration change algorithm with new
+    // duration set to the maximum of the current duration and the group end timestamp.
+    if (m_groupEndTimestamp > duration()) {
+        m_client->sourceBufferPrivateDurationChanged(m_groupEndTimestamp, WTFMove(completionHandler));
+        return;
+    }
+    completionHandler();
+    });
+}
+
+void SourceBufferPrivate::reenqueSamples(const AtomString& trackID)
+{
+    if (!isAttached())
+        return;
+
+    auto* trackBuffer = m_trackBufferMap.get(trackID);
+    if (!trackBuffer)
+        return;
+    trackBuffer->setNeedsReenqueueing(true);
+    reenqueueMediaForTime(*trackBuffer, trackID, currentMediaTime());
 }
 
 void SourceBufferPrivate::seekToTime(const MediaTime& time)
 {
     for (auto& trackBufferPair : m_trackBufferMap) {
-        TrackBuffer& trackBuffer = trackBufferPair.second;
-        TrackID trackID = trackBufferPair.first;
+        TrackBuffer& trackBuffer = trackBufferPair.value;
+        const AtomString& trackID = trackBufferPair.key;
 
         trackBuffer.setNeedsReenqueueing(true);
         reenqueueMediaForTime(trackBuffer, trackID, time);
@@ -186,34 +269,60 @@ void SourceBufferPrivate::seekToTime(const MediaTime& time)
 
 void SourceBufferPrivate::clearTrackBuffers(bool shouldReportToClient)
 {
-    iterateTrackBuffers([&](auto& trackBuffer) {
-        trackBuffer.clearSamples();
-    });
+    for (auto& trackBuffer : m_trackBufferMap.values())
+        trackBuffer->clearSamples();
+
     if (!shouldReportToClient)
         return;
 
     updateHighestPresentationTimestamp();
 
-    updateBuffered();
+    if (isAttached()) {
+        m_client->sourceBufferPrivateTrackBuffersChanged({ });
+        m_client->sourceBufferPrivateReportExtraMemoryCost(totalTrackBufferSizeInBytes());
+    }
+    bool isEnded = true;
+    updateBufferedFromTrackBuffers({ }, isEnded);
 }
 
-Ref<SourceBufferPrivate::SamplesPromise> SourceBufferPrivate::bufferedSamplesForTrackId(TrackID trackId)
+void SourceBufferPrivate::bufferedSamplesForTrackId(const AtomString& trackId, CompletionHandler<void(Vector<String>&&)>&& completionHandler)
 {
-    auto trackBuffer = m_trackBufferMap.find(trackId);
-    if (trackBuffer == m_trackBufferMap.end())
-        return SamplesPromise::createAndResolve(Vector<String> { });
+    auto* trackBuffer = m_trackBufferMap.get(trackId);
+    if (!trackBuffer) {
+        completionHandler({ });
+        return;
+    }
 
-    return SamplesPromise::createAndResolve(WTF::map(trackBuffer->second->samples().decodeOrder(), [](auto& entry) {
-        return toString(entry.second.get());
-    }));
+    auto sampleDescriptions = WTF::map(trackBuffer->samples().decodeOrder(), [](auto& entry) {
+        return toString(*entry.second);
+    });
+    completionHandler(WTFMove(sampleDescriptions));
 }
 
-Ref<SourceBufferPrivate::SamplesPromise> SourceBufferPrivate::enqueuedSamplesForTrackID(TrackID)
+void SourceBufferPrivate::enqueuedSamplesForTrackID(const AtomString&, CompletionHandler<void(Vector<String>&&)>&& completionHandler)
 {
-    return SamplesPromise::createAndResolve(Vector<String> { });
+    completionHandler({ });
 }
 
-void SourceBufferPrivate::updateMinimumUpcomingPresentationTime(TrackBuffer& trackBuffer, TrackID trackID)
+MediaTime SourceBufferPrivate::fastSeekTimeForMediaTime(const MediaTime& targetTime, const MediaTime& negativeThreshold, const MediaTime& positiveThreshold)
+{
+    if (!isAttached())
+        return targetTime;
+
+    auto seekTime = targetTime;
+
+    for (auto& trackBuffer : m_trackBufferMap.values()) {
+        // Find the sample which contains the target time.
+        auto trackSeekTime = trackBuffer->findSeekTimeForTargetTime(targetTime, negativeThreshold, positiveThreshold);
+
+        if (trackSeekTime.isValid() && abs(targetTime - trackSeekTime) > abs(targetTime - seekTime))
+            seekTime = trackSeekTime;
+    }
+
+    return seekTime;
+}
+
+void SourceBufferPrivate::updateMinimumUpcomingPresentationTime(TrackBuffer& trackBuffer, const AtomString& trackID)
 {
     if (!canSetMinimumUpcomingPresentationTime(trackID))
         return;
@@ -231,15 +340,15 @@ void SourceBufferPrivate::setMediaSourceEnded(bool isEnded)
 
     if (m_isMediaSourceEnded) {
         for (auto& trackBufferPair : m_trackBufferMap) {
-            TrackBuffer& trackBuffer = trackBufferPair.second;
-            TrackID trackID = trackBufferPair.first;
+            TrackBuffer& trackBuffer = trackBufferPair.value;
+            const AtomString& trackID = trackBufferPair.key;
 
             trySignalAllSamplesInTrackEnqueued(trackBuffer, trackID);
         }
     }
 }
 
-void SourceBufferPrivate::trySignalAllSamplesInTrackEnqueued(TrackBuffer& trackBuffer, TrackID trackID)
+void SourceBufferPrivate::trySignalAllSamplesInTrackEnqueued(TrackBuffer& trackBuffer, const AtomString& trackID)
 {
     if (m_isMediaSourceEnded && trackBuffer.decodeQueue().empty()) {
         DEBUG_LOG(LOGIDENTIFIER, "All samples in track \"", trackID, "\" enqueued.");
@@ -247,22 +356,19 @@ void SourceBufferPrivate::trySignalAllSamplesInTrackEnqueued(TrackBuffer& trackB
     }
 }
 
-void SourceBufferPrivate::provideMediaData(TrackID trackID)
+void SourceBufferPrivate::provideMediaData(const AtomString& trackID)
 {
     auto it = m_trackBufferMap.find(trackID);
     if (it == m_trackBufferMap.end())
         return;
 
-    provideMediaData(it->second, trackID);
+    provideMediaData(it->value, trackID);
 }
 
-void SourceBufferPrivate::provideMediaData(TrackBuffer& trackBuffer, TrackID trackID)
+void SourceBufferPrivate::provideMediaData(TrackBuffer& trackBuffer, const AtomString& trackID)
 {
-    if (isSeeking())
+    if (!isAttached() || isSeeking())
         return;
-    RefPtr client = this->client();
-    if (!client)
-        return; // detached.
 
 #if !RELEASE_LOG_DISABLED
     unsigned enqueuedSamples = 0;
@@ -283,7 +389,7 @@ void SourceBufferPrivate::provideMediaData(TrackBuffer& trackBuffer, TrackID tra
         // FIXME(rdar://problem/20635969): Remove this re-entrancy protection when the aforementioned radar is resolved; protecting
         // against re-entrancy introduces a small inefficency when removing appended samples from the decode queue one at a time
         // rather than when all samples have been enqueued.
-        Ref sample = trackBuffer.decodeQueue().begin()->second;
+        auto sample = trackBuffer.decodeQueue().begin()->second;
 
         if (sample->decodeTime() > trackBuffer.enqueueDiscontinuityBoundary()) {
             DEBUG_LOG(LOGIDENTIFIER, "bailing early because of unbuffered gap, new sample: ", sample->decodeTime(), " >= the current discontinuity boundary: ", trackBuffer.enqueueDiscontinuityBoundary());
@@ -300,7 +406,7 @@ void SourceBufferPrivate::provideMediaData(TrackBuffer& trackBuffer, TrackID tra
         trackBuffer.setLastEnqueuedDecodeKey({ sample->decodeTime(), sample->presentationTime() });
         trackBuffer.setEnqueueDiscontinuityBoundary(sample->decodeTime() + sample->duration() + discontinuityTolerance);
 
-        enqueueSample(WTFMove(sample), trackID);
+        enqueueSample(sample.releaseNonNull(), trackID);
 #if !RELEASE_LOG_DISABLED
         ++enqueuedSamples;
 #endif
@@ -315,7 +421,7 @@ void SourceBufferPrivate::provideMediaData(TrackBuffer& trackBuffer, TrackID tra
     trySignalAllSamplesInTrackEnqueued(trackBuffer, trackID);
 }
 
-void SourceBufferPrivate::reenqueueMediaForTime(TrackBuffer& trackBuffer, TrackID trackID, const MediaTime& time)
+void SourceBufferPrivate::reenqueueMediaForTime(TrackBuffer& trackBuffer, const AtomString& trackID, const MediaTime& time)
 {
     flush(trackID);
     if (trackBuffer.reenqueueMediaForTime(time, timeFudgeFactor()))
@@ -325,8 +431,8 @@ void SourceBufferPrivate::reenqueueMediaForTime(TrackBuffer& trackBuffer, TrackI
 void SourceBufferPrivate::reenqueueMediaIfNeeded(const MediaTime& currentTime)
 {
     for (auto& trackBufferPair : m_trackBufferMap) {
-        TrackBuffer& trackBuffer = trackBufferPair.second;
-        TrackID trackID = trackBufferPair.first;
+        TrackBuffer& trackBuffer = trackBufferPair.value;
+        const AtomString& trackID = trackBufferPair.key;
 
         if (trackBuffer.needsReenqueueing()) {
             DEBUG_LOG(LOGIDENTIFIER, "reenqueuing at time ", currentTime);
@@ -344,34 +450,25 @@ static PlatformTimeRanges removeSamplesFromTrackBuffer(const DecodeOrderSampleMa
 MediaTime SourceBufferPrivate::findPreviousSyncSamplePresentationTime(const MediaTime& time)
 {
     MediaTime previousSyncSamplePresentationTime = time;
-    iterateTrackBuffers([&](auto& trackBuffer) {
+    for (auto& trackBufferKeyValue : m_trackBufferMap) {
+        TrackBuffer& trackBuffer = trackBufferKeyValue.value;
         auto sampleIterator = trackBuffer.samples().decodeOrder().findSyncSamplePriorToPresentationTime(time);
         if (sampleIterator == trackBuffer.samples().decodeOrder().rend())
-            return;
+            continue;
         const MediaTime& samplePresentationTime = sampleIterator->first.second;
         if (samplePresentationTime < time)
             previousSyncSamplePresentationTime = samplePresentationTime;
-    });
+    }
     return previousSyncSamplePresentationTime;
 }
 
-Ref<MediaPromise> SourceBufferPrivate::removeCodedFrames(const MediaTime& start, const MediaTime& end, const MediaTime& currentTime)
-{
-    m_currentSourceBufferOperation = m_currentSourceBufferOperation->whenSettled(RunLoop::current(), [weakThis = ThreadSafeWeakPtr { *this }, this, start, end, currentTime](auto result) mutable -> Ref<OperationPromise> {
-        RefPtr protectedThis = weakThis.get();
-        if (!protectedThis || !result)
-            return OperationPromise::createAndReject(!result ? result.error() : PlatformMediaError::BufferRemoved);
-        removeCodedFramesInternal(start, end, currentTime);
-        return updateBuffered().get();
-    });
-    return m_currentSourceBufferOperation.get();
-}
-
-void SourceBufferPrivate::removeCodedFramesInternal(const MediaTime& start, const MediaTime& end, const MediaTime& currentTime)
+void SourceBufferPrivate::removeCodedFrames(const MediaTime& start, const MediaTime& end, const MediaTime& currentTime, bool isEnded, CompletionHandler<void()>&& completionHandler)
 {
     ASSERT(start < end);
-    if (start >= end)
+    if (start >= end) {
+        completionHandler();
         return;
+    }
 
     // 3.5.9 Coded Frame Removal Algorithm
     // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-removal
@@ -380,14 +477,17 @@ void SourceBufferPrivate::removeCodedFramesInternal(const MediaTime& start, cons
     // 2. Let end be the end presentation timestamp for the removal range.
     // 3. For each track buffer in this source buffer, run the following steps:
 
-    iterateTrackBuffers([&](auto& trackBuffer) {
+    for (auto& trackBufferKeyValue : m_trackBufferMap) {
+        TrackBuffer& trackBuffer = trackBufferKeyValue.value;
+        AtomString trackID = trackBufferKeyValue.key;
+
         trackBuffer.removeCodedFrames(start, end, currentTime);
 
         // 3.4 If this object is in activeSourceBuffers, the current playback position is greater than or equal to start
         // and less than the remove end timestamp, and HTMLMediaElement.readyState is greater than HAVE_METADATA, then set
         // the HTMLMediaElement.readyState attribute to HAVE_METADATA and stall playback.
         // This step will be performed in SourceBuffer::sourceBufferPrivateBufferedChanged
-    });
+    }
 
     reenqueueMediaIfNeeded(currentTime);
 
@@ -395,6 +495,16 @@ void SourceBufferPrivate::removeCodedFramesInternal(const MediaTime& start, cons
     // No-op
 
     updateHighestPresentationTimestamp();
+
+    LOG(Media, "SourceBuffer::removeCodedFrames(%p) - buffered = %s", this, toString(m_buffered).utf8().data());
+
+    auto trackBuffers = trackBuffersRanges();
+    if (isAttached()) {
+        m_client->sourceBufferPrivateTrackBuffersChanged(trackBuffers);
+    m_client->sourceBufferPrivateReportExtraMemoryCost(totalTrackBufferSizeInBytes());
+    }
+
+    updateBufferedFromTrackBuffers(trackBuffers, isEnded, WTFMove(completionHandler));
 }
 
 size_t SourceBufferPrivate::platformEvictionThreshold() const
@@ -409,19 +519,17 @@ bool SourceBufferPrivate::hasTooManySamples() const
     if (!evictionThreshold)
         return false;
     size_t currentSize = 0;
-    iterateTrackBuffers([&](auto& trackBuffer) {
-        currentSize += trackBuffer.samples().size();
-    });
+    for (const auto& trackBuffer : m_trackBufferMap.values())
+        currentSize += trackBuffer->samples().size();
     return currentSize > evictionThreshold;
 }
 
-void SourceBufferPrivate::evictCodedFrames(uint64_t newDataSize, uint64_t maximumBufferSize, const MediaTime& currentTime)
+void SourceBufferPrivate::evictCodedFrames(uint64_t newDataSize, uint64_t maximumBufferSize, const MediaTime& currentTime, bool isEnded)
 {
     // 3.5.13 Coded Frame Eviction Algorithm
     // http://www.w3.org/TR/media-source/#sourcebuffer-coded-frame-eviction
 
-    RefPtr client = this->client();
-    if (!client)
+    if (!isAttached())
         return;
 
     // This algorithm is run to free up space in this source buffer when new data is appended.
@@ -442,7 +550,7 @@ void SourceBufferPrivate::evictCodedFrames(uint64_t newDataSize, uint64_t maximu
     DEBUG_LOG(LOGIDENTIFIER, "currentTime = ", currentTime, ", require ", initialBufferedSize + newDataSize, " bytes, maximum buffer size is ", maximumBufferSize);
 #endif
 
-    isBufferFull = evictFrames(newDataSize, maximumBufferSize, currentTime);
+    isBufferFull = evictFrames(newDataSize, maximumBufferSize, currentTime, isEnded);
 
     if (!isBufferFull) {
 #if !RELEASE_LOG_DISABLED
@@ -468,16 +576,15 @@ bool SourceBufferPrivate::isBufferFullFor(uint64_t requiredSize, uint64_t maximu
 uint64_t SourceBufferPrivate::totalTrackBufferSizeInBytes() const
 {
     uint64_t totalSizeInBytes = 0;
-    iterateTrackBuffers([&](auto& trackBuffer) {
-        totalSizeInBytes += trackBuffer.samples().sizeInBytes();
-    });
+    for (auto& trackBuffer : m_trackBufferMap.values())
+        totalSizeInBytes += trackBuffer->samples().sizeInBytes();
 
     return totalSizeInBytes;
 }
 
-void SourceBufferPrivate::addTrackBuffer(TrackID trackId, RefPtr<MediaDescription>&& description)
+void SourceBufferPrivate::addTrackBuffer(const AtomString& trackId, RefPtr<MediaDescription>&& description)
 {
-    ASSERT(m_trackBufferMap.find(trackId) == m_trackBufferMap.end());
+    ASSERT(!m_trackBufferMap.contains(trackId));
 
     m_hasAudio = m_hasAudio || description->isAudio();
     m_hasVideo = m_hasVideo || description->isVideo();
@@ -487,21 +594,20 @@ void SourceBufferPrivate::addTrackBuffer(TrackID trackId, RefPtr<MediaDescriptio
 #if !RELEASE_LOG_DISABLED
     trackBuffer->setLogger(logger(), logIdentifier());
 #endif
-    m_trackBufferMap.try_emplace(trackId, WTFMove(trackBuffer));
+    m_trackBufferMap.add(trackId, WTFMove(trackBuffer));
 }
 
-void SourceBufferPrivate::updateTrackIds(Vector<std::pair<TrackID, TrackID>>&& trackIdPairs)
+void SourceBufferPrivate::updateTrackIds(Vector<std::pair<AtomString, AtomString>>&& trackIdPairs)
 {
     auto trackBufferMap = std::exchange(m_trackBufferMap, { });
     for (auto& trackIdPair : trackIdPairs) {
         auto oldId = trackIdPair.first;
         auto newId = trackIdPair.second;
         ASSERT(oldId != newId);
-        auto trackBufferNode = trackBufferMap.extract(oldId);
-        if (!trackBufferNode)
+        auto trackBuffer = trackBufferMap.take(oldId);
+        if (!trackBuffer)
             continue;
-        trackBufferNode.key() = newId;
-        m_trackBufferMap.insert(WTFMove(trackBufferNode));
+        m_trackBufferMap.add(newId, makeUniqueRefFromNonNullUniquePtr(WTFMove(trackBuffer)));
     }
 }
 
@@ -517,60 +623,21 @@ void SourceBufferPrivate::detach()
     m_client = nullptr;
 }
 
+bool SourceBufferPrivate::isAttached() const
+{
+    return !!m_client;
+}
+
 void SourceBufferPrivate::setAllTrackBuffersNeedRandomAccess()
 {
-    iterateTrackBuffers([&](auto& trackBuffer) {
-        trackBuffer.setNeedRandomAccessFlag(true);
-    });
+    for (auto& trackBuffer : m_trackBufferMap.values())
+        trackBuffer->setNeedRandomAccessFlag(true);
 }
 
-void SourceBufferPrivate::didReceiveInitializationSegment(InitializationSegment&& segment)
+void SourceBufferPrivate::didReceiveInitializationSegment(InitializationSegment&& segment, Function<bool(InitializationSegment&)>&& initSegmentCheck, CompletionHandler<void(ReceiveResult)>&& completionHandler)
 {
-    processPendingMediaSamples();
-
-    auto segmentCopy = segment;
-    m_currentAppendProcessing = m_currentAppendProcessing->whenSettled(RunLoop::current(), [segment = WTFMove(segment), weakThis = ThreadSafeWeakPtr { *this }, this, abortCount = m_abortCount](auto result) mutable {
-        RefPtr protectedThis = weakThis.get();
-        if (!protectedThis)
-            return MediaPromise::createAndReject(PlatformMediaError::BufferRemoved);
-        RefPtr client = this->client();
-        if (!client)
-            return MediaPromise::createAndReject(PlatformMediaError::BufferRemoved);
-
-        if (abortCount != m_abortCount) {
-            processInitializationSegment({ });
-            return MediaPromise::createAndResolve();
-        }
-        if (!result || ((m_receivedFirstInitializationSegment && !validateInitializationSegment(segment)) || !precheckInitializationSegment(segment))) {
-            processInitializationSegment({ });
-            return MediaPromise::createAndReject(!result ? result.error() : PlatformMediaError::ParsingError);
-        }
-
-        return client->sourceBufferPrivateDidReceiveInitializationSegment(WTFMove(segment));
-    })->whenSettled(RunLoop::current(), [this, weakThis = ThreadSafeWeakPtr { *this }, segment = WTFMove(segmentCopy)] (auto result) mutable {
-        RefPtr protectedThis = weakThis.get();
-        if (!protectedThis)
-            return MediaPromise::createAndReject(PlatformMediaError::BufferRemoved);
-
-        // We don't check for abort here as we need to complete the already started initialization segment.
-        m_receivedFirstInitializationSegment = true;
-        m_pendingInitializationSegmentForChangeType = false;
-
-        processInitializationSegment(!result ? std::nullopt : std::make_optional(WTFMove(segment)));
-
-        return MediaPromise::createAndSettle(WTFMove(result));
-    });
-}
-
-void SourceBufferPrivate::didUpdateFormatDescriptionForTrackId(Ref<TrackInfo>&& formatDescription, uint64_t trackId)
-{
-    m_currentAppendProcessing = m_currentAppendProcessing->whenSettled(RunLoop::current(), [weakThis = ThreadSafeWeakPtr { *this }, this, formatDescription = WTFMove(formatDescription), trackId] (auto result) mutable {
-        RefPtr protectedThis = weakThis.get();
-        if (!protectedThis || !result)
-            return MediaPromise::createAndReject(!result ? result.error() : PlatformMediaError::BufferRemoved);
-        processFormatDescriptionForTrackId(WTFMove(formatDescription), trackId);
-        return MediaPromise::createAndResolve();
-    });
+    auto initOperation = InitOperation { WTFMove(segment), WTFMove(initSegmentCheck), WTFMove(completionHandler) };
+    m_pendingOperations.append({ WTFMove(initOperation) });
 }
 
 bool SourceBufferPrivate::validateInitializationSegment(const SourceBufferPrivateClient::InitializationSegment& segment)
@@ -579,21 +646,21 @@ bool SourceBufferPrivate::validateInitializationSegment(const SourceBufferPrivat
     //   IDs match the ones in the first initialization segment.
     if (segment.audioTracks.size() >= 2) {
         for (auto& audioTrackInfo : segment.audioTracks) {
-            if (m_trackBufferMap.find(audioTrackInfo.track->id()) == m_trackBufferMap.end())
+            if (!m_trackBufferMap.contains(audioTrackInfo.track->id()))
                 return false;
         }
     }
 
     if (segment.videoTracks.size() >= 2) {
         for (auto& videoTrackInfo : segment.videoTracks) {
-            if (m_trackBufferMap.find(videoTrackInfo.track->id()) == m_trackBufferMap.end())
+            if (!m_trackBufferMap.contains(videoTrackInfo.track->id()))
                 return false;
         }
     }
 
     if (segment.textTracks.size() >= 2) {
         for (auto& textTrackInfo : segment.videoTracks) {
-            if (m_trackBufferMap.find(textTrackInfo.track->id()) == m_trackBufferMap.end())
+            if (!m_trackBufferMap.contains(textTrackInfo.track->id()))
                 return false;
         }
     }
@@ -603,92 +670,128 @@ bool SourceBufferPrivate::validateInitializationSegment(const SourceBufferPrivat
 
 void SourceBufferPrivate::didReceiveSample(Ref<MediaSample>&& sample)
 {
-    DEBUG_LOG(LOGIDENTIFIER, sample.get());
+    if (!isAttached())
+        return;
 
-    m_pendingSamples.append(WTFMove(sample));
+    if (m_pendingOperations.isEmpty() || !std::holds_alternative<SamplesVector>(m_pendingOperations.last()))
+        m_pendingOperations.append({ SamplesVector { } }); // This is a new operation.
+
+    DEBUG_LOG(LOGIDENTIFIER, sample.get());
+    std::get<SamplesVector>(m_pendingOperations.last()).append(WTFMove(sample));
 }
 
-Ref<MediaPromise> SourceBufferPrivate::append(Ref<SharedBuffer>&& buffer)
+void SourceBufferPrivate::append(Ref<SharedBuffer>&& buffer)
 {
-    m_currentSourceBufferOperation = m_currentSourceBufferOperation->whenSettled(RunLoop::current(), [weakThis = ThreadSafeWeakPtr { *this }, this, buffer = WTFMove(buffer), abortCount = m_abortCount](auto result) mutable {
-        RefPtr protectedThis = weakThis.get();
-        if (!protectedThis || !result)
-            return MediaPromise::createAndReject(!result ? result.error() : PlatformMediaError::BufferRemoved);
+    queueOperation(WTFMove(buffer));
+}
 
-        // We have fully completed the previous append operation, we can start a new promise chain.
-        m_currentAppendProcessing = MediaPromise::createAndResolve();
+void SourceBufferPrivate::queueOperation(Operation&& operation)
+{
+    m_pendingOperations.append(WTFMove(operation));
+    processPendingOperations();
+}
 
-        if (buffer->isEmpty())
-            return MediaPromise::createAndResolve();
+void SourceBufferPrivate::processPendingOperations()
+{
+    while (!m_pendingOperations.isEmpty()) {
+        if (!isAttached() || m_errored) {
+            abortPendingOperations();
+            return;
+        }
+        if (m_didReceiveInitializationSegmentErrored || m_didReceiveSampleErrored)
+            m_pendingOperations.prepend(ErrorOperation { });
+        else if (m_operationState != OperationState::Idle)
+            return;
+        auto operation = m_pendingOperations.takeFirst();
+        std::visit(WTF::makeVisitor([&](InitOperation&& initOperation) {
+            processInitOperation(WTFMove(initOperation));
+        }, [&](SamplesVector&& samples) {
+            processMediaSamplesOperation(WTFMove(samples));
+        }, [&](ResetParserOperation&&) {
+            resetParserStateInternal();
+        }, [&](AppendBufferOperation&& buffer) {
+            advanceOperationState();
+            appendInternal(WTFMove(buffer));
+        }, [&](AppendCompletedOperation&& appendComplete) {
+            processAppendCompletedOperation(WTFMove(appendComplete));
+        }, [&](ErrorOperation&&) {
+            abortPendingOperations();
+            processError();
+        }), WTFMove(operation));
+    };
+}
 
-        if (abortCount != m_abortCount)
-            return MediaPromise::createAndResolve();
+void SourceBufferPrivate::abortPendingOperations()
+{
+    for (auto& operation : std::exchange(m_pendingOperations, { })) {
+        if (!std::holds_alternative<InitOperation>(operation))
+            continue;
+        std::get<InitOperation>(operation).completionHandler(ReceiveResult::AppendError);
+    }
+    m_operationState = OperationState::Idle;
+}
 
-        // Before the promise returned by appendInternal is resolved, the various callbacks would have been called and populating m_currentAppendProcessing.
-        return appendInternal(WTFMove(buffer));
-    })->whenSettled(RunLoop::current(), [weakThis = ThreadSafeWeakPtr { *this }, this](auto result) mutable -> Ref<OperationPromise> {
-        RefPtr protectedThis = weakThis.get();
-        if (!protectedThis)
-            return OperationPromise::createAndReject(PlatformMediaError::BufferRemoved);
+void SourceBufferPrivate::processError()
+{
+    m_didReceiveInitializationSegmentErrored = false;
+    m_didReceiveSampleErrored = false;
+    m_errored = true;
+    // SourceBuffer will run https://w3c.github.io/media-source/#dfn-end-of-stream with error set to "decode".
+    m_client->sourceBufferPrivateAppendComplete(SourceBufferPrivateClient::AppendResult::ParsingFailed);
+}
 
-        processPendingMediaSamples();
+void SourceBufferPrivate::processInitOperation(InitOperation&& initOperation)
+{
+    auto& segment = initOperation.segment;
+    if ((m_receivedFirstInitializationSegment && !validateInitializationSegment(segment))
+        || !initOperation.check(segment)) {
+        m_didReceiveInitializationSegmentErrored = true;
+        initOperation.completionHandler(ReceiveResult::AppendError);
+        return;
+    }
 
-        // We need to wait for m_currentAppendOperation to be settled (which will occur once all the init and media segments have been processed)
-        return m_currentAppendProcessing->whenSettled(RunLoop::current(), [previousResult = WTFMove(result)](auto result) {
-            return (previousResult && result) ? OperationPromise::createAndResolve() : OperationPromise::createAndReject(!result ? result.error() : previousResult.error());
-        });
-    })->whenSettled(RunLoop::current(), [weakThis = ThreadSafeWeakPtr { * this }, this, abortCount = m_abortCount](auto result) mutable -> Ref<OperationPromise> {
+    advanceOperationState();
+
+    m_client->sourceBufferPrivateDidReceiveInitializationSegment(WTFMove(segment), [this, weakThis = WeakPtr { *this }, completionHandler = WTFMove(initOperation.completionHandler)] (auto result) mutable {
+        auto completeProcess = [this, weakThis = WeakPtr { *this }, result, completionHandler = WTFMove(completionHandler)] () mutable {
             RefPtr protectedThis = weakThis.get();
-        if (!protectedThis || !result)
-            return OperationPromise::createAndReject(!result ? result.error() : PlatformMediaError::BufferRemoved);
-        if (abortCount != m_abortCount)
-            return OperationPromise::createAndResolve();
-
-        RefPtr client = this->client();
-        if (!client)
-            return OperationPromise::createAndReject(PlatformMediaError::BufferRemoved);
-
-        // Resolve the changes in TrackBuffers' buffered ranges
-        // into the SourceBuffer's buffered ranges
-        Vector<Ref<MediaPromise>> promises;
-        promises.append(updateBuffered());
-        if (m_groupEndTimestamp > mediaSourceDuration()) {
-            // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-processing
-            // 5. If the media segment contains data beyond the current duration, then run the duration change algorithm with new
-            // duration set to the maximum of the current duration and the group end timestamp.
-            promises.append(client->sourceBufferPrivateDurationChanged(m_groupEndTimestamp));
+            if (!protectedThis) {
+                completionHandler(ReceiveResult::ClientDisconnected);
+                return;
             }
 
-        return MediaPromise::all(promises).get();
-    });
-    return m_currentSourceBufferOperation.get();
-}
+            completionHandler(result);
 
-void SourceBufferPrivate::processPendingMediaSamples()
-{
-    if (m_pendingSamples.isEmpty())
+            if (!m_errored) {
+                rewindOperationState();
+                m_didReceiveInitializationSegmentErrored |= result != ReceiveResult::Succeeded;
+
+                m_receivedFirstInitializationSegment = true;
+                m_pendingInitializationSegmentForChangeType = false;
+            }
+            processPendingOperations();
+        };
+        if (!m_client || !m_client->isAsync()) {
+            // We want to avoid re-entrancy in the case the SourceBufferClient's
+            // sourceBufferPrivateDidReceiveInitializationSegment immediately ran the completionHander
+            // So we queue a task to continue later on.
+            callOnMainThread(WTFMove(completeProcess));
             return;
-    auto samples = std::exchange(m_pendingSamples, { });
-    m_currentAppendProcessing = m_currentAppendProcessing->whenSettled(RunLoop::current(), [weakThis = ThreadSafeWeakPtr { *this }, this, samples = WTFMove(samples), abortCount = m_abortCount](auto result) mutable {
-        RefPtr protectedThis = weakThis.get();
-        if (!protectedThis || !result)
-            return MediaPromise::createAndReject(!result ? result.error() : PlatformMediaError::BufferRemoved);
-        if (abortCount != m_abortCount)
-            return MediaPromise::createAndResolve();
-
-        RefPtr client = this->client();
-        if (!client)
-            return MediaPromise::createAndReject(PlatformMediaError::BufferRemoved);
-
-        for (auto& sample : samples) {
-            if (!processMediaSample(*client, WTFMove(sample)))
-                return MediaPromise::createAndReject(PlatformMediaError::ParsingError);
-    }
-        return MediaPromise::createAndResolve();
+        }
+        completeProcess();
     });
 }
 
-bool SourceBufferPrivate::processMediaSample(SourceBufferPrivateClient& client, Ref<MediaSample>&& sample)
+void SourceBufferPrivate::processMediaSamplesOperation(SamplesVector&& mediaSamples)
+{
+    for (auto& samples : mediaSamples) {
+        if (m_didReceiveSampleErrored)
+            return;
+        processMediaSample(WTFMove(samples));
+    }
+}
+
+void SourceBufferPrivate::processMediaSample(Ref<MediaSample>&& sample)
 {
     // 3.5.1 Segment Parser Loop
     // 6.1 If the first initialization segment received flag is false, (Note: Issue # 155 & changeType()
@@ -699,11 +802,13 @@ bool SourceBufferPrivate::processMediaSample(SourceBufferPrivateClient& client, 
     //  of SourceBufferPrivate. That's why this check can't really be done in appendInternal.
     //  unless we force some kind of design with state machine switching.
 
-    if (!m_receivedFirstInitializationSegment || m_pendingInitializationSegmentForChangeType)
-        return false;
+    if (!m_receivedFirstInitializationSegment || m_pendingInitializationSegmentForChangeType) {
+        m_didReceiveSampleErrored = true;
+        return;
+    }
 
     if (!isMediaSampleAllowed(sample))
-        return true;
+        return;
 
     // 3.5.8 Coded Frame Processing
     // http://www.w3.org/TR/media-source/#sourcebuffer-coded-frame-processing
@@ -748,17 +853,15 @@ bool SourceBufferPrivate::processMediaSample(SourceBufferPrivateClient& client, 
             // 1.3.1 Set timestampOffset equal to group start timestamp - presentation timestamp.
             m_timestampOffset = m_groupStartTimestamp - presentationTimestamp;
 
-            iterateTrackBuffers([&](auto& trackBuffer) {
-                trackBuffer.resetTimestampOffset();
-            });
+            for (auto& trackBuffer : m_trackBufferMap.values())
+                trackBuffer->resetTimestampOffset();
 
             // 1.3.2 Set group end timestamp equal to group start timestamp.
             m_groupEndTimestamp = m_groupStartTimestamp;
 
             // 1.3.3 Set the need random access point flag on all track buffers to true.
-            iterateTrackBuffers([&](auto& trackBuffer) {
-                trackBuffer.setNeedRandomAccessFlag(true);
-            });
+            for (auto& trackBuffer : m_trackBufferMap.values())
+                trackBuffer->setNeedRandomAccessFlag(true);
 
             // 1.3.4 Unset group start timestamp.
             m_groupStartTimestamp = MediaTime::invalidTime();
@@ -766,15 +869,15 @@ bool SourceBufferPrivate::processMediaSample(SourceBufferPrivateClient& client, 
 
         // NOTE: this is out-of-order, but we need TrackBuffer to be able to cache the results of timestamp offset rounding
         // 1.5 Let track buffer equal the track buffer that the coded frame will be added to.
-        auto trackID = sample->trackID();
+        AtomString trackID = sample->trackID();
         auto it = m_trackBufferMap.find(trackID);
         if (it == m_trackBufferMap.end()) {
             // The client managed to append a sample with a trackID not present in the initialization
             // segment. This would be a good place to post an message to the developer console.
-            client.sourceBufferPrivateDidDropSample();
-            return true;
+            m_client->sourceBufferPrivateDidDropSample();
+            return;
         }
-        TrackBuffer& trackBuffer = it->second;
+        TrackBuffer& trackBuffer = it->value;
 
         MediaTime microsecond(1, 1000000);
 
@@ -873,8 +976,19 @@ bool SourceBufferPrivate::processMediaSample(SourceBufferPrivateClient& client, 
                 }
             }
             trackBuffer.setNeedRandomAccessFlag(true);
-            client.sourceBufferPrivateDidDropSample();
-            return true;
+            m_client->sourceBufferPrivateDidDropSample();
+            return;
+        }
+
+        // If the decode timestamp is less than the presentation start time, then run the end of stream
+        // algorithm with the error parameter set to "decode", and abort these steps.
+        // NOTE: Until <https://www.w3.org/Bugs/Public/show_bug.cgi?id=27487> is resolved, we will only check
+        // the presentation timestamp.
+        MediaTime presentationStartTime = MediaTime::zeroTime();
+        if (presentationTimestamp < presentationStartTime) {
+            ERROR_LOG(LOGIDENTIFIER, "failing because presentationTimestamp (", presentationTimestamp, ") < presentationStartTime (", presentationStartTime, ")");
+            m_client->sourceBufferPrivateStreamEndedWithDecodeError();
+            return;
         }
 
         // 1.10 If the need random access point flag on track buffer equals true, then run the following steps:
@@ -882,8 +996,8 @@ bool SourceBufferPrivate::processMediaSample(SourceBufferPrivateClient& client, 
             // 1.11.1 If the coded frame is not a random access point, then drop the coded frame and jump
             // to the top of the loop to start processing the next coded frame.
             if (!sample->isSync()) {
-                client.sourceBufferPrivateDidDropSample();
-                return true;
+                m_client->sourceBufferPrivateDidDropSample();
+                return;
             }
 
             // 1.11.2 Set the need random access point flag on track buffer to false.
@@ -903,7 +1017,7 @@ bool SourceBufferPrivate::processMediaSample(SourceBufferPrivateClient& client, 
             auto iter = trackBuffer.samples().presentationOrder().findSampleContainingPresentationTime(presentationTimestamp);
             if (iter != trackBuffer.samples().presentationOrder().end()) {
                 // 1.13.1 Let overlapped frame be the coded frame in track buffer that matches the condition above.
-                Ref overlappedFrame = iter->second;
+                RefPtr<MediaSample> overlappedFrame = iter->second;
 
                 // 1.13.2 If track buffer contains audio coded frames:
                 // Run the audio splice frame algorithm and if a splice frame is returned, assign it to
@@ -923,7 +1037,7 @@ bool SourceBufferPrivate::processMediaSample(SourceBufferPrivateClient& client, 
                     // 1.13.2.3 If the presentation timestamp is less than the remove window timestamp,
                     // then remove overlapped frame and any coded frames that depend on it from track buffer.
                     if (presentationTimestamp < removeWindowTimestamp)
-                        erasedSamples.addSample(iter->second.copyRef());
+                        erasedSamples.addSample(*iter->second);
                 }
 
                 // If track buffer contains timed text coded frames:
@@ -961,7 +1075,7 @@ bool SourceBufferPrivate::processMediaSample(SourceBufferPrivateClient& client, 
                 break;
 
             auto nextSyncSample = trackBuffer.samples().decodeOrder().findSyncSampleAfterDecodeIterator(nextSampleInDecodeOrder);
-            INFO_LOG(LOGIDENTIFIER, "Discovered out-of-order frames, from: ", nextSampleInDecodeOrder->second.get(), " to: ", (nextSyncSample == trackBuffer.samples().decodeOrder().end() ? "[end]"_s : toString(nextSyncSample->second.get())));
+            INFO_LOG(LOGIDENTIFIER, "Discovered out-of-order frames, from: ", *nextSampleInDecodeOrder->second, " to: ", (nextSyncSample == trackBuffer.samples().decodeOrder().end() ? "[end]"_s : toString(*nextSyncSample->second)));
             erasedSamples.addRange(nextSampleInDecodeOrder, nextSyncSample);
         } while (false);
 
@@ -971,7 +1085,6 @@ bool SourceBufferPrivate::processMediaSample(SourceBufferPrivateClient& client, 
         // For instance, most WebM files are muxed rounded to the millisecond (the default TimecodeScale of the format)
         // but their durations use a finer timescale (causing a sub-millisecond overlap). More rarely, there are also
         // MP4 files with slightly off tfdt boxes, presenting a similar problem at the beginning of each fragment.
-        // Same as tolerance in SourceBuffer::canPlayThroughRange().
         const MediaTime contiguousFrameTolerance = MediaTime(1, 1000);
 
         // If highest presentation timestamp for track buffer is set and less than or equal to presentation timestamp
@@ -1065,7 +1178,7 @@ bool SourceBufferPrivate::processMediaSample(SourceBufferPrivateClient& client, 
         // with earlier timestamps are enqueued. The decode queue is not FIFO, but rather an ordered map.
         DecodeOrderSampleMap::KeyType decodeKey(sample->decodeTime(), sample->presentationTime());
         if (trackBuffer.lastEnqueuedDecodeKey().first.isInvalid() || decodeKey > trackBuffer.lastEnqueuedDecodeKey()) {
-            trackBuffer.decodeQueue().insert(DecodeOrderSampleMap::MapType::value_type(decodeKey, sample));
+            trackBuffer.decodeQueue().insert(DecodeOrderSampleMap::MapType::value_type(decodeKey, &sample.get()));
 
             if (trackBuffer.minimumEnqueuedPresentationTime().isValid() && sample->presentationTime() < trackBuffer.minimumEnqueuedPresentationTime())
                 trackBuffer.setNeedsMinimumUpcomingPresentationTimeUpdating(true);
@@ -1107,6 +1220,8 @@ bool SourceBufferPrivate::processMediaSample(SourceBufferPrivateClient& client, 
 
         auto presentationEndTime = presentationTimestamp + frameDuration;
         trackBuffer.addBufferedRange(presentationTimestamp, presentationEndTime, AddTimeRangeOption::EliminateSmallGaps);
+        m_client->sourceBufferPrivateDidParseSample(frameDuration.toDouble());
+
         break;
     } while (true);
 
@@ -1114,7 +1229,6 @@ bool SourceBufferPrivate::processMediaSample(SourceBufferPrivateClient& client, 
     // Step 5 will be handlded by SourceBufferPrivate::appendCompleted()
 
     updateHighestPresentationTimestamp();
-    return true;
 }
 
 void SourceBufferPrivate::abort()
@@ -1124,53 +1238,21 @@ void SourceBufferPrivate::abort()
 
 void SourceBufferPrivate::resetParserState()
 {
-    m_currentSourceBufferOperation = m_currentSourceBufferOperation->whenSettled(RunLoop::current(), [weakThis = ThreadSafeWeakPtr { *this }, this](auto result) mutable {
-        RefPtr protectedThis = weakThis.get();
-        if (!protectedThis)
-            return OperationPromise::createAndReject(PlatformMediaError::BufferRemoved);
-        resetParserStateInternal();
-        return OperationPromise::createAndSettle(WTFMove(result));
-    });
+    queueOperation(ResetParserOperation { });
 }
 
-void SourceBufferPrivate::memoryPressure(uint64_t maximumBufferSize, const MediaTime& currentTime)
+void SourceBufferPrivate::memoryPressure(uint64_t maximumBufferSize, const MediaTime& currentTime, bool isEnded)
 {
     ALWAYS_LOG(LOGIDENTIFIER, "isActive = ", isActive());
-
-    m_currentSourceBufferOperation = m_currentSourceBufferOperation->whenSettled(RunLoop::current(), [weakThis = ThreadSafeWeakPtr { *this }, this, maximumBufferSize, currentTime](auto result) mutable {
-        RefPtr protectedThis = weakThis.get();
-        if (!protectedThis)
-            return OperationPromise::createAndReject(PlatformMediaError::BufferRemoved);
-        if (isActive())
-            evictFrames(maximumBufferSize, maximumBufferSize, currentTime);
-        else {
+    if (isActive()) {
+        evictFrames(maximumBufferSize, maximumBufferSize, currentTime, isEnded);
+        return;
+    }
     resetTrackBuffers();
     clearTrackBuffers(true);
-        }
-        updateBuffered();
-        return OperationPromise::createAndSettle(WTFMove(result));
-    });
 }
 
-MediaTime SourceBufferPrivate::minimumBufferedTime() const
-{
-    MediaTime minimumTime = MediaTime::positiveInfiniteTime();
-    iterateTrackBuffers([&](const TrackBuffer& trackBuffer) {
-        minimumTime = std::min(minimumTime, trackBuffer.buffered().minimumBufferedTime());
-    });
-    return minimumTime;
-}
-
-MediaTime SourceBufferPrivate::maximumBufferedTime() const
-{
-    MediaTime maximumTime = MediaTime::negativeInfiniteTime();
-    iterateTrackBuffers([&](const TrackBuffer& trackBuffer) {
-        maximumTime = std::max(maximumTime, trackBuffer.buffered().maximumBufferedTime());
-    });
-    return maximumTime;
-}
-
-bool SourceBufferPrivate::evictFrames(uint64_t newDataSize, uint64_t maximumBufferSize, const MediaTime& currentTime)
+bool SourceBufferPrivate::evictFrames(uint64_t newDataSize, uint64_t maximumBufferSize, const MediaTime& currentTime, bool isEnded)
 {
     auto isBufferFull = true;
 
@@ -1183,7 +1265,7 @@ bool SourceBufferPrivate::evictFrames(uint64_t newDataSize, uint64_t maximumBuff
         const auto maximumRangeEnd = std::min(currentTime - timeChunk, findPreviousSyncSamplePresentationTime(currentTime));
 
         do {
-            auto rangeStart = minimumBufferedTime();
+            auto rangeStart = m_buffered.minimumBufferedTime();
             auto rangeEnd = std::min(rangeStart + timeChunk, maximumRangeEnd);
 
             if (rangeStart >= rangeEnd)
@@ -1191,8 +1273,8 @@ bool SourceBufferPrivate::evictFrames(uint64_t newDataSize, uint64_t maximumBuff
 
             // 4. For each range in removal ranges, run the coded frame removal algorithm with start and
             // end equal to the removal range start and end timestamp respectively.
-            removeCodedFramesInternal(rangeStart, rangeEnd, currentTime);
-            if (minimumBufferedTime() == rangeStart)
+            removeCodedFrames(rangeStart, rangeEnd, currentTime, isEnded);
+            if (m_buffered.minimumBufferedTime() == rangeStart)
                 break; // Nothing evicted.
 
             isBufferFull = isBufferFullFor(newDataSize, maximumBufferSize);
@@ -1210,33 +1292,25 @@ bool SourceBufferPrivate::evictFrames(uint64_t newDataSize, uint64_t maximumBuff
         const auto minimumRangeStart = currentTime + timeChunk;
 
         do {
-            PlatformTimeRanges buffered { MediaTime::zeroTime(), MediaTime::positiveInfiniteTime() };
-            iterateTrackBuffers([&](const TrackBuffer& trackBuffer) {
-                buffered.intersectWith(trackBuffer.buffered());
-            });
-
-            auto rangeEnd = buffered.maximumBufferedTime();
+            auto rangeEnd = m_buffered.maximumBufferedTime();
             auto rangeStart = std::max(minimumRangeStart, rangeEnd - timeChunk);
 
             if (rangeStart >= rangeEnd)
                 break;
 
             // Do not evict data from the time range that contains currentTime.
-            size_t currentTimeRange = buffered.find(currentTime);
-            size_t startTimeRange = buffered.find(rangeStart);
+            size_t currentTimeRange = m_buffered.find(currentTime);
+            size_t startTimeRange = m_buffered.find(rangeStart);
             if (currentTimeRange != notFound && startTimeRange == currentTimeRange) {
-                currentTimeRange++;
-                if (currentTimeRange == buffered.length())
-                    break;
-                rangeStart = buffered.start(currentTimeRange);
-                if (rangeStart >= rangeEnd)
+                size_t endTimeRange = m_buffered.find(rangeEnd);
+                if (endTimeRange == currentTimeRange)
                     break;
             }
 
             // 4. For each range in removal ranges, run the coded frame removal algorithm with start and
             // end equal to the removal range start and end timestamp respectively.
-            removeCodedFramesInternal(rangeStart, rangeEnd, currentTime);
-            if (maximumBufferedTime() == rangeEnd)
+            removeCodedFrames(rangeStart, rangeEnd, currentTime, isEnded);
+            if (m_buffered.maximumBufferedTime() == rangeEnd)
                 break; // Nothing evicted.
 
             isBufferFull = isBufferFullFor(newDataSize, maximumBufferSize);
@@ -1246,32 +1320,6 @@ bool SourceBufferPrivate::evictFrames(uint64_t newDataSize, uint64_t maximumBuff
     } while (isBufferFull && timeChunkAsMilliseconds >= evictionAlgorithmTimeChunkLowThreshold);
 
     return isBufferFull;
-}
-
-void SourceBufferPrivate::setActive(bool isActive)
-{
-    ALWAYS_LOG(LOGIDENTIFIER, isActive);
-
-    m_isActive = isActive;
-    if (RefPtr mediaSource = m_mediaSource.get())
-        mediaSource->sourceBufferPrivateDidChangeActiveState(*this, isActive);
-}
-
-void SourceBufferPrivate::iterateTrackBuffers(Function<void(TrackBuffer&)>&& func)
-{
-    for (auto& pair : m_trackBufferMap)
-        func(pair.second);
-}
-
-void SourceBufferPrivate::iterateTrackBuffers(Function<void(const TrackBuffer&)>&& func) const
-{
-    for (auto& pair : m_trackBufferMap)
-        func(pair.second);
-}
-
-RefPtr<SourceBufferPrivateClient> SourceBufferPrivate::client() const
-{
-    return m_client.get();
 }
 
 } // namespace WebCore

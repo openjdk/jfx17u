@@ -32,6 +32,7 @@
 namespace WebCore {
 
 ContextDestructionObserver::ContextDestructionObserver(ScriptExecutionContext* scriptExecutionContext)
+    : m_scriptExecutionContext(nullptr)
 {
     observeContext(scriptExecutionContext);
 }
@@ -48,7 +49,7 @@ void ContextDestructionObserver::observeContext(ScriptExecutionContext* scriptEx
         m_scriptExecutionContext->willDestroyDestructionObserver(*this);
     }
 
-    m_scriptExecutionContext = WeakPtr { scriptExecutionContext, EnableWeakPtrThreadingAssertions::No };
+    m_scriptExecutionContext = scriptExecutionContext;
 
     if (m_scriptExecutionContext) {
         ASSERT(m_scriptExecutionContext->isContextThread());
@@ -59,11 +60,6 @@ void ContextDestructionObserver::observeContext(ScriptExecutionContext* scriptEx
 void ContextDestructionObserver::contextDestroyed()
 {
     m_scriptExecutionContext = nullptr;
-}
-
-RefPtr<ScriptExecutionContext> ContextDestructionObserver::protectedScriptExecutionContext() const
-{
-    return m_scriptExecutionContext.get();
 }
 
 } // namespace WebCore

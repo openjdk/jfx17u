@@ -36,7 +36,7 @@ struct PlatformDescription {
         None,
         CAAudioStreamBasicType,
         GStreamerAudioStreamDescription,
-    } type { None };
+    } type;
     std::variant<std::nullptr_t, const AudioStreamBasicDescription*> description;
 };
 

@@ -42,9 +42,8 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderMathMLUnderOver);
 
 RenderMathMLUnderOver::RenderMathMLUnderOver(MathMLUnderOverElement& element, RenderStyle&& style)
-    : RenderMathMLScripts(Type::MathMLUnderOver, element, WTFMove(style))
+    : RenderMathMLScripts(element, WTFMove(style))
 {
-    ASSERT(isRenderMathMLUnderOver());
 }
 
 MathMLUnderOverElement& RenderMathMLUnderOver::element() const
@@ -54,11 +53,10 @@ MathMLUnderOverElement& RenderMathMLUnderOver::element() const
 
 static RenderMathMLOperator* horizontalStretchyOperator(const RenderBox& box)
 {
-    auto* mathMLBlock = dynamicDowncast<RenderMathMLBlock>(box);
-    if (!mathMLBlock)
+    if (!is<RenderMathMLBlock>(box))
         return nullptr;
 
-    auto* renderOperator = mathMLBlock->unembellishedOperator();
+    auto* renderOperator = downcast<RenderMathMLBlock>(box).unembellishedOperator();
     if (!renderOperator)
         return nullptr;
 
@@ -222,10 +220,10 @@ bool RenderMathMLUnderOver::hasAccent(bool accentUnder) const
         return true;
     if (attributeValue == MathMLElement::BooleanValue::False)
         return false;
-    auto* script = dynamicDowncast<RenderMathMLBlock>(accentUnder ? under() : over());
-    if (!script)
+    RenderBox& script = accentUnder ? under() : over();
+    if (!is<RenderMathMLBlock>(script))
         return false;
-    auto* scriptOperator = script->unembellishedOperator();
+    auto* scriptOperator = downcast<RenderMathMLBlock>(script).unembellishedOperator();
     return scriptOperator && scriptOperator->hasOperatorFlag(MathMLOperatorDictionary::Accent);
 }
 
@@ -256,8 +254,8 @@ RenderMathMLUnderOver::VerticalParameters RenderMathMLUnderOver::verticalParamet
         return parameters;
     }
 
-    if (auto* mathMLBlock = dynamicDowncast<RenderMathMLBlock>(base())) {
-        if (auto* baseOperator = mathMLBlock->unembellishedOperator()) {
+    if (is<RenderMathMLBlock>(base())) {
+        if (auto* baseOperator = downcast<RenderMathMLBlock>(base()).unembellishedOperator()) {
             if (baseOperator->hasOperatorFlag(MathMLOperatorDictionary::LargeOp)) {
                 // The base is a large operator so we read UpperLimit/LowerLimit constants from the MATH table.
                 parameters.underGapMin = mathData->getMathConstant(primaryFont, OpenTypeMathData::LowerLimitGapMin);

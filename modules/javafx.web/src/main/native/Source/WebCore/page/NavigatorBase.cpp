@@ -159,20 +159,22 @@ WebLockManager& NavigatorBase::locks()
     return *m_webLockManager;
 }
 
+#if ENABLE(SERVICE_WORKER)
 ServiceWorkerContainer& NavigatorBase::serviceWorker()
 {
     ASSERT(!scriptExecutionContext() || scriptExecutionContext()->settingsValues().serviceWorkersEnabled);
     if (!m_serviceWorkerContainer)
-        m_serviceWorkerContainer = ServiceWorkerContainer::create(protectedScriptExecutionContext().get(), *this).moveToUniquePtr();
+        m_serviceWorkerContainer = ServiceWorkerContainer::create(scriptExecutionContext(), *this).moveToUniquePtr();
     return *m_serviceWorkerContainer;
 }
 
 ExceptionOr<ServiceWorkerContainer&> NavigatorBase::serviceWorker(ScriptExecutionContext& context)
 {
-    if (RefPtr document = dynamicDowncast<Document>(context); document && document->isSandboxed(SandboxOrigin))
-        return Exception { ExceptionCode::SecurityError, "Service Worker is disabled because the context is sandboxed and lacks the 'allow-same-origin' flag"_s };
+    if (is<Document>(context) && downcast<Document>(context).isSandboxed(SandboxOrigin))
+        return Exception { SecurityError, "Service Worker is disabled because the context is sandboxed and lacks the 'allow-same-origin' flag"_s };
     return serviceWorker();
 }
+#endif
 
 int NavigatorBase::hardwareConcurrency()
 {

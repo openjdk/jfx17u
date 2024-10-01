@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "ContextDestructionObserverInlines.h"
+#include "ContextDestructionObserver.h"
 #include "EventTarget.h"
 #include "JSValueInWrappedObject.h"
 #include <wtf/Function.h>

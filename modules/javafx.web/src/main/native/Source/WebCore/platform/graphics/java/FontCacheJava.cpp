@@ -39,6 +39,12 @@ void FontCache::platformInit()
 {
 }
 
+RefPtr<Font> FontCache::systemFallbackForCharacters(const FontDescription&, const Font&, IsForPlatformFont, PreferColoredFont, const UChar*, unsigned)
+{
+    return nullptr;
+}
+
+
 std::unique_ptr<FontPlatformData> FontCache::createFontPlatformData(const FontDescription& fontDescription, const AtomString& family, const FontCreationContext&){
     return FontPlatformData::create(fontDescription, family);
 }
@@ -81,10 +87,5 @@ Vector<FontSelectionCapabilities> FontCache::getFontSelectionCapabilitiesInFamil
     return { };
 }
 
-RefPtr<Font> FontCache::systemFallbackForCharacterCluster(const FontDescription& description, const Font&, IsForPlatformFont, PreferColoredFont preferColoredFont, StringView stringView)
-{
-    notImplemented();
-    return nullptr;
-}
 }
 

@@ -44,10 +44,9 @@ using namespace MathMLNames;
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderMathMLRow);
 
-RenderMathMLRow::RenderMathMLRow(Type type, MathMLRowElement& element, RenderStyle&& style)
-    : RenderMathMLBlock(type, element, WTFMove(style))
+RenderMathMLRow::RenderMathMLRow(MathMLRowElement& element, RenderStyle&& style)
+    : RenderMathMLBlock(element, WTFMove(style))
 {
-    ASSERT(isRenderMathMLRow());
 }
 
 MathMLRowElement& RenderMathMLRow::element() const
@@ -66,8 +65,8 @@ std::optional<LayoutUnit> RenderMathMLRow::firstLineBaseline() const
 
 static RenderMathMLOperator* toVerticalStretchyOperator(RenderBox* box)
 {
-    if (auto* mathMLBlock = dynamicDowncast<RenderMathMLBlock>(box)) {
-        auto* renderOperator = mathMLBlock->unembellishedOperator();
+    if (is<RenderMathMLBlock>(box)) {
+        auto* renderOperator = downcast<RenderMathMLBlock>(*box).unembellishedOperator();
         if (renderOperator && renderOperator->isStretchy() && renderOperator->isVertical())
             return renderOperator;
     }

@@ -31,7 +31,6 @@
 #include "Timer.h"
 #include <wtf/RefCounted.h>
 #include <wtf/WallTime.h>
-#include <wtf/WeakPtr.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
@@ -43,7 +42,7 @@ class Page;
 class PageOverlayController;
 class PlatformMouseEvent;
 
-class PageOverlay final : public RefCounted<PageOverlay>, public CanMakeWeakPtr<PageOverlay> {
+class PageOverlay final : public RefCounted<PageOverlay> {
     WTF_MAKE_NONCOPYABLE(PageOverlay);
     WTF_MAKE_FAST_ALLOCATED;
 public:
@@ -131,7 +130,7 @@ private:
     void fadeAnimationTimerFired();
 
     Client& m_client;
-    SingleThreadWeakPtr<Page> m_page;
+    WeakPtr<Page> m_page;
 
     Timer m_fadeAnimationTimer;
     WallTime m_fadeAnimationStartTime;

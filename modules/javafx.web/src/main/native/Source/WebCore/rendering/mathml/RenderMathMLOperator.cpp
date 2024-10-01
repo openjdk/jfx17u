@@ -52,14 +52,14 @@ using namespace MathMLNames;
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderMathMLOperator);
 
-RenderMathMLOperator::RenderMathMLOperator(Type type, MathMLOperatorElement& element, RenderStyle&& style)
-    : RenderMathMLToken(type, element, WTFMove(style))
+RenderMathMLOperator::RenderMathMLOperator(MathMLOperatorElement& element, RenderStyle&& style)
+    : RenderMathMLToken(element, WTFMove(style))
 {
     updateTokenContent();
 }
 
-RenderMathMLOperator::RenderMathMLOperator(Type type, Document& document, RenderStyle&& style)
-    : RenderMathMLToken(type, document, WTFMove(style))
+RenderMathMLOperator::RenderMathMLOperator(Document& document, RenderStyle&& style)
+    : RenderMathMLToken(document, WTFMove(style))
 {
 }
 
@@ -68,7 +68,7 @@ MathMLOperatorElement& RenderMathMLOperator::element() const
     return static_cast<MathMLOperatorElement&>(nodeForNonAnonymous());
 }
 
-char32_t RenderMathMLOperator::textContent() const
+UChar32 RenderMathMLOperator::textContent() const
 {
     return element().operatorChar().character;
 }
@@ -76,7 +76,7 @@ char32_t RenderMathMLOperator::textContent() const
 bool RenderMathMLOperator::isInvisibleOperator() const
 {
     // The following operators are invisible: U+2061 FUNCTION APPLICATION, U+2062 INVISIBLE TIMES, U+2063 INVISIBLE SEPARATOR, U+2064 INVISIBLE PLUS.
-    char32_t character = textContent();
+    UChar32 character = textContent();
     return 0x2061 <= character && character <= 0x2064;
 }
 

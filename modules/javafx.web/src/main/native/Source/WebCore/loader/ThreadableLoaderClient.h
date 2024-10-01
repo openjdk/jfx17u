@@ -30,10 +30,7 @@
 
 #pragma once
 
-#include "LoaderMalloc.h"
 #include "ResourceLoaderIdentifier.h"
-#include <wtf/CheckedRef.h>
-#include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
@@ -43,8 +40,8 @@ class ResourceResponse;
 class ResourceTiming;
 class SharedBuffer;
 
-class ThreadableLoaderClient : public CanMakeWeakPtr<ThreadableLoaderClient>, public CanMakeThreadSafeCheckedPtr {
-    WTF_MAKE_NONCOPYABLE(ThreadableLoaderClient); WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Loader);
+class ThreadableLoaderClient {
+    WTF_MAKE_NONCOPYABLE(ThreadableLoaderClient); WTF_MAKE_FAST_ALLOCATED;
 public:
     virtual void didSendData(unsigned long long /*bytesSent*/, unsigned long long /*totalBytesToBeSent*/) { }
 

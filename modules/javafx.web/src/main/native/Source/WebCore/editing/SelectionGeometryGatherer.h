@@ -27,10 +27,8 @@
 
 #if ENABLE(SERVICE_CONTROLS)
 
-#include <wtf/CheckedRef.h>
 #include <wtf/Noncopyable.h>
 #include <wtf/Vector.h>
-#include <wtf/WeakRef.h>
 
 namespace WebCore {
 
@@ -68,7 +66,7 @@ public:
 private:
     Vector<LayoutRect> boundingRects() const;
 
-    SingleThreadWeakRef<RenderView> m_renderView;
+    RenderView& m_renderView;
 
     // All rects are in RenderView coordinates.
     Vector<FloatQuad> m_quads;

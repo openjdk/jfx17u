@@ -33,7 +33,6 @@
 namespace WebCore {
 
 class Attribute;
-class ImmutableStyleProperties;
 class MutableStyleProperties;
 class PropertySetCSSStyleDeclaration;
 class StyleProperties;
@@ -65,12 +64,13 @@ public:
     StylePropertyMap& ensureAttributeStyleMap();
 
     // https://html.spec.whatwg.org/#presentational-hints
-    const ImmutableStyleProperties* presentationalHintStyle() const;
+    const MutableStyleProperties* presentationalHintStyle() const;
     virtual void collectPresentationalHintsForAttribute(const QualifiedName&, const AtomString&, MutableStyleProperties&) { }
     virtual const MutableStyleProperties* additionalPresentationalHintStyle() const { return nullptr; }
+    virtual void collectExtraStyleForPresentationalHints(MutableStyleProperties&) { }
 
 protected:
-    StyledElement(const QualifiedName& name, Document& document, OptionSet<TypeFlag> type)
+    StyledElement(const QualifiedName& name, Document& document, ConstructionType type)
         : Element(name, document, type)
     {
     }
@@ -84,7 +84,6 @@ protected:
     void addPropertyToPresentationalHintStyle(MutableStyleProperties&, CSSPropertyID, const String& value);
 
     void addSubresourceAttributeURLs(ListHashSet<URL>&) const override;
-    Attribute replaceURLsInAttributeValue(const Attribute&, const HashMap<String, String>&) const override;
 
 private:
     void styleAttributeChanged(const AtomString& newStyleString, AttributeModificationReason);
@@ -97,6 +96,15 @@ private:
 
     void rebuildPresentationalHintStyle();
 };
+
+inline const MutableStyleProperties* StyledElement::presentationalHintStyle() const
+{
+    if (!elementData())
+        return nullptr;
+    if (elementData()->presentationalHintStyleIsDirty())
+        const_cast<StyledElement&>(*this).rebuildPresentationalHintStyle();
+    return elementData()->presentationalHintStyle();
+}
 
 } // namespace WebCore
 

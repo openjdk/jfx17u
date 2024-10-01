@@ -26,6 +26,7 @@
 #pragma once
 
 #include <cstdint>
+#include <wtf/EnumTraits.h>
 
 namespace WebCore::WebGPU {
 
@@ -36,3 +37,16 @@ enum class CullMode : uint8_t {
 };
 
 } // namespace WebCore::WebGPU
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::WebGPU::CullMode> {
+    using values = EnumValues<
+        WebCore::WebGPU::CullMode,
+        WebCore::WebGPU::CullMode::None,
+        WebCore::WebGPU::CullMode::Front,
+        WebCore::WebGPU::CullMode::Back
+    >;
+};
+
+} // namespace WTF

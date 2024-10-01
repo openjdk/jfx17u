@@ -159,7 +159,7 @@ class Preference
   end
 
   def apiStatus
-    "API::FeatureConstant<API::FeatureStatus::#{@status.capitalize}>{}"
+    "API::FeatureStatus::" + @status.capitalize
   end
 
   def apiCategory
@@ -334,17 +334,6 @@ class Preferences
     else
       FileUtils.remove_file(tempResultFile)
       FileUtils.uptodate?(resultFile, [templateFile]) or FileUtils.touch(resultFile)
-    end
-  end
-
-  def constantize(value)
-    case value
-    when true
-      "std::true_type{}"
-    when false
-      "std::false_type{}"
-    else
-      value
     end
   end
 end

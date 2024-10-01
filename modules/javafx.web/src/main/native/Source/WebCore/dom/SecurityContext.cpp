@@ -43,40 +43,19 @@ void SecurityContext::setSecurityOriginPolicy(RefPtr<SecurityOriginPolicy>&& sec
 {
     m_securityOriginPolicy = WTFMove(securityOriginPolicy);
     m_haveInitializedSecurityOrigin = true;
-    m_hasEmptySecurityOriginPolicy = false;
-}
-
-ContentSecurityPolicy* SecurityContext::contentSecurityPolicy()
-{
-    if (!m_contentSecurityPolicy && m_hasEmptyContentSecurityPolicy)
-        m_contentSecurityPolicy = makeEmptyContentSecurityPolicy();
-    return m_contentSecurityPolicy.get();
 }
 
 SecurityOrigin* SecurityContext::securityOrigin() const
 {
-    RefPtr policy = securityOriginPolicy();
-    if (!policy)
+    if (!m_securityOriginPolicy)
         return nullptr;
-    return &policy->origin();
-}
 
-RefPtr<SecurityOrigin> SecurityContext::protectedSecurityOrigin() const
-{
-    return securityOrigin();
-}
-
-SecurityOriginPolicy* SecurityContext::securityOriginPolicy() const
-{
-    if (!m_securityOriginPolicy && m_hasEmptySecurityOriginPolicy)
-        const_cast<SecurityContext&>(*this).m_securityOriginPolicy = SecurityOriginPolicy::create(SecurityOrigin::createOpaque());
-    return m_securityOriginPolicy.get();
+    return &m_securityOriginPolicy->origin();
 }
 
 void SecurityContext::setContentSecurityPolicy(std::unique_ptr<ContentSecurityPolicy>&& contentSecurityPolicy)
 {
     m_contentSecurityPolicy = WTFMove(contentSecurityPolicy);
-    m_hasEmptyContentSecurityPolicy = false;
 }
 
 bool SecurityContext::isSecureTransitionTo(const URL& url) const
@@ -213,15 +192,10 @@ void SecurityContext::inheritPolicyContainerFrom(const PolicyContainer& policyCo
     if (!contentSecurityPolicy())
         setContentSecurityPolicy(makeUnique<ContentSecurityPolicy>(URL { }, nullptr, nullptr));
 
-    checkedContentSecurityPolicy()->inheritHeadersFrom(policyContainer.contentSecurityPolicyResponseHeaders);
+    contentSecurityPolicy()->inheritHeadersFrom(policyContainer.contentSecurityPolicyResponseHeaders);
     setCrossOriginOpenerPolicy(policyContainer.crossOriginOpenerPolicy);
     setCrossOriginEmbedderPolicy(policyContainer.crossOriginEmbedderPolicy);
     setReferrerPolicy(policyContainer.referrerPolicy);
-}
-
-CheckedPtr<ContentSecurityPolicy> SecurityContext::checkedContentSecurityPolicy()
-{
-    return contentSecurityPolicy();
 }
 
 }

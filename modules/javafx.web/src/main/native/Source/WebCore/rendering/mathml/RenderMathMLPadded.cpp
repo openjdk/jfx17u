@@ -37,9 +37,8 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderMathMLPadded);
 
 RenderMathMLPadded::RenderMathMLPadded(MathMLPaddedElement& element, RenderStyle&& style)
-    : RenderMathMLRow(Type::MathMLPadded, element, WTFMove(style))
+    : RenderMathMLRow(element, WTFMove(style))
 {
-    ASSERT(isRenderMathMLPadded());
 }
 
 LayoutUnit RenderMathMLPadded::voffset() const

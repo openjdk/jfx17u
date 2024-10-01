@@ -46,9 +46,21 @@ static void append(Vector<uint8_t>& vector, size_t length)
     vector.append(std::span<const uint8_t> { reinterpret_cast<const uint8_t*>(&integer), sizeof(integer) });
 }
 
+static void uncheckedAppend(Vector<uint8_t>& vector, size_t length)
+{
+    RELEASE_ASSERT(length <= std::numeric_limits<uint32_t>::max());
+    uint32_t integer = length;
+    vector.uncheckedAppend(std::span<const uint8_t> { reinterpret_cast<const uint8_t*>(&integer), sizeof(integer) });
+}
+
 static void append(Vector<uint8_t>& vector, const CString& string)
 {
     vector.append(std::span<const uint8_t> { reinterpret_cast<const uint8_t*>(string.data()), string.length() });
+}
+
+static void uncheckedAppend(Vector<uint8_t>& vector, const CString& string)
+{
+    vector.uncheckedAppend(std::span<const uint8_t> { reinterpret_cast<const uint8_t*>(string.data()), string.length() });
 }
 
 static size_t deserializeLength(std::span<const uint8_t> span, size_t offset)
@@ -88,7 +100,7 @@ Expected<ModifyHeadersAction, std::error_code> ModifyHeadersAction::parse(const 
             auto info = ModifyHeaderInfo::parse(value.get());
             if (!info)
                 return makeUnexpected(info.error());
-            vector.append(WTFMove(*info));
+            vector.uncheckedAppend(WTFMove(*info));
         }
         return vector;
     };
@@ -116,6 +128,14 @@ ModifyHeadersAction ModifyHeadersAction::isolatedCopy() const &
 ModifyHeadersAction ModifyHeadersAction::isolatedCopy() &&
 {
     return { crossThreadCopy(WTFMove(requestHeaders)), crossThreadCopy(WTFMove(responseHeaders)), crossThreadCopy(priority) };
+}
+
+bool ModifyHeadersAction::operator==(const ModifyHeadersAction& other) const
+{
+    return other.hashTableType == this->hashTableType
+        && other.requestHeaders == this->requestHeaders
+        && other.responseHeaders == this->responseHeaders
+        && other.priority == this->priority;
 }
 
 void ModifyHeadersAction::serialize(Vector<uint8_t>& vector) const
@@ -237,6 +257,11 @@ auto ModifyHeadersAction::ModifyHeaderInfo::isolatedCopy() && -> ModifyHeaderInf
     return { crossThreadCopy(WTFMove(operation)) };
 }
 
+bool ModifyHeadersAction::ModifyHeaderInfo::operator==(const ModifyHeaderInfo& other) const
+{
+    return other.operation == this->operation;
+}
+
 void ModifyHeadersAction::ModifyHeaderInfo::serialize(Vector<uint8_t>& vector) const
 {
     auto beginIndex = vector.size();
@@ -327,6 +352,12 @@ RedirectAction RedirectAction::isolatedCopy() &&
     return { crossThreadCopy(WTFMove(action)) };
 }
 
+bool RedirectAction::operator==(const RedirectAction& other) const
+{
+    return other.hashTableType == this->hashTableType
+        && other.action == this->action;
+}
+
 void RedirectAction::serialize(Vector<uint8_t>& vector) const
 {
     auto beginIndex = vector.size();
@@ -397,10 +428,10 @@ void RedirectAction::RegexSubstitutionAction::serialize(Vector<uint8_t>& vector)
         + sizeof(uint32_t)
         + regexSubstitutionUTF8.length()
         + regexFilterUTF8.length());
-    append(vector, regexSubstitutionUTF8.length());
-    append(vector, regexFilterUTF8.length());
-    append(vector, regexSubstitutionUTF8);
-    append(vector, regexFilterUTF8);
+    uncheckedAppend(vector, regexSubstitutionUTF8.length());
+    uncheckedAppend(vector, regexFilterUTF8.length());
+    uncheckedAppend(vector, regexSubstitutionUTF8);
+    uncheckedAppend(vector, regexFilterUTF8);
 }
 
 auto RedirectAction::RegexSubstitutionAction::deserialize(std::span<const uint8_t> span) -> RegexSubstitutionAction
@@ -528,6 +559,18 @@ auto RedirectAction::URLTransformAction::isolatedCopy() && -> URLTransformAction
         crossThreadCopy(WTFMove(queryTransform)), crossThreadCopy(WTFMove(scheme)), crossThreadCopy(WTFMove(username)) };
 }
 
+bool RedirectAction::URLTransformAction::operator==(const URLTransformAction& other) const
+{
+    return other.fragment == this->fragment
+        && other.host == this->host
+        && other.password == this->password
+        && other.path == this->path
+        && other.port == this->port
+        && other.queryTransform == this->queryTransform
+        && other.scheme == this->scheme
+        && other.username == this->username;
+}
+
 void RedirectAction::URLTransformAction::serialize(Vector<uint8_t>& vector) const
 {
     uint8_t hasFragment = !!fragment;
@@ -559,8 +602,8 @@ void RedirectAction::URLTransformAction::serialize(Vector<uint8_t>& vector) cons
         + (hasQuery ? 1 + (queryString ? sizeof(uint32_t) + queryStringUTF8.length() : 0) : 0));
 
     auto beginIndex = vector.size();
-    append(vector, 0);
-    vector.append(
+    uncheckedAppend(vector, 0);
+    vector.uncheckedAppend(
         hasFragment << 7
         | hasHost << 6
         | hasPassword << 5
@@ -570,32 +613,34 @@ void RedirectAction::URLTransformAction::serialize(Vector<uint8_t>& vector) cons
         | hasUsername << 1
         | hasQuery << 0
     );
-    auto appendLengthAndString = [&] (const CString& string) {
-        append(vector, string.length());
-        append(vector, string);
+    auto uncheckedAppendLengthAndString = [&] (const CString& string) {
+        uncheckedAppend(vector, string.length());
+        uncheckedAppend(vector, string);
     };
     if (hasFragment)
-        appendLengthAndString(fragmentUTF8);
+        uncheckedAppendLengthAndString(fragmentUTF8);
     if (hasHost)
-        appendLengthAndString(hostUTF8);
+        uncheckedAppendLengthAndString(hostUTF8);
     if (hasPassword)
-        appendLengthAndString(passwordUTF8);
+        uncheckedAppendLengthAndString(passwordUTF8);
     if (hasPath)
-        appendLengthAndString(pathUTF8);
+        uncheckedAppendLengthAndString(pathUTF8);
     if (hasScheme)
-        appendLengthAndString(schemeUTF8);
+        uncheckedAppendLengthAndString(schemeUTF8);
     if (hasUsername)
-        appendLengthAndString(usernameUTF8);
+        uncheckedAppendLengthAndString(usernameUTF8);
     if (hasPort) {
-        vector.append(!!*port);
-        if (*port)
-            vector.appendList({ **port >> 0, **port >> 8 });
+        vector.uncheckedAppend(!!*port);
+        if (*port) {
+            vector.uncheckedAppend(**port >> 0);
+            vector.uncheckedAppend(**port >> 8);
         }
+    }
     if (hasQuery) {
-        vector.append(queryTransform.index());
+        vector.uncheckedAppend(queryTransform.index());
         std::visit(WTF::makeVisitor([&](const String&) {
-            append(vector, queryStringUTF8.length());
-            append(vector, queryStringUTF8);
+            uncheckedAppend(vector, queryStringUTF8.length());
+            uncheckedAppend(vector, queryStringUTF8);
         }, [&](const QueryTransform& transform) {
             transform.serialize(vector);
         }), queryTransform);
@@ -684,7 +729,7 @@ auto RedirectAction::URLTransformAction::QueryTransform::parse(const JSON::Objec
         for (auto& parameter : *removeParametersArray) {
             if (parameter.get().type() != JSON::Value::Type::String)
                 return makeUnexpected(ContentExtensionError::JSONRemoveParametersNotStringArray);
-            removeParametersVector.append(parameter.get().asString());
+            removeParametersVector.uncheckedAppend(parameter.get().asString());
         }
         parsedQueryTransform.removeParams = WTFMove(removeParametersVector);
     }
@@ -699,7 +744,7 @@ auto RedirectAction::URLTransformAction::QueryTransform::parse(const JSON::Objec
             auto keyValue = QueryKeyValue::parse(queryKeyValue.get());
             if (!keyValue)
                 return makeUnexpected(keyValue.error());
-            keyValues.append(WTFMove(*keyValue));
+            keyValues.uncheckedAppend(WTFMove(*keyValue));
         }
         parsedQueryTransform.addOrReplaceParams = WTFMove(keyValues);
     }
@@ -808,6 +853,12 @@ auto RedirectAction::URLTransformAction::QueryTransform::isolatedCopy() && -> Qu
     return { crossThreadCopy(WTFMove(addOrReplaceParams)), crossThreadCopy(WTFMove(removeParams)) };
 }
 
+bool RedirectAction::URLTransformAction::QueryTransform::operator==(const QueryTransform& other) const
+{
+    return other.addOrReplaceParams == this->addOrReplaceParams
+        && other.removeParams == this->removeParams;
+}
+
 void RedirectAction::URLTransformAction::QueryTransform::serialize(Vector<uint8_t>& vector) const
 {
     auto beginIndex = vector.size();
@@ -874,6 +925,13 @@ auto RedirectAction::URLTransformAction::QueryTransform::QueryKeyValue::parse(co
     return { { WTFMove(key), replaceOnly, WTFMove(value) } };
 }
 
+bool RedirectAction::URLTransformAction::QueryTransform::QueryKeyValue::operator==(const QueryKeyValue& other) const
+{
+    return other.key == this->key
+        && other.replaceOnly == this->replaceOnly
+        && other.value == this->value;
+}
+
 void RedirectAction::URLTransformAction::QueryTransform::QueryKeyValue::serialize(Vector<uint8_t>& vector) const
 {
     constexpr auto headerLength = sizeof(uint32_t) + sizeof(uint32_t) + sizeof(bool);
@@ -883,11 +941,11 @@ void RedirectAction::URLTransformAction::QueryTransform::QueryKeyValue::serializ
     auto valueUTF8 = value.utf8();
     auto serializedLength = headerLength + keyUTF8.length() + valueUTF8.length();
     vector.reserveCapacity(vector.size() + serializedLength);
-    append(vector, serializedLength);
-    append(vector, keyUTF8.length());
-    vector.append(replaceOnly);
-    append(vector, keyUTF8);
-    append(vector, valueUTF8);
+    uncheckedAppend(vector, serializedLength);
+    uncheckedAppend(vector, keyUTF8.length());
+    vector.uncheckedAppend(replaceOnly);
+    uncheckedAppend(vector, keyUTF8);
+    uncheckedAppend(vector, valueUTF8);
 }
 
 auto RedirectAction::URLTransformAction::QueryTransform::QueryKeyValue::deserialize(std::span<const uint8_t> span) -> QueryKeyValue

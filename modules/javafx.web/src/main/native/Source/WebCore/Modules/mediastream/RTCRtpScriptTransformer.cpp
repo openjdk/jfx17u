@@ -30,11 +30,9 @@
 
 #include "DedicatedWorkerGlobalScope.h"
 #include "EventLoop.h"
-#include "FrameRateMonitor.h"
 #include "JSDOMPromiseDeferred.h"
 #include "JSRTCEncodedAudioFrame.h"
 #include "JSRTCEncodedVideoFrame.h"
-#include "Logging.h"
 #include "MessageWithMessagePorts.h"
 #include "RTCRtpTransformableFrame.h"
 #include "ReadableStream.h"
@@ -49,7 +47,7 @@ namespace WebCore {
 ExceptionOr<Ref<RTCRtpScriptTransformer>> RTCRtpScriptTransformer::create(ScriptExecutionContext& context, MessageWithMessagePorts&& options)
 {
     if (!context.globalObject())
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
 
     auto& globalObject = *JSC::jsCast<JSDOMGlobalObject*>(context.globalObject());
     JSC::JSLockHolder lock(globalObject.vm());
@@ -58,7 +56,7 @@ ExceptionOr<Ref<RTCRtpScriptTransformer>> RTCRtpScriptTransformer::create(Script
     if (readable.hasException())
         return readable.releaseException();
     if (!options.message)
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
 
     auto ports = MessagePort::entanglePorts(context, WTFMove(options.transferredPorts));
     auto transformer = adoptRef(*new RTCRtpScriptTransformer(context, options.message.releaseNonNull(), WTFMove(ports), readable.releaseReturnValue(), WTFMove(readableSource)));
@@ -72,10 +70,6 @@ RTCRtpScriptTransformer::RTCRtpScriptTransformer(ScriptExecutionContext& context
     , m_ports(WTFMove(ports))
     , m_readableSource(WTFMove(readableSource))
     , m_readable(WTFMove(readable))
-#if !RELEASE_LOG_DISABLED
-    , m_enableAdditionalLogging(context.settingsValues().webRTCMediaPipelineAdditionalLoggingEnabled)
-    , m_identifier(RTCRtpScriptTransformerIdentifier::generate())
-#endif
 {
 }
 
@@ -91,14 +85,14 @@ ReadableStream& RTCRtpScriptTransformer::readable()
 ExceptionOr<Ref<WritableStream>> RTCRtpScriptTransformer::writable()
 {
     if (!m_writable) {
-        RefPtr context = downcast<WorkerGlobalScope>(scriptExecutionContext());
+        auto* context = downcast<WorkerGlobalScope>(scriptExecutionContext());
         if (!context || !context->globalObject())
-            return Exception { ExceptionCode::InvalidStateError };
+            return Exception { InvalidStateError };
 
         auto& globalObject = *JSC::jsCast<JSDOMGlobalObject*>(context->globalObject());
         auto writableOrException = WritableStream::create(globalObject, SimpleWritableStreamSink::create([transformer = Ref { *this }](auto& context, auto value) -> ExceptionOr<void> {
             if (!transformer->m_backend)
-                return Exception { ExceptionCode::InvalidStateError };
+                return Exception { InvalidStateError };
 
             auto& globalObject = *context.globalObject();
 
@@ -106,7 +100,7 @@ ExceptionOr<Ref<WritableStream>> RTCRtpScriptTransformer::writable()
             auto frame = convert<IDLUnion<IDLInterface<RTCEncodedAudioFrame>, IDLInterface<RTCEncodedVideoFrame>>>(globalObject, value);
 
             if (scope.exception())
-                return Exception { ExceptionCode::ExistingExceptionError };
+                return Exception { ExistingExceptionError };
 
             auto rtcFrame = WTF::switchOn(frame, [&](RefPtr<RTCEncodedAudioFrame>& value) {
                 return value->rtcFrame();
@@ -115,19 +109,8 @@ ExceptionOr<Ref<WritableStream>> RTCRtpScriptTransformer::writable()
             });
 
             // If no data, skip the frame since there is nothing to packetize or decode.
-            if (rtcFrame->data().data()) {
-#if !RELEASE_LOG_DISABLED
-                if (transformer->m_enableAdditionalLogging && transformer->m_backend->mediaType() == RTCRtpTransformBackend::MediaType::Video) {
-                    if (!transformer->m_writableFrameRateMonitor) {
-                        transformer->m_writableFrameRateMonitor = makeUnique<FrameRateMonitor>([identifier = transformer->m_identifier](auto info) {
-                            RELEASE_LOG(WebRTC, "RTCRtpScriptTransformer writable %" PRIu64 ", frame at %f, previous frame was at %f, observed frame rate is %f, delay since last frame is %f ms, frame count is %lu", identifier.toUInt64(), info.frameTime.secondsSinceEpoch().value(), info.lastFrameTime.secondsSinceEpoch().value(), info.observedFrameRate, ((info.frameTime - info.lastFrameTime) * 1000).value(), info.frameCount);
-                        });
-                    }
-                    transformer->m_writableFrameRateMonitor->update();
-                }
-#endif
+            if (rtcFrame->data().data())
                 transformer->m_backend->processTransformedFrame(rtcFrame.get());
-            }
             return { };
         }));
         if (writableOrException.hasException())
@@ -142,7 +125,7 @@ void RTCRtpScriptTransformer::start(Ref<RTCRtpTransformBackend>&& backend)
     m_backend = WTFMove(backend);
 
     auto& context = downcast<WorkerGlobalScope>(*scriptExecutionContext());
-    m_backend->setTransformableFrameCallback([weakThis = WeakPtr { *this }, thread = Ref { context.thread() }](Ref<RTCRtpTransformableFrame>&& frame) mutable {
+    m_backend->setTransformableFrameCallback([weakThis = WeakPtr { *this }, thread = Ref { context.thread() }](auto&& frame) mutable {
         thread->runLoop().postTaskForMode([weakThis, frame = WTFMove(frame)](auto& context) mutable {
             if (weakThis)
                 weakThis->enqueueFrame(context, WTFMove(frame));
@@ -176,26 +159,15 @@ void RTCRtpScriptTransformer::enqueueFrame(ScriptExecutionContext& context, Ref<
             promise->resolve();
     }
 
-#if !RELEASE_LOG_DISABLED
-    if (m_enableAdditionalLogging && isVideo) {
-        if (!m_readableFrameRateMonitor) {
-            m_readableFrameRateMonitor = makeUnique<FrameRateMonitor>([identifier = m_identifier](auto info) {
-                RELEASE_LOG(WebRTC, "RTCRtpScriptTransformer readable %" PRIu64 ", frame at %f, previous frame was at %f, observed frame rate is %f, delay since last frame is %f ms, frame count is %lu", identifier.toUInt64(), info.frameTime.secondsSinceEpoch().value(), info.lastFrameTime.secondsSinceEpoch().value(), info.observedFrameRate, ((info.frameTime - info.lastFrameTime) * 1000).value(), info.frameCount);
-            });
-        }
-        m_readableFrameRateMonitor->update();
-    }
-#endif
-
     auto value = isVideo ? toJS(globalObject, globalObject, RTCEncodedVideoFrame::create(WTFMove(frame))) : toJS(globalObject, globalObject, RTCEncodedAudioFrame::create(WTFMove(frame)));
     m_readableSource->enqueue(value);
 }
 
 void RTCRtpScriptTransformer::generateKeyFrame(Ref<DeferredPromise>&& promise)
 {
-    RefPtr context = scriptExecutionContext();
+    auto* context = scriptExecutionContext();
     if (!context || !m_backend || m_backend->side() != RTCRtpTransformBackend::Side::Sender || m_backend->mediaType() != RTCRtpTransformBackend::MediaType::Video) {
-        promise->reject(Exception { ExceptionCode::InvalidStateError, "Not attached to a valid video sender"_s });
+        promise->reject(Exception { InvalidStateError, "Not attached to a valid video sender"_s });
         return;
     }
 
@@ -207,9 +179,9 @@ void RTCRtpScriptTransformer::generateKeyFrame(Ref<DeferredPromise>&& promise)
 
 void RTCRtpScriptTransformer::sendKeyFrameRequest(Ref<DeferredPromise>&& promise)
 {
-    RefPtr context = scriptExecutionContext();
+    auto* context = scriptExecutionContext();
     if (!context || !m_backend || m_backend->side() != RTCRtpTransformBackend::Side::Receiver || m_backend->mediaType() != RTCRtpTransformBackend::MediaType::Video) {
-        promise->reject(Exception { ExceptionCode::InvalidStateError, "Not attached to a valid video receiver"_s });
+        promise->reject(Exception { InvalidStateError, "Not attached to a valid video receiver"_s });
         return;
     }
 

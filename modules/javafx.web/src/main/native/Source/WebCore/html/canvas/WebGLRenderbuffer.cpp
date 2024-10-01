@@ -29,31 +29,36 @@
 
 #include "WebGLRenderbuffer.h"
 
+#include "WebGLContextGroup.h"
 #include "WebGLRenderingContextBase.h"
 #include <wtf/Lock.h>
 #include <wtf/Locker.h>
 
 namespace WebCore {
 
-RefPtr<WebGLRenderbuffer> WebGLRenderbuffer::create(WebGLRenderingContextBase& context)
+Ref<WebGLRenderbuffer> WebGLRenderbuffer::create(WebGLRenderingContextBase& ctx)
 {
-    auto object = context.protectedGraphicsContextGL()->createRenderbuffer();
-    if (!object)
-        return nullptr;
-    return adoptRef(*new WebGLRenderbuffer { context, object });
+    return adoptRef(*new WebGLRenderbuffer(ctx));
 }
 
 WebGLRenderbuffer::~WebGLRenderbuffer()
 {
-    if (!m_context)
+    if (!hasGroupOrContext())
         return;
 
     runDestructor();
 }
 
-WebGLRenderbuffer::WebGLRenderbuffer(WebGLRenderingContextBase& context, PlatformGLObject object)
-    : WebGLObject(context, object)
+WebGLRenderbuffer::WebGLRenderbuffer(WebGLRenderingContextBase& ctx)
+    : WebGLSharedObject(ctx)
+    , m_internalFormat(GraphicsContextGL::RGBA4)
+    , m_initialized(false)
+    , m_width(0)
+    , m_height(0)
+    , m_isValid(true)
+    , m_hasEverBeenBound(false)
 {
+    setObject(ctx.graphicsContextGL()->createRenderbuffer());
 }
 
 void WebGLRenderbuffer::deleteObjectImpl(const AbstractLocker&, GraphicsContextGL* context3d, PlatformGLObject object)

@@ -1,9 +1,8 @@
-if (NOT COMPILER_IS_CLANG_CL)
-    # List of disabled warnings
-    # When adding to the list add a short description and link to the warning's text if available
-    #
-    # https://bugs.webkit.org/show_bug.cgi?id=221508 is for tracking removal of warnings
-    add_compile_options(
+# List of disabled warnings
+# When adding to the list add a short description and link to the warning's text if available
+#
+# https://bugs.webkit.org/show_bug.cgi?id=221508 is for tracking removal of warnings
+add_compile_options(
     /wd4018 # 'token' : signed/unsigned mismatch
             # https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warning-level-3-c4018
 
@@ -114,16 +113,24 @@ if (NOT COMPILER_IS_CLANG_CL)
     /wd5054 # operator 'operator-name': deprecated between enumerations of different types
 
     /wd5055 # operator 'operator-name': deprecated between enumerations and floating-point types
-    )
+)
+
+if (NOT WTF_CPU_X86)
+    if (PORT STREQUAL "Java")
+    # Suppress creation of pdb files for Release builds
+    # FIXME: Need to re-enable the flag for Debug builds
+    #add_compile_options(/Zi /GS)
+
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /OPT:ICF /OPT:REF")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /OPT:ICF /OPT:REF")
+    else()
+    # Create pdb files for debugging purposes, also for Release builds
+    add_compile_options(/Zi /GS)
+
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DEBUG /OPT:ICF /OPT:REF")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DEBUG /OPT:ICF /OPT:REF")
+    endif()
 endif ()
-
-# Create pdb files for debugging purposes, also for Release builds
-add_compile_options(/Zi /GS)
-
-# Disable ICF (identical code folding) optimization,
-# as it makes it unsafe to pointer-compare functions with identical definitions.
-string(APPEND CMAKE_SHARED_LINKER_FLAGS " /DEBUG /OPT:NOICF /OPT:REF")
-string(APPEND CMAKE_EXE_LINKER_FLAGS " /DEBUG /OPT:NOICF /OPT:REF")
 
 # We do not use exceptions
 add_definitions(-D_HAS_EXCEPTIONS=0)
@@ -144,8 +151,8 @@ add_compile_options(-D_ENABLE_EXTENDED_ALIGNED_STORAGE)
 add_compile_options(/utf-8 /validate-charset)
 
 if (${CMAKE_BUILD_TYPE} MATCHES "Debug")
-    string(APPEND CMAKE_SHARED_LINKER_FLAGS " /OPT:NOREF")
-    string(APPEND CMAKE_EXE_LINKER_FLAGS " /OPT:NOREF")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /OPT:NOREF /OPT:NOICF")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /OPT:NOREF /OPT:NOICF")
 
     # To debug linking time issues, uncomment the following three lines:
     #add_compile_options(/Bv)
@@ -185,11 +192,13 @@ set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "${replace_CMAKE_SHARED_LINKER_FLAG
 string(REPLACE "INCREMENTAL:YES" "INCREMENTAL:NO" replace_CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO ${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO})
 set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${replace_CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} /INCREMENTAL:NO")
 
-# Setup MASM assembly
-enable_language(ASM_MASM)
-set(CMAKE_ASM_MASM_COMPILE_OBJECT "<CMAKE_ASM_MASM_COMPILER> /nologo /Cp /Fo <OBJECT> /c /Ta <SOURCE>")
-
 if (COMPILER_IS_CLANG_CL)
+    # FIXME: The clang-cl visual studio integration seemed to set
+    # this to 1900 explicitly even when building in VS2017 with the
+    # newest toolset option, but we want to be versioned to match
+    # VS2017.
+    add_compile_options(-fmsc-version=1911)
+
     # FIXME: Building with clang-cl seemed to fail with 128 bit int support
     set(HAVE_INT128_T OFF)
     list(REMOVE_ITEM _WEBKIT_CONFIG_FILE_VARIABLES HAVE_INT128_T)

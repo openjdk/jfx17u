@@ -43,7 +43,7 @@ using SerializedActionByte = uint8_t;
 
 template<typename T> struct ActionWithoutMetadata {
     T isolatedCopy() const { return { }; }
-    friend bool operator==(const ActionWithoutMetadata&, const ActionWithoutMetadata&) = default;
+    bool operator==(const ActionWithoutMetadata&) const { return true; }
     void serialize(Vector<uint8_t>&) const { }
     static T deserialize(std::span<const uint8_t>) { return { }; }
     static size_t serializedLength(std::span<const uint8_t>) { return 0; }
@@ -53,7 +53,7 @@ template<typename T> struct ActionWithStringMetadata {
     String string;
     T isolatedCopy() const & { return { { string.isolatedCopy() } }; }
     T isolatedCopy() && { return { { WTFMove(string).isolatedCopy() } }; }
-    friend bool operator==(const ActionWithStringMetadata&, const ActionWithStringMetadata&) = default;
+    bool operator==(const ActionWithStringMetadata& other) const { return other.string == this->string; }
     void serialize(Vector<uint8_t>& vector) const { serializeString(vector, string); }
     static T deserialize(std::span<const uint8_t> span) { return { { deserializeString(span) } }; }
     static size_t serializedLength(std::span<const uint8_t> span) { return stringSerializedLength(span); }
@@ -76,7 +76,7 @@ struct WEBCORE_EXPORT ModifyHeadersAction {
 
             AppendOperation isolatedCopy() const & { return { header.isolatedCopy(), value.isolatedCopy() }; }
             AppendOperation isolatedCopy() && { return { WTFMove(header).isolatedCopy(), WTFMove(value).isolatedCopy() }; }
-            friend bool operator==(const AppendOperation&, const AppendOperation&) = default;
+            bool operator==(const AppendOperation& other) const { return other.header == this->header && other.value == this->value; }
         };
         struct SetOperation {
             String header;
@@ -84,14 +84,14 @@ struct WEBCORE_EXPORT ModifyHeadersAction {
 
             SetOperation isolatedCopy() const & { return { header.isolatedCopy(), value.isolatedCopy() }; }
             SetOperation isolatedCopy() && { return { WTFMove(header).isolatedCopy(), WTFMove(value).isolatedCopy() }; }
-            friend bool operator==(const SetOperation&, const SetOperation&) = default;
+            bool operator==(const SetOperation& other) const { return other.header == this->header && other.value == this->value; }
         };
         struct RemoveOperation {
             String header;
 
             RemoveOperation isolatedCopy() const & { return { header.isolatedCopy() }; }
             RemoveOperation isolatedCopy() && { return { WTFMove(header).isolatedCopy() }; }
-            friend bool operator==(const RemoveOperation&, const RemoveOperation&) = default;
+            bool operator==(const RemoveOperation& other) const { return other.header == this->header; }
         };
         using OperationVariant = std::variant<AppendOperation, SetOperation, RemoveOperation>;
         OperationVariant operation;
@@ -99,7 +99,7 @@ struct WEBCORE_EXPORT ModifyHeadersAction {
         static Expected<ModifyHeaderInfo, std::error_code> parse(const JSON::Value&);
         ModifyHeaderInfo isolatedCopy() const &;
         ModifyHeaderInfo isolatedCopy() &&;
-        friend bool operator==(const ModifyHeaderInfo&, const ModifyHeaderInfo&) = default;
+        bool operator==(const ModifyHeaderInfo&) const;
         void serialize(Vector<uint8_t>&) const;
         static ModifyHeaderInfo deserialize(std::span<const uint8_t>);
         static size_t serializedLength(std::span<const uint8_t>);
@@ -126,7 +126,7 @@ struct WEBCORE_EXPORT ModifyHeadersAction {
     static Expected<ModifyHeadersAction, std::error_code> parse(const JSON::Object&);
     ModifyHeadersAction isolatedCopy() const &;
     ModifyHeadersAction isolatedCopy() &&;
-    friend bool operator==(const ModifyHeadersAction&, const ModifyHeadersAction&) = default;
+    bool operator==(const ModifyHeadersAction&) const;
     void serialize(Vector<uint8_t>&) const;
     static ModifyHeadersAction deserialize(std::span<const uint8_t>);
     static size_t serializedLength(std::span<const uint8_t>);
@@ -139,7 +139,7 @@ struct WEBCORE_EXPORT RedirectAction {
 
         ExtensionPathAction isolatedCopy() const & { return { extensionPath.isolatedCopy() }; }
         ExtensionPathAction isolatedCopy() && { return { WTFMove(extensionPath).isolatedCopy() }; }
-        friend bool operator==(const ExtensionPathAction&, const ExtensionPathAction&) = default;
+        bool operator==(const ExtensionPathAction& other) const { return other.extensionPath == this->extensionPath; }
     };
     struct RegexSubstitutionAction {
         String regexSubstitution;
@@ -149,7 +149,7 @@ struct WEBCORE_EXPORT RedirectAction {
         RegexSubstitutionAction isolatedCopy() && { return { WTFMove(regexSubstitution).isolatedCopy(), WTFMove(regexFilter).isolatedCopy() }; }
         void serialize(Vector<uint8_t>&) const;
         static RegexSubstitutionAction deserialize(std::span<const uint8_t>);
-        friend bool operator==(const RegexSubstitutionAction&, const RegexSubstitutionAction&) = default;
+        bool operator==(const RegexSubstitutionAction& other) const { return other.regexSubstitution == this->regexSubstitution && other.regexFilter == this->regexFilter; }
         WEBCORE_EXPORT void applyToURL(URL&) const;
     };
     struct URLTransformAction {
@@ -162,7 +162,7 @@ struct WEBCORE_EXPORT RedirectAction {
                 static Expected<QueryKeyValue, std::error_code> parse(const JSON::Value&);
                 QueryKeyValue isolatedCopy() const & { return { key.isolatedCopy(), replaceOnly, value.isolatedCopy() }; }
                 QueryKeyValue isolatedCopy() && { return { WTFMove(key).isolatedCopy(), replaceOnly, WTFMove(value).isolatedCopy() }; }
-                friend bool operator==(const QueryKeyValue&, const QueryKeyValue&) = default;
+                bool operator==(const QueryKeyValue&) const;
                 void serialize(Vector<uint8_t>&) const;
                 static QueryKeyValue deserialize(std::span<const uint8_t>);
                 static size_t serializedLength(std::span<const uint8_t>);
@@ -174,7 +174,7 @@ struct WEBCORE_EXPORT RedirectAction {
             static Expected<QueryTransform, std::error_code> parse(const JSON::Object&);
             QueryTransform isolatedCopy() const &;
             QueryTransform isolatedCopy() &&;
-            friend bool operator==(const QueryTransform&, const QueryTransform&) = default;
+            bool operator==(const QueryTransform&) const;
             void serialize(Vector<uint8_t>&) const;
             static QueryTransform deserialize(std::span<const uint8_t>);
             static size_t serializedLength(std::span<const uint8_t>);
@@ -194,7 +194,7 @@ struct WEBCORE_EXPORT RedirectAction {
         static Expected<URLTransformAction, std::error_code> parse(const JSON::Object&);
         URLTransformAction isolatedCopy() const &;
         URLTransformAction isolatedCopy() &&;
-        friend bool operator==(const URLTransformAction&, const URLTransformAction&) = default;
+        bool operator==(const URLTransformAction&) const;
         void serialize(Vector<uint8_t>&) const;
         static URLTransformAction deserialize(std::span<const uint8_t>);
         static size_t serializedLength(std::span<const uint8_t>);
@@ -205,7 +205,7 @@ struct WEBCORE_EXPORT RedirectAction {
 
         URLAction isolatedCopy() const & { return { url.isolatedCopy() }; }
         URLAction isolatedCopy() && { return { WTFMove(url).isolatedCopy() }; }
-        friend bool operator==(const URLAction&, const URLAction&) = default;
+        bool operator==(const URLAction& other) const { return other.url == this->url; }
     };
 
     enum class HashTableType : uint8_t { Empty, Deleted, Full } hashTableType;
@@ -225,7 +225,7 @@ struct WEBCORE_EXPORT RedirectAction {
     static Expected<RedirectAction, std::error_code> parse(const JSON::Object&, const String& urlFilter);
     RedirectAction isolatedCopy() const &;
     RedirectAction isolatedCopy() &&;
-    friend bool operator==(const RedirectAction&, const RedirectAction&) = default;
+    bool operator==(const RedirectAction&) const;
     void serialize(Vector<uint8_t>&) const;
     static RedirectAction deserialize(std::span<const uint8_t>);
     static size_t serializedLength(std::span<const uint8_t>);

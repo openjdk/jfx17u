@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2023 Apple Inc. All Rights Reserved.
+ * Copyright (C) 2014-2019 Apple Inc. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,7 +30,6 @@
 #include "TypeLocationCache.h"
 #include <wtf/Bag.h>
 #include <wtf/HashMap.h>
-#include <wtf/TZoneMalloc.h>
 #include <wtf/Vector.h>
 #include <wtf/text/WTFString.h>
 
@@ -71,7 +70,12 @@ struct QueryKey {
             && m_searchDescriptor == TypeProfilerSearchDescriptorFunctionReturn;
     }
 
-    friend bool operator==(const QueryKey&, const QueryKey&) = default;
+    bool operator==(const QueryKey& other) const
+    {
+        return m_sourceID == other.m_sourceID
+            && m_divot == other.m_divot
+            && m_searchDescriptor == other.m_searchDescriptor;
+    }
 
     unsigned hash() const
     {
@@ -109,7 +113,7 @@ namespace JSC {
 class VM;
 
 class TypeProfiler {
-    WTF_MAKE_TZONE_ALLOCATED(TypeProfiler);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     TypeProfiler();
     void logTypesForTypeLocation(TypeLocation*, VM&);

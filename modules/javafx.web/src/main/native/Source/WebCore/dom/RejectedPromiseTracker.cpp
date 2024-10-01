@@ -31,7 +31,6 @@
 #include "EventTarget.h"
 #include "JSDOMGlobalObject.h"
 #include "JSDOMPromise.h"
-#include "Node.h"
 #include "PromiseRejectionEvent.h"
 #include "ScriptExecutionContext.h"
 #include <JavaScriptCore/Exception.h>
@@ -149,7 +148,7 @@ void RejectedPromiseTracker::reportUnhandledRejections(Vector<UnhandledPromise>&
 {
     // https://html.spec.whatwg.org/multipage/webappapis.html#unhandled-promise-rejections
 
-    Ref vm = m_context->vm();
+    VM& vm = m_context->vm();
     JSC::JSLockHolder lock(vm);
 
     for (auto& unhandledPromise : unhandledPromises) {
@@ -167,8 +166,8 @@ void RejectedPromiseTracker::reportUnhandledRejections(Vector<UnhandledPromise>&
         initializer.promise = &domPromise;
         initializer.reason = promise.result(vm);
 
-        Ref event = PromiseRejectionEvent::create(eventNames().unhandledrejectionEvent, initializer);
-        RefPtr target = m_context->errorEventTarget();
+        auto event = PromiseRejectionEvent::create(eventNames().unhandledrejectionEvent, initializer);
+        auto target = m_context->errorEventTarget();
         target->dispatchEvent(event);
 
         if (!event->defaultPrevented())
@@ -183,7 +182,7 @@ void RejectedPromiseTracker::reportRejectionHandled(Ref<DOMPromise>&& rejectedPr
 {
     // https://html.spec.whatwg.org/multipage/webappapis.html#the-hostpromiserejectiontracker-implementation
 
-    Ref vm = m_context->vm();
+    VM& vm = m_context->vm();
     JSC::JSLockHolder lock(vm);
 
     if (rejectedPromise->isSuspended())
@@ -195,8 +194,8 @@ void RejectedPromiseTracker::reportRejectionHandled(Ref<DOMPromise>&& rejectedPr
     initializer.promise = rejectedPromise.ptr();
     initializer.reason = promise.result(vm);
 
-    Ref event = PromiseRejectionEvent::create(eventNames().rejectionhandledEvent, initializer);
-    RefPtr target = m_context->errorEventTarget();
+    auto event = PromiseRejectionEvent::create(eventNames().rejectionhandledEvent, initializer);
+    auto target = m_context->errorEventTarget();
     target->dispatchEvent(event);
 }
 

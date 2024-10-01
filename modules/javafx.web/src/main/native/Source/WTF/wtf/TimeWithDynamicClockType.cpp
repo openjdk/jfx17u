@@ -146,7 +146,7 @@ bool hasElapsed(const TimeWithDynamicClockType& time)
     // Avoid doing now().
     if (!(time > time.withSameClockAndRawSeconds(0)))
         return true;
-    if (time.secondsSinceEpoch().isInfinity())
+    if (std::isinf(time.secondsSinceEpoch().value()))
         return false;
 
     return time <= time.nowWithSameClock();

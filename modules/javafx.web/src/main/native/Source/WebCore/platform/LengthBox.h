@@ -68,7 +68,6 @@ using FloatBoxExtent = RectEdges<float>;
 using IntBoxExtent = RectEdges<int>;
 
 using IntOutsets = IntBoxExtent;
-using LayoutOptionalOutsets = RectEdges<std::optional<LayoutUnit>>;
 
 inline LayoutBoxExtent toLayoutBoxExtent(const IntBoxExtent& extent)
 {

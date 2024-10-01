@@ -36,27 +36,27 @@ class InsertListCommand final : public CompositeEditCommand {
 public:
     enum class Type : uint8_t { OrderedList, UnorderedList };
 
-    static Ref<InsertListCommand> create(Ref<Document>&& document, Type listType)
+    static Ref<InsertListCommand> create(Document& document, Type listType)
     {
-        return adoptRef(*new InsertListCommand(WTFMove(document), listType));
+        return adoptRef(*new InsertListCommand(document, listType));
     }
 
-    static RefPtr<HTMLElement> insertList(Ref<Document>&&, Type);
+    static RefPtr<HTMLElement> insertList(Document&, Type);
 
     bool preservesTypingStyle() const final { return true; }
 
 private:
-    InsertListCommand(Ref<Document>&&, Type);
+    InsertListCommand(Document&, Type);
 
     void doApply() final;
     EditAction editingAction() const final;
 
     HTMLElement* fixOrphanedListChild(Node&);
-    bool selectionHasListOfType(const VisibleSelection&, const HTMLQualifiedName&);
+    bool selectionHasListOfType(const VisibleSelection& selection, const QualifiedName&);
     Ref<HTMLElement> mergeWithNeighboringLists(HTMLElement&);
     void doApplyForSingleParagraph(bool forceCreateList, const HTMLQualifiedName&, SimpleRange& currentSelection);
     void unlistifyParagraph(const VisiblePosition& originalStart, HTMLElement& listNode, Node* listChildNode);
-    RefPtr<HTMLElement> listifyParagraph(const VisiblePosition& originalStart, const HTMLQualifiedName& listTag);
+    RefPtr<HTMLElement> listifyParagraph(const VisiblePosition& originalStart, const QualifiedName& listTag);
     RefPtr<HTMLElement> m_listElement;
     Type m_type;
 };

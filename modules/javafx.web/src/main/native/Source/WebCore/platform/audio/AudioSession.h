@@ -130,7 +130,6 @@ public:
 
     virtual void beginInterruptionForTesting() { beginInterruption(); }
     virtual void endInterruptionForTesting() { endInterruption(MayResume::Yes); }
-    virtual void clearInterruptionFlagForTesting() { }
 
     class InterruptionObserver : public CanMakeWeakPtr<InterruptionObserver> {
     public:

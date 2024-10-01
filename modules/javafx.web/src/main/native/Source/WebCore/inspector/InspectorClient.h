@@ -40,12 +40,6 @@ class InspectorController;
 class LocalFrame;
 class Page;
 
-enum class InspectorClientDeveloperPreference : uint8_t {
-    PrivateClickMeasurementDebugModeEnabled,
-    ITPDebugModeEnabled,
-    MockCaptureDevicesEnabled,
-};
-
 class InspectorClient {
 public:
     virtual ~InspectorClient() = default;
@@ -71,7 +65,11 @@ public:
     virtual void elementSelectionChanged(bool) { }
     virtual void timelineRecordingChanged(bool) { }
 
-    using DeveloperPreference = InspectorClientDeveloperPreference;
+    enum class DeveloperPreference {
+        PrivateClickMeasurementDebugModeEnabled,
+        ITPDebugModeEnabled,
+        MockCaptureDevicesEnabled,
+    };
     virtual void setDeveloperPreferenceOverride(DeveloperPreference, std::optional<bool>) { }
 
 #if ENABLE(INSPECTOR_NETWORK_THROTTLING)
@@ -84,3 +82,16 @@ public:
 };
 
 } // namespace WebCore
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::InspectorClient::DeveloperPreference> {
+    using values = EnumValues<
+        WebCore::InspectorClient::DeveloperPreference,
+        WebCore::InspectorClient::DeveloperPreference::PrivateClickMeasurementDebugModeEnabled,
+        WebCore::InspectorClient::DeveloperPreference::ITPDebugModeEnabled,
+        WebCore::InspectorClient::DeveloperPreference::MockCaptureDevicesEnabled
+    >;
+};
+
+} // namespace WTF

@@ -38,16 +38,14 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderSVGViewportContainer);
 
 RenderSVGViewportContainer::RenderSVGViewportContainer(RenderSVGRoot& parent, RenderStyle&& style)
-    : RenderSVGContainer(Type::SVGViewportContainer, parent.document(), WTFMove(style))
+    : RenderSVGContainer(parent.document(), WTFMove(style))
     , m_owningSVGRoot(parent)
 {
-    ASSERT(isRenderSVGViewportContainer());
 }
 
 RenderSVGViewportContainer::RenderSVGViewportContainer(SVGSVGElement& element, RenderStyle&& style)
-    : RenderSVGContainer(Type::SVGViewportContainer, element, WTFMove(style))
+    : RenderSVGContainer(element, WTFMove(style))
 {
-    ASSERT(isRenderSVGViewportContainer());
 }
 
 SVGSVGElement& RenderSVGViewportContainer::svgSVGElement() const
@@ -71,8 +69,10 @@ FloatPoint RenderSVGViewportContainer::computeViewportLocation() const
 
 FloatSize RenderSVGViewportContainer::computeViewportSize() const
 {
-    if (isOutermostSVGViewportContainer())
+    if (isOutermostSVGViewportContainer()) {
+        ASSERT(is<RenderSVGRoot>(parent()));
         return downcast<RenderSVGRoot>(*parent()).computeViewportSize();
+    }
 
     auto& useSVGSVGElement = svgSVGElement();
     SVGLengthContext lengthContext(&useSVGSVGElement);

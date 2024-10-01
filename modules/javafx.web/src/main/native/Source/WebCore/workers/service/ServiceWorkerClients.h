@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "ServiceWorkerClientQueryOptions.h"
 #include "ServiceWorkerClientType.h"
 #include "ServiceWorkerIdentifier.h"
@@ -68,3 +70,5 @@ private:
 WebCoreOpaqueRoot root(ServiceWorkerClients*);
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

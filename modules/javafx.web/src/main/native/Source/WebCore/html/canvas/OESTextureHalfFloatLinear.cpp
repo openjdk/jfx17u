@@ -35,12 +35,17 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(OESTextureHalfFloatLinear);
 
 OESTextureHalfFloatLinear::OESTextureHalfFloatLinear(WebGLRenderingContextBase& context)
-    : WebGLExtension(context, WebGLExtensionName::OESTextureHalfFloatLinear)
+    : WebGLExtension(context)
 {
-    context.protectedGraphicsContextGL()->ensureExtensionEnabled("GL_OES_texture_half_float_linear"_s);
+    context.graphicsContextGL()->ensureExtensionEnabled("GL_OES_texture_half_float_linear"_s);
 }
 
 OESTextureHalfFloatLinear::~OESTextureHalfFloatLinear() = default;
+
+WebGLExtension::ExtensionName OESTextureHalfFloatLinear::getName() const
+{
+    return OESTextureHalfFloatLinearName;
+}
 
 bool OESTextureHalfFloatLinear::supported(GraphicsContextGL& context)
 {

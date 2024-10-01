@@ -23,7 +23,6 @@
 #include "SVGTests.h"
 
 #include "DOMImplementation.h"
-#include "EventTarget.h"
 #include "HTMLNames.h"
 #include "NodeName.h"
 #include "SVGElement.h"

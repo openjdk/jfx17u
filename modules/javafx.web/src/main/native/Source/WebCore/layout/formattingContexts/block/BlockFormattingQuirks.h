@@ -37,7 +37,6 @@ public:
     BlockFormattingQuirks(const BlockFormattingContext&);
 
     std::optional<LayoutUnit> stretchedInFlowHeightIfApplicable(const ElementBox&, ContentHeightAndMargin) const;
-    virtual LayoutUnit heightValueOfNearestContainingBlockWithFixedHeight(const Box&) const;
     static bool shouldIgnoreCollapsedQuirkMargin(const ElementBox&);
     static bool shouldCollapseMarginBeforeWithParentMarginBefore(const ElementBox&);
     static bool shouldCollapseMarginAfterWithParentMarginAfter(const ElementBox&);

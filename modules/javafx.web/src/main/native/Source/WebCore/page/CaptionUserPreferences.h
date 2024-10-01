@@ -35,7 +35,7 @@
 #include <wtf/WeakPtr.h>
 
 namespace WebCore {
-class TextTrack;
+
 class CaptionUserPreferencesTestingModeToken;
 class HTMLMediaElement;
 class Page;
@@ -44,20 +44,18 @@ class AudioTrackList;
 class TextTrackList;
 struct MediaSelectionOption;
 
-enum class CaptionUserPreferencesDisplayMode : uint8_t {
-    Automatic,
-    ForcedOnly,
-    AlwaysOn,
-    Manual,
-};
-
 class CaptionUserPreferences : public RefCounted<CaptionUserPreferences>, public CanMakeWeakPtr<CaptionUserPreferences> {
     WTF_MAKE_FAST_ALLOCATED;
 public:
     static Ref<CaptionUserPreferences> create(PageGroup&);
     virtual ~CaptionUserPreferences();
 
-    using CaptionDisplayMode = CaptionUserPreferencesDisplayMode;
+    enum CaptionDisplayMode {
+        Automatic,
+        ForcedOnly,
+        AlwaysOn,
+        Manual,
+    };
     virtual CaptionDisplayMode captionDisplayMode() const;
     virtual void setCaptionDisplayMode(CaptionDisplayMode);
 
@@ -162,18 +160,13 @@ private:
 namespace WTF {
 
 template<> struct EnumTraits<WebCore::CaptionUserPreferences::CaptionDisplayMode> {
-    static std::optional<WebCore::CaptionUserPreferences::CaptionDisplayMode> fromString(const String& mode)
-    {
-        if (equalLettersIgnoringASCIICase(mode, "forcedonly"_s))
-            return WebCore::CaptionUserPreferences::CaptionDisplayMode::ForcedOnly;
-        if (equalLettersIgnoringASCIICase(mode, "manual"_s))
-            return WebCore::CaptionUserPreferences::CaptionDisplayMode::Manual;
-        if (equalLettersIgnoringASCIICase(mode, "automatic"_s))
-            return WebCore::CaptionUserPreferences::CaptionDisplayMode::Automatic;
-        if (equalLettersIgnoringASCIICase(mode, "alwayson"_s))
-            return WebCore::CaptionUserPreferences::CaptionDisplayMode::AlwaysOn;
-        return std::nullopt;
-    }
+    using values = EnumValues<
+        WebCore::CaptionUserPreferences::CaptionDisplayMode,
+        WebCore::CaptionUserPreferences::CaptionDisplayMode::Automatic,
+        WebCore::CaptionUserPreferences::CaptionDisplayMode::ForcedOnly,
+        WebCore::CaptionUserPreferences::CaptionDisplayMode::AlwaysOn,
+        WebCore::CaptionUserPreferences::CaptionDisplayMode::Manual
+    >;
 };
 
 } // namespace WTF

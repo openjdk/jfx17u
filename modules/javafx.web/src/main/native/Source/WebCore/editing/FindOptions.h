@@ -41,7 +41,6 @@ enum FindOptionFlag {
     DoNotRevealSelection = 1 << 6,
     AtWordEnds = 1 << 7,
     DoNotTraverseFlatTree = 1 << 8,
-    DoNotSetSelection = 1 << 9,
 };
 
 using FindOptions = OptionSet<FindOptionFlag>;

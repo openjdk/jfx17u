@@ -29,6 +29,7 @@ package CodeGenerator;
 use strict;
 
 use File::Basename;
+use File::Find;
 use Carp qw<longmess>;
 use Data::Dumper;
 
@@ -36,13 +37,13 @@ my $useDocument = "";
 my $useGenerator = "";
 my $useOutputDir = "";
 my $useOutputHeadersDir = "";
+my $useDirectories = "";
 my $preprocessor;
 my $idlAttributes;
 my $writeDependencies = 0;
 my $defines = "";
 my $targetIdlFilePath = "";
 my $supplementalDependencies;
-my $idlFileNamesList;
 
 my $codeGenerator = 0;
 
@@ -141,6 +142,7 @@ sub new
     my $object = shift;
     my $reference = { };
 
+    $useDirectories = shift;
     $useGenerator = shift;
     $useOutputDir = shift;
     $useOutputHeadersDir = shift;
@@ -150,7 +152,6 @@ sub new
     $targetIdlFilePath = shift;
     $idlAttributes = shift;
     $supplementalDependencies = shift;
-    $idlFileNamesList = shift;
 
     bless($reference, $object);
     return $reference;
@@ -560,15 +561,17 @@ sub IDLFileForInterface
     my $interfaceName = shift;
 
     unless ($idlFiles) {
-        return undef unless $idlFileNamesList;
-        open my $fh, "<", $idlFileNamesList or die "cannot open $idlFileNamesList for reading";
+        my $sourceRoot = $ENV{SOURCE_ROOT};
+        my @directories = map { $_ = "$sourceRoot/$_" if $sourceRoot && -d "$sourceRoot/$_"; $_ } @$useDirectories;
+        push(@directories, ".");
+
         $idlFiles = { };
-        while (<$fh>) {
-            chomp $_;
-            my $name = fileparse($_, ".idl");
-            $idlFiles->{$name} = $_;
-        }
-        close $fh;
+
+        my $wanted = sub {
+            $idlFiles->{$1} = $File::Find::name if /^([A-Z].*)\.idl$/ && !exists $idlFiles->{$1};
+            $File::Find::prune = 1 if /^\../;
+        };
+        find($wanted, @directories);
     }
 
     return $idlFiles->{$interfaceName};

@@ -42,9 +42,8 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderMathMLFraction);
 
 RenderMathMLFraction::RenderMathMLFraction(MathMLFractionElement& element, RenderStyle&& style)
-    : RenderMathMLBlock(Type::MathMLFraction, element, WTFMove(style))
+    : RenderMathMLBlock(element, WTFMove(style))
 {
-    ASSERT(isRenderMathMLFraction());
 }
 
 bool RenderMathMLFraction::isValid() const
@@ -170,11 +169,10 @@ RenderMathMLFraction::FractionParameters RenderMathMLFraction::stackParameters()
 
 RenderMathMLOperator* RenderMathMLFraction::unembellishedOperator() const
 {
-    if (!isValid())
+    if (!isValid() || !is<RenderMathMLBlock>(numerator()))
         return nullptr;
 
-    auto* mathMLBlock = dynamicDowncast<RenderMathMLBlock>(numerator());
-    return mathMLBlock ? mathMLBlock->unembellishedOperator() : nullptr;
+    return downcast<RenderMathMLBlock>(numerator()).unembellishedOperator();
 }
 
 void RenderMathMLFraction::computePreferredLogicalWidths()

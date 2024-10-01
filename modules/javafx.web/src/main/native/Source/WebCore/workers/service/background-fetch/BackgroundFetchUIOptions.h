@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "ImageResource.h"
 #include <wtf/Vector.h>
 
@@ -36,3 +38,5 @@ struct BackgroundFetchUIOptions {
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

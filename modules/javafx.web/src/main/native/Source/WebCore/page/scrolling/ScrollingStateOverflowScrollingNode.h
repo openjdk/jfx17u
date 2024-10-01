@@ -33,7 +33,7 @@ namespace WebCore {
 
 class ScrollingStateOverflowScrollingNode : public ScrollingStateScrollingNode {
 public:
-    template<typename... Args> static Ref<ScrollingStateOverflowScrollingNode> create(Args&&... args) { return adoptRef(*new ScrollingStateOverflowScrollingNode(std::forward<Args>(args)...)); }
+    static Ref<ScrollingStateOverflowScrollingNode> create(ScrollingStateTree&, ScrollingNodeID);
 
     Ref<ScrollingStateNode> clone(ScrollingStateTree&) override;
 
@@ -42,35 +42,6 @@ public:
     void dumpProperties(WTF::TextStream&, OptionSet<ScrollingStateTreeAsTextBehavior>) const override;
 
 private:
-    WEBCORE_EXPORT ScrollingStateOverflowScrollingNode(
-        ScrollingNodeID,
-        Vector<Ref<WebCore::ScrollingStateNode>>&& children,
-        OptionSet<ScrollingStateNodeProperty> changedProperties,
-        std::optional<WebCore::PlatformLayerIdentifier>,
-        FloatSize scrollableAreaSize,
-        FloatSize totalContentsSize,
-        FloatSize reachableContentsSize,
-        FloatPoint scrollPosition,
-        IntPoint scrollOrigin,
-        ScrollableAreaParameters&&,
-#if ENABLE(SCROLLING_THREAD)
-        OptionSet<SynchronousScrollingReason>,
-#endif
-        RequestedScrollData&&,
-        FloatScrollSnapOffsetsInfo&&,
-        std::optional<unsigned> currentHorizontalSnapPointIndex,
-        std::optional<unsigned> currentVerticalSnapPointIndex,
-        bool isMonitoringWheelEvents,
-        std::optional<PlatformLayerIdentifier> scrollContainerLayer,
-        std::optional<PlatformLayerIdentifier> scrolledContentsLayer,
-        std::optional<PlatformLayerIdentifier> horizontalScrollbarLayer,
-        std::optional<PlatformLayerIdentifier> verticalScrollbarLayer,
-        bool mouseIsOverContentArea,
-        MouseLocationState&&,
-        ScrollbarHoverState&&,
-        ScrollbarEnabledState&&,
-        RequestedKeyboardScrollData&&
-    );
     ScrollingStateOverflowScrollingNode(ScrollingStateTree&, ScrollingNodeID);
     ScrollingStateOverflowScrollingNode(const ScrollingStateOverflowScrollingNode&, ScrollingStateTree&);
 };

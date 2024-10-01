@@ -24,7 +24,6 @@
 
 #pragma once
 
-#include "LoaderMalloc.h"
 #include "SecurityOriginHash.h"
 #include "Timer.h"
 #include <pal/SessionID.h>
@@ -62,7 +61,7 @@ struct ClientOrigin;
 // -------|-----+++++++++++++++|+++++
 
 class MemoryCache {
-    WTF_MAKE_NONCOPYABLE(MemoryCache); WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Loader);
+    WTF_MAKE_NONCOPYABLE(MemoryCache); WTF_MAKE_FAST_ALLOCATED;
     friend NeverDestroyed<MemoryCache>;
     friend class Internals;
 public:

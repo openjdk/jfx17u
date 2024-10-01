@@ -41,7 +41,6 @@ public:
     }
 
     GPUPipelineErrorReason reason() const { return m_reason.reason; }
-    String stack() const { return "_"_s; }
 
 private:
     GPUPipelineError(String&& message, GPUPipelineErrorInit);

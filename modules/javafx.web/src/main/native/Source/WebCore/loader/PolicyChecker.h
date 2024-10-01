@@ -48,7 +48,6 @@ namespace WebCore {
 
 class DocumentLoader;
 class FormState;
-class HitTestResult;
 class LocalFrame;
 class NavigationAction;
 class ResourceError;
@@ -65,7 +64,7 @@ enum class PolicyDecisionMode { Synchronous, Asynchronous };
 
 class FrameLoader::PolicyChecker : public CanMakeWeakPtr<FrameLoader::PolicyChecker> {
     WTF_MAKE_NONCOPYABLE(PolicyChecker);
-    WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Loader);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit PolicyChecker(LocalFrame&);
 
@@ -93,13 +92,11 @@ public:
 private:
     void handleUnimplementablePolicy(const ResourceError&);
     URLKeepingBlobAlive extendBlobURLLifetimeIfNecessary(const ResourceRequest&, const Document&, PolicyDecisionMode = PolicyDecisionMode::Asynchronous) const;
-    std::optional<HitTestResult> hitTestResult(const NavigationAction&);
 
-    Ref<LocalFrame> protectedFrame() const;
+    LocalFrame& m_frame;
 
-    WeakRef<LocalFrame> m_frame;
+    HashMap<PolicyCheckIdentifier, FramePolicyFunction> m_javaScriptURLPolicyChecks;
 
-    uint64_t m_javaScriptURLPolicyCheckIdentifier { 0 };
     bool m_delegateIsDecidingNavigationPolicy;
     bool m_delegateIsHandlingUnimplementablePolicy;
 

@@ -51,11 +51,10 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(RenderSlider);
 const int RenderSlider::defaultTrackLength = 129;
 
 RenderSlider::RenderSlider(HTMLInputElement& element, RenderStyle&& style)
-    : RenderFlexibleBox(Type::Slider, element, WTFMove(style))
+    : RenderFlexibleBox(element, WTFMove(style))
 {
     // We assume RenderSlider works only with <input type=range>.
     ASSERT(element.isRangeControl());
-    ASSERT(isRenderSlider());
 }
 
 RenderSlider::~RenderSlider() = default;

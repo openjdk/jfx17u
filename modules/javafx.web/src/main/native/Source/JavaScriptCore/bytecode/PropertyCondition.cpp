@@ -175,12 +175,6 @@ bool PropertyCondition::isStillValidAssumingImpurePropertyWatchpoint(
             return false;
         }
 
-        if (structure->typeInfo().overridesPut() && JSObject::mightBeSpecialProperty(structure->vm(), structure->typeInfo().type(), uid())) {
-            if (PropertyConditionInternal::verbose)
-                dataLog("Invalid because its put() override may treat ", uid(), " property as special non-structure one.\n");
-            return false;
-        }
-
         unsigned currentAttributes;
         PropertyOffset currentOffset = structure->get(structure->vm(), concurrency, uid(), currentAttributes);
         if (currentOffset != invalidOffset) {
@@ -192,6 +186,10 @@ bool PropertyCondition::isStillValidAssumingImpurePropertyWatchpoint(
                 }
                 return false;
             }
+        } else if (structure->typeInfo().overridesPut() && JSObject::mightBeSpecialProperty(structure->vm(), structure->typeInfo().type(), uid())) {
+            if (PropertyConditionInternal::verbose)
+                dataLog("Invalid because its put() override may treat ", uid(), " property as special non-structure one.\n");
+            return false;
         } else if (structure->hasNonReifiedStaticProperties()) {
             if (auto entry = structure->findPropertyHashEntry(uid())) {
                 if (entry->value->attributes() & PropertyAttribute::ReadOnlyOrAccessorOrCustomAccessorOrValue) {
@@ -495,11 +493,9 @@ bool PropertyCondition::isValidValueForAttributes(JSValue value, unsigned attrib
 {
     if (!value)
         return false;
-    if (value.inherits<GetterSetter>())
-        return attributes & PropertyAttribute::Accessor;
-    if (value.inherits<CustomGetterSetter>())
-        return attributes & PropertyAttribute::CustomAccessorOrValue;
-    return !(attributes & PropertyAttribute::AccessorOrCustomAccessorOrValue);
+    bool attributesClaimAccessor = !!(attributes & PropertyAttribute::Accessor);
+    bool valueClaimsAccessor = !!jsDynamicCast<GetterSetter*>(value);
+    return attributesClaimAccessor == valueClaimsAccessor;
 }
 
 bool PropertyCondition::isValidValueForPresence(JSValue value) const

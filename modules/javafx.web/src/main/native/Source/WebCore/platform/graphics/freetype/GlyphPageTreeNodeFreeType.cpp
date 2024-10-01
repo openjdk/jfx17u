@@ -35,6 +35,7 @@
 #include "CharacterProperties.h"
 #include "Font.h"
 #include "FontCascade.h"
+#include "UTF16UChar32Iterator.h"
 #include <cairo-ft.h>
 #include <cairo.h>
 #include <fontconfig/fcfreetype.h>
@@ -61,12 +62,11 @@ bool GlyphPage::fill(UChar* buffer, unsigned bufferLength)
         };
 
     bool haveGlyphs = false;
-    unsigned bufferOffset = 0;
+    UTF16UChar32Iterator iterator(buffer, bufferLength);
     for (unsigned i = 0; i < GlyphPage::size; i++) {
-        if (bufferOffset == bufferLength)
+        UChar32 character = iterator.next();
+        if (character == iterator.end())
             break;
-        char32_t character;
-        U16_NEXT(buffer, bufferOffset, bufferLength, character);
 
         Glyph glyph = FcFreeTypeCharIndex(face, FontCascade::treatAsSpace(character) ? space : character);
         // If the font doesn't support a Default_Ignorable character, replace it with zero with space.

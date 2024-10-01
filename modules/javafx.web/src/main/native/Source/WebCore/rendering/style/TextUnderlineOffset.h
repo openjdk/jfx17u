@@ -69,7 +69,10 @@ public:
         return m_length.value_or(defaultValue);
     }
 
-    friend constexpr bool operator==(TextUnderlineOffset, TextUnderlineOffset) = default;
+    constexpr bool operator==(const TextUnderlineOffset& other) const
+    {
+        return m_length == other.m_length;
+    }
 
 private:
     constexpr TextUnderlineOffset(std::optional<float> length)

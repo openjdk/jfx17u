@@ -49,7 +49,7 @@ public:
 
 private:
     static NavigatorCookieConsent& from(Navigator&);
-    static ASCIILiteral supplementName() { return "NavigatorCookieConsent"_s; }
+    static const char* supplementName() { return "NavigatorCookieConsent"; }
 
     void requestCookieConsent(RequestCookieConsentOptions&&, Ref<DeferredPromise>&&);
 

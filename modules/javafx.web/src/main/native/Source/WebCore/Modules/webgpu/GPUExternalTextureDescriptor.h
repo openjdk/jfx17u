@@ -46,31 +46,48 @@ using GPUVideoSource = RefPtr<HTMLVideoElement>;
 struct GPUExternalTextureDescriptor : public GPUObjectDescriptorBase {
 
 #if ENABLE(VIDEO)
-    static WebGPU::VideoSourceIdentifier mediaIdentifierForSource(const GPUVideoSource& videoSource)
+    static WebGPU::VideoSourceIdentifier mediaIdentifierForSource(const GPUVideoSource& videoSource, CVPixelBufferRef& outPixelBuffer)
     {
 #if ENABLE(WEB_CODECS)
-        return WTF::switchOn(videoSource, [&](const RefPtr<HTMLVideoElement> videoElement) -> WebGPU::VideoSourceIdentifier {
-            return videoElement->playerIdentifier().value_or(MediaPlayerIdentifier(0));
+        return WTF::switchOn(videoSource, [] (const RefPtr<HTMLVideoElement> videoElement) -> WebGPU::VideoSourceIdentifier {
+            auto playerIdentifier = videoElement->playerIdentifier();
+            return WebGPU::HTMLVideoElementIdentifier { playerIdentifier ? playerIdentifier->toUInt64() : 0 };
         }
-        , [&](const RefPtr<WebCodecsVideoFrame> videoFrame) -> WebGPU::VideoSourceIdentifier {
-            return videoFrame->internalFrame();
+        , [&outPixelBuffer] (const RefPtr<WebCodecsVideoFrame> videoFrame) -> WebGPU::VideoSourceIdentifier {
+#if PLATFORM(COCOA)
+            if (auto internalFrame = videoFrame->internalFrame()) {
+                if (internalFrame->isRemoteProxy())
+                    return WebGPU::WebCodecsVideoFrameIdentifier { internalFrame->resourceIdentifier() };
+
+                outPixelBuffer = internalFrame->pixelBuffer();
+            }
+#else
+            UNUSED_PARAM(videoFrame);
+            UNUSED_PARAM(outPixelBuffer);
+#endif
+            return WebGPU::WebCodecsVideoFrameIdentifier { };
         });
 #else
-        return videoSource->playerIdentifier().value_or(MediaPlayerIdentifier(0));
+        UNUSED_PARAM(outPixelBuffer);
+        auto playerIdentifier = videoSource->playerIdentifier();
+        return WebGPU::HTMLVideoElementIdentifier { playerIdentifier ? playerIdentifier->toUInt64() : 0 };
 #endif
     }
 #endif
 
     WebGPU::ExternalTextureDescriptor convertToBacking() const
     {
+        CVPixelBufferRef pixelBuffer = nullptr;
+#if ENABLE(VIDEO)
+        auto mediaIdentifier = mediaIdentifierForSource(source, pixelBuffer);
+#else
+        auto mediaIdentifier = WebGPU::HTMLVideoElementIdentifier { 0 };
+#endif
         return {
             { label },
-#if ENABLE(VIDEO)
-            mediaIdentifierForSource(source),
-#else
-            { },
-#endif
+            mediaIdentifier,
             WebCore::convertToBacking(colorSpace),
+            pixelBuffer
         };
     }
 

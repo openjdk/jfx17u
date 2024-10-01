@@ -36,7 +36,7 @@ class RenderFragmentContainer;
 struct BidiStatus;
 struct GapRects;
 
-class LegacyRootInlineBox : public LegacyInlineFlowBox, public CanMakeWeakPtr<LegacyRootInlineBox>, public CanMakeCheckedPtr {
+class LegacyRootInlineBox : public LegacyInlineFlowBox, public CanMakeWeakPtr<LegacyRootInlineBox> {
     WTF_MAKE_ISO_ALLOCATED(LegacyRootInlineBox);
 public:
     explicit LegacyRootInlineBox(RenderBlockFlow&);
@@ -130,7 +130,7 @@ public:
     const LegacyInlineBox* firstSelectedBox() const;
     const LegacyInlineBox* lastSelectedBox() const;
 
-    using CleanLineFloatList = Vector<SingleThreadWeakPtr<RenderBox>>;
+    using CleanLineFloatList = Vector<WeakPtr<RenderBox>>;
     void appendFloat(RenderBox& floatingBox)
     {
         ASSERT(!isDirty());
@@ -199,11 +199,9 @@ private:
 
     LayoutUnit beforeAnnotationsAdjustment() const;
 
-    unsigned m_lineBreakPos { 0 };
-
     // Where this line ended. The exact object and the position within that object are stored so that
     // we can create an LegacyInlineIterator beginning just after the end of this line.
-    SingleThreadWeakPtr<RenderObject> m_lineBreakObj;
+    WeakPtr<RenderObject> m_lineBreakObj;
     RefPtr<BidiContext> m_lineBreakContext;
 
     LayoutUnit m_lineTop;
@@ -218,6 +216,8 @@ private:
     // Floats hanging off the line are pushed into this vector during layout. It is only
     // good for as long as the line has not been marked dirty.
     std::unique_ptr<CleanLineFloatList> m_floats;
+
+    unsigned m_lineBreakPos { 0 };
 };
 
 inline LegacyRootInlineBox* LegacyRootInlineBox::nextRootBox() const

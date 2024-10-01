@@ -33,15 +33,12 @@
 #include "GPUErrorFilter.h"
 #include "GPURenderPipeline.h"
 #include "GPUQueue.h"
-#include "HTMLVideoElement.h"
 #include "JSDOMPromiseDeferredForward.h"
 #include "ScriptExecutionContext.h"
 #include "WebGPUDevice.h"
 #include <optional>
 #include <wtf/IsoMalloc.h>
 #include <wtf/Ref.h>
-#include <wtf/WeakHashMap.h>
-#include <wtf/WeakPtr.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
@@ -96,44 +93,39 @@ public:
 
     Ref<GPUQueue> queue() const;
 
-    void destroy(ScriptExecutionContext&);
+    void destroy();
 
-    ExceptionOr<Ref<GPUBuffer>> createBuffer(const GPUBufferDescriptor&);
-    ExceptionOr<Ref<GPUTexture>> createTexture(const GPUTextureDescriptor&);
-    bool isSupportedFormat(GPUTextureFormat) const;
+    Ref<GPUBuffer> createBuffer(const GPUBufferDescriptor&);
+    Ref<GPUTexture> createTexture(const GPUTextureDescriptor&);
     Ref<GPUSampler> createSampler(const std::optional<GPUSamplerDescriptor>&);
     Ref<GPUExternalTexture> importExternalTexture(const GPUExternalTextureDescriptor&);
 
-    ExceptionOr<Ref<GPUBindGroupLayout>> createBindGroupLayout(const GPUBindGroupLayoutDescriptor&);
+    Ref<GPUBindGroupLayout> createBindGroupLayout(const GPUBindGroupLayoutDescriptor&);
     Ref<GPUPipelineLayout> createPipelineLayout(const GPUPipelineLayoutDescriptor&);
     Ref<GPUBindGroup> createBindGroup(const GPUBindGroupDescriptor&);
 
     Ref<GPUShaderModule> createShaderModule(const GPUShaderModuleDescriptor&);
     Ref<GPUComputePipeline> createComputePipeline(const GPUComputePipelineDescriptor&);
-    ExceptionOr<Ref<GPURenderPipeline>> createRenderPipeline(const GPURenderPipelineDescriptor&);
+    Ref<GPURenderPipeline> createRenderPipeline(const GPURenderPipelineDescriptor&);
     using CreateComputePipelineAsyncPromise = DOMPromiseDeferred<IDLInterface<GPUComputePipeline>>;
     void createComputePipelineAsync(const GPUComputePipelineDescriptor&, CreateComputePipelineAsyncPromise&&);
     using CreateRenderPipelineAsyncPromise = DOMPromiseDeferred<IDLInterface<GPURenderPipeline>>;
-    ExceptionOr<void> createRenderPipelineAsync(const GPURenderPipelineDescriptor&, CreateRenderPipelineAsyncPromise&&);
+    void createRenderPipelineAsync(const GPURenderPipelineDescriptor&, CreateRenderPipelineAsyncPromise&&);
 
     Ref<GPUCommandEncoder> createCommandEncoder(const std::optional<GPUCommandEncoderDescriptor>&);
-    ExceptionOr<Ref<GPURenderBundleEncoder>> createRenderBundleEncoder(const GPURenderBundleEncoderDescriptor&);
+    Ref<GPURenderBundleEncoder> createRenderBundleEncoder(const GPURenderBundleEncoderDescriptor&);
 
-    ExceptionOr<Ref<GPUQuerySet>> createQuerySet(const GPUQuerySetDescriptor&);
+    Ref<GPUQuerySet> createQuerySet(const GPUQuerySetDescriptor&);
 
     void pushErrorScope(GPUErrorFilter);
     using ErrorScopePromise = DOMPromiseDeferred<IDLNullable<IDLUnion<IDLInterface<GPUOutOfMemoryError>, IDLInterface<GPUValidationError>, IDLInterface<GPUInternalError>>>>;
     void popErrorScope(ErrorScopePromise&&);
-
-    bool addEventListener(const AtomString& eventType, Ref<EventListener>&&, const AddEventListenerOptions&) override;
 
     using LostPromise = DOMPromiseProxy<IDLInterface<GPUDeviceLostInfo>>;
     LostPromise& lost();
 
     WebGPU::Device& backing() { return m_backing; }
     const WebGPU::Device& backing() const { return m_backing; }
-    void removeBufferToUnmap(GPUBuffer&);
-    void addBufferToUnmap(GPUBuffer&);
 
     using RefCounted::ref;
     using RefCounted::deref;
@@ -156,13 +148,6 @@ private:
     Ref<WebGPU::Device> m_backing;
     Ref<GPUQueue> m_queue;
     Ref<GPUPipelineLayout> m_autoPipelineLayout;
-    HashSet<GPUBuffer*> m_buffersToUnmap;
-
-#if ENABLE(VIDEO)
-    GPUExternalTexture* externalTextureForDescriptor(const GPUExternalTextureDescriptor&);
-#endif
-
-    WeakHashMap<HTMLVideoElement, WeakPtr<GPUExternalTexture>, WeakPtrImplWithEventTargetData> m_videoElementToExternalTextureMap;
     bool m_waitingForDeviceLostPromise { false };
 };
 

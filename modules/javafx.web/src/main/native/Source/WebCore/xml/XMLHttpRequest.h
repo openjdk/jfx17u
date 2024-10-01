@@ -255,7 +255,7 @@ private:
 
     std::optional<ExceptionCode> m_exceptionCode;
     RefPtr<UserGestureToken> m_userGestureToken;
-    bool m_hasRelevantEventListener { false };
+    std::atomic<bool> m_hasRelevantEventListener;
     TaskCancellationGroup m_abortErrorGroup;
     bool m_wasDidSendDataCalledForTotalBytes { false };
 };

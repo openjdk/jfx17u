@@ -38,11 +38,8 @@ namespace WebCore {
 // https://fullscreen.spec.whatwg.org/#dom-document-fullscreenelement
 Element* DocumentOrShadowRootFullscreen::fullscreenElement(TreeScope& treeScope)
 {
-    Ref document = treeScope.documentScope();
-    CheckedPtr fullscreenManager = document->fullscreenManagerIfExists();
-    if (!fullscreenManager)
-        return nullptr;
-    return treeScope.ancestorElementInThisScope(fullscreenManager->fullscreenElement());
+    auto& document = treeScope.documentScope();
+    return treeScope.ancestorElementInThisScope(document.fullscreenManager().fullscreenElement());
 }
 
 } // namespace WebCore

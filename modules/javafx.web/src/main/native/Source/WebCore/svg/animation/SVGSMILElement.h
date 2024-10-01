@@ -161,7 +161,7 @@ private:
     };
     bool parseCondition(StringView, BeginOrEnd);
     void parseBeginOrEnd(StringView, BeginOrEnd);
-    RefPtr<Element> eventBaseFor(const Condition&);
+    Element* eventBaseFor(const Condition&);
 
     void disconnectConditions();
 
@@ -226,9 +226,5 @@ private:
 
 SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::SVGSMILElement)
     static bool isType(const WebCore::SVGElement& element) { return element.isSMILElement(); }
-    static bool isType(const WebCore::Node& node)
-    {
-        auto* svgElement = dynamicDowncast<WebCore::SVGElement>(node);
-        return svgElement && isType(*svgElement);
-    }
+    static bool isType(const WebCore::Node& node) { return is<WebCore::SVGElement>(node) && isType(downcast<WebCore::SVGElement>(node)); }
 SPECIALIZE_TYPE_TRAITS_END()

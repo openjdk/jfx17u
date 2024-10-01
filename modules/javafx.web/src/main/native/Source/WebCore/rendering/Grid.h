@@ -33,7 +33,7 @@
 
 namespace WebCore {
 
-typedef Vector<SingleThreadWeakPtr<RenderBox>, 1> GridCell;
+typedef Vector<WeakPtr<RenderBox>, 1> GridCell;
 typedef Vector<Vector<GridCell>> GridAsMatrix;
 typedef ListHashSet<size_t> OrderedTrackIndexSet;
 
@@ -107,7 +107,7 @@ private:
 
     GridAsMatrix m_grid;
 
-    HashMap<SingleThreadWeakRef<const RenderBox>, GridArea> m_gridItemArea;
+    HashMap<const RenderBox*, GridArea> m_gridItemArea;
 
     std::unique_ptr<OrderedTrackIndexSet> m_autoRepeatEmptyColumns;
     std::unique_ptr<OrderedTrackIndexSet> m_autoRepeatEmptyRows;
@@ -124,7 +124,7 @@ public:
 
     RenderBox* nextGridItem();
     bool isEmptyAreaEnough(unsigned rowSpan, unsigned columnSpan) const;
-    std::optional<GridArea> nextEmptyGridArea(unsigned fixedTrackSpan, unsigned varyingTrackSpan);
+    std::unique_ptr<GridArea> nextEmptyGridArea(unsigned fixedTrackSpan, unsigned varyingTrackSpan);
 
     GridTrackSizingDirection direction() const
     {

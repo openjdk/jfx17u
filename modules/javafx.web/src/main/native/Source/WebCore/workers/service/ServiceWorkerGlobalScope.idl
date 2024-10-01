@@ -26,6 +26,7 @@
 [
     Global=(Worker,ServiceWorker),
     Exposed=ServiceWorker,
+    Conditional=SERVICE_WORKER,
     EnabledBySetting=ServiceWorkersEnabled,
     JSCustomMarkFunction,
     IsImmutablePrototypeExoticObject,
@@ -37,9 +38,6 @@
 
     [NewObject] Promise<undefined> skipWaiting();
 
-    [EnabledBySetting=CookieStoreAPIEnabled&CookieStoreAPIServiceWorkerEnabled] readonly attribute CookieStore cookieStore;
-
-    [EnabledBySetting=CookieStoreAPIEnabled&CookieStoreAPIServiceWorkerEnabled] attribute EventHandler oncookiechange;
     attribute EventHandler oninstall;
     attribute EventHandler onactivate;
     attribute EventHandler onfetch;

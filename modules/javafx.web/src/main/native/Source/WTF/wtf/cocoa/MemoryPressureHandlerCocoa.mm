@@ -91,28 +91,28 @@ void MemoryPressureHandler::install()
             switch (status) {
             // VM pressure events.
             case DISPATCH_MEMORYPRESSURE_NORMAL:
-                setMemoryPressureStatus(SystemMemoryPressureStatus::Normal);
+                setMemoryPressureStatus(MemoryPressureStatus::Normal);
                 break;
             case DISPATCH_MEMORYPRESSURE_WARN:
-                setMemoryPressureStatus(SystemMemoryPressureStatus::Warning);
+                setMemoryPressureStatus(MemoryPressureStatus::SystemWarning);
                 respondToMemoryPressure(Critical::No);
                 break;
             case DISPATCH_MEMORYPRESSURE_CRITICAL:
-                setMemoryPressureStatus(SystemMemoryPressureStatus::Critical);
+                setMemoryPressureStatus(MemoryPressureStatus::SystemCritical);
                 respondToMemoryPressure(Critical::Yes);
                 break;
             // Process memory limit events.
             case DISPATCH_MEMORYPRESSURE_PROC_LIMIT_WARN:
-                didExceedProcessMemoryLimit(ProcessMemoryLimit::Warning);
+                setMemoryPressureStatus(MemoryPressureStatus::ProcessLimitWarning);
                 respondToMemoryPressure(Critical::No);
                 break;
             case DISPATCH_MEMORYPRESSURE_PROC_LIMIT_CRITICAL:
-                didExceedProcessMemoryLimit(ProcessMemoryLimit::Critical);
+                setMemoryPressureStatus(MemoryPressureStatus::ProcessLimitCritical);
                 respondToMemoryPressure(Critical::Yes);
                 break;
             }
             if (m_shouldLogMemoryMemoryPressureEvents)
-                RELEASE_LOG(MemoryPressure, "Received memory pressure event: %lu, system vm pressure critical: %d", status, isUnderMemoryPressure());
+                RELEASE_LOG(MemoryPressure, "Received memory pressure event %lu vm pressure %d", status, isUnderMemoryPressure());
         });
         dispatch_resume(memoryPressureEventSource().get());
     });

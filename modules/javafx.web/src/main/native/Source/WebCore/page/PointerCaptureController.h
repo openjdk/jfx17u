@@ -25,7 +25,6 @@
 #pragma once
 
 #include "ExceptionOr.h"
-#include "PlatformMouseEvent.h"
 #include "PointerID.h"
 #include <wtf/HashMap.h>
 
@@ -98,7 +97,7 @@ private:
         bool isPrimary { false };
         bool preventsCompatibilityMouseEvents { false };
         bool pointerIsPressed { false };
-        MouseButton previousMouseButton { MouseButton::PointerHasNotChanged };
+        short previousMouseButton { -1 };
 
     private:
         CapturingData(const String& pointerType)

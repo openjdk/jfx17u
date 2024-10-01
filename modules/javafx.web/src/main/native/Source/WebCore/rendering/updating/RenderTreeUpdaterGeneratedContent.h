@@ -52,7 +52,7 @@ private:
     bool needsPseudoElement(const RenderStyle*);
 
     RenderTreeUpdater& m_updater;
-    SingleThreadWeakPtr<RenderQuote> m_previousUpdatedQuote;
+    WeakPtr<RenderQuote> m_previousUpdatedQuote;
 };
 
 }

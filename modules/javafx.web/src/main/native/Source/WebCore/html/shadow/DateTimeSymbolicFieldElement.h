@@ -39,6 +39,7 @@ protected:
     DateTimeSymbolicFieldElement(Document&, FieldOwner&, const Vector<String>&, int);
     size_t symbolsSize() const { return m_symbols.size(); }
     bool hasValue() const final;
+    void initialize(const AtomString& pseudo);
     void setEmptyValue(EventBehavior = DispatchNoEvent) final;
     void setValueAsInteger(int, EventBehavior = DispatchNoEvent) final;
     int valueAsInteger() const final;

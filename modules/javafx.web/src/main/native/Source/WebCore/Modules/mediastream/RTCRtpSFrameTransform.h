@@ -45,7 +45,7 @@ class ReadableStream;
 class SimpleReadableStreamSource;
 class WritableStream;
 
-class RTCRtpSFrameTransform : public ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr<RTCRtpSFrameTransform>, public ActiveDOMObject, public EventTarget {
+class RTCRtpSFrameTransform : public RefCounted<RTCRtpSFrameTransform>, public ActiveDOMObject, public EventTarget {
     WTF_MAKE_ISO_ALLOCATED(RTCRtpSFrameTransform);
 public:
     enum class Role { Encrypt, Decrypt };
@@ -75,8 +75,8 @@ public:
 
     bool hasKey(uint64_t) const;
 
-    using ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr::ref;
-    using ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr::deref;
+    using RefCounted<RTCRtpSFrameTransform>::ref;
+    using RefCounted<RTCRtpSFrameTransform>::deref;
 
 private:
     RTCRtpSFrameTransform(ScriptExecutionContext&, Options);

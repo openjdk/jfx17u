@@ -45,11 +45,10 @@ AppendNodeCommand::AppendNodeCommand(Ref<ContainerNode>&& parent, Ref<Node>&& no
 
 void AppendNodeCommand::doApply()
 {
-    auto parent = protectedParent();
-    if (!parent->hasEditableStyle() && parent->renderer())
+    if (!m_parent->hasEditableStyle() && m_parent->renderer())
         return;
 
-    parent->appendChild(m_node);
+    m_parent->appendChild(m_node);
 }
 
 void AppendNodeCommand::doUnapply()
@@ -57,7 +56,7 @@ void AppendNodeCommand::doUnapply()
     if (!m_parent->hasEditableStyle())
         return;
 
-    protectedNode()->remove();
+    m_node->remove();
 }
 
 #ifndef NDEBUG

@@ -46,11 +46,11 @@ ExceptionOr<Ref<CSSMathMax>> CSSMathMax::create(FixedVector<CSSNumberish>&& numb
 ExceptionOr<Ref<CSSMathMax>> CSSMathMax::create(Vector<Ref<CSSNumericValue>>&& values)
 {
     if (values.isEmpty())
-        return Exception { ExceptionCode::SyntaxError };
+        return Exception { SyntaxError };
 
     auto type = CSSNumericType::addTypes(values);
     if (!type)
-        return Exception { ExceptionCode::TypeError };
+        return Exception { TypeError };
 
     return adoptRef(*new CSSMathMax(WTFMove(values), WTFMove(*type)));
 }

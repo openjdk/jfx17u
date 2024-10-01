@@ -253,7 +253,7 @@ public:
         return m_map.take(*keyImpl);
     }
 
-    typename ValueTraits::PeekType get(const KeyType& key) const
+    typename ValueTraits::PeekType get(const KeyType& key)
     {
         increaseOperationCountSinceLastCleanup();
         auto* keyImpl = keyImplIfExists(key);
@@ -375,8 +375,9 @@ private:
     template <typename T>
     static WeakPtrImpl* keyImplIfExists(const T& key)
     {
-        if (auto* impl = key.weakPtrFactory().impl(); impl && *impl)
-            return impl;
+        auto& weakPtrImpl = key.weakPtrFactory().m_impl;
+        if (auto* pointer = weakPtrImpl.pointer(); pointer && *pointer)
+            return pointer;
             return nullptr;
     }
 

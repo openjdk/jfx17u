@@ -32,7 +32,6 @@
 #include "CachedResourceLoader.h"
 #include "CachedResourceRequest.h"
 #include "CachedResourceRequestInitiatorTypes.h"
-#include "DocumentInlines.h"
 #include "DocumentLoader.h"
 #include "FrameDestructionObserverInlines.h"
 #include "LocalFrame.h"
@@ -54,7 +53,7 @@ ApplicationManifestLoader::~ApplicationManifestLoader()
 bool ApplicationManifestLoader::startLoading()
 {
     ASSERT(!m_resource);
-    RefPtr frame = m_documentLoader->frame();
+    auto* frame = m_documentLoader->frame();
     if (!frame)
         return false;
 
@@ -87,10 +86,10 @@ bool ApplicationManifestLoader::startLoading()
     options.sameOriginDataURLFlag = SameOriginDataURLFlag::Set;
     CachedResourceRequest request(WTFMove(resourceRequest), options);
 
-    auto cachedResource = frame->document()->protectedCachedResourceLoader()->requestApplicationManifest(WTFMove(request));
+    auto cachedResource = frame->document()->cachedResourceLoader().requestApplicationManifest(WTFMove(request));
     m_resource = cachedResource.value_or(nullptr);
-    if (CachedResourceHandle resource = m_resource)
-        resource->addClient(*this);
+    if (m_resource)
+        m_resource->addClient(*this);
     else {
         LOG_ERROR("Failed to start load for application manifest at url %s (error: %s)", resourceRequestURL.string().ascii().data(), cachedResource.error().localizedDescription().utf8().data());
         return false;
@@ -101,20 +100,20 @@ bool ApplicationManifestLoader::startLoading()
 
 void ApplicationManifestLoader::stopLoading()
 {
-    if (CachedResourceHandle resource = std::exchange(m_resource, nullptr))
-        resource->removeClient(*this);
+    if (m_resource) {
+        m_resource->removeClient(*this);
+        m_resource = nullptr;
+    }
 }
 
 std::optional<ApplicationManifest>& ApplicationManifestLoader::processManifest()
 {
-    if (!m_processedManifest) {
-        if (CachedResourceHandle resource = m_resource) {
+    if (!m_processedManifest && m_resource) {
         auto manifestURL = m_url;
         auto documentURL = m_documentLoader->url();
         auto frame = m_documentLoader->frame();
-            RefPtr document = frame ? frame->document() : nullptr;
-            m_processedManifest = resource->process(manifestURL, documentURL, document.get());
-    }
+        auto document = frame ? frame->document() : nullptr;
+        m_processedManifest = m_resource->process(manifestURL, documentURL, document);
     }
     return m_processedManifest;
 }
@@ -122,7 +121,7 @@ std::optional<ApplicationManifest>& ApplicationManifestLoader::processManifest()
 void ApplicationManifestLoader::notifyFinished(CachedResource& resource, const NetworkLoadMetrics&)
 {
     ASSERT_UNUSED(resource, &resource == m_resource);
-    Ref { m_documentLoader.get() }->finishedLoadingApplicationManifest(*this);
+    m_documentLoader->finishedLoadingApplicationManifest(*this);
 }
 
 } // namespace WebCore

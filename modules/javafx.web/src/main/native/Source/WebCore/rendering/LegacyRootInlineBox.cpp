@@ -47,17 +47,15 @@ namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(LegacyRootInlineBox);
 
-struct SameSizeAsLegacyRootInlineBox : LegacyInlineFlowBox, CanMakeWeakPtr<LegacyRootInlineBox>, CanMakeCheckedPtr {
-    unsigned lineBreakPos;
-    SingleThreadWeakPtr<RenderObject> lineBreakObj;
-    void* lineBreakContext;
-    int layoutUnits[6];
-    void* floats;
+struct SameSizeAsLegacyRootInlineBox : public LegacyInlineFlowBox, public CanMakeWeakPtr<LegacyRootInlineBox> {
+    unsigned variables[7];
+    WeakPtr<RenderObject> lineBreakObj;
+    void* pointers[2];
 };
 
 static_assert(sizeof(LegacyRootInlineBox) == sizeof(SameSizeAsLegacyRootInlineBox), "LegacyRootInlineBox should stay small");
 #if !ASSERT_ENABLED
-static_assert(sizeof(SingleThreadWeakPtr<RenderObject>) == sizeof(void*), "WeakPtr should be same size as raw pointer");
+static_assert(sizeof(WeakPtr<RenderObject>) == sizeof(void*), "WeakPtr should be same size as raw pointer");
 #endif
 
 typedef HashMap<const LegacyRootInlineBox*, std::unique_ptr<LegacyEllipsisBox>> EllipsisBoxMap;
@@ -103,8 +101,7 @@ void LegacyRootInlineBox::clearTruncation()
 bool LegacyRootInlineBox::isHyphenated() const
 {
     for (auto* box = firstLeafDescendant(); box; box = box->nextLeafOnLine()) {
-        auto* textBox = dynamicDowncast<LegacyInlineTextBox>(*box);
-        if (textBox && textBox->hasHyphen())
+        if (is<LegacyInlineTextBox>(*box) && downcast<LegacyInlineTextBox>(*box).hasHyphen())
             return true;
     }
     return false;
@@ -216,13 +213,13 @@ RenderFragmentContainer* LegacyRootInlineBox::containingFragment() const
 {
     ContainingFragmentMap& fragmentMap = containingFragmentMap(blockFlow());
     bool hasContainingFragment = fragmentMap.contains(this);
-    RenderFragmentContainer* fragment = hasContainingFragment ? fragmentMap.get(this).get() : nullptr;
+    RenderFragmentContainer* fragment = hasContainingFragment ? fragmentMap.get(this) : nullptr;
 
 #ifndef NDEBUG
     if (hasContainingFragment) {
         RenderFragmentedFlow* fragmentedFlow = blockFlow().enclosingFragmentedFlow();
         const RenderFragmentContainerList& fragmentList = fragmentedFlow->renderFragmentContainerList();
-        ASSERT_WITH_SECURITY_IMPLICATION(fragmentList.contains(*fragment));
+        ASSERT_WITH_SECURITY_IMPLICATION(fragmentList.contains(fragment));
     }
 #endif
 
@@ -352,6 +349,11 @@ LayoutUnit LegacyRootInlineBox::lineSnapAdjustment(LayoutUnit delta) const
     if (!lineGrid || lineGrid->style().writingMode() != blockFlow().style().writingMode())
         return 0;
 
+    // Get the hypothetical line box used to establish the grid.
+    LegacyRootInlineBox* lineGridBox = lineGrid->lineGridBox();
+    if (!lineGridBox)
+        return 0;
+
     LayoutUnit lineGridBlockOffset = lineGrid->isHorizontalWritingMode() ? lineGridOffset.height() : lineGridOffset.width();
     LayoutUnit blockOffset = blockFlow().isHorizontalWritingMode() ? layoutState->layoutOffset().height() : layoutState->layoutOffset().width();
 
@@ -359,17 +361,14 @@ LayoutUnit LegacyRootInlineBox::lineSnapAdjustment(LayoutUnit delta) const
     // as established by the line box.
     // FIXME: Need to handle crazy line-box-contain values that cause the root line box to not be considered. I assume
     // the grid should honor line-box-contain.
-    LayoutUnit gridLineHeight = lineGrid->style().computedLineHeight();
+    LayoutUnit gridLineHeight = lineGridBox->lineBoxBottom() - lineGridBox->lineBoxTop();
     if (!roundToInt(gridLineHeight))
         return 0;
 
-    auto& gridFontMetrics = lineGrid->style().metricsOfPrimaryFont();
-    LayoutUnit lineGridFontAscent = gridFontMetrics.ascent(baselineType());
-    LayoutUnit lineGridFontHeight = gridFontMetrics.height();
-    LayoutUnit lineGridHalfLeading = (gridLineHeight - lineGridFontHeight) / 2;
-
-    LayoutUnit firstLineTop = lineGridBlockOffset + lineGrid->borderAndPaddingBefore();
-    LayoutUnit firstTextTop = firstLineTop + lineGridHalfLeading;
+    LayoutUnit lineGridFontAscent = lineGrid->style().metricsOfPrimaryFont().ascent(baselineType());
+    LayoutUnit lineGridFontHeight { lineGridBox->logicalHeight() };
+    LayoutUnit firstTextTop { lineGridBlockOffset + lineGridBox->logicalTop() };
+    LayoutUnit firstLineTopWithLeading = lineGridBlockOffset + lineGridBox->lineBoxTop();
     LayoutUnit firstBaselinePosition = firstTextTop + lineGridFontAscent;
 
     LayoutUnit currentTextTop { blockOffset + logicalTop() + delta };
@@ -383,8 +382,8 @@ LayoutUnit LegacyRootInlineBox::lineSnapAdjustment(LayoutUnit delta) const
     LayoutUnit pageLogicalTop;
     if (layoutState->isPaginated() && layoutState->pageLogicalHeight()) {
         pageLogicalTop = blockFlow().pageLogicalTopForOffset(lineBoxTop() + delta);
-        if (pageLogicalTop > firstLineTop)
-            firstTextTop = pageLogicalTop + lineGridHalfLeading + lineGridPaginationOrigin;
+        if (pageLogicalTop > firstLineTopWithLeading)
+            firstTextTop = pageLogicalTop + lineGridBox->logicalTop() - lineGrid->borderAndPaddingBefore() + lineGridPaginationOrigin;
     }
 
     if (blockFlow().style().lineSnap() == LineSnap::Contain) {
@@ -484,8 +483,9 @@ LayoutUnit LegacyRootInlineBox::selectionTop() const
 
 #if !PLATFORM(IOS_FAMILY)
     // See rdar://problem/19692206 ... don't want to do this adjustment for iOS where overlap is ok and handled.
-    if (auto* base = dynamicDowncast<RenderRubyBase>(renderer())) {
+    if (renderer().isRubyBase()) {
         // The ruby base selection should avoid intruding into the ruby text. This is only the case if there is an actual ruby text above us.
+        RenderRubyBase* base = &downcast<RenderRubyBase>(renderer());
         RenderRubyRun* run = base->rubyRun();
         if (run) {
             RenderRubyText* text = run->rubyText();
@@ -494,8 +494,9 @@ LayoutUnit LegacyRootInlineBox::selectionTop() const
                 return selectionTop;
             }
         }
-    } else if (auto* text = dynamicDowncast<RenderRubyText>(renderer())) {
+    } else if (renderer().isRubyText()) {
         // The ruby text selection should go all the way to the selection top of the containing line.
+        RenderRubyText* text = &downcast<RenderRubyText>(renderer());
         RenderRubyRun* run = text->rubyRun();
         if (run && run->inlineBoxWrapper()) {
             RenderRubyBase* base = run->rubyBase();
@@ -549,8 +550,9 @@ LayoutUnit LegacyRootInlineBox::selectionBottom() const
 
 #if !PLATFORM(IOS_FAMILY)
     // See rdar://problem/19692206 ... don't want to do this adjustment for iOS where overlap is ok and handled.
-    if (auto* base = dynamicDowncast<RenderRubyBase>(renderer())) {
+    if (renderer().isRubyBase()) {
         // The ruby base selection should avoid intruding into the ruby text. This is only the case if there is an actual ruby text below us.
+        RenderRubyBase* base = &downcast<RenderRubyBase>(renderer());
         RenderRubyRun* run = base->rubyRun();
         if (run) {
             RenderRubyText* text = run->rubyText();
@@ -559,8 +561,9 @@ LayoutUnit LegacyRootInlineBox::selectionBottom() const
                 return selectionBottom;
             }
         }
-    } else if (auto* text = dynamicDowncast<RenderRubyText>(renderer())) {
+    } else if (renderer().isRubyText()) {
         // The ruby text selection should go all the way to the selection bottom of the containing line.
+        RenderRubyText* text = &downcast<RenderRubyText>(renderer());
         RenderRubyRun* run = text->rubyRun();
         if (run && run->inlineBoxWrapper()) {
             RenderRubyBase* base = run->rubyBase();
@@ -688,10 +691,10 @@ void LegacyRootInlineBox::ascentAndDescentForBox(LegacyInlineBox& box, GlyphOver
         return;
     }
 
-    Vector<SingleThreadWeakPtr<const Font>>* usedFonts = nullptr;
+    Vector<const Font*>* usedFonts = nullptr;
     GlyphOverflow* glyphOverflow = nullptr;
-    if (auto* textBox = dynamicDowncast<LegacyInlineTextBox>(box)) {
-        auto it = textBoxDataMap.find(textBox);
+    if (is<LegacyInlineTextBox>(box)) {
+        GlyphOverflowAndFallbackFontsMap::iterator it = textBoxDataMap.find(&downcast<LegacyInlineTextBox>(box));
         usedFonts = it == textBoxDataMap.end() ? nullptr : &it->value.first;
         glyphOverflow = it == textBoxDataMap.end() ? nullptr : &it->value.second;
     }
@@ -773,7 +776,7 @@ void LegacyRootInlineBox::ascentAndDescentForBox(LegacyInlineBox& box, GlyphOver
     if (includeMarginForBox(box)) {
         LayoutUnit ascentWithMargin = boxLineStyle.metricsOfPrimaryFont().ascent(baselineType());
         LayoutUnit descentWithMargin = boxLineStyle.metricsOfPrimaryFont().descent(baselineType());
-        if (box.parent() && !box.renderer().isRenderTextOrLineBreak()) {
+        if (box.parent() && !box.renderer().isTextOrLineBreak()) {
             ascentWithMargin += box.boxModelObject()->borderAndPaddingBefore() + box.boxModelObject()->marginBefore();
             descentWithMargin += box.boxModelObject()->borderAndPaddingAfter() + box.boxModelObject()->marginAfter();
         }
@@ -787,7 +790,7 @@ void LegacyRootInlineBox::ascentAndDescentForBox(LegacyInlineBox& box, GlyphOver
 
 LayoutUnit LegacyRootInlineBox::verticalPositionForBox(LegacyInlineBox* box, VerticalPositionCache& verticalPositionCache)
 {
-    if (box->renderer().isRenderTextOrLineBreak())
+    if (box->renderer().isTextOrLineBreak())
         return LayoutUnit(box->parent()->logicalTop());
 
     RenderBoxModelObject* renderer = box->boxModelObject();
@@ -802,7 +805,7 @@ LayoutUnit LegacyRootInlineBox::verticalPositionForBox(LegacyInlineBox* box, Ver
     bool isRenderInline = renderer->isRenderInline();
     if (isRenderInline && !firstLine) {
         LayoutUnit cachedPosition;
-        if (verticalPositionCache.get(*renderer, baselineType(), cachedPosition))
+        if (verticalPositionCache.get(renderer, baselineType(), cachedPosition))
             return cachedPosition;
     }
 
@@ -851,14 +854,14 @@ LayoutUnit LegacyRootInlineBox::verticalPositionForBox(LegacyInlineBox* box, Ver
 
     // Store the cached value.
     if (isRenderInline && !firstLine)
-        verticalPositionCache.set(*renderer, baselineType(), verticalPosition);
+        verticalPositionCache.set(renderer, baselineType(), verticalPosition);
 
     return verticalPosition;
 }
 
 bool LegacyRootInlineBox::includeLeadingForBox(LegacyInlineBox& box) const
 {
-    if (box.renderer().isReplacedOrInlineBlock() || (box.renderer().isRenderTextOrLineBreak() && !box.behavesLikeText()))
+    if (box.renderer().isReplacedOrInlineBlock() || (box.renderer().isTextOrLineBreak() && !box.behavesLikeText()))
         return false;
 
     auto lineBoxContain = renderer().style().lineBoxContain();
@@ -867,49 +870,40 @@ bool LegacyRootInlineBox::includeLeadingForBox(LegacyInlineBox& box) const
 
 bool LegacyRootInlineBox::includeFontForBox(LegacyInlineBox& box) const
 {
-    if (box.renderer().isReplacedOrInlineBlock() || (box.renderer().isRenderTextOrLineBreak() && !box.behavesLikeText()))
+    if (box.renderer().isReplacedOrInlineBlock() || (box.renderer().isTextOrLineBreak() && !box.behavesLikeText()))
         return false;
 
-    if (!box.behavesLikeText()) {
-        auto* flowBox = dynamicDowncast<LegacyInlineFlowBox>(box);
-        if (flowBox && !flowBox->hasTextChildren())
+    if (!box.behavesLikeText() && is<LegacyInlineFlowBox>(box) && !downcast<LegacyInlineFlowBox>(box).hasTextChildren())
         return false;
-    }
 
     return renderer().style().lineBoxContain().contains(LineBoxContain::Font);
 }
 
 bool LegacyRootInlineBox::includeGlyphsForBox(LegacyInlineBox& box) const
 {
-    if (box.renderer().isReplacedOrInlineBlock() || (box.renderer().isRenderTextOrLineBreak() && !box.behavesLikeText()))
+    if (box.renderer().isReplacedOrInlineBlock() || (box.renderer().isTextOrLineBreak() && !box.behavesLikeText()))
         return false;
 
-    if (!box.behavesLikeText()) {
-        auto* flowBox = dynamicDowncast<LegacyInlineFlowBox>(box);
-        if (flowBox && !flowBox->hasTextChildren())
+    if (!box.behavesLikeText() && is<LegacyInlineFlowBox>(box) && !downcast<LegacyInlineFlowBox>(box).hasTextChildren())
         return false;
-    }
 
     return renderer().style().lineBoxContain().contains(LineBoxContain::Glyphs);
 }
 
 bool LegacyRootInlineBox::includeInitialLetterForBox(LegacyInlineBox& box) const
 {
-    if (box.renderer().isReplacedOrInlineBlock() || (box.renderer().isRenderTextOrLineBreak() && !box.behavesLikeText()))
+    if (box.renderer().isReplacedOrInlineBlock() || (box.renderer().isTextOrLineBreak() && !box.behavesLikeText()))
         return false;
 
-    if (!box.behavesLikeText()) {
-        auto* flowBox = dynamicDowncast<LegacyInlineFlowBox>(box);
-        if (flowBox && !flowBox->hasTextChildren())
+    if (!box.behavesLikeText() && is<LegacyInlineFlowBox>(box) && !downcast<LegacyInlineFlowBox>(box).hasTextChildren())
         return false;
-    }
 
     return renderer().style().lineBoxContain().contains(LineBoxContain::InitialLetter);
 }
 
 bool LegacyRootInlineBox::includeMarginForBox(LegacyInlineBox& box) const
 {
-    if (box.renderer().isReplacedOrInlineBlock() || (box.renderer().isRenderTextOrLineBreak() && !box.behavesLikeText()))
+    if (box.renderer().isReplacedOrInlineBlock() || (box.renderer().isTextOrLineBreak() && !box.behavesLikeText()))
         return false;
 
     return renderer().style().lineBoxContain().contains(LineBoxContain::InlineBox);

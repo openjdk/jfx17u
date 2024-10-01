@@ -32,7 +32,6 @@
 #include <JavaScriptCore/ScriptCallStack.h>
 #include <variant>
 #include <wtf/HashSet.h>
-#include <wtf/WeakRef.h>
 
 namespace WebCore {
 
@@ -133,7 +132,7 @@ private:
 
     String m_identifier;
 
-    WeakRef<CanvasRenderingContext> m_context;
+    CheckedRef<CanvasRenderingContext> m_context;
 
     RefPtr<Inspector::Protocol::Recording::InitialState> m_initialState;
     RefPtr<JSON::ArrayOf<Inspector::Protocol::Recording::Frame>> m_frames;

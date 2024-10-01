@@ -344,7 +344,6 @@ template<typename T> inline RetainPtr<typename RetainPtr<T>::HelperPtrType> reta
 
 template<typename T> struct IsSmartPtr<RetainPtr<T>> {
     static constexpr bool value = true;
-    static constexpr bool isNullable = true;
 };
 
 template<typename P> struct HashTraits<RetainPtr<P>> : SimpleClassHashTraits<RetainPtr<P>> {
@@ -385,9 +384,9 @@ inline CFHashCode safeCFHash(CFTypeRef a)
 
 #ifdef __OBJC__
 // FIXME: Move to TypeCastsCocoa.h once all clients include that header.
-template<typename T> T *dynamic_objc_cast(id object, Class theClass = [T class])
+template<typename T> T* dynamic_objc_cast(id object)
 {
-    if (![object isKindOfClass:theClass])
+    if (![object isKindOfClass:[T class]])
         return nullptr;
 
     return reinterpret_cast<T*>(object);

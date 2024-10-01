@@ -28,7 +28,7 @@
 
 #include "GraphicsLayerContentsDisplayDelegate.h"
 #include "ImageBufferPipe.h"
-#include "NicosiaContentLayer.h"
+#include "NicosiaContentLayerTextureMapperImpl.h"
 
 namespace Nicosia {
 
@@ -50,7 +50,7 @@ private:
     RefPtr<ContentLayer> m_nicosiaLayer;
 };
 
-class NicosiaImageBufferPipeSource : public WebCore::ImageBufferPipe::Source, public ContentLayer::Client {
+class NicosiaImageBufferPipeSource : public WebCore::ImageBufferPipe::Source, public ContentLayerTextureMapperImpl::Client {
 public:
     NicosiaImageBufferPipeSource();
     virtual ~NicosiaImageBufferPipeSource();

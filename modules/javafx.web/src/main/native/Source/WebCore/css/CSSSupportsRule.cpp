@@ -56,14 +56,6 @@ String CSSSupportsRule::cssText() const
     return builder.toString();
 }
 
-String CSSSupportsRule::cssTextWithReplacementURLs(const HashMap<String, String>& replacementURLStrings, const HashMap<RefPtr<CSSStyleSheet>, String>& replacementURLStringsForCSSStyleSheet) const
-{
-    StringBuilder builder;
-    builder.append("@supports ", conditionText());
-    appendCSSTextWithReplacementURLsForItems(builder, replacementURLStrings, replacementURLStringsForCSSStyleSheet);
-    return builder.toString();
-}
-
 String CSSSupportsRule::conditionText() const
 {
     return downcast<StyleRuleSupports>(groupRule()).conditionText();

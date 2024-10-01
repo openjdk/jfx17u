@@ -42,7 +42,7 @@ public:
 
 private:
     static NavigatorPermissions& from(Navigator&);
-    static ASCIILiteral supplementName();
+    static const char* supplementName();
 
     RefPtr<Permissions> m_permissions;
     Navigator& m_navigator;

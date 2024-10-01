@@ -38,10 +38,6 @@
 #include "ScrollbarsController.h"
 #include <algorithm>
 
-#if PLATFORM(MAC)
-#include "ScrollbarMac.h"
-#endif
-
 #if PLATFORM(GTK)
 // The position of the scrollbar thumb affects the appearance of the steppers, so
 // when the thumb moves, we have to invalidate them for painting.
@@ -52,11 +48,7 @@ namespace WebCore {
 
 Ref<Scrollbar> Scrollbar::createNativeScrollbar(ScrollableArea& scrollableArea, ScrollbarOrientation orientation, ScrollbarWidth width)
 {
-#if PLATFORM(MAC)
-    return adoptRef(*new ScrollbarMac(scrollableArea, orientation, width));
-#else
     return adoptRef(*new Scrollbar(scrollableArea, orientation, width));
-#endif
 }
 
 static bool s_shouldUseFixedPixelsPerLineStepForTesting;
@@ -68,7 +60,7 @@ void Scrollbar::setShouldUseFixedPixelsPerLineStepForTesting(bool useFixedPixels
 
 int Scrollbar::pixelsPerLineStep(int viewWidthOrHeight)
 {
-#if PLATFORM(GTK) || PLATFORM(WPE)
+#if PLATFORM(GTK)
     if (!s_shouldUseFixedPixelsPerLineStepForTesting && viewWidthOrHeight > 0)
         return std::pow(viewWidthOrHeight, 2. / 3.);
 #else
@@ -238,7 +230,7 @@ void Scrollbar::startTimerIfNeeded(Seconds delay)
 
     // We can't scroll if we've hit the beginning or end.
     ScrollDirection dir = pressedPartScrollDirection();
-    if (dir == ScrollDirection::ScrollUp || dir == ScrollDirection::ScrollLeft) {
+    if (dir == ScrollUp || dir == ScrollLeft) {
         if (m_currentPos == 0)
             return;
     } else {
@@ -259,12 +251,12 @@ ScrollDirection Scrollbar::pressedPartScrollDirection()
 {
     if (m_orientation == ScrollbarOrientation::Horizontal) {
         if (m_pressedPart == BackButtonStartPart || m_pressedPart == BackButtonEndPart || m_pressedPart == BackTrackPart)
-            return ScrollDirection::ScrollLeft;
-        return ScrollDirection::ScrollRight;
+            return ScrollLeft;
+        return ScrollRight;
     } else {
         if (m_pressedPart == BackButtonStartPart || m_pressedPart == BackButtonEndPart || m_pressedPart == BackTrackPart)
-            return ScrollDirection::ScrollUp;
-        return ScrollDirection::ScrollDown;
+            return ScrollUp;
+        return ScrollDown;
     }
 }
 
@@ -310,8 +302,8 @@ void Scrollbar::moveThumb(int pos, bool draggingDocument)
         delta = std::max(-thumbPos, delta);
 
     if (delta) {
-        float newOffset = static_cast<float>(thumbPos + delta) * maximum() / (trackLen - thumbLen);
-        m_scrollableArea.scrollToOffsetWithoutAnimation(m_orientation, newOffset);
+        float newPosition = static_cast<float>(thumbPos + delta) * maximum() / (trackLen - thumbLen);
+        m_scrollableArea.scrollToOffsetWithoutAnimation(m_orientation, newPosition);
     }
 }
 

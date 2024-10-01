@@ -51,16 +51,17 @@ void AutoTableLayout::recalcColumn(unsigned effCol)
     RenderTableCell* maxContributor = nullptr;
 
     for (auto& child : childrenOfType<RenderObject>(*m_table)) {
-        if (CheckedPtr column = dynamicDowncast<RenderTableCol>(child)) {
+        if (is<RenderTableCol>(child)) {
             // RenderTableCols don't have the concept of preferred logical width, but we need to clear their dirty bits
             // so that if we call setPreferredWidthsDirty(true) on a col or one of its descendants, we'll mark it's
             // ancestors as dirty.
-            column->clearPreferredLogicalWidthsDirtyBits();
-        } else if (CheckedPtr section = dynamicDowncast<RenderTableSection>(child)) {
-            unsigned numRows = section->numRows();
+            downcast<RenderTableCol>(child).clearPreferredLogicalWidthsDirtyBits();
+        } else if (is<RenderTableSection>(child)) {
+            auto& section = downcast<RenderTableSection>(child);
+            unsigned numRows = section.numRows();
             for (unsigned i = 0; i < numRows; ++i) {
-                auto current = section->cellAt(i, effCol);
-                auto* cell = current.primaryCell();
+                RenderTableSection::CellStruct current = section.cellAt(i, effCol);
+                RenderTableCell* cell = current.primaryCell();
 
                 if (current.inColSpan || !cell)
                     continue;
@@ -87,12 +88,10 @@ void AutoTableLayout::recalcColumn(unsigned effCol)
                     // FIXME: Other browsers have a lower limit for the cell's max width.
                     const float cCellMaxWidth = 32760;
                     Length cellLogicalWidth = cell->styleOrColLogicalWidth();
-                    if (cellLogicalWidth.isFixed()) {
                     if (cellLogicalWidth.value() > cCellMaxWidth)
                         cellLogicalWidth.setValue(LengthType::Fixed, cCellMaxWidth);
                     if (cellLogicalWidth.isNegative())
                         cellLogicalWidth.setValue(LengthType::Fixed, 0);
-                    }
                     switch (cellLogicalWidth.type()) {
                     case LengthType::Fixed:
                         // ignore width=0
@@ -116,13 +115,10 @@ void AutoTableLayout::recalcColumn(unsigned effCol)
                         if (cellLogicalWidth.isPositive() && (!columnLayout.logicalWidth.isPercent() || cellLogicalWidth.percent() > columnLayout.logicalWidth.percent()))
                             columnLayout.logicalWidth = cellLogicalWidth;
                         break;
-                    case LengthType::Calculated:
-                        columnLayout.logicalWidth = Length { };
-                        break;
                     default:
                         break;
                     }
-                } else if (!effCol || section->primaryCellAt(i, effCol - 1) != cell) {
+                } else if (!effCol || section.primaryCellAt(i, effCol - 1) != cell) {
                     // This spanning cell originates in this column. Insert the cell into spanning cells list.
                     insertSpanCell(cell);
                 }
@@ -158,7 +154,7 @@ void AutoTableLayout::fullRecalc()
             groupLogicalWidth = column->style().logicalWidth();
         else {
             Length colLogicalWidth = column->style().logicalWidth();
-            if (colLogicalWidth.isCalculated() || colLogicalWidth.isAuto())
+            if (colLogicalWidth.isAuto())
                 colLogicalWidth = groupLogicalWidth;
             if ((colLogicalWidth.isFixed() || colLogicalWidth.isPercentOrCalculated()) && colLogicalWidth.isZero())
                 colLogicalWidth = Length();
@@ -221,13 +217,13 @@ static bool shouldScaleColumnsForSelf(RenderTable* table)
                 containingBlock = containingBlock->containingBlock();
 
             table = nullptr;
-            CheckedPtr cell = dynamicDowncast<RenderTableCell>(containingBlock);
-            if (cell
+            if (is<RenderTableCell>(containingBlock)
                 && (containingBlock->style().width().isAuto() || containingBlock->style().width().isPercentOrCalculated())) {
-                if (cell->colSpan() > 1 || cell->table()->style().width().isAuto())
+                RenderTableCell& cell = downcast<RenderTableCell>(*containingBlock);
+                if (cell.colSpan() > 1 || cell.table()->style().width().isAuto())
                     scale = false;
                 else
-                    table = cell->table();
+                    table = cell.table();
             }
         }
         else
@@ -413,9 +409,7 @@ float AutoTableLayout::calcEffectiveLogicalWidth()
                 }
             } else if (allColsArePercent) {
                 // In this case, we just split the colspan's min amd max widths following the percentage.
-#if ASSERT_ENABLED
                 float allocatedMinLogicalWidth = 0;
-#endif
                 float allocatedMaxLogicalWidth = 0;
                 for (unsigned pos = effCol; pos < lastCol; ++pos) {
                     ASSERT(m_layoutStruct[pos].logicalWidth.isPercent() || m_layoutStruct[pos].effectiveLogicalWidth.isPercent());
@@ -425,13 +419,12 @@ float AutoTableLayout::calcEffectiveLogicalWidth()
                     float columnMaxLogicalWidth = percent * cellMaxLogicalWidth / totalPercent;
                     m_layoutStruct[pos].effectiveMinLogicalWidth = std::max(m_layoutStruct[pos].effectiveMinLogicalWidth, columnMinLogicalWidth);
                     m_layoutStruct[pos].effectiveMaxLogicalWidth = columnMaxLogicalWidth;
-#if ASSERT_ENABLED
                     allocatedMinLogicalWidth += columnMinLogicalWidth;
-#endif
                     allocatedMaxLogicalWidth += columnMaxLogicalWidth;
                 }
                 ASSERT(allocatedMinLogicalWidth < cellMinLogicalWidth || WTF::areEssentiallyEqual(allocatedMinLogicalWidth, cellMinLogicalWidth));
                 ASSERT(allocatedMaxLogicalWidth < cellMaxLogicalWidth || WTF::areEssentiallyEqual(allocatedMaxLogicalWidth, cellMaxLogicalWidth));
+                cellMinLogicalWidth -= allocatedMinLogicalWidth;
                 cellMaxLogicalWidth -= allocatedMaxLogicalWidth;
             } else {
                 float remainingMaxLogicalWidth = spanMaxLogicalWidth;

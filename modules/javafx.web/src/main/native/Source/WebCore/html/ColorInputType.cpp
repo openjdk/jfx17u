@@ -40,7 +40,6 @@
 #include "Chrome.h"
 #include "Color.h"
 #include "ColorSerialization.h"
-#include "ColorTypes.h"
 #include "ElementChildIteratorInlines.h"
 #include "ElementRareData.h"
 #include "Event.h"
@@ -52,9 +51,9 @@
 #include "RenderView.h"
 #include "ScopedEventQueue.h"
 #include "ScriptDisallowedScope.h"
+#include "ShadowPseudoIds.h"
 #include "ShadowRoot.h"
 #include "TypedElementDescendantIteratorInlines.h"
-#include "UserAgentParts.h"
 #include "UserGestureIndicator.h"
 
 namespace WebCore {
@@ -152,8 +151,8 @@ void ColorInputType::createShadowSubtree()
     element()->userAgentShadowRoot()->appendChild(ContainerNode::ChildChange::Source::Parser, wrapperElement);
 
     wrapperElement->appendChild(ContainerNode::ChildChange::Source::Parser, colorSwatch);
-    wrapperElement->setUserAgentPart(UserAgentParts::webkitColorSwatchWrapper());
-    colorSwatch->setUserAgentPart(UserAgentParts::webkitColorSwatch());
+    wrapperElement->setPseudo(ShadowPseudoIds::webkitColorSwatchWrapper());
+    colorSwatch->setPseudo(ShadowPseudoIds::webkitColorSwatch());
 
     updateColorSwatch();
 }
@@ -238,17 +237,10 @@ bool ColorInputType::shouldResetOnDocumentActivation()
 void ColorInputType::didChooseColor(const Color& color)
 {
     ASSERT(element());
-
-    if (element()->isDisabledFormControl())
+    if (element()->isDisabledFormControl() || color == valueAsColor())
         return;
-
-    auto sRGBAColor = color.toColorTypeLossy<SRGBA<uint8_t>>().resolved();
-    auto sRGBColor = sRGBAColor.colorWithAlphaByte(255);
-    if (sRGBColor == valueAsColor())
-        return;
-
     EventQueueScope scope;
-    element()->setValueFromRenderer(serializationForHTML(sRGBColor));
+    element()->setValueFromRenderer(serializationForHTML(color));
     updateColorSwatch();
     element()->dispatchFormControlChangeEvent();
 

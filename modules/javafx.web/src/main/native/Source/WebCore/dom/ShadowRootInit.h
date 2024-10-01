@@ -33,7 +33,7 @@ namespace WebCore {
 struct ShadowRootInit {
     ShadowRootMode mode;
     bool delegatesFocus { false };
-    bool clonable { false };
+    bool cloneable { false };
     SlotAssignmentMode slotAssignment { SlotAssignmentMode::Named };
 };
 

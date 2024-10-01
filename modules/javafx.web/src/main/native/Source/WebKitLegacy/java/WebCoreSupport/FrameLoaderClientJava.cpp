@@ -366,7 +366,7 @@ void FrameLoaderClientJava::committedLoad(DocumentLoader* loader, const SharedBu
     loader->commitData(data);
 }
 
-void FrameLoaderClientJava::dispatchDecidePolicyForResponse(const ResourceResponse& response, const ResourceRequest&, const String&, FramePolicyFunction&& policyFunction)
+void FrameLoaderClientJava::dispatchDecidePolicyForResponse(const ResourceResponse& response, const ResourceRequest&, PolicyCheckIdentifier identifier, const String&, FramePolicyFunction&& policyFunction)
 {
     using namespace FrameLoaderClientJavaInternal;
     PolicyAction action;
@@ -389,7 +389,7 @@ void FrameLoaderClientJava::dispatchDecidePolicyForResponse(const ResourceRespon
     }
 
     // NOTE: PolicyChangeError will be generated when action is not PolicyUse.
-    policyFunction(action);
+    policyFunction(action, identifier);
 }
 
 void FrameLoaderClientJava::dispatchDidReceiveResponse(DocumentLoader*, ResourceLoaderIdentifier identifier, const ResourceResponse& response)
@@ -410,7 +410,7 @@ void FrameLoaderClientJava::dispatchDecidePolicyForNewWindowAction(const Navigat
                                                                    const ResourceRequest& req,
                                                                    FormState*,
                                                                    const String&,
-                                                                   std::optional<HitTestResult>&&,
+                                                                   PolicyCheckIdentifier identifier,
                                                                    FramePolicyFunction&& policyFunction)
 {
     using namespace FrameLoaderClientJavaInternal;
@@ -429,20 +429,16 @@ void FrameLoaderClientJava::dispatchDecidePolicyForNewWindowAction(const Navigat
 
     // FIXME: I think Qt version marshals this to another thread so when we
     // have multi-threaded download, we might need to do the same
-    policyFunction(permit ? PolicyAction::Use : PolicyAction::Ignore);
+    policyFunction(permit ? PolicyAction::Use : PolicyAction::Ignore, identifier);
 }
 
 void FrameLoaderClientJava::dispatchDecidePolicyForNavigationAction(const NavigationAction& action,
                                                                     const ResourceRequest& req,
-                                                                    const ResourceResponse&,
+                                                                    const ResourceResponse& /*didReceiveRedirectResponse*/,
                                                                     FormState*,
-                                                                    const String&,
-                                                                    uint64_t,
-                                                                    std::optional<HitTestResult>&&,
-                                                                    bool,
-                                                                    SandboxFlags,
                                                                     PolicyDecisionMode,
-                                                                                                                                        FramePolicyFunction&& policyFunction)
+                                                                    PolicyCheckIdentifier identifier,
+                                                                    FramePolicyFunction&& policyFunction)
 {
     using namespace FrameLoaderClientJavaInternal;
     JNIEnv* env = WTF::GetJavaEnv();
@@ -480,16 +476,17 @@ void FrameLoaderClientJava::dispatchDecidePolicyForNavigationAction(const Naviga
         WTF::CheckAndClearException(env);
     }
 
-    policyFunction(permit ? PolicyAction::Use : PolicyAction::Ignore);
+    policyFunction(permit ? PolicyAction::Use : PolicyAction::Ignore, identifier);
 }
 
-RefPtr<Widget> FrameLoaderClientJava::createPlugin(HTMLPlugInElement& element,
+RefPtr<Widget> FrameLoaderClientJava::createPlugin(const IntSize& size, HTMLPlugInElement& element,
                                      const URL& url, const Vector<AtomString>& paramNames, const Vector<AtomString>& paramValues, const String& mimeType, bool loadManually)
 
 {
     return adoptRef(new PluginWidgetJava(
         m_webPage,
         &element,
+        size,
         url.string(),
         mimeType,
         paramNames,
@@ -845,7 +842,7 @@ void FrameLoaderClientJava::didDisplayInsecureContent()
     notImplemented();
 }
 
-void FrameLoaderClientJava::didRunInsecureContent(SecurityOrigin&)
+void FrameLoaderClientJava::didRunInsecureContent(SecurityOrigin&, const URL&)
 {
     notImplemented();
 }
@@ -1155,23 +1152,5 @@ void FrameLoaderClientJava::broadcastFrameRemovalToOtherProcesses()
 {
     notImplemented();
 }
-
-ResourceError FrameLoaderClientJava::httpNavigationWithHTTPSOnlyError(const ResourceRequest&) const
-{
-    return {};
-}
-void FrameLoaderClientJava:: broadcastMainFrameURLChangeToOtherProcesses(const URL&)
-{
-    notImplemented();
-}
-
-void FrameLoaderClientJava::dispatchLoadEventToOwnerElementInAnotherProcess()
-{
-    notImplemented();
-}
- void FrameLoaderClientJava::loadStorageAccessQuirksIfNeeded()
- {
-    notImplemented();
- }
 
 }

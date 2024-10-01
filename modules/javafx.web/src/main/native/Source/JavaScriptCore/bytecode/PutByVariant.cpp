@@ -49,11 +49,6 @@ PutByVariant& PutByVariant::operator=(const PutByVariant& other)
         m_callLinkStatus = makeUnique<CallLinkStatus>(*other.m_callLinkStatus);
     else
         m_callLinkStatus = nullptr;
-    m_customAccessorSetter = other.m_customAccessorSetter;
-    if (other.m_domAttribute)
-        m_domAttribute = WTF::makeUnique<DOMAttributeAnnotation>(*other.m_domAttribute);
-    else
-        m_domAttribute = nullptr;
     m_identifier = other.m_identifier;
     return *this;
 }
@@ -89,17 +84,6 @@ PutByVariant PutByVariant::setter(CacheableIdentifier identifier, const Structur
     return result;
 }
 
-PutByVariant PutByVariant::customSetter(CacheableIdentifier identifier, const StructureSet& structure, const ObjectPropertyConditionSet& conditionSet, CodePtr<CustomAccessorPtrTag> customAccessorSetter, std::unique_ptr<DOMAttributeAnnotation>&& domAttribute)
-{
-    PutByVariant result(WTFMove(identifier));
-    result.m_kind = CustomAccessorSetter;
-    result.m_oldStructure = structure;
-    result.m_conditionSet = conditionSet;
-    result.m_offset = invalidOffset;
-    result.m_customAccessorSetter = customAccessorSetter;
-    result.m_domAttribute = WTFMove(domAttribute);
-    return result;
-}
 PutByVariant PutByVariant::proxy(CacheableIdentifier identifier, const StructureSet& structure, std::unique_ptr<CallLinkStatus> callLinkStatus)
 {
     PutByVariant result(WTFMove(identifier));
@@ -146,7 +130,6 @@ bool PutByVariant::writesStructures() const
     switch (kind()) {
     case Transition:
     case Setter:
-    case CustomAccessorSetter:
     case Proxy:
         return true;
     default:
@@ -160,7 +143,6 @@ bool PutByVariant::reallocatesStorage() const
     case Transition:
         return oldStructureForTransition()->outOfLineCapacity() != newStructure()->outOfLineCapacity();
     case Setter:
-    case CustomAccessorSetter:
     case Proxy:
         return true;
     default:
@@ -170,7 +152,7 @@ bool PutByVariant::reallocatesStorage() const
 
 bool PutByVariant::makesCalls() const
 {
-    return kind() == Setter || kind() == CustomAccessorSetter || kind() == Proxy;
+    return kind() == Setter || kind() == Proxy;
 }
 
 bool PutByVariant::attemptToMerge(const PutByVariant& other)
@@ -224,8 +206,6 @@ bool PutByVariant::attemptToMerge(const PutByVariant& other)
 
             if (m_newStructure != other.m_newStructure)
                 return false;
-            if (m_conditionSet.isEmpty() != other.m_conditionSet.isEmpty())
-                return false;
 
             ObjectPropertyConditionSet mergedConditionSet;
             if (!m_conditionSet.isEmpty()) {
@@ -249,8 +229,10 @@ bool PutByVariant::attemptToMerge(const PutByVariant& other)
             if (!(m_callLinkStatus && other.m_callLinkStatus))
                 return false;
         }
+
         if (m_conditionSet.isEmpty() != other.m_conditionSet.isEmpty())
             return false;
+
         ObjectPropertyConditionSet mergedConditionSet;
         if (!m_conditionSet.isEmpty()) {
             mergedConditionSet = m_conditionSet.mergedWith(other.m_conditionSet);
@@ -258,34 +240,9 @@ bool PutByVariant::attemptToMerge(const PutByVariant& other)
                 return false;
         }
         m_conditionSet = mergedConditionSet;
+
         if (m_callLinkStatus)
             m_callLinkStatus->merge(*other.m_callLinkStatus);
-        m_oldStructure.merge(other.m_oldStructure);
-        return true;
-    }
-    case CustomAccessorSetter: {
-        if (other.m_kind != CustomAccessorSetter)
-            return false;
-        if (m_customAccessorSetter != other.m_customAccessorSetter)
-            return false;
-        if (m_domAttribute || other.m_domAttribute) {
-            if (!(m_domAttribute && other.m_domAttribute))
-                return false;
-            if (*m_domAttribute != *other.m_domAttribute)
-                return false;
-        }
-
-        if (m_conditionSet.isEmpty() != other.m_conditionSet.isEmpty())
-            return false;
-
-        ObjectPropertyConditionSet mergedConditionSet;
-        if (!m_conditionSet.isEmpty()) {
-            mergedConditionSet = m_conditionSet.mergedWith(other.m_conditionSet);
-            if (!mergedConditionSet.isValid() || !mergedConditionSet.hasOneSlotBaseCondition())
-                return false;
-        }
-        m_conditionSet = mergedConditionSet;
-
 
         m_oldStructure.merge(other.m_oldStructure);
         return true;
@@ -399,12 +356,6 @@ void PutByVariant::dumpInContext(PrintStream& out, DumpContext* context) const
             inContext(m_conditionSet, context), "]");
         out.print(", offset = ", m_offset);
         out.print(", call = ", *m_callLinkStatus);
-        out.print(">");
-        return;
-    case CustomAccessorSetter:
-        out.print(
-            "CustomAccessorSetter: ", inContext(structure(), context), ", [",
-            inContext(m_conditionSet, context), "]");
         out.print(">");
         return;
 

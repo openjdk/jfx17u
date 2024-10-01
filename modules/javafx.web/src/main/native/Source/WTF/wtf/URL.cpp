@@ -202,10 +202,10 @@ static String decodeEscapeSequencesFromParsedURL(StringView input)
     percentDecoded.reserveInitialCapacity(length);
     for (unsigned i = 0; i < length; ) {
         if (auto decodedCharacter = decodeEscapeSequence(input, i, length)) {
-            percentDecoded.append(*decodedCharacter);
+            percentDecoded.uncheckedAppend(*decodedCharacter);
             i += 3;
         } else {
-            percentDecoded.append(input[i]);
+            percentDecoded.uncheckedAppend(input[i]);
             ++i;
     }
     }
@@ -408,10 +408,6 @@ bool URL::setProtocol(StringView newProtocol)
         parse(makeString(*newProtocolCanonicalized, ':', m_string));
         return true;
     }
-
-    // FIXME: https://bugs.webkit.org/show_bug.cgi?id=229427
-    if (URLParser::isSpecialScheme(this->protocol()) && !URLParser::isSpecialScheme(*newProtocolCanonicalized))
-        return true;
 
     if ((m_passwordEnd != m_userStart || port()) && *newProtocolCanonicalized == "file"_s)
         return true;

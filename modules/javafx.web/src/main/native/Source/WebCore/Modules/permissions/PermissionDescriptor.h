@@ -33,7 +33,7 @@ namespace WebCore {
 struct PermissionDescriptor {
     PermissionName name;
 
-    friend bool operator==(PermissionDescriptor, PermissionDescriptor) = default;
+    bool operator==(const PermissionDescriptor& descriptor) const { return name == descriptor.name; }
 };
 
 } // namespace WebCore

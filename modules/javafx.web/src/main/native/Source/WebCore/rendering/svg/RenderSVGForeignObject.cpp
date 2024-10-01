@@ -31,10 +31,13 @@
 #include "RenderLayer.h"
 #include "RenderObject.h"
 #include "RenderSVGBlockInlines.h"
+#include "RenderSVGResource.h"
 #include "RenderView.h"
 #include "SVGElementTypeHelpers.h"
 #include "SVGForeignObjectElement.h"
 #include "SVGRenderSupport.h"
+#include "SVGRenderingContext.h"
+#include "SVGResourcesCache.h"
 #include "TransformState.h"
 #include <wtf/IsoMallocInlines.h>
 #include <wtf/StackStats.h>
@@ -44,9 +47,8 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderSVGForeignObject);
 
 RenderSVGForeignObject::RenderSVGForeignObject(SVGForeignObjectElement& element, RenderStyle&& style)
-    : RenderSVGBlock(Type::SVGForeignObject, element, WTFMove(style))
+    : RenderSVGBlock(element, WTFMove(style))
 {
-    ASSERT(isRenderSVGForeignObject());
 }
 
 RenderSVGForeignObject::~RenderSVGForeignObject() = default;
@@ -62,18 +64,23 @@ void RenderSVGForeignObject::paint(PaintInfo& paintInfo, const LayoutPoint& pain
         return;
 
     if (paintInfo.phase == PaintPhase::ClippingMask) {
-        paintSVGClippingMask(paintInfo, objectBoundingBox());
+        // FIXME: [LBSE] Upstream clipping support
+        // SVGRenderSupport::paintSVGClippingMask(*this, paintInfo);
             return;
     }
 
     auto adjustedPaintOffset = paintOffset + location();
     if (paintInfo.phase == PaintPhase::Mask) {
-        paintSVGMask(paintInfo, adjustedPaintOffset);
+        // FIXME: [LBSE] Upstream masking support
+        // SVGRenderSupport::paintSVGMask(*this, paintInfo, adjustedPaintOffset);
         return;
     }
 
     GraphicsContextStateSaver stateSaver(paintInfo.context());
-    paintInfo.context().translate(adjustedPaintOffset.x(), adjustedPaintOffset.y());
+
+    auto coordinateSystemOriginTranslation = adjustedPaintOffset - flooredLayoutPoint(objectBoundingBox().location());
+    paintInfo.context().translate(coordinateSystemOriginTranslation.width(), coordinateSystemOriginTranslation.height());
+
     RenderSVGBlock::paint(paintInfo, paintOffset);
 }
 
@@ -102,20 +109,30 @@ void RenderSVGForeignObject::layout()
     auto y = useForeignObjectElement.y().value(lengthContext);
     auto width = useForeignObjectElement.width().value(lengthContext);
     auto height = useForeignObjectElement.height().value(lengthContext);
-    m_viewport = { x, y, width, height };
+    m_viewport = { 0, 0, width, height };
 
+    m_supplementalLayerTransform.makeIdentity();
+    m_supplementalLayerTransform.translate(x, y);
+
+    bool layoutChanged = everHadLayout() && selfNeedsLayout();
     RenderSVGBlock::layout();
     ASSERT(!needsLayout());
 
-    setLocation(enclosingLayoutRect(m_viewport).location());
+    setLocation(LayoutPoint());
     updateLayerTransform();
+
+    // Invalidate all resources of this client if our layout changed.
+    if (layoutChanged)
+        SVGResourcesCache::clientLayoutChanged(*this);
 
     repainter.repaintAfterLayout();
 }
 
 LayoutRect RenderSVGForeignObject::overflowClipRect(const LayoutPoint& location, RenderFragmentContainer*, OverlayScrollbarSizeRelevancy, PaintPhase) const
 {
-    return enclosingLayoutRect(LayoutRect { location, m_viewport.size() });
+    auto clipRect = enclosingLayoutRect(m_viewport);
+    clipRect.moveBy(location);
+    return clipRect;
 }
 
 void RenderSVGForeignObject::updateFromStyle()
@@ -128,7 +145,7 @@ void RenderSVGForeignObject::updateFromStyle()
 
 void RenderSVGForeignObject::applyTransform(TransformationMatrix& transform, const RenderStyle& style, const FloatRect& boundingBox, OptionSet<RenderStyle::TransformOperationOption> options) const
 {
-    applySVGTransform(transform, foreignObjectElement(), style, boundingBox, std::nullopt, std::nullopt, options);
+    applySVGTransform(transform, foreignObjectElement(), style, boundingBox, std::nullopt, m_supplementalLayerTransform.isIdentity() ? std::nullopt : std::make_optional(m_supplementalLayerTransform), options);
 }
 
 }

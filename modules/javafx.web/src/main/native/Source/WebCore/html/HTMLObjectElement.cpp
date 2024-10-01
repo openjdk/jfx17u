@@ -156,24 +156,66 @@ static void mapDataParamToSrc(Vector<AtomString>& paramNames, Vector<AtomString>
     }
 }
 
-void HTMLObjectElement::parametersForPlugin(Vector<AtomString>& paramNames, Vector<AtomString>& paramValues)
+// FIXME: This function should not deal with url or serviceType!
+void HTMLObjectElement::parametersForPlugin(Vector<AtomString>& paramNames, Vector<AtomString>& paramValues, String& url, String& serviceType)
 {
+    HashSet<StringImpl*, ASCIICaseInsensitiveHash> uniqueParamNames;
+    String urlParameter;
+
+    // Scan the PARAM children and store their name/value pairs.
+    // Get the URL and type from the params if we don't already have them.
+    for (auto& param : childrenOfType<HTMLParamElement>(*this)) {
+        String name = param.name();
+        if (name.isEmpty())
+            continue;
+
+        uniqueParamNames.add(name.impl());
+        paramNames.append(param.name());
+        paramValues.append(param.value());
+
+        // FIXME: url adjustment does not belong in this function.
+        if (url.isEmpty() && urlParameter.isEmpty() && (equalLettersIgnoringASCIICase(name, "src"_s) || equalLettersIgnoringASCIICase(name, "movie"_s) || equalLettersIgnoringASCIICase(name, "code"_s) || equalLettersIgnoringASCIICase(name, "url"_s)))
+            urlParameter = param.value().string().trim(isASCIIWhitespace);
+        // FIXME: serviceType calculation does not belong in this function.
+        if (serviceType.isEmpty() && equalLettersIgnoringASCIICase(name, "type"_s)) {
+            serviceType = param.value();
+            size_t pos = serviceType.find(';');
+            if (pos != notFound)
+                serviceType = serviceType.left(pos);
+        }
+    }
+
+    // Turn the attributes of the <object> element into arrays, but don't override <param> values.
     if (hasAttributes()) {
         for (const Attribute& attribute : attributesIterator()) {
-            paramNames.append(attribute.name().localName());
+            const AtomString& name = attribute.name().localName();
+            if (!uniqueParamNames.contains(name.impl())) {
+                paramNames.append(name);
                 paramValues.append(attribute.value());
             }
         }
+    }
 
     mapDataParamToSrc(paramNames, paramValues);
+
+    // HTML5 says that an object resource's URL is specified by the object's data
+    // attribute, not by a param element. However, for compatibility, allow the
+    // resource's URL to be given by a param named "src", "movie", "code" or "url"
+    // if we know that resource points to a plug-in.
+
+    if (url.isEmpty() && !urlParameter.isEmpty()) {
+        auto& loader = document().frame()->loader().subframeLoader();
+        if (loader.resourceWillUsePlugin(urlParameter, serviceType))
+            url = urlParameter;
+    }
 }
 
 bool HTMLObjectElement::hasFallbackContent() const
 {
     for (RefPtr<Node> child = firstChild(); child; child = child->nextSibling()) {
         // Ignore whitespace-only text, and <param> tags, any other content is fallback content.
-        if (auto* textChild = dynamicDowncast<Text>(*child)) {
-            if (!textChild->containsOnlyASCIIWhitespace())
+        if (is<Text>(*child)) {
+            if (!downcast<Text>(*child).data().containsOnly<isASCIIWhitespace>())
                 return true;
         } else if (!is<HTMLParamElement>(*child))
             return true;
@@ -202,12 +244,15 @@ void HTMLObjectElement::updateWidget(CreatePlugins createPlugins)
         return;
     }
 
+    String url = this->url();
+    String serviceType = this->serviceType();
+
     // FIXME: These should be joined into a PluginParameters class.
     Vector<AtomString> paramNames;
     Vector<AtomString> paramValues;
-    parametersForPlugin(paramNames, paramValues);
+    parametersForPlugin(paramNames, paramValues, url, serviceType);
 
-    auto url = this->url();
+    // Note: url is modified above by parametersForPlugin.
     if (!canLoadURL(url)) {
         setNeedsWidgetUpdate(false);
         return;
@@ -215,7 +260,6 @@ void HTMLObjectElement::updateWidget(CreatePlugins createPlugins)
 
     // FIXME: It's unfortunate that we have this special case here.
     // See http://trac.webkit.org/changeset/25128 and the plugins/netscape-plugin-setwindow-size.html test.
-    auto serviceType = this->serviceType();
     if (createPlugins == CreatePlugins::No && wouldLoadAsPlugIn(url, serviceType))
         return;
 
@@ -239,8 +283,6 @@ Node::InsertedIntoAncestorResult HTMLObjectElement::insertedIntoAncestor(Inserti
 {
     HTMLPlugInImageElement::insertedIntoAncestor(insertionType, parentOfInsertedTree);
     FormListedElement::elementInsertedIntoAncestor(*this, insertionType);
-    if (!insertionType.connectedToDocument)
-        return InsertedIntoAncestorResult::Done;
     return InsertedIntoAncestorResult::NeedsPostInsertionCallback;
 }
 
@@ -330,10 +372,10 @@ static inline bool preventsParentObjectFromExposure(const Element& child)
 
 static inline bool preventsParentObjectFromExposure(const Node& child)
 {
-    if (auto* childElement = dynamicDowncast<Element>(child))
-        return preventsParentObjectFromExposure(*childElement);
-    if (auto* childText = dynamicDowncast<Text>(child))
-        return !childText->containsOnlyASCIIWhitespace();
+    if (is<Element>(child))
+        return preventsParentObjectFromExposure(downcast<Element>(child));
+    if (is<Text>(child))
+        return !downcast<Text>(child).data().containsOnly<isASCIIWhitespace>();
     return true;
 }
 
@@ -357,23 +399,23 @@ void HTMLObjectElement::updateExposedState()
 {
     bool wasExposed = std::exchange(m_isExposed, shouldBeExposed(*this));
 
-    if (m_isExposed != wasExposed && isConnected() && !isInShadowTree()) {
-        if (RefPtr document = dynamicDowncast<HTMLDocument>(this->document())) {
+    if (m_isExposed != wasExposed && isConnected() && !isInShadowTree() && is<HTMLDocument>(document())) {
+        auto& document = downcast<HTMLDocument>(this->document());
+
         auto& id = getIdAttribute();
         if (!id.isEmpty()) {
             if (m_isExposed)
-                    document->addDocumentNamedItem(id, *this);
+                document.addDocumentNamedItem(*id.impl(), *this);
             else
-                    document->removeDocumentNamedItem(id, *this);
+                document.removeDocumentNamedItem(*id.impl(), *this);
         }
 
         auto& name = getNameAttribute();
         if (!name.isEmpty() && id != name) {
             if (m_isExposed)
-                    document->addDocumentNamedItem(name, *this);
+                document.addDocumentNamedItem(*name.impl(), *this);
             else
-                    document->removeDocumentNamedItem(name, *this);
-            }
+                document.removeDocumentNamedItem(*name.impl(), *this);
         }
     }
 }

@@ -49,7 +49,7 @@ private:
     void isLoggedIn(Ref<DeferredPromise>&&);
 
     static NavigatorIsLoggedIn* from(Navigator&);
-    static ASCIILiteral supplementName();
+    static const char* supplementName();
 
     Navigator& m_navigator;
 };

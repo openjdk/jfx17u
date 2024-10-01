@@ -25,7 +25,8 @@
 
 #include "config.h"
 
-#if !PLATFORM(JAVA)
+#if ENABLE(ACCESSIBILITY)
+
 #include "AccessibilityController.h"
 
 #include "AccessibilityUIElement.h"
@@ -182,4 +183,4 @@ void AccessibilityController::resetToConsistentState()
     setLogAccessibilityEvents(false);
     platformResetToConsistentState();
 }
-#endif
+#endif // ENABLE(ACCESSIBILITY)

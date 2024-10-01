@@ -45,7 +45,10 @@ public:
     UChar current() const { return (*m_textRun)[m_offset]; }
     UCharDirection direction() const { return atEnd() ? U_OTHER_NEUTRAL : u_charDirection(current()); }
 
-    friend bool operator==(const TextBoxIterator&, const TextBoxIterator&) = default;
+    bool operator==(const TextBoxIterator& other) const
+    {
+        return m_offset == other.m_offset && m_textRun == other.m_textRun;
+    }
 
 private:
     const TextRun* m_textRun { nullptr };

@@ -25,7 +25,6 @@
 
 #pragma once
 
-#include "Options.h"
 #include "SpeculatedType.h"
 #include <wtf/LockAlgorithm.h>
 #include <wtf/StdLibExtras.h>

@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "ExtendableEventInit.h"
 
 namespace WebCore {
@@ -37,3 +39,5 @@ struct PushSubscriptionChangeEventInit : ExtendableEventInit {
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

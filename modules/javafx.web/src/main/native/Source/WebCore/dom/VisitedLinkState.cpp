@@ -45,15 +45,15 @@ namespace WebCore {
 
 using namespace HTMLNames;
 
-inline static const AtomString linkAttribute(const Element& element)
+inline static const AtomString* linkAttribute(const Element& element)
 {
     if (!element.isLink())
-        return nullAtom();
+        return nullptr;
     if (element.isHTMLElement())
-        return element.attributeWithoutSynchronization(HTMLNames::hrefAttr);
+        return &element.attributeWithoutSynchronization(HTMLNames::hrefAttr);
     if (element.isSVGElement())
-        return element.getAttribute(SVGNames::hrefAttr, XLinkNames::hrefAttr);
-    return nullAtom();
+        return &element.getAttribute(SVGNames::hrefAttr, XLinkNames::hrefAttr);
+    return nullptr;
 }
 
 VisitedLinkState::VisitedLinkState(Document& document)
@@ -65,10 +65,9 @@ void VisitedLinkState::invalidateStyleForAllLinks()
 {
     if (m_linksCheckedForVisitedState.isEmpty())
         return;
-    Ref document = m_document.get();
-    for (Ref element : descendantsOfType<Element>(document.get())) {
-        if (element->isLink())
-            element->invalidateStyleForSubtree();
+    for (auto& element : descendantsOfType<Element>(m_document)) {
+        if (element.isLink())
+            element.invalidateStyleForSubtree();
     }
 }
 
@@ -85,10 +84,9 @@ void VisitedLinkState::invalidateStyleForLink(SharedStringHash linkHash)
 {
     if (!m_linksCheckedForVisitedState.contains(linkHash))
         return;
-    Ref document = m_document.get();
-    for (Ref element : descendantsOfType<Element>(document.get())) {
-        if (element->isLink() && linkHashForElement(element) == linkHash)
-            element->invalidateStyleForSubtree();
+    for (auto& element : descendantsOfType<Element>(m_document)) {
+        if (element.isLink() && linkHashForElement(element) == linkHash)
+            element.invalidateStyleForSubtree();
     }
 }
 
@@ -96,14 +94,14 @@ InsideLink VisitedLinkState::determineLinkStateSlowCase(const Element& element)
 {
     ASSERT(element.isLink());
 
-    auto attribute = linkAttribute(element);
-    if (attribute.isNull())
+    const AtomString* attribute = linkAttribute(element);
+    if (!attribute || attribute->isNull())
         return InsideLink::NotInside;
 
     auto hashIfFound = linkHashForElement(element);
 
     if (!hashIfFound)
-        return attribute.isEmpty() ? InsideLink::InsideVisited : InsideLink::InsideUnvisited;
+        return attribute->isEmpty() ? InsideLink::InsideVisited : InsideLink::InsideUnvisited;
 
     auto hash = *hashIfFound;
 
@@ -112,17 +110,17 @@ InsideLink VisitedLinkState::determineLinkStateSlowCase(const Element& element)
     if (!hash)
         return InsideLink::InsideVisited;
 
-    RefPtr frame = element.document().frame();
+    auto* frame = element.document().frame();
     if (!frame)
         return InsideLink::InsideUnvisited;
 
-    RefPtr page = frame->page();
+    Page* page = frame->page();
     if (!page)
         return InsideLink::InsideUnvisited;
 
     m_linksCheckedForVisitedState.add(hash);
 
-    if (!page->visitedLinkStore().isLinkVisited(*page, hash, element.document().baseURL(), attribute))
+    if (!page->visitedLinkStore().isLinkVisited(*page, hash, element.document().baseURL(), *attribute))
         return InsideLink::InsideUnvisited;
 
     return InsideLink::InsideVisited;

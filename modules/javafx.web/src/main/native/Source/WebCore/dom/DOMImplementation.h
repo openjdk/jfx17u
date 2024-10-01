@@ -26,7 +26,6 @@
 #include "ExceptionOr.h"
 #include "ScriptExecutionContextIdentifier.h"
 #include "XMLDocument.h"
-#include <wtf/WeakRef.h>
 
 namespace WebCore {
 
@@ -35,8 +34,8 @@ class DOMImplementation final : public ScriptWrappable {
 public:
     explicit DOMImplementation(Document&);
 
-    void ref() { m_document->ref(); }
-    void deref() { m_document->deref(); }
+    void ref() { m_document.ref(); }
+    void deref() { m_document.deref(); }
     Document& document() { return m_document; }
 
     WEBCORE_EXPORT ExceptionOr<Ref<DocumentType>> createDocumentType(const AtomString& qualifiedName, const String& publicId, const String& systemId);
@@ -48,9 +47,7 @@ public:
     static Ref<Document> createDocument(const String& contentType, LocalFrame*, const Settings&, const URL&, ScriptExecutionContextIdentifier = { });
 
 private:
-    Ref<Document> protectedDocument();
-
-    WeakRef<Document, WeakPtrImplWithEventTargetData> m_document;
+    Document& m_document;
 };
 
 } // namespace WebCore

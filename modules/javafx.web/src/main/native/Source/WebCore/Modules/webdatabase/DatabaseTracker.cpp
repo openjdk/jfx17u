@@ -142,10 +142,10 @@ ExceptionOr<void> DatabaseTracker::hasAdequateQuotaForOrigin(const SecurityOrigi
     auto requirement = usage + std::max<uint64_t>(1u, estimatedSize);
     if (requirement < usage) {
         // The estimated size is so big it causes an overflow; don't allow creation.
-        return Exception { ExceptionCode::SecurityError };
+        return Exception { SecurityError };
     }
     if (requirement > quotaNoLock(origin))
-        return Exception { ExceptionCode::QuotaExceededError };
+        return Exception { QuotaExceededError };
     return { };
 }
 
@@ -157,7 +157,7 @@ ExceptionOr<void> DatabaseTracker::canEstablishDatabase(DatabaseContext& context
     auto origin = context.securityOrigin();
 
     if (isDeletingDatabaseOrOriginFor(origin, name))
-        return Exception { ExceptionCode::SecurityError };
+        return Exception { SecurityError };
 
     recordCreatingDatabase(origin, name);
 
@@ -183,7 +183,7 @@ ExceptionOr<void> DatabaseTracker::canEstablishDatabase(DatabaseContext& context
     // again. Hence, we don't call doneCreatingDatabase() yet in that case.
 
     auto exception = result.releaseException();
-    if (exception.code() != ExceptionCode::QuotaExceededError)
+    if (exception.code() != QuotaExceededError)
         doneCreatingDatabase(origin, name);
 
     return exception;
@@ -214,7 +214,7 @@ ExceptionOr<void> DatabaseTracker::retryCanEstablishDatabase(DatabaseContext& co
         return { };
 
     auto exception = result.releaseException();
-    ASSERT(exception.code() == ExceptionCode::QuotaExceededError);
+    ASSERT(exception.code() == QuotaExceededError);
     doneCreatingDatabase(origin, name);
 
     return exception;
@@ -781,7 +781,7 @@ void DatabaseTracker::deleteDatabasesModifiedSince(WallTime time)
                     continue;
             }
 
-            databaseNamesToDelete.append(databaseName);
+            databaseNamesToDelete.uncheckedAppend(databaseName);
         }
 
         if (databaseNames.size() == databaseNamesToDelete.size())

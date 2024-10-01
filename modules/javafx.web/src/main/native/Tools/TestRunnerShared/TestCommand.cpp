@@ -103,11 +103,6 @@ TestCommand parseInputLine(const std::string& inputLine)
                 result.selfComparisonHeader = tokenizer.next();
             else
                 die(inputLine);
-        } else if (arg == "--additional-header") {
-            if (tokenizer.hasNext())
-                result.additionalHeader = tokenizer.next();
-            else
-                die(inputLine);
         } else if (arg == std::string("--dump-jsconsolelog-in-stderr"))
             result.dumpJSConsoleLogInStdErr = true;
         else if (arg == std::string("--absolutePath"))

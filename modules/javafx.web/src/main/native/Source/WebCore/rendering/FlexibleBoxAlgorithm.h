@@ -60,7 +60,7 @@ public:
 
     LayoutUnit constrainSizeByMinMax(const LayoutUnit) const;
 
-    CheckedRef<RenderBox> box;
+    RenderBox& box;
     LayoutUnit flexBaseContentSize;
     const LayoutUnit mainAxisBorderAndPadding;
     mutable LayoutUnit mainAxisMargin;

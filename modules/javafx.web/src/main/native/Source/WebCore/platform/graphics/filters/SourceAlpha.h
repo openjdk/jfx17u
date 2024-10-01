@@ -31,7 +31,7 @@ public:
     static AtomString effectName() { return FilterEffect::sourceAlphaName(); }
 
 private:
-    explicit SourceAlpha(DestinationColorSpace);
+    explicit SourceAlpha(const DestinationColorSpace&);
 
     std::unique_ptr<FilterEffectApplier> createSoftwareApplier() const override;
 
@@ -40,4 +40,4 @@ private:
 
 } //namespace WebCore
 
-SPECIALIZE_TYPE_TRAITS_FILTER_FUNCTION(SourceAlpha)
+SPECIALIZE_TYPE_TRAITS_FILTER_EFFECT(SourceAlpha)

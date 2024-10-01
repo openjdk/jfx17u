@@ -68,7 +68,7 @@ public:
     ExceptionOr<void> setValueForBindings(float value)
     {
         if (isReadOnly())
-            return Exception { ExceptionCode::NoModificationAllowedError };
+            return Exception { NoModificationAllowedError };
 
         m_value = value;
         commitChange();

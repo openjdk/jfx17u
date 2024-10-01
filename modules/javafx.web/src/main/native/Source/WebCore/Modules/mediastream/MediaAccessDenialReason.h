@@ -43,4 +43,23 @@ enum class MediaAccessDenialReason : uint8_t {
 
 } // namespace WebCore
 
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::MediaAccessDenialReason> {
+    using values = EnumValues<
+    WebCore::MediaAccessDenialReason,
+    WebCore::MediaAccessDenialReason::NoReason,
+    WebCore::MediaAccessDenialReason::NoConstraints,
+    WebCore::MediaAccessDenialReason::UserMediaDisabled,
+    WebCore::MediaAccessDenialReason::NoCaptureDevices,
+    WebCore::MediaAccessDenialReason::InvalidConstraint,
+    WebCore::MediaAccessDenialReason::HardwareError,
+    WebCore::MediaAccessDenialReason::PermissionDenied,
+    WebCore::MediaAccessDenialReason::InvalidAccess,
+    WebCore::MediaAccessDenialReason::OtherFailure
+    >;
+};
+
+} // namespace WTF
+
 #endif // ENABLE(MEDIA_STREAM)

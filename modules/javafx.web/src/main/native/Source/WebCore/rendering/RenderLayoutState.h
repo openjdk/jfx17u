@@ -45,13 +45,13 @@ class RenderLayoutState {
 public:
     struct TextBoxTrim {
         bool trimFirstFormattedLine { false };
-        SingleThreadWeakPtr<const RenderBlockFlow> trimLastFormattedLineOnTarget;
+        WeakPtr<const RenderBlockFlow> trimLastFormattedLineOnTarget;
     };
     struct LineClamp {
         size_t maximumLineCount { 0 };
         size_t currentLineCount { 0 };
         std::optional<LayoutUnit> clampedContentLogicalHeight;
-        SingleThreadWeakPtr<const RenderBlockFlow> clampedRenderer;
+        WeakPtr<const RenderBlockFlow> clampedRenderer;
     };
 
     RenderLayoutState()
@@ -66,7 +66,8 @@ public:
     {
     }
     RenderLayoutState(const LocalFrameViewLayoutContext::LayoutStateStack&, RenderBox&, const LayoutSize& offset, LayoutUnit pageHeight, bool pageHeightChanged, std::optional<LineClamp>, std::optional<TextBoxTrim>);
-    explicit RenderLayoutState(RenderElement&);
+    enum class IsPaginated : bool { No, Yes };
+    explicit RenderLayoutState(RenderElement&, IsPaginated = IsPaginated::No);
 
     bool isPaginated() const { return m_isPaginated; }
 
@@ -141,7 +142,7 @@ private:
     Vector<bool> m_blockStartTrimming;
 
     // The current line grid that we're snapping to and the offset of the start of the grid.
-    SingleThreadWeakPtr<RenderBlockFlow> m_lineGrid;
+    WeakPtr<RenderBlockFlow> m_lineGrid;
 
     // FIXME: Distinguish between the layout clip rect and the paint clip rect which may be larger,
     // e.g., because of composited scrolling.
@@ -202,13 +203,14 @@ private:
     LocalFrameViewLayoutContext& m_context;
 };
 
-class ContentVisibilityForceLayoutScope {
+class PaginatedLayoutStateMaintainer {
 public:
-    ContentVisibilityForceLayoutScope(RenderView&, const Element*);
-    ~ContentVisibilityForceLayoutScope();
+    PaginatedLayoutStateMaintainer(RenderBlockFlow&);
+    ~PaginatedLayoutStateMaintainer();
 
 private:
-    LocalFrameViewLayoutContext* m_context { nullptr };
+    LocalFrameViewLayoutContext& m_context;
+    bool m_pushed { false };
 };
 
 inline void RenderLayoutState::addTextBoxTrimStart()

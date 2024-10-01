@@ -39,12 +39,8 @@ using namespace JSC;
 JSValue JSHistory::state(JSGlobalObject& lexicalGlobalObject) const
 {
     auto throwScope = DECLARE_THROW_SCOPE(lexicalGlobalObject.vm());
-    return cachedPropertyValue(throwScope, lexicalGlobalObject, *this, wrapped().cachedState(), [this, &throwScope, &lexicalGlobalObject](JSC::ThrowScope&) {
-        if (UNLIKELY(wrapped().state().hasException())) {
-            propagateException(lexicalGlobalObject, throwScope, wrapped().state().releaseException());
-            return jsNull();
-        }
-        auto* serialized = wrapped().state().releaseReturnValue();
+    return cachedPropertyValue(throwScope, lexicalGlobalObject, *this, wrapped().cachedState(), [this, &lexicalGlobalObject](JSC::ThrowScope&) {
+        auto* serialized = wrapped().state();
         return serialized ? serialized->deserialize(lexicalGlobalObject, globalObject()) : jsNull();
     });
 }

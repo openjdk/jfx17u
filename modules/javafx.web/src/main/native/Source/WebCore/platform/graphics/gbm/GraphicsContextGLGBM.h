@@ -51,7 +51,7 @@ public:
     RefPtr<GraphicsLayerContentsDisplayDelegate> layerContentsDisplayDelegate() override;
 
 #if ENABLE(MEDIA_STREAM) || ENABLE(WEB_CODECS)
-    RefPtr<VideoFrame> surfaceBufferToVideoFrame(SurfaceBuffer) override;
+    RefPtr<VideoFrame> paintCompositedResultsToVideoFrame() override;
 #endif
 #if ENABLE(VIDEO)
     bool copyTextureFromMedia(MediaPlayer&, PlatformGLObject texture, GCGLenum target, GCGLint level, GCGLenum internalFormat, GCGLenum format, GCGLenum type, bool premultiplyAlpha, bool flipY) override;
@@ -64,8 +64,9 @@ public:
 
     // GraphicsContextGLANGLE overrides
     bool platformInitializeContext() override;
-    bool platformInitializeExtensions() override;
+    bool platformInitialize() override;
 
+    void prepareTexture() override;
     bool reshapeDrawingBuffer() override;
 
     struct Swapchain {

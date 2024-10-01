@@ -29,7 +29,6 @@
 #include "ReducedResolutionSeconds.h"
 #include "Timer.h"
 #include <wtf/CancellableTask.h>
-#include <wtf/CheckedRef.h>
 #include <wtf/Markable.h>
 #include <wtf/Seconds.h>
 #include <wtf/WeakHashSet.h>
@@ -41,9 +40,8 @@ class Document;
 class DocumentTimeline;
 class WebAnimation;
 
-DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(DocumentTimelinesController);
-class DocumentTimelinesController : public CanMakeCheckedPtr {
-    WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(DocumentTimelinesController);
+class DocumentTimelinesController {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit DocumentTimelinesController(Document&);
     ~DocumentTimelinesController();

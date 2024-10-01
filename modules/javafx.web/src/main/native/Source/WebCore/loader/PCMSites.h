@@ -44,7 +44,10 @@ struct SourceSite {
     SourceSite isolatedCopy() const & { return SourceSite { registrableDomain.isolatedCopy() }; }
     SourceSite isolatedCopy() && { return SourceSite { WTFMove(registrableDomain).isolatedCopy() }; }
 
-    friend bool operator==(const SourceSite&, const SourceSite&) = default;
+    bool operator==(const SourceSite& other) const
+    {
+        return registrableDomain == other.registrableDomain;
+    }
 
     bool matches(const URL& url) const
     {
@@ -83,7 +86,10 @@ struct AttributionDestinationSite {
     AttributionDestinationSite isolatedCopy() const & { return AttributionDestinationSite { registrableDomain.isolatedCopy() }; }
     AttributionDestinationSite isolatedCopy() && { return AttributionDestinationSite { WTFMove(registrableDomain).isolatedCopy() }; }
 
-    friend bool operator==(const AttributionDestinationSite&, const AttributionDestinationSite&) = default;
+    bool operator==(const AttributionDestinationSite& other) const
+    {
+        return registrableDomain == other.registrableDomain;
+    }
 
     bool matches(const URL& url) const
     {

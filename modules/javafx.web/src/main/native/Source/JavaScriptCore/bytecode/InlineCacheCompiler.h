@@ -32,7 +32,6 @@
 #include "JSFunctionInlines.h"
 #include "MacroAssembler.h"
 #include "ScratchRegisterAllocator.h"
-#include "StructureStubClearingWatchpoint.h"
 #include <wtf/FixedVector.h>
 #include <wtf/Vector.h>
 
@@ -46,7 +45,7 @@ class CodeBlock;
 class PolymorphicAccess;
 class ProxyObjectAccessCase;
 class StructureStubInfo;
-class InlineCacheHandler;
+class WatchpointsOnStructureStubInfo;
 
 DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(PolymorphicAccess);
 
@@ -75,9 +74,27 @@ public:
         RELEASE_ASSERT(kind != GeneratedMegamorphicCode);
     }
 
-    AccessGenerationResult(Kind, Ref<InlineCacheHandler>&&);
+    AccessGenerationResult(Kind kind, CodePtr<JITStubRoutinePtrTag> code)
+        : m_kind(kind)
+        , m_code(code)
+    {
+        RELEASE_ASSERT(kind == GeneratedNewCode || kind == GeneratedFinalCode || kind == GeneratedMegamorphicCode);
+        RELEASE_ASSERT(code);
+    }
+
+    bool operator==(const AccessGenerationResult& other) const
+    {
+        return m_kind == other.m_kind && m_code == other.m_code;
+    }
+
+    explicit operator bool() const
+    {
+        return *this != AccessGenerationResult();
+    }
 
     Kind kind() const { return m_kind; }
+
+    const CodePtr<JITStubRoutinePtrTag>& code() const { return m_code; }
 
     bool madeNoChanges() const { return m_kind == MadeNoChanges; }
     bool gaveUp() const { return m_kind == GaveUp; }
@@ -106,11 +123,9 @@ public:
             pair.first.invalidate(vm, pair.second);
     }
 
-    InlineCacheHandler* handler() const { return m_handler.get(); }
-
 private:
-    Kind m_kind { MadeNoChanges };
-    RefPtr<InlineCacheHandler> m_handler;
+    Kind m_kind;
+    CodePtr<JITStubRoutinePtrTag> m_code;
     Vector<std::pair<InlineWatchpointSet&, StringFireDetail>> m_watchpointsToFire;
 };
 
@@ -145,36 +160,9 @@ public:
     // optimization to then avoid calling this method again during the fixpoint.
     template<typename Visitor> void propagateTransitions(Visitor&) const;
 
-    void dump(PrintStream& out) const;
-
-private:
-    friend class AccessCase;
-    friend class CodeBlock;
-    friend class InlineCacheCompiler;
-
-    typedef Vector<RefPtr<AccessCase>, 2> ListType;
-
-    ListType m_list;
-    std::unique_ptr<WatchpointsOnStructureStubInfo> m_watchpoints;
-};
-
-class InlineCacheHandler final : public RefCounted<InlineCacheHandler> {
-    WTF_MAKE_NONCOPYABLE(InlineCacheHandler);
-    friend class InlineCacheCompiler;
-public:
-    static ptrdiff_t offsetOfCallTarget() { return OBJECT_OFFSETOF(InlineCacheHandler, m_callTarget); }
-    static ptrdiff_t offsetOfJumpTarget() { return OBJECT_OFFSETOF(InlineCacheHandler, m_jumpTarget); }
-    static ptrdiff_t offsetOfNext() { return OBJECT_OFFSETOF(InlineCacheHandler, m_next); }
-
-    static Ref<InlineCacheHandler> create(Ref<PolymorphicAccessJITStubRoutine>&& stubRoutine, std::unique_ptr<WatchpointsOnStructureStubInfo>&& watchpoints)
-    {
-        return adoptRef(*new InlineCacheHandler(WTFMove(stubRoutine), WTFMove(watchpoints)));
-    }
-
-    CodePtr<JITStubRoutinePtrTag> callTarget() const { return m_callTarget; }
-    CodePtr<JITStubRoutinePtrTag> jumpTarget() const { return m_jumpTarget; }
-
     void aboutToDie();
+
+    void dump(PrintStream& out) const;
     bool containsPC(void* pc) const
     {
         if (!m_stubRoutine)
@@ -184,26 +172,16 @@ public:
         return m_stubRoutine->startAddress() <= pcAsInt && pcAsInt <= m_stubRoutine->endAddress();
     }
 
-    CallLinkInfo* callLinkInfoAt(const ConcurrentJSLocker&, unsigned index);
-
-    // If this returns false then we are requesting a reset of the owning StructureStubInfo.
-    bool visitWeak(VM&) const;
-
-    void dump(PrintStream&) const;
-
-    static Ref<InlineCacheHandler> createNonHandlerSlowPath(CodePtr<JITStubRoutinePtrTag>);
-
 private:
-    InlineCacheHandler() = default;
-    InlineCacheHandler(Ref<PolymorphicAccessJITStubRoutine>&&, std::unique_ptr<WatchpointsOnStructureStubInfo>&&);
+    friend class AccessCase;
+    friend class CodeBlock;
+    friend class InlineCacheCompiler;
 
-    static Ref<InlineCacheHandler> createSlowPath(VM&, AccessType);
+    typedef Vector<RefPtr<AccessCase>, 2> ListType;
 
-    CodePtr<JITStubRoutinePtrTag> m_callTarget;
-    CodePtr<JITStubRoutinePtrTag> m_jumpTarget;
+    ListType m_list;
     RefPtr<PolymorphicAccessJITStubRoutine> m_stubRoutine;
     std::unique_ptr<WatchpointsOnStructureStubInfo> m_watchpoints;
-    RefPtr<InlineCacheHandler> m_next;
 };
 
 inline bool canUseMegamorphicGetById(VM& vm, UniquedStringImpl* uid)
@@ -216,21 +194,14 @@ inline bool canUseMegamorphicPutById(VM& vm, UniquedStringImpl* uid)
     return !parseIndex(*uid) && uid != vm.propertyNames->underscoreProto;
 }
 
-inline AccessGenerationResult::AccessGenerationResult(Kind kind, Ref<InlineCacheHandler>&& handler)
-    : m_kind(kind)
-    , m_handler(WTFMove(handler))
-{
-    RELEASE_ASSERT(kind == GeneratedNewCode || kind == GeneratedFinalCode || kind == GeneratedMegamorphicCode);
-}
 
 class InlineCacheCompiler {
 public:
-    InlineCacheCompiler(JITType jitType, VM& vm, JSGlobalObject* globalObject, ECMAMode ecmaMode, StructureStubInfo& stubInfo)
+    InlineCacheCompiler(VM& vm, JSGlobalObject* globalObject, ECMAMode ecmaMode, StructureStubInfo& stubInfo)
         : m_vm(vm)
         , m_globalObject(globalObject)
         , m_stubInfo(&stubInfo)
         , m_ecmaMode(ecmaMode)
-        , m_jitType(jitType)
     {
     }
 
@@ -263,6 +234,7 @@ public:
 
     const ScalarRegisterSet& liveRegistersForCall();
 
+    CallSiteIndex callSiteIndexForExceptionHandlingOrOriginal();
     DisposableCallSiteIndex callSiteIndexForExceptionHandling();
 
     const HandlerInfo& originalExceptionHandler();
@@ -300,12 +272,12 @@ public:
     // Fall through on success. Two kinds of failures are supported: fall-through, which means that we
     // should try a different case; and failure, which means that this was the right case but it needs
     // help from the slow path.
-    void generateWithGuard(unsigned index, AccessCase&, MacroAssembler::JumpList& fallThrough);
+    void generateWithGuard(AccessCase&, MacroAssembler::JumpList& fallThrough);
 
     // Fall through on success, add a jump to the failure list on failure.
-    void generate(unsigned index, AccessCase&);
+    void generate(AccessCase&);
 
-    void generateImpl(unsigned index, AccessCase&);
+    void generateImpl(AccessCase&);
 
     static bool canEmitIntrinsicGetter(StructureStubInfo&, JSFunction*, Structure*);
 
@@ -313,28 +285,18 @@ public:
 
     AccessGenerationResult regenerate(const GCSafeConcurrentJSLocker&, PolymorphicAccess&, CodeBlock*);
 
-    static MacroAssemblerCodeRef<JITThunkPtrTag> generateSlowPathCode(VM&, AccessType);
-    static Ref<InlineCacheHandler> generateSlowPathHandler(VM&, AccessType);
-
-    static void emitDataICPrologue(CCallHelpers&);
-    static void emitDataICEpilogue(CCallHelpers&);
-
-    bool useHandlerIC() const;
-
 private:
-    CallSiteIndex callSiteIndexForExceptionHandlingOrOriginal();
     const ScalarRegisterSet& liveRegistersToPreserveAtExceptionHandlingCallSite();
 
     void emitDOMJITGetter(GetterSetterAccessCase&, const DOMJIT::GetterSetter*, GPRReg baseForGetGPR);
     void emitModuleNamespaceLoad(ModuleNamespaceAccessCase&, MacroAssembler::JumpList& fallThrough);
-    void emitProxyObjectAccess(unsigned index, ProxyObjectAccessCase&, MacroAssembler::JumpList& fallThrough);
+    void emitProxyObjectAccess(ProxyObjectAccessCase&, MacroAssembler::JumpList& fallThrough);
     void emitIntrinsicGetter(IntrinsicGetterAccessCase&);
 
     VM& m_vm;
     JSGlobalObject* const m_globalObject;
     StructureStubInfo* m_stubInfo { nullptr };
     const ECMAMode m_ecmaMode { ECMAMode::sloppy() };
-    JITType m_jitType;
     CCallHelpers* m_jit { nullptr };
     ScratchRegisterAllocator* m_allocator { nullptr };
     MacroAssembler::JumpList m_success;
@@ -345,7 +307,7 @@ private:
     GPRReg m_scratchGPR { InvalidGPRReg };
     FPRReg m_scratchFPR { InvalidFPRReg };
     Vector<StructureID> m_weakStructures;
-    Vector<std::unique_ptr<OptimizingCallLinkInfo>> m_callLinkInfos;
+    Bag<OptimizingCallLinkInfo> m_callLinkInfos;
     ScalarRegisterSet m_liveRegistersToPreserveAtExceptionHandlingCallSite;
     ScalarRegisterSet m_liveRegistersForCall;
     CallSiteIndex m_callSiteIndex;

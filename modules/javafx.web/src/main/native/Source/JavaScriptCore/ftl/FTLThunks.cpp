@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2013-2021 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,11 +35,8 @@
 #include "FTLSaveRestore.h"
 #include "GPRInfo.h"
 #include "LinkBuffer.h"
-#include <wtf/TZoneMallocInlines.h>
 
 namespace JSC { namespace FTL {
-
-WTF_MAKE_TZONE_ALLOCATED_IMPL(Thunks);
 
 using namespace DFG;
 
@@ -88,7 +85,7 @@ static MacroAssemblerCodeRef<JITThunkPtrTag> genericGenerationThunkGenerator(
         GPRInfo::argumentGPR1,
         (stackMisalignment - pushToSaveByteOffset) / sizeof(void*));
     jit.prepareCallOperation(vm);
-    jit.callOperation<OperationPtrTag>(generationFunction.retagged<OperationPtrTag>());
+    MacroAssembler::Call functionCall = jit.call(OperationPtrTag);
 
     // At this point we want to make a tail call to what was returned to us in the
     // returnValueGPR. But at the same time as we do this, we must restore all registers.
@@ -123,6 +120,7 @@ static MacroAssemblerCodeRef<JITThunkPtrTag> genericGenerationThunkGenerator(
     jit.ret();
 
     LinkBuffer patchBuffer(jit, GLOBAL_THUNK_ID, LinkBuffer::Profile::FTLThunk);
+    patchBuffer.link(functionCall, generationFunction.retagged<OperationPtrTag>());
     return FINALIZE_THUNK(patchBuffer, JITThunkPtrTag, "%s", name);
 }
 
@@ -210,7 +208,7 @@ MacroAssemblerCodeRef<JITThunkPtrTag> slowPathCallThunkGenerator(VM& vm, const S
 
     AssemblyHelpers::Call call;
     if (key.callTarget())
-        jit.callOperation<OperationPtrTag>(key.callTarget());
+        call = jit.call(OperationPtrTag);
     else
         jit.call(CCallHelpers::Address(GPRInfo::nonArgGPR0, key.indirectOffset()), OperationPtrTag);
 
@@ -242,6 +240,8 @@ MacroAssemblerCodeRef<JITThunkPtrTag> slowPathCallThunkGenerator(VM& vm, const S
     jit.ret();
 
     LinkBuffer patchBuffer(jit, GLOBAL_THUNK_ID, LinkBuffer::Profile::FTLThunk);
+    if (key.callTarget())
+        patchBuffer.link(call, key.callTarget());
     return FINALIZE_THUNK(patchBuffer, JITThunkPtrTag, "FTL slow path call thunk for %s", toCString(key).data());
 }
 

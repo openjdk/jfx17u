@@ -123,10 +123,10 @@ public:
             return range.start >= end;
         }
 
-        friend bool operator==(const Range&, const Range&) = default;
+        inline bool operator==(const Range& other) const { return start == other.start && end == other.end; }
     };
 
-    friend bool operator==(const PlatformTimeRanges&, const PlatformTimeRanges&) = default;
+    bool operator==(const PlatformTimeRanges& other) const;
 
 private:
     friend struct IPC::ArgumentCoder<PlatformTimeRanges, void>;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2016-2018 Apple Inc. All rights reserved.
  * Copyright (C) 2018 Yusuke Suzuki <yusukesuzuki@slowstart.org>.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,6 @@
 
 #include "JSCJSValueInlines.h"
 #include "WasmBranchHintsSectionParser.h"
-#include "WasmConstExprGenerator.h"
 #include "WasmMemoryInformation.h"
 #include "WasmNameSectionParser.h"
 #include "WasmOps.h"
@@ -45,14 +44,11 @@ namespace JSC { namespace Wasm {
 auto SectionParser::parseType() -> PartialResult
 {
     uint32_t count;
-    uint32_t recursionGroupCount = 0;
 
     WASM_PARSER_FAIL_IF(!parseVarUInt32(count), "can't get Type section's count");
     WASM_PARSER_FAIL_IF(count > maxTypes, "Type section's count is too big ", count, " maximum ", maxTypes);
-    RELEASE_ASSERT(!m_info->typeSignatures.capacity());
-    RELEASE_ASSERT(!m_info->rtts.capacity());
-    WASM_PARSER_FAIL_IF(!m_info->typeSignatures.tryReserveInitialCapacity(count), "can't allocate enough memory for Type section's ", count, " entries");
-    WASM_PARSER_FAIL_IF(!m_info->rtts.tryReserveInitialCapacity(count), "can't allocate enough memory for Type section's ", count, " canonical RTT entries");
+    WASM_PARSER_FAIL_IF(!m_info->typeSignatures.tryReserveCapacity(count), "can't allocate enough memory for Type section's ", count, " entries");
+    WASM_PARSER_FAIL_IF(!m_info->rtts.tryReserveCapacity(count), "can't allocate enough memory for Type section's ", count, " canonical RTT entries");
 
     for (uint32_t i = 0; i < count; ++i) {
         int8_t typeKind;
@@ -86,17 +82,14 @@ auto SectionParser::parseType() -> PartialResult
                 return fail(i, "th type failed to parse because rec types are not enabled");
 
             WASM_FAIL_IF_HELPER_FAILS(parseRecursionGroup(i, signature));
-            ++recursionGroupCount;
-            WASM_PARSER_FAIL_IF(recursionGroupCount > maxNumberOfRecursionGroups, "number of recursion groups exceeded the limit of ", maxNumberOfRecursionGroups);
             break;
         }
-        case TypeKind::Sub:
-        case TypeKind::Subfinal: {
+        case TypeKind::Sub: {
             if (!Options::useWebAssemblyGC())
                 return fail(i, "th type failed to parse because sub types are not enabled");
 
             Vector<TypeIndex> empty;
-            WASM_FAIL_IF_HELPER_FAILS(parseSubtype(i, signature, empty, static_cast<TypeKind>(typeKind) == TypeKind::Subfinal));
+            WASM_FAIL_IF_HELPER_FAILS(parseSubtype(i, signature, empty));
             break;
         }
         default:
@@ -121,24 +114,20 @@ auto SectionParser::parseType() -> PartialResult
                     RefPtr<TypeDefinition> group = TypeInformation::typeDefinitionForRecursionGroup(types);
                     RefPtr<TypeDefinition> projection = TypeInformation::typeDefinitionForProjection(group->index(), 0);
                     TypeInformation::registerCanonicalRTTForType(projection->index());
-                    m_info->rtts.append(TypeInformation::getCanonicalRTT(projection->index()));
-                    if (signature->is<Subtype>()) {
-                        WASM_PARSER_FAIL_IF(m_info->rtts.last()->displaySize() > maxSubtypeDepth, "subtype depth for Type section's ", i, "th signature exceeded the limits of ", maxSubtypeDepth);
-                        WASM_FAIL_IF_HELPER_FAILS(checkSubtypeValidity(projection->unroll(), group));
-                    }
-                    m_info->typeSignatures.append(projection.releaseNonNull());
+                    m_info->rtts.uncheckedAppend(TypeInformation::getCanonicalRTT(projection->index()));
+                    if (signature->is<Subtype>())
+                        WASM_PARSER_FAIL_IF(!checkSubtypeValidity(projection->unroll(), *group), "structural type is not a subtype of the specified supertype");
+                    m_info->typeSignatures.uncheckedAppend(projection.releaseNonNull());
                 } else {
                     TypeInformation::registerCanonicalRTTForType(signature->index());
-                    m_info->rtts.append(TypeInformation::getCanonicalRTT(signature->index()));
-                    if (signature->is<Subtype>()) {
-                        WASM_PARSER_FAIL_IF(m_info->rtts.last()->displaySize() > maxSubtypeDepth, "subtype depth for Type section's ", i, "th signature exceeded the limits of ", maxSubtypeDepth);
-                        WASM_FAIL_IF_HELPER_FAILS(checkSubtypeValidity(signature->unroll(), { }));
+                    m_info->rtts.uncheckedAppend(TypeInformation::getCanonicalRTT(signature->index()));
+                    if (signature->is<Subtype>())
+                        WASM_PARSER_FAIL_IF(!checkStructuralSubtype(signature->expand(), TypeInformation::get(signature->as<Subtype>()->superType())), "structural type is not a subtype of the specified supertype");
+                    m_info->typeSignatures.uncheckedAppend(signature.releaseNonNull());
                 }
-                    m_info->typeSignatures.append(signature.releaseNonNull());
-            }
             }
         } else
-            m_info->typeSignatures.append(signature.releaseNonNull());
+        m_info->typeSignatures.uncheckedAppend(signature.releaseNonNull());
     }
     return { };
 }
@@ -148,14 +137,10 @@ auto SectionParser::parseImport() -> PartialResult
     uint32_t importCount;
     WASM_PARSER_FAIL_IF(!parseVarUInt32(importCount), "can't get Import section's count");
     WASM_PARSER_FAIL_IF(importCount > maxImports, "Import section's count is too big ", importCount, " maximum ", maxImports);
-    RELEASE_ASSERT(!m_info->globals.capacity());
-    RELEASE_ASSERT(!m_info->imports.capacity());
-    RELEASE_ASSERT(!m_info->importFunctionTypeIndices.capacity());
-    RELEASE_ASSERT(!m_info->importExceptionTypeIndices.capacity());
-    WASM_PARSER_FAIL_IF(!m_info->globals.tryReserveInitialCapacity(importCount), "can't allocate enough memory for ", importCount, " globals"); // FIXME this over-allocates when we fix the FIXMEs below.
-    WASM_PARSER_FAIL_IF(!m_info->imports.tryReserveInitialCapacity(importCount), "can't allocate enough memory for ", importCount, " imports"); // FIXME this over-allocates when we fix the FIXMEs below.
-    WASM_PARSER_FAIL_IF(!m_info->importFunctionTypeIndices.tryReserveInitialCapacity(importCount), "can't allocate enough memory for ", importCount, " import function signatures"); // FIXME this over-allocates when we fix the FIXMEs below.
-    WASM_PARSER_FAIL_IF(!m_info->importExceptionTypeIndices.tryReserveInitialCapacity(importCount), "can't allocate enough memory for ", importCount, " import exception signatures"); // FIXME this over-allocates when we fix the FIXMEs below.
+    WASM_PARSER_FAIL_IF(!m_info->globals.tryReserveCapacity(importCount), "can't allocate enough memory for ", importCount, " globals"); // FIXME this over-allocates when we fix the FIXMEs below.
+    WASM_PARSER_FAIL_IF(!m_info->imports.tryReserveCapacity(importCount), "can't allocate enough memory for ", importCount, " imports"); // FIXME this over-allocates when we fix the FIXMEs below.
+    WASM_PARSER_FAIL_IF(!m_info->importFunctionTypeIndices.tryReserveCapacity(importCount), "can't allocate enough memory for ", importCount, " import function signatures"); // FIXME this over-allocates when we fix the FIXMEs below.
+        WASM_PARSER_FAIL_IF(!m_info->importExceptionTypeIndices.tryReserveCapacity(importCount), "can't allocate enough memory for ", importCount, " import exception signatures"); // FIXME this over-allocates when we fix the FIXMEs below.
 
     for (uint32_t importNumber = 0; importNumber < importCount; ++importNumber) {
         uint32_t moduleLen;
@@ -179,7 +164,7 @@ auto SectionParser::parseImport() -> PartialResult
             WASM_PARSER_FAIL_IF(functionTypeIndex >= m_info->typeCount(), "invalid function signature for ", importNumber, "th Import, ", functionTypeIndex, " is out of range of ", m_info->typeCount(), " in module '", moduleString, "' field '", fieldString, "'");
             kindIndex = m_info->importFunctionTypeIndices.size();
             TypeIndex typeIndex = TypeInformation::get(m_info->typeSignatures[functionTypeIndex]);
-            m_info->importFunctionTypeIndices.append(typeIndex);
+            m_info->importFunctionTypeIndices.uncheckedAppend(typeIndex);
             break;
         }
         case ExternalKind::Table: {
@@ -204,7 +189,7 @@ auto SectionParser::parseImport() -> PartialResult
             if (global.mutability == Mutability::Mutable)
                 global.bindingMode = GlobalInformation::BindingMode::Portable;
             kindIndex = m_info->globals.size();
-            m_info->globals.append(WTFMove(global));
+            m_info->globals.uncheckedAppend(WTFMove(global));
             break;
         }
         case ExternalKind::Exception: {
@@ -217,12 +202,12 @@ auto SectionParser::parseImport() -> PartialResult
             WASM_PARSER_FAIL_IF(exceptionSignatureIndex >= m_info->typeCount(), "invalid exception signature for ", importNumber, "th Import, ", exceptionSignatureIndex, " is out of range of ", m_info->typeCount(), " in module '", moduleString, "' field '", fieldString, "'");
             kindIndex = m_info->importExceptionTypeIndices.size();
             TypeIndex typeIndex = TypeInformation::get(m_info->typeSignatures[exceptionSignatureIndex]);
-            m_info->importExceptionTypeIndices.append(typeIndex);
+            m_info->importExceptionTypeIndices.uncheckedAppend(typeIndex);
             break;
         }
         }
 
-        m_info->imports.append({ WTFMove(moduleString), WTFMove(fieldString), kind, kindIndex });
+        m_info->imports.uncheckedAppend({ WTFMove(moduleString), WTFMove(fieldString), kind, kindIndex });
     }
 
     m_info->firstInternalGlobal = m_info->globals.size();
@@ -234,10 +219,8 @@ auto SectionParser::parseFunction() -> PartialResult
     uint32_t count;
     WASM_PARSER_FAIL_IF(!parseVarUInt32(count), "can't get Function section's count");
     WASM_PARSER_FAIL_IF(count > maxFunctions, "Function section's count is too big ", count, " maximum ", maxFunctions);
-    RELEASE_ASSERT(!m_info->internalFunctionTypeIndices.capacity());
-    RELEASE_ASSERT(!m_info->functions.capacity());
-    WASM_PARSER_FAIL_IF(!m_info->internalFunctionTypeIndices.tryReserveInitialCapacity(count), "can't allocate enough memory for ", count, " Function signatures");
-    WASM_PARSER_FAIL_IF(!m_info->functions.tryReserveInitialCapacity(count), "can't allocate enough memory for ", count, "Function locations");
+    WASM_PARSER_FAIL_IF(!m_info->internalFunctionTypeIndices.tryReserveCapacity(count), "can't allocate enough memory for ", count, " Function signatures");
+    WASM_PARSER_FAIL_IF(!m_info->functions.tryReserveCapacity(count), "can't allocate enough memory for ", count, "Function locations");
 
     for (uint32_t i = 0; i < count; ++i) {
         uint32_t typeNumber;
@@ -248,8 +231,8 @@ auto SectionParser::parseFunction() -> PartialResult
         // The Code section fixes up start and end.
         size_t start = 0;
         size_t end = 0;
-        m_info->internalFunctionTypeIndices.append(typeIndex);
-        m_info->functions.append({ start, end, Vector<uint8_t>() });
+        m_info->internalFunctionTypeIndices.uncheckedAppend(typeIndex);
+        m_info->functions.uncheckedAppend({ start, end, Vector<uint8_t>() });
     }
 
     // Note that `initializeFunctionTrackers` should only be used after both parseImport and parseFunction
@@ -286,24 +269,13 @@ auto SectionParser::parseTableHelper(bool isImport) -> PartialResult
     WASM_PARSER_FAIL_IF(m_info->tableCount() >= maxTables, "Table count of ", m_info->tableCount(), " is too big, maximum ", maxTables);
 
     Type type;
-    bool hasInitExpr = false;
-    TableInformation::InitializationType tableInitType = TableInformation::Default;
-    uint64_t initialBitsOrImportNumber = 0;
-
-    int8_t firstByte = 0;
-    WASM_PARSER_FAIL_IF(!peekInt7(firstByte), "can't parse Table information");
-    if (!isImport && Options::useWebAssemblyTypedFunctionReferences() && static_cast<TypeKind>(firstByte) == TypeKind::Void) {
-        hasInitExpr = true;
-        m_offset++;
-        uint8_t reservedByte;
-        WASM_PARSER_FAIL_IF(!parseUInt8(reservedByte) || reservedByte, "can't parse explicitly initialized Table's reserved byte");
-    }
-
     WASM_PARSER_FAIL_IF(!parseValueType(m_info, type), "can't parse Table type");
     WASM_PARSER_FAIL_IF(!isRefType(type), "Table type should be a ref type, got ", type);
     if (!Options::useWebAssemblyTypedFunctionReferences())
         WASM_PARSER_FAIL_IF(type.kind != TypeKind::Funcref && type.kind != TypeKind::Externref, "Table type should be funcref or anyref, got ", type);
-    if (!hasInitExpr)
+
+    // FIXME: This restriction can be adjusted once initializer expressions are implemented.
+    // https://bugs.webkit.org/show_bug.cgi?id=251123
     WASM_PARSER_FAIL_IF(!isDefaultableType(type), "Table's type must be defaultable");
 
     uint32_t initial;
@@ -316,28 +288,8 @@ auto SectionParser::parseTableHelper(bool isImport) -> PartialResult
 
     ASSERT(!maximum || *maximum >= initial);
 
-    if (hasInitExpr) {
-        uint8_t initOpcode;
-        Type typeForInitOpcode;
-        bool isExtendedConstantExpression;
-        v128_t unusedVector { };
-        WASM_FAIL_IF_HELPER_FAILS(parseInitExpr(initOpcode, isExtendedConstantExpression, initialBitsOrImportNumber, unusedVector, type, typeForInitOpcode));
-        WASM_PARSER_FAIL_IF(!isSubtype(typeForInitOpcode, type), "Table init_expr opcode of type ", typeForInitOpcode.kind, " doesn't match table's type ", type.kind);
-
-        if (isExtendedConstantExpression)
-            tableInitType = TableInformation::FromExtendedExpression;
-        else if (initOpcode == GetGlobal)
-            tableInitType = TableInformation::FromGlobalImport;
-        else if (initOpcode == RefFunc)
-            tableInitType = TableInformation::FromRefFunc;
-        else if (initOpcode == RefNull)
-            tableInitType = TableInformation::FromRefNull;
-        else
-            RELEASE_ASSERT_NOT_REACHED();
-    }
-
     TableElementType tableType = isSubtype(type, funcrefType()) ? TableElementType::Funcref : TableElementType::Externref;
-    m_info->tables.append(TableInformation(initial, maximum, isImport, tableType, type, tableInitType, initialBitsOrImportNumber));
+    m_info->tables.append(TableInformation(initial, maximum, isImport, tableType, type));
 
     return { };
 }
@@ -406,9 +358,8 @@ auto SectionParser::parseGlobal() -> PartialResult
     uint32_t globalCount;
     WASM_PARSER_FAIL_IF(!parseVarUInt32(globalCount), "can't get Global section's count");
     WASM_PARSER_FAIL_IF(globalCount > maxGlobals, "Global section's count is too big ", globalCount, " maximum ", maxGlobals);
-    size_t totalGlobals = globalCount + m_info->firstInternalGlobal;
-    ASSERT(m_info->firstInternalGlobal == m_info->globals.size());
-    WASM_PARSER_FAIL_IF(!m_info->globals.tryGrowCapacityBy(globalCount), "can't allocate memory for ", totalGlobals, " globals");
+    size_t totalBytes = globalCount + m_info->firstInternalGlobal;
+    WASM_PARSER_FAIL_IF((static_cast<uint32_t>(totalBytes) < globalCount) || !m_info->globals.tryReserveCapacity(totalBytes), "can't allocate memory for ", totalBytes, " globals");
 
     for (uint32_t globalIndex = 0; globalIndex < globalCount; ++globalIndex) {
         GlobalInformation global;
@@ -418,16 +369,13 @@ auto SectionParser::parseGlobal() -> PartialResult
 
         WASM_FAIL_IF_HELPER_FAILS(parseGlobalType(global));
         Type typeForInitOpcode;
-        bool isExtendedConstantExpression;
-        WASM_FAIL_IF_HELPER_FAILS(parseInitExpr(initOpcode, isExtendedConstantExpression, initialBitsOrImportNumber, initVector, global.type, typeForInitOpcode));
+        WASM_FAIL_IF_HELPER_FAILS(parseInitExpr(initOpcode, initialBitsOrImportNumber, initVector, typeForInitOpcode));
         if (typeForInitOpcode.isV128())
             global.initialBits.initialVector = initVector;
         else
             global.initialBits.initialBitsOrImportNumber = initialBitsOrImportNumber;
 
-        if (isExtendedConstantExpression)
-            global.initializationType = GlobalInformation::FromExtendedExpression;
-        else if (initOpcode == GetGlobal)
+        if (initOpcode == GetGlobal)
             global.initializationType = GlobalInformation::FromGlobalImport;
         else if (initOpcode == RefFunc)
             global.initializationType = GlobalInformation::FromRefFunc;
@@ -440,7 +388,7 @@ auto SectionParser::parseGlobal() -> PartialResult
             m_info->addDeclaredFunction(global.initialBits.initialBitsOrImportNumber);
         }
 
-        m_info->globals.append(WTFMove(global));
+        m_info->globals.uncheckedAppend(WTFMove(global));
     }
 
     return { };
@@ -451,8 +399,7 @@ auto SectionParser::parseExport() -> PartialResult
     uint32_t exportCount;
     WASM_PARSER_FAIL_IF(!parseVarUInt32(exportCount), "can't get Export section's count");
     WASM_PARSER_FAIL_IF(exportCount > maxExports, "Export section's count is too big ", exportCount, " maximum ", maxExports);
-    RELEASE_ASSERT(!m_info->exports.capacity());
-    WASM_PARSER_FAIL_IF(!m_info->exports.tryReserveInitialCapacity(exportCount), "can't allocate enough memory for ", exportCount, " exports");
+    WASM_PARSER_FAIL_IF(!m_info->exports.tryReserveCapacity(exportCount), "can't allocate enough memory for ", exportCount, " exports");
 
     HashSet<String> exportNames;
     for (uint32_t exportNumber = 0; exportNumber < exportCount; ++exportNumber) {
@@ -499,7 +446,7 @@ auto SectionParser::parseExport() -> PartialResult
         }
         }
 
-        m_info->exports.append({ WTFMove(fieldString), kind, kindIndex });
+        m_info->exports.uncheckedAppend({ WTFMove(fieldString), kind, kindIndex });
     }
 
     return { };
@@ -523,8 +470,7 @@ auto SectionParser::parseElement() -> PartialResult
     uint32_t elementCount;
     WASM_PARSER_FAIL_IF(!parseVarUInt32(elementCount), "can't get Element section's count");
     WASM_PARSER_FAIL_IF(elementCount > maxTableEntries, "Element section's count is too big ", elementCount, " maximum ", maxTableEntries);
-    RELEASE_ASSERT(!m_info->elements.capacity());
-    WASM_PARSER_FAIL_IF(!m_info->elements.tryReserveInitialCapacity(elementCount), "can't allocate memory for ", elementCount, " Elements");
+    WASM_PARSER_FAIL_IF(!m_info->elements.tryReserveCapacity(elementCount), "can't allocate memory for ", elementCount, " Elements");
     for (unsigned elementNum = 0; elementNum < elementCount; ++elementNum) {
         uint32_t elementFlags;
         WASM_PARSER_FAIL_IF(!parseVarUInt32(elementFlags), "can't get ", elementNum, "th Element reserved byte, which should be element flags");
@@ -532,7 +478,7 @@ auto SectionParser::parseElement() -> PartialResult
         switch (elementFlags) {
         case 0x00: {
             constexpr uint32_t tableIndex = 0;
-            WASM_FAIL_IF_HELPER_FAILS(validateElementTableIdx(tableIndex, funcrefType()));
+            WASM_FAIL_IF_HELPER_FAILS(validateElementTableIdx(tableIndex, TableElementType::Funcref));
 
             std::optional<I32InitExpr> initExpr;
             WASM_FAIL_IF_HELPER_FAILS(parseI32InitExprForElementSection(initExpr));
@@ -541,12 +487,11 @@ auto SectionParser::parseElement() -> PartialResult
             WASM_FAIL_IF_HELPER_FAILS(parseIndexCountForElementSection(indexCount, elementNum));
             ASSERT(!!m_info->tables[tableIndex]);
 
-            Element element(Element::Kind::Active, funcrefType(), tableIndex, WTFMove(initExpr));
-            WASM_PARSER_FAIL_IF(!element.initTypes.tryReserveInitialCapacity(indexCount), "can't allocate memory for ", indexCount, " Element init_exprs");
-            WASM_PARSER_FAIL_IF(!element.initialBitsOrIndices.tryReserveInitialCapacity(indexCount), "can't allocate memory for ", indexCount, " Element init_exprs");
+            Element element(Element::Kind::Active, TableElementType::Funcref, tableIndex, WTFMove(initExpr));
+            WASM_PARSER_FAIL_IF(!element.functionIndices.tryReserveCapacity(indexCount), "can't allocate memory for ", indexCount, " Element indices");
 
-            WASM_FAIL_IF_HELPER_FAILS(parseElementSegmentVectorOfIndexes(element.initTypes, element.initialBitsOrIndices, indexCount, elementNum));
-            m_info->elements.append(WTFMove(element));
+            WASM_FAIL_IF_HELPER_FAILS(parseElementSegmentVectorOfIndexes(element.functionIndices, indexCount, elementNum));
+            m_info->elements.uncheckedAppend(WTFMove(element));
             break;
         }
         case 0x01: {
@@ -555,18 +500,17 @@ auto SectionParser::parseElement() -> PartialResult
 
             uint32_t indexCount;
             WASM_FAIL_IF_HELPER_FAILS(parseIndexCountForElementSection(indexCount, elementNum));
-            Element element(Element::Kind::Passive, funcrefType());
-            WASM_PARSER_FAIL_IF(!element.initTypes.tryReserveInitialCapacity(indexCount), "can't allocate memory for ", indexCount, " Element init_exprs");
-            WASM_PARSER_FAIL_IF(!element.initialBitsOrIndices.tryReserveInitialCapacity(indexCount), "can't allocate memory for ", indexCount, " Element init_exprs");
+            Element element(Element::Kind::Passive, TableElementType::Funcref);
+            WASM_PARSER_FAIL_IF(!element.functionIndices.tryReserveCapacity(indexCount), "can't allocate memory for ", indexCount, " Element indices");
 
-            WASM_FAIL_IF_HELPER_FAILS(parseElementSegmentVectorOfIndexes(element.initTypes, element.initialBitsOrIndices, indexCount, elementNum));
-            m_info->elements.append(WTFMove(element));
+            WASM_FAIL_IF_HELPER_FAILS(parseElementSegmentVectorOfIndexes(element.functionIndices, indexCount, elementNum));
+            m_info->elements.uncheckedAppend(WTFMove(element));
             break;
         }
         case 0x02: {
             uint32_t tableIndex;
             WASM_PARSER_FAIL_IF(!parseVarUInt32(tableIndex), "can't get ", elementNum, "th Element table index");
-            WASM_FAIL_IF_HELPER_FAILS(validateElementTableIdx(tableIndex, funcrefType()));
+            WASM_FAIL_IF_HELPER_FAILS(validateElementTableIdx(tableIndex, TableElementType::Funcref));
 
             std::optional<I32InitExpr> initExpr;
             WASM_FAIL_IF_HELPER_FAILS(parseI32InitExprForElementSection(initExpr));
@@ -578,12 +522,11 @@ auto SectionParser::parseElement() -> PartialResult
             WASM_FAIL_IF_HELPER_FAILS(parseIndexCountForElementSection(indexCount, elementNum));
             ASSERT(!!m_info->tables[tableIndex]);
 
-            Element element(Element::Kind::Active, funcrefType(), tableIndex, WTFMove(initExpr));
-            WASM_PARSER_FAIL_IF(!element.initTypes.tryReserveInitialCapacity(indexCount), "can't allocate memory for ", indexCount, " Element init_exprs");
-            WASM_PARSER_FAIL_IF(!element.initialBitsOrIndices.tryReserveInitialCapacity(indexCount), "can't allocate memory for ", indexCount, " Element init_exprs");
+            Element element(Element::Kind::Active, TableElementType::Funcref, tableIndex, WTFMove(initExpr));
+            WASM_PARSER_FAIL_IF(!element.functionIndices.tryReserveCapacity(indexCount), "can't allocate memory for ", indexCount, " Element indices");
 
-            WASM_FAIL_IF_HELPER_FAILS(parseElementSegmentVectorOfIndexes(element.initTypes, element.initialBitsOrIndices, indexCount, elementNum));
-            m_info->elements.append(WTFMove(element));
+            WASM_FAIL_IF_HELPER_FAILS(parseElementSegmentVectorOfIndexes(element.functionIndices, indexCount, elementNum));
+            m_info->elements.uncheckedAppend(WTFMove(element));
             break;
         }
         case 0x03: {
@@ -592,17 +535,16 @@ auto SectionParser::parseElement() -> PartialResult
 
             uint32_t indexCount;
             WASM_FAIL_IF_HELPER_FAILS(parseIndexCountForElementSection(indexCount, elementNum));
-            Element element(Element::Kind::Declared, funcrefType());
-            WASM_PARSER_FAIL_IF(!element.initTypes.tryReserveInitialCapacity(indexCount), "can't allocate memory for ", indexCount, " Element init_exprs");
-            WASM_PARSER_FAIL_IF(!element.initialBitsOrIndices.tryReserveInitialCapacity(indexCount), "can't allocate memory for ", indexCount, " Element init_exprs");
+            Element element(Element::Kind::Declared, TableElementType::Funcref);
+            WASM_PARSER_FAIL_IF(!element.functionIndices.tryReserveCapacity(indexCount), "can't allocate memory for ", indexCount, " Element indices");
 
-            WASM_FAIL_IF_HELPER_FAILS(parseElementSegmentVectorOfIndexes(element.initTypes, element.initialBitsOrIndices, indexCount, elementNum));
-            m_info->elements.append(WTFMove(element));
+            WASM_FAIL_IF_HELPER_FAILS(parseElementSegmentVectorOfIndexes(element.functionIndices, indexCount, elementNum));
+            m_info->elements.uncheckedAppend(WTFMove(element));
             break;
         }
         case 0x04: {
             constexpr uint32_t tableIndex = 0;
-            WASM_FAIL_IF_HELPER_FAILS(validateElementTableIdx(tableIndex, funcrefType()));
+            WASM_FAIL_IF_HELPER_FAILS(validateElementTableIdx(tableIndex, TableElementType::Funcref));
 
             std::optional<I32InitExpr> initExpr;
             WASM_FAIL_IF_HELPER_FAILS(parseI32InitExprForElementSection(initExpr));
@@ -611,28 +553,30 @@ auto SectionParser::parseElement() -> PartialResult
             WASM_FAIL_IF_HELPER_FAILS(parseIndexCountForElementSection(indexCount, elementNum));
             ASSERT(!!m_info->tables[tableIndex]);
 
-            Element element(Element::Kind::Active, funcrefType(), tableIndex, WTFMove(initExpr));
-            WASM_PARSER_FAIL_IF(!element.initTypes.tryReserveInitialCapacity(indexCount), "can't allocate memory for ", indexCount, " Element init_exprs");
-            WASM_PARSER_FAIL_IF(!element.initialBitsOrIndices.tryReserveInitialCapacity(indexCount), "can't allocate memory for ", indexCount, " Element init_exprs");
+            Element element(Element::Kind::Active, TableElementType::Funcref, tableIndex, WTFMove(initExpr));
+            WASM_PARSER_FAIL_IF(!element.functionIndices.tryReserveCapacity(indexCount), "can't allocate memory for ", indexCount, " Element indices");
 
-            WASM_FAIL_IF_HELPER_FAILS(parseElementSegmentVectorOfExpressions(funcrefType(), element.initTypes, element.initialBitsOrIndices, indexCount, elementNum));
-            m_info->elements.append(WTFMove(element));
+            WASM_FAIL_IF_HELPER_FAILS(parseElementSegmentVectorOfExpressions(TableElementType::Funcref, element.functionIndices, indexCount, elementNum));
+            m_info->elements.uncheckedAppend(WTFMove(element));
             break;
         }
         case 0x05: {
             Type refType;
             WASM_PARSER_FAIL_IF(!parseRefType(m_info, refType), "can't parse reftype in elem section");
-            ASSERT_IMPLIES(!Options::useWebAssemblyTypedFunctionReferences(), isExternref(refType) || isFuncref(refType));
+
+            // FIXME: Any ref type should be allowed here;
+            // see https://bugs.webkit.org/show_bug.cgi?id=251874
+            WASM_PARSER_FAIL_IF(!isFuncref(refType) && refType.isNullable(), "reftype in element section should be funcref");
+            TableElementType tableElementType = TableElementType::Funcref;
 
             uint32_t indexCount;
             WASM_FAIL_IF_HELPER_FAILS(parseIndexCountForElementSection(indexCount, elementNum));
 
-            Element element(Element::Kind::Passive, refType);
-            WASM_PARSER_FAIL_IF(!element.initTypes.tryReserveInitialCapacity(indexCount), "can't allocate memory for ", indexCount, " Element init_exprs");
-            WASM_PARSER_FAIL_IF(!element.initialBitsOrIndices.tryReserveInitialCapacity(indexCount), "can't allocate memory for ", indexCount, " Element init_exprs");
+            Element element(Element::Kind::Passive, tableElementType);
+            WASM_PARSER_FAIL_IF(!element.functionIndices.tryReserveCapacity(indexCount), "can't allocate memory for ", indexCount, " Element indices");
 
-            WASM_FAIL_IF_HELPER_FAILS(parseElementSegmentVectorOfExpressions(refType, element.initTypes, element.initialBitsOrIndices, indexCount, elementNum));
-            m_info->elements.append(WTFMove(element));
+            WASM_FAIL_IF_HELPER_FAILS(parseElementSegmentVectorOfExpressions(tableElementType, element.functionIndices, indexCount, elementNum));
+            m_info->elements.uncheckedAppend(WTFMove(element));
             break;
         }
         case 0x06: {
@@ -644,35 +588,40 @@ auto SectionParser::parseElement() -> PartialResult
 
             Type refType;
             WASM_PARSER_FAIL_IF(!parseRefType(m_info, refType), "can't parse reftype in elem section");
-            ASSERT_IMPLIES(!Options::useWebAssemblyTypedFunctionReferences(), isExternref(refType) || isFuncref(refType));
-            WASM_FAIL_IF_HELPER_FAILS(validateElementTableIdx(tableIndex, refType));
+
+            TableElementType tableElementType = TableElementType::Funcref;
+            if (isFuncref(refType))
+                tableElementType = TableElementType::Funcref;
+            else if (isExternref(refType))
+                tableElementType = TableElementType::Externref;
+            else
+                WASM_PARSER_FAIL_IF(true, "reftype in element section should be funcref or externref");
+            WASM_FAIL_IF_HELPER_FAILS(validateElementTableIdx(tableIndex, tableElementType));
 
             uint32_t indexCount;
             WASM_FAIL_IF_HELPER_FAILS(parseIndexCountForElementSection(indexCount, elementNum));
             ASSERT(!!m_info->tables[tableIndex]);
 
-            Element element(Element::Kind::Active, refType, tableIndex, WTFMove(initExpr));
-            WASM_PARSER_FAIL_IF(!element.initTypes.tryReserveInitialCapacity(indexCount), "can't allocate memory for ", indexCount, " Element init_exprs");
-            WASM_PARSER_FAIL_IF(!element.initialBitsOrIndices.tryReserveInitialCapacity(indexCount), "can't allocate memory for ", indexCount, " Element init_exprs");
+            Element element(Element::Kind::Active, tableElementType, tableIndex, WTFMove(initExpr));
+            WASM_PARSER_FAIL_IF(!element.functionIndices.tryReserveCapacity(indexCount), "can't allocate memory for ", indexCount, " Element indices");
 
-            WASM_FAIL_IF_HELPER_FAILS(parseElementSegmentVectorOfExpressions(refType, element.initTypes, element.initialBitsOrIndices, indexCount, elementNum));
-            m_info->elements.append(WTFMove(element));
+            WASM_FAIL_IF_HELPER_FAILS(parseElementSegmentVectorOfExpressions(tableElementType, element.functionIndices, indexCount, elementNum));
+            m_info->elements.uncheckedAppend(WTFMove(element));
             break;
         }
         case 0x07: {
             Type refType;
             WASM_PARSER_FAIL_IF(!parseRefType(m_info, refType), "can't parse reftype in elem section");
-            ASSERT_IMPLIES(!Options::useWebAssemblyTypedFunctionReferences(), isExternref(refType) || isFuncref(refType));
+            WASM_PARSER_FAIL_IF(!isFuncref(refType) && refType.isNullable(), "reftype in element section should be funcref");
 
             uint32_t indexCount;
             WASM_FAIL_IF_HELPER_FAILS(parseIndexCountForElementSection(indexCount, elementNum));
 
-            Element element(Element::Kind::Declared, refType);
-            WASM_PARSER_FAIL_IF(!element.initTypes.tryReserveInitialCapacity(indexCount), "can't allocate memory for ", indexCount, " Element init_exprs");
-            WASM_PARSER_FAIL_IF(!element.initialBitsOrIndices.tryReserveInitialCapacity(indexCount), "can't allocate memory for ", indexCount, " Element init_exprs");
+            Element element(Element::Kind::Declared, TableElementType::Funcref);
+            WASM_PARSER_FAIL_IF(!element.functionIndices.tryReserveCapacity(indexCount), "can't allocate memory for ", indexCount, " Element indices");
 
-            WASM_FAIL_IF_HELPER_FAILS(parseElementSegmentVectorOfExpressions(refType, element.initTypes, element.initialBitsOrIndices, indexCount, elementNum));
-            m_info->elements.append(WTFMove(element));
+            WASM_FAIL_IF_HELPER_FAILS(parseElementSegmentVectorOfExpressions(TableElementType::Funcref, element.functionIndices, indexCount, elementNum));
+            m_info->elements.uncheckedAppend(WTFMove(element));
             break;
         }
         default:
@@ -690,9 +639,8 @@ auto SectionParser::parseCode() -> PartialResult
     return { };
 }
 
-auto SectionParser::parseInitExpr(uint8_t& opcode, bool& isExtendedConstantExpression, uint64_t& bitsOrImportNumber, v128_t& vectorBits, Type expectedType, Type& resultType) -> PartialResult
+auto SectionParser::parseInitExpr(uint8_t& opcode, uint64_t& bitsOrImportNumber, v128_t& vectorBits, Type& resultType) -> PartialResult
 {
-    size_t initialOffset = m_offset;
     WASM_PARSER_FAIL_IF(!parseUInt8(opcode), "can't get init_expr's opcode");
 
     switch (opcode) {
@@ -752,7 +700,6 @@ auto SectionParser::parseInitExpr(uint8_t& opcode, bool& isExtendedConstantExpre
         WASM_PARSER_FAIL_IF(!parseVarUInt32(index), "can't get get_global's index");
 
         WASM_PARSER_FAIL_IF(index >= m_info->globals.size(), "get_global's index ", index, " exceeds the number of globals ", m_info->globals.size());
-        if (!Options::useWebAssemblyGC())
         WASM_PARSER_FAIL_IF(index >= m_info->firstInternalGlobal, "get_global import kind index ", index, " exceeds the first internal global ", m_info->firstInternalGlobal);
         WASM_PARSER_FAIL_IF(m_info->globals[index].mutability != Mutability::Immutable, "get_global import kind index ", index, " is mutable ");
 
@@ -795,45 +742,21 @@ auto SectionParser::parseInitExpr(uint8_t& opcode, bool& isExtendedConstantExpre
         break;
     }
 
-    case ExtGC:
-        WASM_PARSER_FAIL_IF(!Options::useWebAssemblyGC(), "Wasm GC is not enabled");
-        WASM_PARSER_FAIL_IF(!Options::useWebAssemblyExtendedConstantExpressions(), "unknown init_expr opcode ", opcode);
-        break;
-
     default:
         WASM_PARSER_FAIL_IF(true, "unknown init_expr opcode ", opcode);
     }
 
     uint8_t endOpcode;
-    // Don't consume the opcode byte unless it's an End so that the extended
-    // parsing mode below can consume it if needed.
-    WASM_PARSER_FAIL_IF(offset() >= length(), "can't get init_expr's end opcode");
-    endOpcode = source()[offset()];
-
-    if (endOpcode == OpType::End && opcode != OpType::ExtGC) {
-        m_offset++;
-        isExtendedConstantExpression = false;
-    return { };
-    }
-    WASM_PARSER_FAIL_IF(!Options::useWebAssemblyExtendedConstantExpressions(), "init_expr should end with end, ended with ", endOpcode);
-
-    // If an End doesn't appear, we have to assume it's an extended constant expression
-    // and use the full Wasm expression parser to validate.
-    size_t initExprOffset;
-    WASM_FAIL_IF_HELPER_FAILS(parseExtendedConstExpr(source() + initialOffset, length() - initialOffset, initialOffset + m_offsetInSource, initExprOffset, m_info, expectedType));
-    m_offset += (initExprOffset - (m_offset - initialOffset));
-    WASM_PARSER_FAIL_IF(!m_info->constantExpressions.tryConstructAndAppend(source() + initialOffset, initExprOffset), "could not allocate memory for init expr");
-    bitsOrImportNumber = m_info->constantExpressions.size() - 1;
-    isExtendedConstantExpression = true;
-    resultType = expectedType;
+    WASM_PARSER_FAIL_IF(!parseUInt8(endOpcode), "can't get init_expr's end opcode");
+    WASM_PARSER_FAIL_IF(endOpcode != OpType::End, "init_expr should end with end, ended with ", endOpcode);
 
     return { };
 }
 
-auto SectionParser::validateElementTableIdx(uint32_t tableIndex, Type type) -> PartialResult
+auto SectionParser::validateElementTableIdx(uint32_t tableIndex, TableElementType type) -> PartialResult
 {
     WASM_PARSER_FAIL_IF(tableIndex >= m_info->tableCount(), "Element section for Table ", tableIndex, " exceeds available Table ", m_info->tableCount());
-    WASM_PARSER_FAIL_IF(!isSubtype(type, m_info->tables[tableIndex].wasmType()), "Table ", tableIndex, " must have type '", type, "' to have an element section");
+    WASM_PARSER_FAIL_IF(m_info->tables[tableIndex].type() != type, "Table ", tableIndex, " must have type '", type, "' to have an element section");
 
     return { };
 }
@@ -841,13 +764,12 @@ auto SectionParser::validateElementTableIdx(uint32_t tableIndex, Type type) -> P
 auto SectionParser::parseI32InitExpr(std::optional<I32InitExpr>& initExpr, ASCIILiteral failMessage) -> PartialResult
 {
     uint8_t initOpcode;
-    bool isExtendedConstantExpression;
     uint64_t initExprBits;
     Type initExprType;
     v128_t unused;
-    WASM_FAIL_IF_HELPER_FAILS(parseInitExpr(initOpcode, isExtendedConstantExpression, initExprBits, unused, Types::I32, initExprType));
+    WASM_FAIL_IF_HELPER_FAILS(parseInitExpr(initOpcode, initExprBits, unused, initExprType));
     WASM_PARSER_FAIL_IF(!initExprType.isI32(), failMessage);
-    initExpr = makeI32InitExpr(initOpcode, isExtendedConstantExpression, initExprBits);
+    initExpr = makeI32InitExpr(initOpcode, initExprBits);
 
     return { };
 }
@@ -857,27 +779,25 @@ auto SectionParser::parseFunctionType(uint32_t position, RefPtr<TypeDefinition>&
     uint32_t argumentCount;
     WASM_PARSER_FAIL_IF(!parseVarUInt32(argumentCount), "can't get Type's argument count at index ", position);
     WASM_PARSER_FAIL_IF(argumentCount > maxFunctionParams, "argument count of Type at index ", position, " is too big ", argumentCount, " maximum ", maxFunctionParams);
-    Vector<Type, 16> argumentTypes;
-    WASM_PARSER_FAIL_IF(!argumentTypes.tryReserveInitialCapacity(argumentCount), "can't allocate enough memory for Type section's ", position, "th signature");
+    Vector<Type> argumentTypes;
+    WASM_PARSER_FAIL_IF(!argumentTypes.tryReserveCapacity(argumentCount), "can't allocate enough memory for Type section's ", position, "th signature");
 
-    argumentTypes.resize(argumentCount);
     for (unsigned i = 0; i < argumentCount; ++i) {
         Type argumentType;
         WASM_PARSER_FAIL_IF(!parseValueType(m_info, argumentType), "can't get ", i, "th argument Type");
-        argumentTypes[i] = argumentType;
+        argumentTypes.append(argumentType);
     }
 
     uint32_t returnCount;
     WASM_PARSER_FAIL_IF(!parseVarUInt32(returnCount), "can't get Type's return count at index ", position);
     WASM_PARSER_FAIL_IF(returnCount > maxFunctionReturns, "return count of Type at index ", position, " is too big ", returnCount, " maximum ", maxFunctionReturns);
 
-    Vector<Type, 16> returnTypes;
-    WASM_PARSER_FAIL_IF(!returnTypes.tryReserveInitialCapacity(returnCount), "can't allocate enough memory for Type section's ", position, "th signature");
-    returnTypes.resize(returnCount);
+    Vector<Type, 1> returnTypes;
+    WASM_PARSER_FAIL_IF(!returnTypes.tryReserveCapacity(returnCount), "can't allocate enough memory for Type section's ", position, "th signature");
     for (unsigned i = 0; i < returnCount; ++i) {
         Type value;
         WASM_PARSER_FAIL_IF(!parseValueType(m_info, value), "can't get ", i, "th Type's return value");
-        returnTypes[i] = value;
+        returnTypes.append(value);
     }
 
     functionSignature = TypeInformation::typeDefinitionForFunction(returnTypes, argumentTypes);
@@ -922,19 +842,21 @@ auto SectionParser::parseStructType(uint32_t position, RefPtr<TypeDefinition>& s
     WASM_PARSER_FAIL_IF(!parseVarUInt32(fieldCount), "can't get ", position, "th struct type's field count");
     WASM_PARSER_FAIL_IF(fieldCount > maxStructFieldCount, "number of fields for struct type at position ", position, " is too big ", fieldCount, " maximum ", maxStructFieldCount);
     Vector<FieldType> fields;
-    WASM_PARSER_FAIL_IF(!fields.tryReserveInitialCapacity(fieldCount), "can't allocate enough memory for struct fields ", fieldCount, " entries");
-    fields.resize(fieldCount);
+    WASM_PARSER_FAIL_IF(!fields.tryReserveCapacity(fieldCount), "can't allocate enough memory for struct fields ", fieldCount, " entries");
 
     Checked<unsigned, RecordOverflow> structInstancePayloadSize { 0 };
     for (uint32_t fieldIndex = 0; fieldIndex < fieldCount; ++fieldIndex) {
         StorageType fieldType;
         WASM_PARSER_FAIL_IF(!parseStorageType(fieldType), "can't get ", fieldIndex, "th field Type");
 
+        // FIXME: https://bugs.webkit.org/show_bug.cgi?id=246981
+        WASM_PARSER_FAIL_IF(fieldType.is<PackedType>(), "packed types in structs are not supported yet");
+
         uint8_t mutability;
         WASM_PARSER_FAIL_IF(!parseUInt8(mutability), position, "can't get ", fieldIndex, "th field mutability");
         WASM_PARSER_FAIL_IF(mutability != 0x0 && mutability != 0x1, "invalid Field's mutability: 0x", hex(mutability, 2, Lowercase));
 
-        fields[fieldIndex] = FieldType { fieldType, static_cast<Mutability>(mutability) };
+        fields.uncheckedAppend(FieldType { fieldType, static_cast<Mutability>(mutability) });
         structInstancePayloadSize += typeSizeInBytes(fieldType);
         WASM_PARSER_FAIL_IF(structInstancePayloadSize.hasOverflowed(), "struct layout is too big");
     }
@@ -966,7 +888,7 @@ auto SectionParser::parseRecursionGroup(uint32_t position, RefPtr<TypeDefinition
     WASM_PARSER_FAIL_IF(!parseVarUInt32(typeCount), "can't get ", position, "th recursion group's type count");
     WASM_PARSER_FAIL_IF(typeCount > maxRecursionGroupCount, "number of types for recursion group at position ", position, " is too big ", typeCount, " maximum ", maxRecursionGroupCount);
     Vector<TypeIndex> types;
-    WASM_PARSER_FAIL_IF(!types.tryReserveInitialCapacity(typeCount), "can't allocate enough memory for recursion group ", typeCount, " entries");
+    WASM_PARSER_FAIL_IF(!types.tryReserveCapacity(typeCount), "can't allocate enough memory for recursion group ", typeCount, " entries");
     RefPtr<TypeDefinition> firstSignature;
 
     SetForScope<RecursionGroupInformation> recursionGroupInfo(m_recursionGroupInformation, RecursionGroupInformation { true, m_info->typeCount(), m_info->typeCount() + typeCount });
@@ -988,9 +910,8 @@ auto SectionParser::parseRecursionGroup(uint32_t position, RefPtr<TypeDefinition
             WASM_FAIL_IF_HELPER_FAILS(parseArrayType(i, signature));
             break;
         }
-        case TypeKind::Sub:
-        case TypeKind::Subfinal: {
-            WASM_FAIL_IF_HELPER_FAILS(parseSubtype(i, signature, types, static_cast<TypeKind>(typeKind) == TypeKind::Subfinal));
+        case TypeKind::Sub: {
+            WASM_FAIL_IF_HELPER_FAILS(parseSubtype(i, signature, types));
             break;
         }
         default:
@@ -998,7 +919,7 @@ auto SectionParser::parseRecursionGroup(uint32_t position, RefPtr<TypeDefinition
         }
 
         WASM_PARSER_FAIL_IF(!signature, "can't allocate enough memory for recursion group's ", i, "th signature");
-        types.append(signature->index());
+        types.uncheckedAppend(signature->index());
 
         if (!i)
             firstSignature = signature;
@@ -1009,37 +930,35 @@ auto SectionParser::parseRecursionGroup(uint32_t position, RefPtr<TypeDefinition
     // Type definitions are normalized such that non-recursive, singleton recursion groups
     // are stored as the underlying concrete type without a projection. Otherwise we will
     // store projections for each recursion group index in the type section.
-    WASM_PARSER_FAIL_IF(!m_info->typeSignatures.tryGrowCapacityBy(typeCount), "can't allocate enough memory for recursion group's ", typeCount, " type ", typeCount > 1 ? "indices" : "index");
-    WASM_PARSER_FAIL_IF(!m_info->rtts.tryGrowCapacityBy(typeCount), "can't allocate enough memory for recursion group's ", typeCount, " RTT", typeCount > 1 ? "s" : "");
     if (typeCount > 1) {
+        WASM_PARSER_FAIL_IF(!m_info->typeSignatures.tryReserveCapacity(m_info->typeSignatures.capacity() + typeCount - 1), "can't allocate enough memory for recursion group's ", typeCount, " type indices");
+        WASM_PARSER_FAIL_IF(!m_info->rtts.tryReserveCapacity(m_info->rtts.capacity() + typeCount - 1), "can't allocate enough memory for recursion group's ", typeCount, " RTTs");
         for (uint32_t i = 0; i < typeCount; ++i) {
             RefPtr<TypeDefinition> projection = TypeInformation::typeDefinitionForProjection(recursionGroup->index(), i);
             WASM_PARSER_FAIL_IF(!projection, "can't allocate enough memory for recursion group's ", i, "th projection");
             TypeInformation::registerCanonicalRTTForType(projection->index());
-            m_info->rtts.append(TypeInformation::getCanonicalRTT(projection->index()));
-            m_info->typeSignatures.append(projection.releaseNonNull());
+            m_info->rtts.uncheckedAppend(TypeInformation::getCanonicalRTT(projection->index()));
+            m_info->typeSignatures.uncheckedAppend(projection.releaseNonNull());
         }
         // Checking subtyping requirements has to be deferred until we construct projections in case recursive references show up in the type.
         for (uint32_t i = 0; i < typeCount; ++i) {
             const TypeDefinition& def = m_info->typeSignatures[i].get().unroll();
             if (def.is<Subtype>())
-                WASM_FAIL_IF_HELPER_FAILS(checkSubtypeValidity(def, recursionGroup));
+                WASM_PARSER_FAIL_IF(!checkSubtypeValidity(def, *recursionGroup), "structural type is not a subtype of the specified supertype");
         }
-    } else if (typeCount) {
+    } else {
         if (!firstSignature->hasRecursiveReference()) {
             TypeInformation::registerCanonicalRTTForType(firstSignature->index());
-            m_info->rtts.append(TypeInformation::getCanonicalRTT(firstSignature->index()));
-            if (firstSignature->is<Subtype>())
-                WASM_FAIL_IF_HELPER_FAILS(checkSubtypeValidity(*firstSignature, { }));
-            m_info->typeSignatures.append(firstSignature.releaseNonNull());
+            m_info->rtts.uncheckedAppend(TypeInformation::getCanonicalRTT(firstSignature->index()));
+            m_info->typeSignatures.uncheckedAppend(firstSignature.releaseNonNull());
         } else {
             RefPtr<TypeDefinition> projection = TypeInformation::typeDefinitionForProjection(recursionGroup->index(), 0);
             WASM_PARSER_FAIL_IF(!projection, "can't allocate enough memory for recursion group's 0th projection");
             TypeInformation::registerCanonicalRTTForType(projection->index());
-            m_info->rtts.append(TypeInformation::getCanonicalRTT(projection->index()));
+            m_info->rtts.uncheckedAppend(TypeInformation::getCanonicalRTT(projection->index()));
             if (firstSignature->is<Subtype>())
-                WASM_FAIL_IF_HELPER_FAILS(checkSubtypeValidity(projection->unroll(), recursionGroup));
-            m_info->typeSignatures.append(projection.releaseNonNull());
+                WASM_PARSER_FAIL_IF(!checkSubtypeValidity(projection->unroll(), *recursionGroup), "structural type is not a subtype of the specified supertype");
+            m_info->typeSignatures.uncheckedAppend(projection.releaseNonNull());
         }
     }
 
@@ -1103,32 +1022,21 @@ bool SectionParser::checkStructuralSubtype(const TypeDefinition& subtype, const 
     return false;
 }
 
-auto SectionParser::checkSubtypeValidity(const TypeDefinition& subtype, RefPtr<const TypeDefinition> recursionGroup) -> PartialResult
+bool SectionParser::checkSubtypeValidity(const TypeDefinition& subtype, const TypeDefinition& recursionGroup)
 {
     ASSERT(subtype.is<Subtype>());
-    ASSERT(!recursionGroup || recursionGroup->is<RecursionGroup>());
-
-    if (subtype.as<Subtype>()->supertypeCount() < 1)
-        return { };
-    TypeIndex superIndex = subtype.as<Subtype>()->firstSuperType();
-
-    if (recursionGroup) {
-        for (RecursionGroupCount i = 0; i < recursionGroup->as<RecursionGroup>()->typeCount(); i++) {
-            if (recursionGroup->as<RecursionGroup>()->type(i) == superIndex) {
-                superIndex = TypeInformation::typeDefinitionForProjection(recursionGroup->index(), i)->index();
+    ASSERT(recursionGroup.is<RecursionGroup>());
+    TypeIndex superIndex = subtype.as<Subtype>()->superType();
+    for (RecursionGroupCount i = 0; i < recursionGroup.as<RecursionGroup>()->typeCount(); i++) {
+        if (recursionGroup.as<RecursionGroup>()->type(i) == superIndex) {
+            superIndex = TypeInformation::typeDefinitionForProjection(recursionGroup.index(), i)->index();
             break;
         }
     }
-    }
-
-    const TypeDefinition& supertype = TypeInformation::get(superIndex).unroll();
-    WASM_PARSER_FAIL_IF(!supertype.is<Subtype>() || supertype.as<Subtype>()->isFinal(), "cannot declare subtype of final supertype");
-    WASM_PARSER_FAIL_IF(!checkStructuralSubtype(TypeInformation::get(subtype.as<Subtype>()->underlyingType()), supertype), "structural type is not a subtype of the specified supertype");
-
-    return { };
+    return checkStructuralSubtype(TypeInformation::get(subtype.as<Subtype>()->underlyingType()), TypeInformation::get(superIndex));
 }
 
-auto SectionParser::parseSubtype(uint32_t position, RefPtr<TypeDefinition>& subtype, Vector<TypeIndex>& recursionGroupTypes, bool isFinal) -> PartialResult
+auto SectionParser::parseSubtype(uint32_t position, RefPtr<TypeDefinition>& subtype, Vector<TypeIndex>& recursionGroupTypes) -> PartialResult
 {
     ASSERT(Options::useWebAssemblyGC());
 
@@ -1146,7 +1054,7 @@ auto SectionParser::parseSubtype(uint32_t position, RefPtr<TypeDefinition>& subt
             supertypeIndex = TypeInformation::get(m_info->typeSignatures[typeIndex]);
         // If a parent type is in the same recursion group, the index needs to refer to the projection instead.
         else {
-            RefPtr<TypeDefinition> projection = TypeInformation::getPlaceholderProjection(typeIndex - m_info->typeCount());
+            RefPtr<TypeDefinition> projection = TypeInformation::typeDefinitionForProjection(Projection::PlaceholderGroup, typeIndex - m_info->typeCount());
             supertypeIndex = projection->index();
         }
     }
@@ -1171,18 +1079,15 @@ auto SectionParser::parseSubtype(uint32_t position, RefPtr<TypeDefinition>& subt
         return fail("invalid structural type definition for subtype ", typeKind);
     }
 
-    // When no supertypes are specified and the type is not final, we will normalize
-    // type definitions to not have the subtype. This ensures that type shorthands
-    // and the full subtype form are represented in the same way.
-    if (!supertypeCount && isFinal) {
+    // When no supertypes are specified, we will normalize type definitions to
+    // not have the subtype. This ensures that type shorthands and the full
+    // subtype form are represented in the same way.
+    if (!supertypeCount) {
         subtype = underlyingType;
         return { };
     }
 
-    if (supertypeCount > 0)
-        subtype = TypeInformation::typeDefinitionForSubtype({ supertypeIndex }, TypeInformation::get(*underlyingType), isFinal);
-    else
-        subtype = TypeInformation::typeDefinitionForSubtype({ }, TypeInformation::get(*underlyingType), isFinal);
+    subtype = TypeInformation::typeDefinitionForSubtype(supertypeIndex, TypeInformation::get(*underlyingType));
 
     return { };
 }
@@ -1212,39 +1117,39 @@ auto SectionParser::parseIndexCountForElementSection(uint32_t& resultIndexCount,
     return { };
 }
 
-auto SectionParser::parseElementSegmentVectorOfExpressions(Type elementType, Vector<Element::InitializationType>& initTypes, Vector<uint64_t>& initialBitsOrIndices, const unsigned indexCount, const unsigned elementNum) -> PartialResult
+auto SectionParser::parseElementSegmentVectorOfExpressions(TableElementType tableElementType, Vector<uint32_t>& result, const unsigned indexCount, const unsigned elementNum) -> PartialResult
 {
     for (uint32_t index = 0; index < indexCount; ++index) {
-        Element::InitializationType initType;
-        uint64_t initialBitsOrIndex;
+        uint8_t opcode;
+        WASM_PARSER_FAIL_IF(!parseUInt8(opcode), "can't get opcode for exp in element section's ", elementNum, "th element's ", index, "th index");
+        WASM_PARSER_FAIL_IF((opcode != RefFunc) && (opcode != RefNull), "opcode for exp in element section's should be either ref.func or ref.null ", elementNum, "th element's ", index, "th index");
 
-        uint8_t initOpcode;
-        Type typeForInitOpcode;
-        bool isExtendedConstantExpression;
-        v128_t unusedVector { };
-        WASM_FAIL_IF_HELPER_FAILS(parseInitExpr(initOpcode, isExtendedConstantExpression, initialBitsOrIndex, unusedVector, elementType, typeForInitOpcode));
-        WASM_PARSER_FAIL_IF(!isSubtype(typeForInitOpcode, elementType), "Element section's ", elementNum, "th element's init_expr opcode of type ", typeForInitOpcode.kind, " doesn't match element's type ", elementType.kind);
-
-        if (isExtendedConstantExpression)
-            initType = Element::InitializationType::FromExtendedExpression;
-        else if (initOpcode == GetGlobal)
-            initType = Element::InitializationType::FromGlobal;
-        else if (initOpcode == RefFunc) {
-            initType = Element::InitializationType::FromRefFunc;
-            m_info->addDeclaredFunction(initialBitsOrIndex);
-        } else if (initOpcode == RefNull)
-            initType = Element::InitializationType::FromRefNull;
+        uint32_t functionIndex;
+        if (opcode == RefFunc) {
+            WASM_PARSER_FAIL_IF(!parseVarUInt32(functionIndex), "can't get Element section's ", elementNum, "th element's ", index, "th index");
+            WASM_PARSER_FAIL_IF(functionIndex >= m_info->functionIndexSpaceSize(), "Element section's ", elementNum, "th element's ", index, "th index is ", functionIndex, " which exceeds the function index space size of ", m_info->functionIndexSpaceSize());
+            WASM_PARSER_FAIL_IF(tableElementType == TableElementType::Externref, "ref.func is forbidden in element section's, ", elementNum, "th element's ", index, "th index");
+            m_info->addDeclaredFunction(functionIndex);
+        } else {
+            Type typeOfNull;
+            WASM_PARSER_FAIL_IF(!parseRefType(m_info, typeOfNull), "ref.null type must be a func type in elem section");
+            if (tableElementType == TableElementType::Funcref)
+                WASM_PARSER_FAIL_IF(!isFuncref(typeOfNull), "ref.null extern is forbidden in element section's, ", elementNum, "th element's ", index, "th index");
             else
-            RELEASE_ASSERT_NOT_REACHED();
+                WASM_PARSER_FAIL_IF(!isExternref(typeOfNull), "ref.null func is forbidden in element section's, ", elementNum, "th element's ", index, "th index");
+            functionIndex = Element::nullFuncIndex;
+        }
 
-        initTypes.append(initType);
-        initialBitsOrIndices.append(initialBitsOrIndex);
+        WASM_PARSER_FAIL_IF(!parseUInt8(opcode), "can't get opcode for exp end in element section's ", elementNum, "th element's ", index, "th index");
+        WASM_PARSER_FAIL_IF(opcode != End, "malformed expr in element section's", elementNum, "th element's ", index, "th index");
+
+        result.uncheckedAppend(functionIndex);
     }
 
     return { };
 }
 
-auto SectionParser::parseElementSegmentVectorOfIndexes(Vector<Element::InitializationType>& initTypes, Vector<uint64_t>& initialBitsOrIndices, const unsigned indexCount, const unsigned elementNum) -> PartialResult
+auto SectionParser::parseElementSegmentVectorOfIndexes(Vector<uint32_t>& result, const unsigned indexCount, const unsigned elementNum) -> PartialResult
 {
     for (uint32_t index = 0; index < indexCount; ++index) {
         uint32_t functionIndex;
@@ -1252,8 +1157,7 @@ auto SectionParser::parseElementSegmentVectorOfIndexes(Vector<Element::Initializ
         WASM_PARSER_FAIL_IF(functionIndex >= m_info->functionIndexSpaceSize(), "Element section's ", elementNum, "th element's ", index, "th index is ", functionIndex, " which exceeds the function index space size of ", m_info->functionIndexSpaceSize());
 
         m_info->addDeclaredFunction(functionIndex);
-        initTypes.append(Element::InitializationType::FromRefFunc);
-        initialBitsOrIndices.append(functionIndex);
+        result.uncheckedAppend(functionIndex);
     }
 
     return { };
@@ -1281,8 +1185,7 @@ auto SectionParser::parseData() -> PartialResult
     WASM_PARSER_FAIL_IF(segmentCount > maxDataSegments, "Data section's count is too big ", segmentCount, " maximum ", maxDataSegments);
     if (m_info->numberOfDataSegments)
         WASM_PARSER_FAIL_IF(segmentCount != m_info->numberOfDataSegments.value(), "Data section's count ", segmentCount, " is different from Data Count section's count ", m_info->numberOfDataSegments.value());
-    RELEASE_ASSERT(!m_info->data.capacity());
-    WASM_PARSER_FAIL_IF(!m_info->data.tryReserveInitialCapacity(segmentCount), "can't allocate enough memory for Data section's ", segmentCount, " segments");
+    WASM_PARSER_FAIL_IF(!m_info->data.tryReserveCapacity(segmentCount), "can't allocate enough memory for Data section's ", segmentCount, " segments");
 
     for (uint32_t segmentNumber = 0; segmentNumber < segmentCount; ++segmentNumber) {
         uint32_t memoryIndexOrDataFlag = UINT32_MAX;
@@ -1306,7 +1209,7 @@ auto SectionParser::parseData() -> PartialResult
                 WASM_PARSER_FAIL_IF(!parseUInt8(byte), "can't get ", dataByte, "th data byte from ", segmentNumber, "th Data segment");
                 segment->byte(dataByte) = byte;
             }
-            m_info->data.append(WTFMove(segment));
+            m_info->data.uncheckedAppend(WTFMove(segment));
             continue;
         }
 
@@ -1323,7 +1226,7 @@ auto SectionParser::parseData() -> PartialResult
                 WASM_PARSER_FAIL_IF(!parseUInt8(byte), "can't get ", dataByte, "th data byte from ", segmentNumber, "th Data segment");
                 segment->byte(dataByte) = byte;
             }
-            m_info->data.append(WTFMove(segment));
+            m_info->data.uncheckedAppend(WTFMove(segment));
             continue;
 
         }
@@ -1347,7 +1250,7 @@ auto SectionParser::parseData() -> PartialResult
                 WASM_PARSER_FAIL_IF(!parseUInt8(byte), "can't get ", dataByte, "th data byte from ", segmentNumber, "th Data segment");
                 segment->byte(dataByte) = byte;
             }
-            m_info->data.append(WTFMove(segment));
+            m_info->data.uncheckedAppend(WTFMove(segment));
             continue;
         }
 
@@ -1372,8 +1275,7 @@ auto SectionParser::parseException() -> PartialResult
     uint32_t exceptionCount;
     WASM_PARSER_FAIL_IF(!parseVarUInt32(exceptionCount), "can't get Exception section's count");
     WASM_PARSER_FAIL_IF(exceptionCount > maxExceptions, "Export section's count is too big ", exceptionCount, " maximum ", maxExceptions);
-    RELEASE_ASSERT(!m_info->internalExceptionTypeIndices.capacity());
-    WASM_PARSER_FAIL_IF(!m_info->internalExceptionTypeIndices.tryReserveInitialCapacity(exceptionCount), "can't allocate enough memory for ", exceptionCount, " exceptions");
+    WASM_PARSER_FAIL_IF(!m_info->internalExceptionTypeIndices.tryReserveCapacity(exceptionCount), "can't allocate enough memory for ", exceptionCount, " exceptions");
 
     for (uint32_t exceptionNumber = 0; exceptionNumber < exceptionCount; ++exceptionNumber) {
         uint8_t tagType;
@@ -1386,7 +1288,7 @@ auto SectionParser::parseException() -> PartialResult
         TypeIndex typeIndex = TypeInformation::get(m_info->typeSignatures[typeNumber]);
         auto signature = TypeInformation::getFunctionSignature(typeIndex);
         WASM_PARSER_FAIL_IF(!signature.returnsVoid(), exceptionNumber, "th Exception type cannot have a non-void return type ", typeNumber);
-        m_info->internalExceptionTypeIndices.append(typeIndex);
+        m_info->internalExceptionTypeIndices.uncheckedAppend(typeIndex);
     }
 
     return { };
@@ -1401,12 +1303,11 @@ auto SectionParser::parseCustom() -> PartialResult
     WASM_PARSER_FAIL_IF(!consumeUTF8String(section.name, nameLen), "nameLen get ", customSectionNumber, "th custom section's name of length ", nameLen);
 
     uint32_t payloadBytes = length() - m_offset;
-    WASM_PARSER_FAIL_IF(!section.payload.tryReserveInitialCapacity(payloadBytes), "can't allocate enough memory for ", customSectionNumber, "th custom section's ", payloadBytes, " bytes");
-    section.payload.resize(payloadBytes);
+    WASM_PARSER_FAIL_IF(!section.payload.tryReserveCapacity(payloadBytes), "can't allocate enough memory for ", customSectionNumber, "th custom section's ", payloadBytes, " bytes");
     for (uint32_t byteNumber = 0; byteNumber < payloadBytes; ++byteNumber) {
         uint8_t byte;
         WASM_PARSER_FAIL_IF(!parseUInt8(byte), "can't get ", byteNumber, "th data byte from ", customSectionNumber, "th custom section");
-        section.payload[byteNumber] = byte;
+        section.payload.uncheckedAppend(byte);
     }
 
     Name nameName = { 'n', 'a', 'm', 'e' };
@@ -1423,7 +1324,7 @@ auto SectionParser::parseCustom() -> PartialResult
             branchHintsSectionParser.parse();
         }
 
-    m_info->customSections.append(WTFMove(section));
+    m_info->customSections.uncheckedAppend(WTFMove(section));
 
     return { };
 }

@@ -62,8 +62,8 @@ public:
     double width() const { return m_width; }
     ExceptionOr<void> setWidth(double);
 
-    unsigned lines() const { return m_lines; }
-    void setLines(unsigned);
+    int lines() const { return m_lines; }
+    ExceptionOr<void> setLines(int);
 
     double regionAnchorX() const { return m_regionAnchor.x(); }
     ExceptionOr<void> setRegionAnchorX(double);
@@ -77,14 +77,15 @@ public:
     double viewportAnchorY() const { return m_viewportAnchor.y(); }
     ExceptionOr<void> setViewportAnchorY(double);
 
-    enum class ScrollSetting : bool { EmptyString, Up };
-    ScrollSetting scroll() const { return m_scroll; }
-    void setScroll(const ScrollSetting);
+    const AtomString& scroll() const;
+    ExceptionOr<void> setScroll(const AtomString&);
 
     void updateParametersFromRegion(const VTTRegion&);
 
     const String& regionSettings() const { return m_settings; }
     void setRegionSettings(const String&);
+
+    bool isScrollingRegion() { return m_scroll; }
 
     HTMLDivElement& getDisplayTree();
 
@@ -129,7 +130,7 @@ private:
     FloatPoint m_regionAnchor { 0, 100 };
     FloatPoint m_viewportAnchor { 0, 100 };
 
-    ScrollSetting m_scroll { ScrollSetting::EmptyString };
+    bool m_scroll { false };
 
     // The cue container is the container that is scrolled up to obtain the
     // effect of scrolling cues when this is enabled for the regions.

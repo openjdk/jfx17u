@@ -47,7 +47,11 @@ public:
     {
     }
 
-    friend bool operator==(const VisitRaceKey&, const VisitRaceKey&) = default;
+    bool operator==(const VisitRaceKey& other) const
+    {
+        return m_cell == other.m_cell
+            && m_raceName == other.m_raceName;
+    }
 
     explicit operator bool() const
     {

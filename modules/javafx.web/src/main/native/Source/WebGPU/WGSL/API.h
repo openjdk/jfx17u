@@ -29,7 +29,8 @@ namespace WGSL  {
 
 inline uint32_t vertexBufferIndexForBindGroup(uint32_t groupIndex, uint32_t maxIndex)
 {
-    return groupIndex > maxIndex ? groupIndex : (maxIndex - groupIndex);
+    ASSERT(groupIndex <= maxIndex);
+    return groupIndex > maxIndex ? 0 : (maxIndex - groupIndex);
 }
 
 } // namespace WGSL

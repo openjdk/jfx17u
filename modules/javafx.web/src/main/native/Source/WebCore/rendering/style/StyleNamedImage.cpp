@@ -42,8 +42,7 @@ StyleNamedImage::~StyleNamedImage() = default;
 
 bool StyleNamedImage::operator==(const StyleImage& other) const
 {
-    auto* otherNamedImage = dynamicDowncast<StyleNamedImage>(other);
-    return otherNamedImage && equals(*otherNamedImage);
+    return is<StyleNamedImage>(other) && equals(downcast<StyleNamedImage>(other));
 }
 
 bool StyleNamedImage::equals(const StyleNamedImage& other) const
@@ -65,7 +64,7 @@ void StyleNamedImage::load(CachedResourceLoader&, const ResourceLoaderOptions&)
 {
 }
 
-RefPtr<Image> StyleNamedImage::image(const RenderElement* renderer, const FloatSize& size, bool) const
+RefPtr<Image> StyleNamedImage::image(const RenderElement* renderer, const FloatSize& size) const
 {
     if (!renderer)
         return &Image::nullImage();

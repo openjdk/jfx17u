@@ -19,21 +19,26 @@
  */
 
 #import "config.h"
-#import <wtf/text/TextStreamCocoa.h>
+#import <wtf/text/TextStream.h>
 
-#import <objc/runtime.h>
 #import <wtf/text/cf/StringConcatenateCF.h>
 
 namespace WTF {
 
 TextStream& TextStream::operator<<(id object)
 {
-    if (object_isClass(object)) {
-        m_text.append(NSStringFromClass(object));
-    return *this;
-    }
+    if ([object isKindOfClass:[NSArray class]])
+        return *this << static_cast<NSArray *>(object);
 
-    auto outputArray = [&](NSArray *array) {
+    if ([object conformsToProtocol:@protocol(NSObject)])
+        m_text.append([object description]);
+    else
+        m_text.append("(id)");
+    return *this;
+}
+
+TextStream& TextStream::operator<<(NSArray *array)
+{
     *this << "[";
 
     for (NSUInteger i = 0; i < array.count; ++i) {
@@ -43,60 +48,7 @@ TextStream& TextStream::operator<<(id object)
             *this << ", ";
     }
 
-        *this << "]";
-    };
-
-    if ([object isKindOfClass:[NSArray class]]) {
-        outputArray(object);
-        return *this;
-    }
-
-    auto outputDictionary = [&](NSDictionary *dictionary) {
-        *this << "{";
-        bool needLeadingComma = false;
-
-        [dictionary enumerateKeysAndObjectsUsingBlock:[&](id key, id value, BOOL *) {
-            if (needLeadingComma)
-                *this << ", ";
-            needLeadingComma = true;
-
-            *this << key;
-            *this << ": ";
-            *this << value;
-        }];
-
-        *this << "}";
-    };
-
-    if ([object isKindOfClass:[NSDictionary class]]) {
-        outputDictionary(object);
-        return *this;
-    }
-
-    if ([object conformsToProtocol:@protocol(NSObject)])
-        m_text.append([object description]);
-    else
-        *this << "(id)";
-
-    return *this;
+    return *this << "]";
 }
 
-TextStream& operator<<(TextStream& ts, CGRect rect)
-{
-    ts << "{{" << rect.origin.x << ", " << rect.origin.y << "}, {" << rect.size.width << ", " << rect.size.height << "}}";
-    return ts;
 }
-
-TextStream& operator<<(TextStream& ts, CGSize size)
-{
-    ts << "{" << size.width << ", " << size.height << "}";
-    return ts;
-}
-
-TextStream& operator<<(TextStream& ts, CGPoint point)
-{
-    ts << "{" << point.x << ", " << point.y << "}";
-    return ts;
-}
-
-} // namespace WTF

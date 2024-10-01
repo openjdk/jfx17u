@@ -26,6 +26,7 @@
 #pragma once
 
 #include <cstdint>
+#include <wtf/EnumTraits.h>
 
 namespace WebCore::WebGPU {
 
@@ -36,3 +37,16 @@ enum class AddressMode : uint8_t {
 };
 
 } // namespace WebCore::WebGPU
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::WebGPU::AddressMode> {
+    using values = EnumValues<
+        WebCore::WebGPU::AddressMode,
+        WebCore::WebGPU::AddressMode::ClampToEdge,
+        WebCore::WebGPU::AddressMode::Repeat,
+        WebCore::WebGPU::AddressMode::MirrorRepeat
+    >;
+};
+
+} // namespace WTF

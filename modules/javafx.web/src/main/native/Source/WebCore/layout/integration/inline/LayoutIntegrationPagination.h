@@ -31,11 +31,6 @@ namespace WebCore {
 
 class RenderBlockFlow;
 
-namespace Layout {
-class BlockLayoutState;
-class PlacedFloats;
-}
-
 namespace LayoutIntegration {
 
 struct LineAdjustment {
@@ -43,7 +38,7 @@ struct LineAdjustment {
     bool isFirstAfterPageBreak { false };
 };
 
-Vector<LineAdjustment> computeAdjustmentsForPagination(const InlineContent&, const Layout::PlacedFloats&, const Layout::BlockLayoutState&, RenderBlockFlow&);
+Vector<LineAdjustment> computeAdjustmentsForPagination(const InlineContent&, RenderBlockFlow&);
 void adjustLinePositionsForPagination(InlineContent&, const Vector<LineAdjustment>&);
 
 }

@@ -97,7 +97,7 @@ bool eliminateDeadCodeImpl(Procedure& proc)
                 changed = true;
             }
         }
-        block->values().shrink(targetIndex);
+        block->values().resize(targetIndex);
     }
 
     for (Variable* variable : proc.variables()) {

@@ -70,11 +70,11 @@ CSSCounterStyleDescriptors::Ranges rangeFromCSSValue(Ref<CSSValue> value)
 
 static CSSCounterStyleDescriptors::Symbol symbolFromCSSValue(const CSSValue* value)
 {
-    auto* primitiveValue = dynamicDowncast<CSSPrimitiveValue>(value);
-    if (!primitiveValue)
+    if (!value || !value->isPrimitiveValue())
         return { };
 
-    return { primitiveValue->isCustomIdent(), primitiveValue->stringValue() };
+    auto& primitiveValue = downcast<CSSPrimitiveValue>(*value);
+    return { primitiveValue.isCustomIdent(), primitiveValue.stringValue() };
 }
 
 CSSCounterStyleDescriptors::Symbol symbolFromCSSValue(RefPtr<CSSValue> value)
@@ -84,11 +84,11 @@ CSSCounterStyleDescriptors::Symbol symbolFromCSSValue(RefPtr<CSSValue> value)
 
 static CSSCounterStyleDescriptors::Name nameFromCSSValue(Ref<CSSValue> value)
 {
-    RefPtr primitiveValue = dynamicDowncast<CSSPrimitiveValue>(WTFMove(value));
-    if (!primitiveValue)
+    if (!value->isPrimitiveValue())
         return { };
 
-    return makeAtomString(primitiveValue->stringValue());
+    auto& primitiveValue = downcast<CSSPrimitiveValue>(value);
+    return makeAtomString(primitiveValue.stringValue());
 }
 
 static CSSCounterStyleDescriptors::AdditiveSymbols additiveSymbolsFromStyleProperties(const StyleProperties& properties)
@@ -102,7 +102,7 @@ static CSSCounterStyleDescriptors::AdditiveSymbols additiveSymbolsFromStylePrope
 CSSCounterStyleDescriptors::AdditiveSymbols additiveSymbolsFromCSSValue(Ref<CSSValue> value)
 {
     CSSCounterStyleDescriptors::AdditiveSymbols result;
-    for (auto& additiveSymbol : downcast<CSSValueList>(value.get())) {
+    for (auto& additiveSymbol : downcast<CSSValueList>(value)) {
         auto& pair = downcast<CSSValuePair>(additiveSymbol);
         auto weight = downcast<CSSPrimitiveValue>(pair.first()).value<unsigned>();
         auto symbol = symbolFromCSSValue(&pair.second());
@@ -121,11 +121,11 @@ static CSSCounterStyleDescriptors::Pad padFromStyleProperties(const StylePropert
 
 CSSCounterStyleDescriptors::Pad padFromCSSValue(Ref<CSSValue> value)
 {
-    auto list = downcast<CSSValueList>(WTFMove(value));
-    ASSERT(list->size() == 2);
-    auto length = downcast<CSSPrimitiveValue>(list.get()[0]).intValue();
+    auto& list = downcast<CSSValueList>(value);
+    ASSERT(list.size() == 2);
+    auto length = downcast<CSSPrimitiveValue>(list[0]).intValue();
     ASSERT(length >= 0);
-    return { static_cast<unsigned>(std::max(0, length)), symbolFromCSSValue(&list.get()[1]) };
+    return { static_cast<unsigned>(std::max(0, length)), symbolFromCSSValue(&list[1]) };
 }
 
 static CSSCounterStyleDescriptors::NegativeSymbols negativeSymbolsFromStyleProperties(const StyleProperties& properties)
@@ -159,7 +159,7 @@ static Vector<CSSCounterStyleDescriptors::Symbol> symbolsFromStyleProperties(con
 Vector<CSSCounterStyleDescriptors::Symbol> symbolsFromCSSValue(Ref<CSSValue> value)
 {
     Vector<CSSCounterStyleDescriptors::Symbol> result;
-    for (auto& symbolValue : downcast<CSSValueList>(value.get())) {
+    for (auto& symbolValue : downcast<CSSValueList>(value)) {
         auto symbol = symbolFromCSSValue(&symbolValue);
         if (!symbol.text.isNull())
             result.append(symbol);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2015-2016 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,7 +32,6 @@
 #include <wtf/FastMalloc.h>
 #include <wtf/Noncopyable.h>
 #include <wtf/ScopedLambda.h>
-#include <wtf/TZoneMalloc.h>
 #include <wtf/text/CString.h>
 
 namespace JSC { namespace B3 { namespace Air {
@@ -42,7 +41,7 @@ struct GenerationContext;
 
 class Special {
     WTF_MAKE_NONCOPYABLE(Special);
-    WTF_MAKE_TZONE_ALLOCATED_EXPORT(Special, JS_EXPORT_PRIVATE);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     static const char* const dumpPrefix;
 

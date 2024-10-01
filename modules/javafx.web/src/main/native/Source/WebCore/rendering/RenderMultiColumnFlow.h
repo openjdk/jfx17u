@@ -95,10 +95,11 @@ public:
     // FIXME: Eventually as column and fragment flow threads start nesting, this will end up changing.
     bool shouldCheckColumnBreaks() const override;
 
-    using SpannerMap = HashMap<SingleThreadWeakRef<const RenderBox>, SingleThreadWeakPtr<RenderMultiColumnSpannerPlaceholder>>;
+    typedef HashMap<const RenderBox*, WeakPtr<RenderMultiColumnSpannerPlaceholder>> SpannerMap;
     SpannerMap& spannerMap() { return *m_spannerMap; }
 
 private:
+    bool isRenderMultiColumnFlow() const override { return true; }
     ASCIILiteral renderName() const override;
     void addFragmentToThread(RenderFragmentContainer*) override;
     void willBeRemovedFromTree(IsInternalMove) override;
@@ -119,7 +120,7 @@ private:
     // The last set we worked on. It's not to be used as the "current set". The concept of a
     // "current set" is difficult, since layout may jump back and forth in the tree, due to wrong
     // top location estimates (due to e.g. margin collapsing), and possibly for other reasons.
-    mutable SingleThreadWeakPtr<RenderMultiColumnSet> m_lastSetWorkedOn { nullptr };
+    mutable WeakPtr<RenderMultiColumnSet> m_lastSetWorkedOn { nullptr };
 
     unsigned m_columnCount { 1 }; // The default column count/width that are based off our containing block width. These values represent only the default,
     LayoutUnit m_columnWidth { 0 }; // A multi-column block that is split across variable width pages or fragments will have different column counts and widths in each. These values will be cached (eventually) for multi-column blocks.

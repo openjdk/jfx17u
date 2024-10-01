@@ -26,40 +26,42 @@
 #pragma once
 
 #include <wtf/Forward.h>
-#include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
 class CachedResource;
 
-class CachedResourceHandleBase {
+class WEBCORE_EXPORT CachedResourceHandleBase {
 public:
-    WEBCORE_EXPORT ~CachedResourceHandleBase();
+    ~CachedResourceHandleBase();
 
-    WEBCORE_EXPORT CachedResource* get() const;
+    CachedResource* get() const { return m_resource; }
 
     bool operator!() const { return !m_resource; }
-    operator bool() const { return !!m_resource; }
+
+    // This conversion operator allows implicit conversion to bool but not to other integer types.
+    typedef CachedResource* CachedResourceHandleBase::*UnspecifiedBoolType;
+    operator UnspecifiedBoolType() const { return m_resource ? &CachedResourceHandleBase::m_resource : 0; }
 
 protected:
-    WEBCORE_EXPORT CachedResourceHandleBase();
-    WEBCORE_EXPORT explicit CachedResourceHandleBase(CachedResource*);
-    WEBCORE_EXPORT explicit CachedResourceHandleBase(CachedResource&);
-    WEBCORE_EXPORT CachedResourceHandleBase(const CachedResourceHandleBase&);
+    CachedResourceHandleBase();
+    explicit CachedResourceHandleBase(CachedResource*);
+    explicit CachedResourceHandleBase(CachedResource&);
+    CachedResourceHandleBase(const CachedResourceHandleBase&);
 
-    WEBCORE_EXPORT void setResource(CachedResource*);
+    void setResource(CachedResource*);
 
 private:
     CachedResourceHandleBase& operator=(const CachedResourceHandleBase&) { return *this; }
 
     friend class CachedResource;
 
-    WeakPtr<CachedResource> m_resource;
+    CachedResource* m_resource;
 };
 
 template <class R> class CachedResourceHandle : public CachedResourceHandleBase {
 public:
-    CachedResourceHandle() = default;
+    CachedResourceHandle() { }
     CachedResourceHandle(R& res) : CachedResourceHandleBase(res) { }
     CachedResourceHandle(R* res) : CachedResourceHandleBase(res) { }
     CachedResourceHandle(const CachedResourceHandle<R>& o) : CachedResourceHandleBase(o) { }

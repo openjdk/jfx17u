@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2006-2023 Apple Inc.
- * Copyright (C) 2014 Google Inc.
+ * Copyright (C) 2006, 2014, 2020 Apple Inc.
  * Copyright (C) 2012 Nokia Corporation and/or its subsidiary(-ies)
  *
  * This library is free software; you can redistribute it and/or
@@ -65,7 +64,7 @@ public:
     void setURLElement(Element*);
     Element* URLElement() const { return m_innerURLElement.get(); }
 
-    void setScrollbar(RefPtr<Scrollbar>&&);
+    void setScrollbar(Scrollbar*);
     Scrollbar* scrollbar() const { return m_scrollbar.get(); }
 
     bool isOverWidget() const { return m_isOverWidget; }
@@ -93,7 +92,6 @@ public:
 
     const HitTestLocation& hitTestLocation() const { return m_hitTestLocation; }
 
-    WEBCORE_EXPORT LocalFrame* frame() const;
     WEBCORE_EXPORT LocalFrame* targetFrame() const;
     WEBCORE_EXPORT bool isSelected() const;
     WEBCORE_EXPORT String selectedText() const;
@@ -105,12 +103,11 @@ public:
     WEBCORE_EXPORT String titleDisplayString() const;
     WEBCORE_EXPORT Image* image() const;
     WEBCORE_EXPORT IntRect imageRect() const;
-    WEBCORE_EXPORT bool hasEntireImage() const;
+    bool hasEntireImage() const;
     WEBCORE_EXPORT URL absoluteImageURL() const;
     WEBCORE_EXPORT URL absolutePDFURL() const;
     WEBCORE_EXPORT URL absoluteMediaURL() const;
     WEBCORE_EXPORT URL absoluteLinkURL() const;
-    WEBCORE_EXPORT bool hasLocalDataForLinkURL() const;
     WEBCORE_EXPORT String textContent() const;
     bool isOverLink() const;
     WEBCORE_EXPORT bool isContentEditable() const;
@@ -126,7 +123,6 @@ public:
     bool mediaPlaying() const;
     bool mediaSupportsFullscreen() const;
     void toggleMediaPlayState() const;
-    WEBCORE_EXPORT bool hasMediaElement() const;
     WEBCORE_EXPORT bool mediaHasAudio() const;
     WEBCORE_EXPORT bool mediaIsVideo() const;
     bool mediaMuted() const;
@@ -155,7 +151,7 @@ public:
 
     Vector<String> dictationAlternatives() const;
 
-    Node* targetNode() const { return innerNode(); }
+    WEBCORE_EXPORT Node* targetNode() const;
     WEBCORE_EXPORT Element* targetElement() const;
 
 private:

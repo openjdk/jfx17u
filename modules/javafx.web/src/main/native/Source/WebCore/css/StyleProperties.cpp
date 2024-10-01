@@ -52,9 +52,10 @@ constexpr unsigned maxShorthandsForLonghand = 4; // FIXME: Generate this from CS
 
 Ref<ImmutableStyleProperties> StyleProperties::immutableCopyIfNeeded() const
 {
-    if (auto* immutableProperties = dynamicDowncast<ImmutableStyleProperties>(*this))
-        return const_cast<ImmutableStyleProperties&>(*immutableProperties);
-    return downcast<MutableStyleProperties>(*this).immutableCopy();
+    if (is<ImmutableStyleProperties>(*this))
+        return downcast<ImmutableStyleProperties>(const_cast<StyleProperties&>(*this));
+    const MutableStyleProperties& mutableThis = downcast<MutableStyleProperties>(*this);
+    return ImmutableStyleProperties::create(mutableThis.m_propertyVector.data(), mutableThis.m_propertyVector.size(), cssParserMode());
 }
 
 String serializeLonghandValue(CSSPropertyID property, const CSSValue& value)
@@ -67,8 +68,8 @@ String serializeLonghandValue(CSSPropertyID property, const CSSValue& value)
         case CSSPropertyStrokeOpacity:
         // FIXME: Handle this when creating the CSSValue for opacity, to be consistent with other CSS value serialization quirks.
             // Opacity percentage values serialize as a fraction in the range 0-1, not "%".
-        if (auto* primitive = dynamicDowncast<CSSPrimitiveValue>(value); primitive && primitive->isPercentage())
-            return makeString(primitive->doubleValue() / 100);
+        if (is<CSSPrimitiveValue>(value) && downcast<CSSPrimitiveValue>(value).isPercentage())
+            return makeString(downcast<CSSPrimitiveValue>(value).doubleValue() / 100);
         break;
     default:
         break;
@@ -282,9 +283,10 @@ StringBuilder StyleProperties::asTextInternal() const
         ASSERT(isLonghand(propertyID) || propertyID == CSSPropertyCustom);
         Vector<CSSPropertyID, maxShorthandsForLonghand> shorthands;
 
-        if (auto* substitutionValue = dynamicDowncast<CSSPendingSubstitutionValue>(property.value()))
-            shorthands.append(substitutionValue->shorthandPropertyId());
-        else {
+        if (is<CSSPendingSubstitutionValue>(property.value())) {
+            auto& substitutionValue = downcast<CSSPendingSubstitutionValue>(*property.value());
+            shorthands.append(substitutionValue.shorthandPropertyId());
+        } else {
             for (auto& shorthand : matchingShorthandsForLonghand(propertyID)) {
                 if (canUseShorthandForLonghand(shorthand.id(), propertyID))
                     shorthands.append(shorthand.id());
@@ -336,8 +338,7 @@ StringBuilder StyleProperties::asTextInternal() const
 
 bool StyleProperties::hasCSSOMWrapper() const
 {
-    auto* mutableProperties = dynamicDowncast<MutableStyleProperties>(*this);
-    return mutableProperties && mutableProperties->m_cssomWrapper;
+    return is<MutableStyleProperties>(*this) && downcast<MutableStyleProperties>(*this).m_cssomWrapper;
 }
 
 bool StyleProperties::traverseSubresources(const Function<bool(const CachedResource&)>& handler) const
@@ -347,18 +348,6 @@ bool StyleProperties::traverseSubresources(const Function<bool(const CachedResou
             return true;
     }
     return false;
-}
-
-void StyleProperties::setReplacementURLForSubresources(const HashMap<String, String>& replacementURLStrings)
-{
-    for (auto property : *this)
-        property.value()->setReplacementURLForSubresources(replacementURLStrings);
-}
-
-void StyleProperties::clearReplacementURLForSubresources()
-{
-    for (auto property : *this)
-        property.value()->clearReplacementURLForSubresources();
 }
 
 bool StyleProperties::propertyMatches(CSSPropertyID propertyID, const CSSValue* propertyValue) const
@@ -376,11 +365,13 @@ Ref<MutableStyleProperties> StyleProperties::mutableCopy() const
 
 Ref<MutableStyleProperties> StyleProperties::copyProperties(std::span<const CSSPropertyID> properties) const
 {
-    auto vector = WTF::compactMap(properties, [&](auto& property) -> std::optional<CSSProperty> {
+    Vector<CSSProperty> vector;
+    vector.reserveInitialCapacity(properties.size());
+    for (auto property : properties) {
         if (auto value = getPropertyCSSValue(property))
-            return CSSProperty(property, WTFMove(value), false);
-        return std::nullopt;
-    });
+            vector.uncheckedAppend(CSSProperty(property, WTFMove(value), false));
+    }
+    vector.shrinkToFit();
     return MutableStyleProperties::create(WTFMove(vector));
 }
 

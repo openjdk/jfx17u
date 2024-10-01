@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "ServiceWorkerClientType.h"
 #include <optional>
 
@@ -36,3 +38,5 @@ struct ServiceWorkerClientQueryOptions {
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

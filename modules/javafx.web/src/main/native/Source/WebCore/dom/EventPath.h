@@ -24,15 +24,15 @@
 #include "PseudoElement.h"
 #include "SVGElement.h"
 #include "SVGUseElement.h"
+#include <wtf/CheckedPtr.h>
 #include <wtf/Forward.h>
 #include <wtf/Vector.h>
-#include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
 class Touch;
 
-class EventPath : public CanMakeSingleThreadWeakPtr<EventPath> {
+class EventPath : public CanMakeCheckedPtr {
 public:
     EventPath(Node& origin, Event&);
     explicit EventPath(const Vector<EventTarget*>&);
@@ -64,12 +64,12 @@ private:
 
 inline Node* EventPath::eventTargetRespectingTargetRules(Node& referenceNode)
 {
-    if (auto* pseudoElement = dynamicDowncast<PseudoElement>(referenceNode))
-        return pseudoElement->hostElement();
+    if (is<PseudoElement>(referenceNode))
+        return downcast<PseudoElement>(referenceNode).hostElement();
 
     // Events sent to elements inside an SVG use element's shadow tree go to the use element.
-    if (auto* svgElement = dynamicDowncast<SVGElement>(referenceNode)) {
-        if (auto useElement = svgElement->correspondingUseElement())
+    if (is<SVGElement>(referenceNode)) {
+        if (auto useElement = downcast<SVGElement>(referenceNode).correspondingUseElement())
             return useElement.get();
     }
 

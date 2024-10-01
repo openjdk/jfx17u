@@ -54,6 +54,7 @@ protected:
 
     // DateTimeFieldElement functions:
     bool hasValue() const final;
+    void initialize(const AtomString&);
     void setEmptyValue(EventBehavior = DispatchNoEvent) final;
     void setValueAsInteger(int, EventBehavior = DispatchNoEvent) final;
     void stepDown() final;

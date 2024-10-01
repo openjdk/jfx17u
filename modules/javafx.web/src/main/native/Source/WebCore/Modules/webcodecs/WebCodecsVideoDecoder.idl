@@ -27,7 +27,7 @@
 [
     ActiveDOMObject,
     Conditional=WEB_CODECS,
-    EnabledBySetting=WebCodecsVideoEnabled,
+    EnabledBySetting=WebCodecsEnabled,
     Exposed=(Window,DedicatedWorker),
     InterfaceName=VideoDecoder,
 ] interface WebCodecsVideoDecoder : EventTarget {

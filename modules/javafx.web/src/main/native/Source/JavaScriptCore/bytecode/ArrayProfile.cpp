@@ -120,16 +120,16 @@ void dumpArrayModes(PrintStream& out, ArrayModes arrayModes)
         out.print(comma, "BigUint64ArrayMode");
 }
 
-void ArrayProfile::computeUpdatedPrediction(CodeBlock* codeBlock)
+void ArrayProfile::computeUpdatedPrediction(const ConcurrentJSLocker& locker, CodeBlock* codeBlock)
 {
     auto lastSeenStructureID = std::exchange(m_lastSeenStructureID, StructureID());
     if (!lastSeenStructureID)
         return;
 
-    computeUpdatedPrediction(codeBlock, lastSeenStructureID.decode());
+    computeUpdatedPrediction(locker, codeBlock, lastSeenStructureID.decode());
 }
 
-void ArrayProfile::computeUpdatedPrediction(CodeBlock* codeBlock, Structure* lastSeenStructure)
+void ArrayProfile::computeUpdatedPrediction(const ConcurrentJSLocker&, CodeBlock* codeBlock, Structure* lastSeenStructure)
 {
     m_observedArrayModes |= arrayModesFromStructure(lastSeenStructure);
 
@@ -169,13 +169,13 @@ void ArrayProfile::observeIndexedRead(JSCell* cell, unsigned index)
     }
 }
 
-CString ArrayProfile::briefDescription(CodeBlock* codeBlock)
+CString ArrayProfile::briefDescription(const ConcurrentJSLocker& locker, CodeBlock* codeBlock)
 {
-    computeUpdatedPrediction(codeBlock);
-    return briefDescriptionWithoutUpdating();
+    computeUpdatedPrediction(locker, codeBlock);
+    return briefDescriptionWithoutUpdating(locker);
 }
 
-CString ArrayProfile::briefDescriptionWithoutUpdating()
+CString ArrayProfile::briefDescriptionWithoutUpdating(const ConcurrentJSLocker&)
 {
     StringPrintStream out;
     CommaPrinter comma;

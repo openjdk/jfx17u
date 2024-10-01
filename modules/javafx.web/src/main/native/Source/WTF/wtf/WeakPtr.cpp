@@ -31,6 +31,5 @@
 namespace WTF {
 
 DEFINE_ALLOCATOR_WITH_HEAP_IDENTIFIER(WeakPtrImplBase);
-DEFINE_ALLOCATOR_WITH_HEAP_IDENTIFIER(WeakPtrImplBaseSingleThread);
 
 } // namespace WTF

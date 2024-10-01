@@ -41,7 +41,7 @@ struct GPURenderPassDepthStencilAttachment {
         ASSERT(view);
         return {
             view->backing(),
-            depthClearValue.value_or(-1.f),
+            depthClearValue,
             depthLoadOp ? std::optional { WebCore::convertToBacking(*depthLoadOp) } : std::nullopt,
             depthStoreOp ? std::optional { WebCore::convertToBacking(*depthStoreOp) } : std::nullopt,
             depthReadOnly,
@@ -54,7 +54,7 @@ struct GPURenderPassDepthStencilAttachment {
 
     GPUTextureView* view { nullptr };
 
-    std::optional<float> depthClearValue;
+    float depthClearValue { 0 };
     std::optional<GPULoadOp> depthLoadOp;
     std::optional<GPUStoreOp> depthStoreOp;
     bool depthReadOnly { false };

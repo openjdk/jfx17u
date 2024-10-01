@@ -51,7 +51,8 @@ private:
     CSSPropertyID m_shorthandID { CSSPropertyInvalid };
 };
 
-// Custom StylePropertyShorthand function.
+// Custom StylePropertyShorthand functions.
+StylePropertyShorthand animationShorthandForParsing();
 StylePropertyShorthand transitionShorthandForParsing();
 
 // Returns empty value if the property is not a shorthand.
@@ -66,7 +67,3 @@ StylePropertyShorthandVector matchingShorthandsForLonghand(CSSPropertyID);
 unsigned indexOfShorthandForLonghand(CSSPropertyID, const StylePropertyShorthandVector&);
 
 } // namespace WebCore
-
-namespace WTF {
-template<> inline size_t containerSize(const WebCore::StylePropertyShorthand& container) { return container.length(); }
-}

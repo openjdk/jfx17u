@@ -57,11 +57,9 @@
 #include "Text.h"
 #include "TextIterator.h"
 #include "TextRecognitionResult.h"
-#include "TreeScopeInlines.h"
 #include "UserAgentStyleSheets.h"
 #include "VisibleSelection.h"
 #include <wtf/Range.h>
-#include <wtf/Scope.h>
 #include <wtf/WeakPtr.h>
 #include <wtf/text/AtomString.h>
 
@@ -108,20 +106,21 @@ static const AtomString& imageOverlayBlockClass()
 
 bool hasOverlay(const HTMLElement& element)
 {
-    RefPtr shadowRoot = element.shadowRoot();
+    auto shadowRoot = element.shadowRoot();
     if (LIKELY(!shadowRoot || shadowRoot->mode() != ShadowRootMode::UserAgent))
         return false;
 
-    return shadowRoot->hasElementWithId(imageOverlayElementIdentifier());
+    return shadowRoot->hasElementWithId(*imageOverlayElementIdentifier().impl());
 }
 
 static RefPtr<HTMLElement> imageOverlayHost(const Node& node)
 {
-    RefPtr host = dynamicDowncast<HTMLElement>(node.shadowHost());
-    if (!host)
+    auto host = node.shadowHost();
+    if (!is<HTMLElement>(host))
         return nullptr;
 
-    return hasOverlay(*host) ? host : nullptr;
+    RefPtr element { &downcast<HTMLElement>(*host) };
+    return hasOverlay(*element) ? element : nullptr;
 }
 
 bool isDataDetectorResult(const HTMLElement& element)
@@ -139,8 +138,8 @@ std::optional<CharacterRange> characterRange(const VisibleSelection& selection)
         return std::nullopt;
 
     std::optional<SimpleRange> imageOverlayRange;
-    for (Ref ancestor : ancestorsOfType<HTMLDivElement>(*selection.start().containerNode())) {
-        if (ancestor->getIdAttribute() == imageOverlayElementIdentifier()) {
+    for (auto& ancestor : ancestorsOfType<HTMLDivElement>(*selection.start().containerNode())) {
+        if (ancestor.getIdAttribute() == imageOverlayElementIdentifier()) {
             imageOverlayRange = makeRangeSelectingNodeContents(ancestor);
             break;
         }
@@ -169,8 +168,11 @@ bool isInsideOverlay(const SimpleRange& range)
 
 bool isInsideOverlay(const Node& node)
 {
-    RefPtr host = imageOverlayHost(node);
-    return host && host->userAgentShadowRoot()->contains(node);
+    auto host = imageOverlayHost(node);
+    if (!host)
+        return false;
+
+    return host->userAgentShadowRoot()->contains(node);
 }
 
 bool isOverlayText(const Node* node)
@@ -180,7 +182,7 @@ bool isOverlayText(const Node* node)
 
 bool isOverlayText(const Node& node)
 {
-    RefPtr host = imageOverlayHost(node);
+    auto host = imageOverlayHost(node);
     if (!host)
         return false;
 
@@ -195,12 +197,12 @@ void removeOverlaySoonIfNeeded(HTMLElement& element)
     if (!hasOverlay(element))
         return;
 
-    element.protectedDocument()->eventLoop().queueTask(TaskSource::InternalAsyncTask, [weakElement = WeakPtr { element }] {
-        RefPtr element = weakElement.get();
-        if (!element)
+    element.document().eventLoop().queueTask(TaskSource::InternalAsyncTask, [weakElement = WeakPtr { element }] {
+        RefPtr protectedElement = weakElement.get();
+        if (!protectedElement)
             return;
 
-        RefPtr shadowRoot = element->userAgentShadowRoot();
+        RefPtr shadowRoot = protectedElement->userAgentShadowRoot();
         if (!shadowRoot)
             return;
 
@@ -208,22 +210,22 @@ void removeOverlaySoonIfNeeded(HTMLElement& element)
             overlay->remove();
 
 #if ENABLE(IMAGE_ANALYSIS)
-        if (RefPtr page = element->document().page())
-            page->resetTextRecognitionResult(*element);
+        if (auto page = protectedElement->document().page())
+            page->resetTextRecognitionResult(*protectedElement);
 #endif
     });
 }
 
 IntRect containerRect(HTMLElement& element)
 {
-    CheckedPtr renderer = dynamicDowncast<RenderImage>(element.renderer());
-    if (!renderer)
+    auto* renderer = element.renderer();
+    if (!is<RenderImage>(renderer))
         return { };
 
     if (!renderer->opacity())
         return { 0, 0, element.offsetWidth(), element.offsetHeight() };
 
-    return enclosingIntRect(renderer->replacedContentRect());
+    return enclosingIntRect(downcast<RenderImage>(*renderer).replacedContentRect());
 }
 
 #if ENABLE(IMAGE_ANALYSIS)
@@ -231,7 +233,7 @@ IntRect containerRect(HTMLElement& element)
 static void installImageOverlayStyleSheet(ShadowRoot& shadowRoot)
 {
     static MainThreadNeverDestroyed<const String> shadowStyle(StringImpl::createWithoutCopying(imageOverlayUserAgentStyleSheet, sizeof(imageOverlayUserAgentStyleSheet)));
-    Ref style = HTMLStyleElement::create(HTMLNames::styleTag, shadowRoot.protectedDocument(), false);
+    auto style = HTMLStyleElement::create(HTMLNames::styleTag, shadowRoot.document(), false);
     style->setTextContent(String { shadowStyle });
     shadowRoot.appendChild(WTFMove(style));
 }
@@ -278,7 +280,7 @@ static Elements updateSubtree(HTMLElement& element, const TextRecognitionResult&
 #endif // ENABLE(MODERN_MEDIA_CONTROLS)
 
     if (RefPtr shadowRoot = element.shadowRoot()) {
-        if (CheckedPtr renderer = dynamicDowncast<RenderImage>(element.renderer()))
+        if (auto* renderer = dynamicDowncast<RenderImage>(element.renderer()))
             renderer->setHasImageOverlay();
 
         if (hasOverlay(element)) {
@@ -377,7 +379,7 @@ static Elements updateSubtree(HTMLElement& element, const TextRecognitionResult&
     Ref shadowRoot = element.ensureUserAgentShadowRoot();
     if (!canUseExistingElements) {
         if (!elements.root) {
-            Ref rootContainer = HTMLDivElement::create(document.get());
+            auto rootContainer = HTMLDivElement::create(document.get());
             rootContainer->setIdAttribute(imageOverlayElementIdentifier());
             rootContainer->setTranslate(false);
             if (document->isImageDocument())
@@ -391,27 +393,26 @@ static Elements updateSubtree(HTMLElement& element, const TextRecognitionResult&
         }
         elements.lines.reserveInitialCapacity(result.lines.size());
         for (auto& line : result.lines) {
-            Ref lineContainer = HTMLDivElement::create(document.get());
+            auto lineContainer = HTMLDivElement::create(document.get());
             lineContainer->classList().add(imageOverlayLineClass());
             elements.root->appendChild(lineContainer);
             LineElements lineElements { lineContainer, { }, { } };
             lineElements.children.reserveInitialCapacity(line.children.size());
             for (size_t childIndex = 0; childIndex < line.children.size(); ++childIndex) {
                 auto& child = line.children[childIndex];
-                Ref textContainer = HTMLDivElement::create(document.get());
+                auto textContainer = HTMLDivElement::create(document.get());
                 textContainer->classList().add(imageOverlayTextClass());
                 lineContainer->appendChild(textContainer);
                 textContainer->appendChild(Text::create(document.get(), child.hasLeadingWhitespace ? makeString('\n', child.text) : String { child.text }));
-                lineElements.children.append(WTFMove(textContainer));
+                lineElements.children.uncheckedAppend(WTFMove(textContainer));
             }
 
             if (line.hasTrailingNewline) {
-                Ref lineBreak = HTMLBRElement::create(document.get());
-                lineContainer->appendChild(lineBreak.get());
-                lineElements.lineBreak = WTFMove(lineBreak);
+                lineElements.lineBreak = HTMLBRElement::create(document.get());
+                lineContainer->appendChild(*lineElements.lineBreak);
             }
 
-            elements.lines.append(WTFMove(lineElements));
+            elements.lines.uncheckedAppend(WTFMove(lineElements));
         }
 
 #if ENABLE(DATA_DETECTION)
@@ -420,13 +421,13 @@ static Elements updateSubtree(HTMLElement& element, const TextRecognitionResult&
             auto dataDetectorContainer = DataDetection::createElementForImageOverlay(document.get(), dataDetector);
             dataDetectorContainer->classList().add(imageOverlayDataDetectorClass());
             elements.root->appendChild(dataDetectorContainer);
-            elements.dataDetectors.append(WTFMove(dataDetectorContainer));
+            elements.dataDetectors.uncheckedAppend(WTFMove(dataDetectorContainer));
         }
 #endif // ENABLE(DATA_DETECTION)
 
         elements.blocks.reserveInitialCapacity(result.blocks.size());
         for (auto& block : result.blocks) {
-            Ref blockContainer = HTMLDivElement::create(document.get());
+            auto blockContainer = HTMLDivElement::create(document.get());
             blockContainer->classList().add(imageOverlayBlockClass());
             auto lines = block.text.split(newlineCharacter);
             for (auto&& textContent : WTFMove(lines)) {
@@ -440,7 +441,7 @@ static Elements updateSubtree(HTMLElement& element, const TextRecognitionResult&
                 blockContainer->setInlineStyleProperty(CSSPropertyTextAlign, CSSValueStart);
 
             elements.root->appendChild(blockContainer);
-            elements.blocks.append(WTFMove(blockContainer));
+            elements.blocks.uncheckedAppend(WTFMove(blockContainer));
         }
     }
 
@@ -496,7 +497,7 @@ void updateWithTextRecognitionResult(HTMLElement& element, const TextRecognition
 
     {
         document->updateLayoutIgnorePendingStylesheets();
-        CheckedPtr renderer = dynamicDowncast<RenderImage>(element.renderer());
+        auto* renderer = dynamicDowncast<RenderImage>(element.renderer());
         if (!renderer)
             return;
 
@@ -562,7 +563,7 @@ void updateWithTextRecognitionResult(HTMLElement& element, const TextRecognition
             document->updateLayoutIfDimensionsOutOfDate(textContainer);
 
             FloatSize sizeBeforeTransform;
-            if (CheckedPtr renderer = textContainer->renderBoxModelObject()) {
+            if (auto* renderer = textContainer->renderBoxModelObject()) {
                 sizeBeforeTransform = {
                     adjustLayoutUnitForAbsoluteZoom(renderer->offsetWidth(), *renderer).toFloat(),
                     adjustLayoutUnitForAbsoluteZoom(renderer->offsetHeight(), *renderer).toFloat(),
@@ -607,7 +608,7 @@ void updateWithTextRecognitionResult(HTMLElement& element, const TextRecognition
     }
 
     if (!result.dataDetectors.isEmpty()) {
-        RefPtr page = document->page();
+        auto* page = document->page();
         if (auto* overlayController = page ? page->imageOverlayControllerIfExists() : nullptr)
             overlayController->textRecognitionResultsChanged(element);
     }
@@ -629,6 +630,9 @@ void updateWithTextRecognitionResult(HTMLElement& element, const TextRecognition
         bool mayRequireAdjustment { true };
     };
 
+    Vector<FontSizeAdjustmentState> elementsToAdjust;
+    elementsToAdjust.reserveInitialCapacity(result.blocks.size());
+
     auto setInlineStylesForBlock = [&](HTMLElement& block, float scale, float targetHeight) {
         float fontSize = scale * targetHeight;
         float borderRadius = fontSize / 5 + (targetHeight - fontSize) / 50;
@@ -641,25 +645,23 @@ void updateWithTextRecognitionResult(HTMLElement& element, const TextRecognition
     };
 
     ASSERT(result.blocks.size() == elements.blocks.size());
-
-    size_t index = 0;
-    auto elementsToAdjust = WTF::compactMap(result.blocks, [&](auto& block) -> std::optional<FontSizeAdjustmentState> {
-        auto incrementIndex = makeScopeExit([&index] { ++index; });
+    for (size_t index = 0; index < result.blocks.size(); ++index) {
+        auto& block = result.blocks[index];
         if (block.normalizedQuad.isEmpty())
-            return std::nullopt;
+            continue;
 
         auto blockContainer = elements.blocks[index];
         auto bounds = fitElementToQuad(blockContainer.get(), convertToContainerCoordinates(block.normalizedQuad), ConstrainHeight::No);
         setInlineStylesForBlock(blockContainer.get(), initialScaleForFontSize, bounds.size.height());
-        return FontSizeAdjustmentState { WTFMove(blockContainer), bounds.size };
-    });
+        elementsToAdjust.uncheckedAppend({ WTFMove(blockContainer), bounds.size });
+    }
 
     unsigned currentIteration = 0;
     while (!elementsToAdjust.isEmpty()) {
         document->updateLayoutIgnorePendingStylesheets();
 
         for (auto& state : elementsToAdjust) {
-            CheckedPtr box = state.container->renderBox();
+            auto* box = state.container->renderBox();
             if (!box)
                 continue;
 
@@ -695,7 +697,7 @@ void updateWithTextRecognitionResult(HTMLElement& element, const TextRecognition
         frame->eventHandler().scheduleCursorUpdate();
 
     if (cacheTextRecognitionResults == CacheTextRecognitionResults::Yes) {
-        if (RefPtr page = document->page())
+        if (auto* page = document->page())
             page->cacheTextRecognitionResult(element, containerRect, result);
     }
 }

@@ -146,6 +146,7 @@ inline void CacheableIdentifier::visitAggregate(Visitor& visitor) const
         visitor.appendUnbarriered(cell());
 }
 
+
 inline bool CacheableIdentifier::operator==(const CacheableIdentifier& other) const
 {
     return uid() == other.uid();

@@ -38,12 +38,14 @@ namespace WebCore {
 PerformanceObserver::PerformanceObserver(ScriptExecutionContext& scriptExecutionContext, Ref<PerformanceObserverCallback>&& callback)
     : m_callback(WTFMove(callback))
 {
-    if (RefPtr document = dynamicDowncast<Document>(scriptExecutionContext)) {
-        if (auto* window = document->domWindow())
+    if (is<Document>(scriptExecutionContext)) {
+        auto& document = downcast<Document>(scriptExecutionContext);
+        if (auto* window = document.domWindow())
             m_performance = &window->performance();
-    } else if (RefPtr workerGlobalScope = dynamicDowncast<WorkerGlobalScope>(scriptExecutionContext))
-        m_performance = &workerGlobalScope->performance();
-    else
+    } else if (is<WorkerGlobalScope>(scriptExecutionContext)) {
+        auto& workerGlobalScope = downcast<WorkerGlobalScope>(scriptExecutionContext);
+        m_performance = &workerGlobalScope.performance();
+    } else
         ASSERT_NOT_REACHED();
 }
 
@@ -56,15 +58,15 @@ void PerformanceObserver::disassociate()
 ExceptionOr<void> PerformanceObserver::observe(Init&& init)
 {
     if (!m_performance)
-        return Exception { ExceptionCode::TypeError };
+        return Exception { TypeError };
 
     bool isBuffered = false;
     OptionSet<PerformanceEntry::Type> filter;
     if (init.entryTypes) {
         if (init.type)
-            return Exception { ExceptionCode::TypeError, "either entryTypes or type must be provided"_s };
+            return Exception { TypeError, "either entryTypes or type must be provided"_s };
         if (m_registered && m_isTypeObserver)
-            return Exception { ExceptionCode::InvalidModificationError, "observer type can't be changed once registered"_s };
+            return Exception { InvalidModificationError, "observer type can't be changed once registered"_s };
         for (auto& entryType : *init.entryTypes) {
             if (auto type = PerformanceEntry::parseEntryTypeString(entryType))
                 filter.add(*type);
@@ -74,9 +76,9 @@ ExceptionOr<void> PerformanceObserver::observe(Init&& init)
         m_typeFilter = filter;
     } else {
         if (!init.type)
-            return Exception { ExceptionCode::TypeError, "no type or entryTypes were provided"_s };
+            return Exception { TypeError, "no type or entryTypes were provided"_s };
         if (m_registered && !m_isTypeObserver)
-            return Exception { ExceptionCode::InvalidModificationError, "observer type can't be changed once registered"_s };
+            return Exception { InvalidModificationError, "observer type can't be changed once registered"_s };
         m_isTypeObserver = true;
         if (auto type = PerformanceEntry::parseEntryTypeString(*init.type))
             filter.add(*type);
@@ -147,10 +149,12 @@ Vector<String> PerformanceObserver::supportedEntryTypes(ScriptExecutionContext& 
     Vector<String> entryTypes = {
         "mark"_s,
         "measure"_s,
-        "navigation"_s,
     };
 
-    if (RefPtr document = dynamicDowncast<Document>(context); document && document->supportsPaintTiming())
+    if (context.settingsValues().performanceNavigationTimingAPIEnabled)
+        entryTypes.append("navigation"_s);
+
+    if (is<Document>(context) && downcast<Document>(context).supportsPaintTiming())
         entryTypes.append("paint"_s);
 
     entryTypes.append("resource"_s);

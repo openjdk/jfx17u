@@ -41,7 +41,7 @@ enum class ExternalResourceDownloadPolicy {
 class FontRanges {
 public:
     struct Range {
-        Range(char32_t from, char32_t to, Ref<FontAccessor>&& fontAccessor)
+        Range(UChar32 from, UChar32 to, Ref<FontAccessor>&& fontAccessor)
             : m_from(from)
             , m_to(to)
             , m_fontAccessor(WTFMove(fontAccessor))
@@ -59,14 +59,14 @@ public:
         Range& operator=(const Range&) = delete;
         Range& operator=(Range&&) = default;
 
-        char32_t from() const { return m_from; }
-        char32_t to() const { return m_to; }
+        UChar32 from() const { return m_from; }
+        UChar32 to() const { return m_to; }
         WEBCORE_EXPORT const Font* font(ExternalResourceDownloadPolicy) const;
         const FontAccessor& fontAccessor() const { return m_fontAccessor; }
 
     private:
-        char32_t m_from;
-        char32_t m_to;
+        UChar32 m_from;
+        UChar32 m_to;
         Ref<FontAccessor> m_fontAccessor;
     };
 
@@ -86,8 +86,8 @@ public:
 
     void shrinkToFit() { m_ranges.shrinkToFit(); }
 
-    WEBCORE_EXPORT GlyphData glyphDataForCharacter(char32_t, ExternalResourceDownloadPolicy) const;
-    WEBCORE_EXPORT const Font* fontForCharacter(char32_t) const;
+    WEBCORE_EXPORT GlyphData glyphDataForCharacter(UChar32, ExternalResourceDownloadPolicy) const;
+    WEBCORE_EXPORT const Font* fontForCharacter(UChar32) const;
     WEBCORE_EXPORT const Font& fontForFirstRange() const;
     bool isLoading() const;
     bool isGeneric() const { return m_isGeneric; }

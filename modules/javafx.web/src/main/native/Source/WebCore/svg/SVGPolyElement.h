@@ -55,9 +55,5 @@ private:
 
 SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::SVGPolyElement)
     static bool isType(const WebCore::SVGElement& element) { return element.hasTagName(WebCore::SVGNames::polygonTag) || element.hasTagName(WebCore::SVGNames::polylineTag); }
-    static bool isType(const WebCore::Node& node)
-    {
-        auto* svgElement = dynamicDowncast<WebCore::SVGElement>(node);
-        return svgElement && isType(*svgElement);
-    }
+    static bool isType(const WebCore::Node& node) { return is<WebCore::SVGElement>(node) && isType(downcast<WebCore::SVGElement>(node)); }
 SPECIALIZE_TYPE_TRAITS_END()

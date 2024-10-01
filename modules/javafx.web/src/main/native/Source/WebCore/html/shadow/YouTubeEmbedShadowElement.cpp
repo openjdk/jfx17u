@@ -27,6 +27,7 @@
 #include "YouTubeEmbedShadowElement.h"
 
 #include "RenderBlockFlow.h"
+#include "ShadowPseudoIds.h"
 #include <wtf/IsoMallocInlines.h>
 
 namespace WebCore {
@@ -36,7 +37,7 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(YouTubeEmbedShadowElement);
 Ref<YouTubeEmbedShadowElement> YouTubeEmbedShadowElement::create(Document& document)
 {
     auto element = adoptRef(*new YouTubeEmbedShadowElement(document));
-    element->setInlineStyleProperty(CSSPropertyAll, CSSValueInitial);
+    element->setPseudo(ShadowPseudoIds::webkitPluginReplacement());
     return element;
 }
 
@@ -47,7 +48,7 @@ YouTubeEmbedShadowElement::YouTubeEmbedShadowElement(Document& document)
 
 RenderPtr<RenderElement> YouTubeEmbedShadowElement::createElementRenderer(RenderStyle&& style, const RenderTreePosition&)
 {
-    return createRenderer<RenderBlockFlow>(RenderObject::Type::BlockFlow, *this, WTFMove(style));
+    return createRenderer<RenderBlockFlow>(*this, WTFMove(style));
 }
 
 }

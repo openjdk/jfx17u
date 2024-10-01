@@ -32,6 +32,7 @@
 #include "CustomAnimationOptions.h"
 #include "CustomEffect.h"
 #include "CustomEffectCallback.h"
+#include "DeclarativeAnimation.h"
 #include "Document.h"
 #include "DocumentTimelinesController.h"
 #include "EventNames.h"
@@ -45,7 +46,6 @@
 #include "RenderElement.h"
 #include "RenderLayer.h"
 #include "RenderLayerBacking.h"
-#include "StyleOriginatedAnimation.h"
 #include "WebAnimationTypes.h"
 
 #if ENABLE(THREADED_ANIMATION_RESOLUTION)
@@ -228,11 +228,12 @@ bool DocumentTimeline::animationCanBeRemoved(WebAnimation& animation)
         return false;
 
     // - has an associated animation effect whose target element is a descendant of doc, and
-    auto* keyframeEffect = dynamicDowncast<KeyframeEffect>(animation.effect());
-    if (!keyframeEffect)
+    auto* effect = animation.effect();
+    if (!is<KeyframeEffect>(effect))
         return false;
 
-    auto target = keyframeEffect->targetStyleable();
+    auto& keyframeEffect = downcast<KeyframeEffect>(*effect);
+    auto target = keyframeEffect.targetStyleable();
     if (!target || !target->element.isDescendantOf(*m_document))
         return false;
 
@@ -244,14 +245,14 @@ IGNORE_GCC_WARNINGS_BEGIN("dangling-reference")
     }();
 IGNORE_GCC_WARNINGS_END
 
-    auto resolvedProperty = [&] (AnimatableCSSProperty property) -> AnimatableCSSProperty {
+    auto resolvedProperty = [&] (AnimatableProperty property) -> AnimatableProperty {
         if (std::holds_alternative<CSSPropertyID>(property))
             return CSSProperty::resolveDirectionAwareProperty(std::get<CSSPropertyID>(property), style.direction(), style.writingMode());
         return property;
     };
 
-    HashSet<AnimatableCSSProperty> propertiesToMatch;
-    for (auto property : keyframeEffect->animatedProperties())
+    HashSet<AnimatableProperty> propertiesToMatch;
+    for (auto property : keyframeEffect.animatedProperties())
         propertiesToMatch.add(resolvedProperty(property));
 
     auto protectedAnimations = [&]() -> Vector<RefPtr<WebAnimation>> {
@@ -480,7 +481,7 @@ unsigned DocumentTimeline::numberOfAnimationTimelineInvalidationsForTesting() co
 ExceptionOr<Ref<WebAnimation>> DocumentTimeline::animate(Ref<CustomEffectCallback>&& callback, std::optional<std::variant<double, CustomAnimationOptions>>&& options)
 {
     if (!m_document)
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
 
     String id = emptyString();
     std::variant<FramesPerSecond, AnimationFrameRatePreset> frameRate = AnimationFrameRatePreset::Auto;

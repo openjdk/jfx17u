@@ -38,12 +38,12 @@
 namespace WebCore {
 
 class AnimationEffect;
+class DeclarativeAnimation;
 class Element;
 class Event;
 class KeyframeEffect;
 class LocalFrame;
 class Page;
-class StyleOriginatedAnimation;
 class WebAnimation;
 class WeakPtrImplWithEventTargetData;
 
@@ -87,7 +87,7 @@ private:
     void animationDestroyedTimerFired();
     void reset();
 
-    void stopTrackingStyleOriginatedAnimation(StyleOriginatedAnimation&);
+    void stopTrackingDeclarativeAnimation(DeclarativeAnimation&);
 
     std::unique_ptr<Inspector::AnimationFrontendDispatcher> m_frontendDispatcher;
     RefPtr<Inspector::AnimationBackendDispatcher> m_backendDispatcher;
@@ -103,12 +103,12 @@ private:
     Vector<String> m_removedAnimationIds;
     Timer m_animationDestroyedTimer;
 
-    struct TrackedStyleOriginatedAnimationData {
+    struct TrackedDeclarativeAnimationData {
         WTF_MAKE_STRUCT_FAST_ALLOCATED;
         String trackingAnimationId;
         ComputedEffectTiming lastComputedTiming;
     };
-    HashMap<StyleOriginatedAnimation*, UniqueRef<TrackedStyleOriginatedAnimationData>> m_trackedStyleOriginatedAnimationData;
+    HashMap<DeclarativeAnimation*, UniqueRef<TrackedDeclarativeAnimationData>> m_trackedDeclarativeAnimationData;
 };
 
 } // namespace WebCore

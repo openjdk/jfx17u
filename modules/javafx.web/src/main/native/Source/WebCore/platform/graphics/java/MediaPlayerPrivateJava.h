@@ -32,8 +32,7 @@
 
 namespace WebCore {
     extern void resetErrorCodeInMediaPlayer(unsigned int err);
-    class MediaPlayerPrivate : public MediaPlayerPrivateInterface
-                             , public RefCounted<MediaPlayerPrivate> {
+    class MediaPlayerPrivate : public MediaPlayerPrivateInterface {
     public:
         //typedef MediaPlayerPrivateInterface* (*CreateMediaEnginePlayer)(MediaPlayer*);
         //typedef void (*MediaEngineSupportedTypes)(HashSet<String>& types);
@@ -41,7 +40,7 @@ namespace WebCore {
         //typedef void (*MediaEngineRegistrar)(CreateMediaEnginePlayer, MediaEngineSupportedTypes, MediaEngineSupportsType);
         MediaPlayerPrivate(MediaPlayer *player);
 
-        static void MediaEngineSupportedTypes(HashSet<String>& types);
+        static void MediaEngineSupportedTypes(HashSet<String, ASCIICaseInsensitiveHash>& types);
 
         static MediaPlayer::SupportsType MediaEngineSupportsType(const MediaEngineSupportParameters&);
 
@@ -52,69 +51,67 @@ namespace WebCore {
 
     public:
         virtual ~MediaPlayerPrivate();
-        void ref() final { RefCounted::ref(); }
-        void deref() final { RefCounted::deref(); }
-        virtual void load(const String& url) override;
-        virtual void cancelLoad() override;
 
-        virtual void prepareToPlay() override;
+        virtual void load(const String& url);
+        virtual void cancelLoad();
+
+        virtual void prepareToPlay();
         //virtual PlatformMedia platformMedia() const { return NoPlatformMedia; }
 #if USE(ACCELERATED_COMPOSITING)
         //virtual PlatformLayer* platformLayer() const { return 0; }
 #endif
 
-        virtual void play() override;
-        virtual void pause() override;
+        virtual void play();
+        virtual void pause();
 
         //virtual bool supportsFullscreen() const { return false; }
         //virtual bool supportsSave() const { return false; }
 
-        virtual FloatSize naturalSize() const override;
+        virtual FloatSize naturalSize() const;
 
-        virtual bool hasVideo() const override;
-        virtual bool hasAudio() const override;
+        virtual bool hasVideo() const;
+        virtual bool hasAudio() const;
 
-        virtual void setPageIsVisible(bool, String&& sceneIdentifier = ""_s) override;
+        virtual void setPageIsVisible(bool);
 
-        virtual float duration() const override;
+        virtual float duration() const;
 
-        virtual float currentTime() const override;
-        virtual void seek(float time) ;
-        virtual bool seeking() const override;
-        void seekToTarget(const SeekTarget&) final { }
+        virtual float currentTime() const;
+        virtual void seek(float time);
+        virtual bool seeking() const;
 
-        virtual MediaTime startTime() const override;
+        virtual MediaTime startTime() const;
 
-        virtual void setRate(float) override;
-        virtual void setPreservesPitch(bool) override;
+        virtual void setRate(float);
+        virtual void setPreservesPitch(bool);
 
-        virtual bool paused() const override;
+        virtual bool paused() const;
 
-        virtual void setVolume(float) override;
+        virtual void setVolume(float);
 
         virtual bool supportsMuting() const;
-        virtual void setMuted(bool) override;
+        virtual void setMuted(bool);
 
         //virtual bool hasClosedCaptions() const { return false; }
         //virtual void setClosedCaptionsVisible(bool) { }
 
-        virtual MediaPlayer::NetworkState networkState() const override;
-        virtual MediaPlayer::ReadyState readyState() const override;
+        virtual MediaPlayer::NetworkState networkState() const;
+        virtual MediaPlayer::ReadyState readyState() const;
 
-        virtual float maxTimeSeekable() const override;
-        virtual bool didLoadingProgress() const override;
+        virtual float maxTimeSeekable() const;
+        virtual bool didLoadingProgress() const;
         virtual const PlatformTimeRanges& buffered() const override;
 
         virtual unsigned bytesLoaded() const;
 
         virtual void setSize(const IntSize&);
 
-        virtual void paint(GraphicsContext&, const FloatRect&) override;
+        virtual void paint(GraphicsContext&, const FloatRect&);
 
         //virtual void paintCurrentFrameInContext(GraphicsContext* c, const IntRect& r) { paint(c, r); }
-        virtual DestinationColorSpace colorSpace() override;
+        virtual DestinationColorSpace colorSpace();
 
-        virtual void setPreload(MediaPlayer::Preload) override;
+        virtual void setPreload(MediaPlayer::Preload);
 
         //virtual bool hasAvailableVideoFrame() const { return readyState() >= MediaPlayer::HaveCurrentData; }
 

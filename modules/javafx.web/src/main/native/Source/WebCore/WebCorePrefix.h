@@ -35,9 +35,9 @@
 
 #if defined(__APPLE__)
 #ifdef __cplusplus
-#include <cstddef>
+#define NULL __null
 #else
-#include <stddef.h>
+#define NULL ((void *)0)
 #endif
 #endif
 

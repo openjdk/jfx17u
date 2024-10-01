@@ -38,13 +38,13 @@ public:
 private:
     enum class Type : uint8_t { OrderedList, UnorderedList };
 
-    static Ref<InsertNestedListCommand> create(Ref<Document>&& document, Type type)
+    static Ref<InsertNestedListCommand> create(Document& document, Type type)
     {
-        return adoptRef(*new InsertNestedListCommand(WTFMove(document), type));
+        return adoptRef(*new InsertNestedListCommand(document, type));
     }
 
-    InsertNestedListCommand(Ref<Document>&& document, Type type)
-        : CompositeEditCommand(WTFMove(document))
+    InsertNestedListCommand(Document& document, Type type)
+        : CompositeEditCommand(document)
         , m_type(type)
     {
     }

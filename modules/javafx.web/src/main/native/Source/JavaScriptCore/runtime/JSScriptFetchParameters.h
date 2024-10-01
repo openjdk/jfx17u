@@ -47,7 +47,10 @@ public:
         return vm.scriptFetchParametersSpace<mode>();
     }
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        return Structure::create(vm, globalObject, prototype, TypeInfo(JSScriptFetchParametersType, StructureFlags), info());
+    }
 
     static JSScriptFetchParameters* create(VM& vm, Structure* structure, Ref<ScriptFetchParameters>&& parameters)
     {

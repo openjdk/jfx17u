@@ -29,16 +29,14 @@
 
 namespace WebCore {
 
-class RubyElement : public HTMLElement {
+class RubyElement final : public HTMLElement {
     WTF_MAKE_ISO_ALLOCATED(RubyElement);
 public:
     static Ref<RubyElement> create(Document&);
     static Ref<RubyElement> create(const QualifiedName&, Document&);
 
-protected:
-    RubyElement(const QualifiedName&, Document&);
-
 private:
+    RubyElement(const QualifiedName&, Document&);
     RenderPtr<RenderElement> createElementRenderer(RenderStyle&&, const RenderTreePosition&) override;
 };
 

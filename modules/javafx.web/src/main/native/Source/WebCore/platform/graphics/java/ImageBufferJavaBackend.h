@@ -46,16 +46,17 @@ public:
 
     JLObject getWCImage() const;
     Vector<uint8_t> toDataJava(const String& mimeType, std::optional<double>) override;
-    void* getData();
+    void* getData() const;
     void update() const;
 
-    GraphicsContext& context() override;
+    GraphicsContext& context() const override;
     void flushContext() override;
 
+    IntSize backendSize() const override;
 
 
-    RefPtr<NativeImage> copyNativeImage() override;
-    RefPtr<NativeImage> createNativeImageReference() override;
+    RefPtr<NativeImage> copyNativeImage(BackingStoreCopy = CopyBackingStore) override;
+    RefPtr<NativeImage> copyNativeImageForDrawing(GraphicsContext& destination) override;
 
 
     String debugDescription() const override;

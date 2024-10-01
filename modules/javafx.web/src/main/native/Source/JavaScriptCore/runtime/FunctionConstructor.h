@@ -29,7 +29,6 @@ class TextPosition;
 namespace JSC {
 
 class FunctionPrototype;
-enum class SourceTaintedOrigin : uint8_t;
 
 class FunctionConstructor final : public InternalFunction {
 public:
@@ -44,7 +43,10 @@ public:
 
     DECLARE_INFO;
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        return Structure::create(vm, globalObject, prototype, TypeInfo(InternalFunctionType, StructureFlags), info());
+    }
 
 private:
     FunctionConstructor(VM&, Structure*);
@@ -59,13 +61,12 @@ enum class FunctionConstructionMode {
     AsyncGenerator,
 };
 
-JSObject* constructFunction(JSGlobalObject*, const ArgList&, const Identifier& functionName, const SourceOrigin&, const String& sourceURL, SourceTaintedOrigin, const WTF::TextPosition&, FunctionConstructionMode = FunctionConstructionMode::Function, JSValue newTarget = JSValue());
+JSObject* constructFunction(JSGlobalObject*, const ArgList&, const Identifier& functionName, const SourceOrigin&, const String& sourceURL, const WTF::TextPosition&, FunctionConstructionMode = FunctionConstructionMode::Function, JSValue newTarget = JSValue());
 JSObject* constructFunction(JSGlobalObject*, CallFrame*, const ArgList&, FunctionConstructionMode = FunctionConstructionMode::Function, JSValue newTarget = JSValue());
 
 JS_EXPORT_PRIVATE JSObject* constructFunctionSkippingEvalEnabledCheck(
-    JSGlobalObject*, String&& program, const Identifier&, const SourceOrigin&,
-    const String&, SourceTaintedOrigin, const WTF::TextPosition&, int overrideLineNumber = -1,
-    std::optional<int> functionConstructorParametersEndPosition = std::nullopt,
+    JSGlobalObject*, const ArgList&, const Identifier&, const SourceOrigin&,
+    const String&, const WTF::TextPosition&, int overrideLineNumber = -1,
     FunctionConstructionMode = FunctionConstructionMode::Function, JSValue newTarget = JSValue());
 
 } // namespace JSC

@@ -72,6 +72,12 @@ void HTMLImageLoader::dispatchLoadEvent()
     element().dispatchEvent(Event::create(errorOccurred ? eventNames().errorEvent : eventNames().loadEvent, Event::CanBubble::No, Event::IsCancelable::No));
 }
 
+String HTMLImageLoader::sourceURI(const AtomString& attr) const
+{
+    // FIXME: trimming whitespace is probably redundant with the URL parser
+    return attr.string().trim(isASCIIWhitespace);
+}
+
 void HTMLImageLoader::notifyFinished(CachedResource&, const NetworkLoadMetrics& metrics)
 {
     ASSERT(image());
@@ -91,10 +97,8 @@ void HTMLImageLoader::notifyFinished(CachedResource&, const NetworkLoadMetrics& 
         }
     }
 
-    if (loadError) {
-        if (RefPtr objectElement = dynamicDowncast<HTMLObjectElement>(element()))
-            objectElement->renderFallbackContent();
-    }
+    if (loadError && is<HTMLObjectElement>(element()))
+        downcast<HTMLObjectElement>(element()).renderFallbackContent();
 }
 
 }

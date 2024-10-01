@@ -24,7 +24,6 @@
 #include "CSSCustomPropertyValue.h"
 #include <wtf/Function.h>
 #include <wtf/HashMap.h>
-#include <wtf/IterationStatus.h>
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
 #include <wtf/text/AtomStringHash.h>
@@ -44,26 +43,18 @@ public:
     const CSSCustomPropertyValue* get(const AtomString&) const;
     void set(const AtomString&, Ref<const CSSCustomPropertyValue>&&);
 
-    unsigned size() const { return m_size; }
-    bool mayHaveAnimatableProperties() const { return m_mayHaveAnimatableProperties; }
+    unsigned size() const;
 
-    void forEach(const Function<IterationStatus(const KeyValuePair<AtomString, RefPtr<const CSSCustomPropertyValue>>&)>&) const;
+    void forEach(const Function<void(const KeyValuePair<AtomString, RefPtr<const CSSCustomPropertyValue>>&)>&) const;
     AtomString findKeyAtIndex(unsigned) const;
 
 private:
     StyleCustomPropertyData() = default;
     StyleCustomPropertyData(const StyleCustomPropertyData&);
 
-    template<typename Callback> void forEachInternal(Callback&&) const;
-
     RefPtr<const StyleCustomPropertyData> m_parentValues;
     CustomPropertyValueMap m_ownValues;
-    unsigned m_size { 0 };
-    unsigned m_ancestorCount { 0 };
-    bool m_mayHaveAnimatableProperties { false };
-#if ASSERT_ENABLED
-    mutable bool m_hasChildren { false };
-#endif
+    unsigned m_ownValuesSizeExcludingOverriddenParentValues { 0 };
 };
 
 } // namespace WebCore

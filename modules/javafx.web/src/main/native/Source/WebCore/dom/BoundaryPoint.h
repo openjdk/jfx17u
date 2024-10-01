@@ -36,7 +36,6 @@ struct BoundaryPoint {
     BoundaryPoint(Ref<Node>&&, unsigned);
 
     Document& document() const;
-    Ref<Document> protectedDocument() const;
 };
 
 bool operator==(const BoundaryPoint&, const BoundaryPoint&);

@@ -54,8 +54,8 @@ void SVGFontFaceFormatElement::childrenChanged(const ChildChange& change)
         return;
 
     ancestor = ancestor->parentNode();
-    if (RefPtr fontFaceElement = dynamicDowncast<SVGFontFaceElement>(ancestor))
-        fontFaceElement->rebuildFontFace();
+    if (ancestor && ancestor->hasTagName(font_faceTag))
+        downcast<SVGFontFaceElement>(*ancestor).rebuildFontFace();
 }
 
 }

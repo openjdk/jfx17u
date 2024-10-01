@@ -71,7 +71,7 @@ bool VisualViewport::addEventListener(const AtomString& eventType, Ref<EventList
 void VisualViewport::updateFrameLayout() const
 {
     ASSERT(frame());
-    frame()->document()->updateLayout({ LayoutOptions::IgnorePendingStylesheets, LayoutOptions::RunPostLayoutTasksSynchronously });
+    frame()->document()->updateLayoutIgnorePendingStylesheets(Document::RunPostLayoutTasks::Synchronously);
 }
 
 double VisualViewport::offsetLeft() const

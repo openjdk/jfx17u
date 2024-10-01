@@ -109,7 +109,7 @@ ViewportAttributes ViewportArguments::resolve(const FloatSize& initialViewportSi
         break;
     }
 
-    if (type == ViewportArguments::Type::CSSDeviceAdaptation) {
+    if (type == ViewportArguments::CSSDeviceAdaptation) {
         switch (int(resultMinWidth)) {
         case ViewportArguments::ValueDeviceWidth:
             resultMinWidth = deviceSize.width();
@@ -179,7 +179,7 @@ ViewportAttributes ViewportArguments::resolve(const FloatSize& initialViewportSi
         resultHeight = std::max<float>(1, resultHeight);
     }
 
-    if (type != ViewportArguments::Type::CSSDeviceAdaptation && type != ViewportArguments::Type::Implicit) {
+    if (type != ViewportArguments::CSSDeviceAdaptation && type != ViewportArguments::Implicit) {
         // Clamp values to a valid range, but not for @viewport since is
         // not mandated by the specification.
         resultWidth = clampLengthValue(resultWidth);
@@ -233,7 +233,7 @@ ViewportAttributes ViewportArguments::resolve(const FloatSize& initialViewportSi
     if (resultHeight == ViewportArguments::ValueAuto)
         resultHeight = resultWidth * (initialViewportSize.height() / initialViewportSize.width());
 
-    if (type == ViewportArguments::Type::ViewportMeta) {
+    if (type == ViewportArguments::ViewportMeta) {
         // Extend width and height to fill the visual viewport for the resolved initial-scale.
         resultWidth = std::max<float>(resultWidth, initialViewportSize.width() / result.initialScale);
         resultHeight = std::max<float>(resultHeight, initialViewportSize.height() / result.initialScale);

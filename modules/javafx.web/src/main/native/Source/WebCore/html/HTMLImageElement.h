@@ -24,7 +24,6 @@
 #pragma once
 
 #include "ActiveDOMObject.h"
-#include "AttachmentAssociatedElement.h"
 #include "DecodingOptions.h"
 #include "FormAssociatedElement.h"
 #include "GraphicsTypes.h"
@@ -48,13 +47,7 @@ enum class ReferrerPolicy : uint8_t;
 enum class RelevantMutation : bool;
 enum class RequestPriority : uint8_t;
 
-class HTMLImageElement
-    : public HTMLElement
-#if ENABLE(ATTACHMENT_ELEMENT)
-    , public AttachmentAssociatedElement
-#endif
-    , public FormAssociatedElement
-    , public ActiveDOMObject {
+class HTMLImageElement : public HTMLElement, public FormAssociatedElement, public ActiveDOMObject {
     WTF_MAKE_ISO_ALLOCATED(HTMLImageElement);
 public:
     static Ref<HTMLImageElement> create(Document&);
@@ -86,8 +79,8 @@ public:
 
     void setLoadManually(bool);
 
-    bool matchesUsemap(const AtomString&) const;
-    RefPtr<HTMLMapElement> associatedMapElement() const;
+    bool matchesUsemap(const AtomStringImpl&) const;
+    HTMLMapElement* associatedMapElement() const;
 
     WEBCORE_EXPORT const AtomString& alt() const;
 
@@ -121,7 +114,10 @@ public:
 #endif
 
 #if ENABLE(ATTACHMENT_ELEMENT)
-    void setAttachmentElement(Ref<HTMLAttachmentElement>&&) final;
+    void setAttachmentElement(Ref<HTMLAttachmentElement>&&);
+    RefPtr<HTMLAttachmentElement> attachmentElement() const;
+    const String& attachmentIdentifier() const;
+    void didUpdateAttachmentIdentifier();
 #endif
 
     WEBCORE_EXPORT size_t pendingDecodePromisesCountForTesting() const;
@@ -179,9 +175,8 @@ public:
 
     bool originClean(const SecurityOrigin&) const;
 
-    void collectExtraStyleForPresentationalHints(MutableStyleProperties&);
-
 protected:
+    constexpr static auto CreateHTMLImageElement = CreateHTMLElement | NodeFlag::HasCustomStyleResolveCallbacks;
     HTMLImageElement(const QualifiedName&, Document&, HTMLFormElement* = nullptr);
 
     void didMoveToNewDocument(Document& oldDocument, Document& newDocument) override;
@@ -195,6 +190,7 @@ private:
     void attributeChanged(const QualifiedName&, const AtomString& oldValue, const AtomString& newValue, AttributeModificationReason) final;
     bool hasPresentationalHintsForAttribute(const QualifiedName&) const override;
     void collectPresentationalHintsForAttribute(const QualifiedName&, const AtomString&, MutableStyleProperties&) override;
+    void collectExtraStyleForPresentationalHints(MutableStyleProperties&) override;
     void invalidateAttributeMapping();
 
     Ref<Element> cloneElementWithoutAttributesAndChildren(Document& targetDocument) final;
@@ -212,12 +208,10 @@ private:
     bool isURLAttribute(const Attribute&) const override;
     bool attributeContainsURL(const Attribute&) const override;
     String completeURLsInAttributeValue(const URL& base, const Attribute&, ResolveURLs = ResolveURLs::Yes) const override;
-    Attribute replaceURLsInAttributeValue(const Attribute&, const HashMap<String, String>&) const override;
 
     bool isDraggableIgnoringAttributes() const final { return true; }
 
     void addSubresourceAttributeURLs(ListHashSet<URL>&) const override;
-    void addCandidateSubresourceURLs(ListHashSet<URL>&) const override;
 
     InsertedIntoAncestorResult insertedIntoAncestor(InsertionType, ContainerNode&) override;
     void removedFromAncestor(RemovalType, ContainerNode&) override;
@@ -226,15 +220,6 @@ private:
     FormAssociatedElement* asFormAssociatedElement() final { return this; }
     HTMLImageElement& asHTMLElement() final { return *this; }
     const HTMLImageElement& asHTMLElement() const final { return *this; }
-
-#if ENABLE(ATTACHMENT_ELEMENT)
-    void refAttachmentAssociatedElement() const final { HTMLElement::ref(); }
-    void derefAttachmentAssociatedElement() const final { HTMLElement::deref(); }
-
-    AttachmentAssociatedElement* asAttachmentAssociatedElement() final { return this; }
-
-    AttachmentAssociatedElementType attachmentAssociatedElementType() const final { return AttachmentAssociatedElementType::Image; };
-#endif
 
     bool isInteractiveContent() const final;
 
@@ -272,6 +257,10 @@ private:
     WeakPtr<HTMLSourceElement, WeakPtrImplWithEventTargetData> m_sourceElement;
 
     Vector<MQ::MediaQueryResult> m_dynamicMediaQueryResults;
+
+#if ENABLE(ATTACHMENT_ELEMENT)
+    String m_pendingClonedAttachmentID;
+#endif
 
     Image* image() const;
 

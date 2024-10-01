@@ -32,6 +32,7 @@
 #include "StyleCustomPropertyData.h"
 #include "StyleTextBoxEdge.h"
 #include "TabSize.h"
+#include "TextSpacing.h"
 #include "TextUnderlineOffset.h"
 #include "TouchAction.h"
 #include <wtf/DataRef.h>
@@ -164,7 +165,7 @@ public:
 
     unsigned isInSubtreeWithBlendMode : 1;
 
-    unsigned effectiveContentVisibility : 2; // ContentVisibility
+    unsigned effectiveSkippedContent : 1;
 
     OptionSet<TouchAction> effectiveTouchActions;
     OptionSet<EventListenerRegionType> eventListenerRegionTypes;
@@ -196,6 +197,8 @@ public:
 #if ENABLE(TOUCH_EVENTS)
     StyleColor tapHighlightColor;
 #endif
+    TextSpacingTrim textSpacingTrim;
+    TextAutospace textAutospace;
 
     ListStyleType listStyleType;
 

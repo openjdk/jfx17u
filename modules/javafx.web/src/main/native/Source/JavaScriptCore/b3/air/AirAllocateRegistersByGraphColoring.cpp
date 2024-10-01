@@ -75,8 +75,8 @@ public:
             dataLogLn("]");
         }
 
-        m_adjacencyList.grow(tmpArraySize);
-        m_moveList.grow(tmpArraySize);
+        m_adjacencyList.resize(tmpArraySize);
+        m_moveList.resize(tmpArraySize);
         m_isOnSelectStack.ensureSize(tmpArraySize);
         m_spillWorklist.ensureSize(tmpArraySize);
     }
@@ -215,9 +215,7 @@ protected:
         const auto& adjacentsOfU = m_adjacencyList[u];
         const auto& adjacentsOfV = m_adjacencyList[v];
 
-        std::array<IndexType, MacroAssembler::numGPRs + MacroAssembler::numFPRs> highOrderAdjacents;
-        size_t highOrderAdjacentsSize = 0;
-
+        Vector<IndexType, MacroAssembler::numGPRs + MacroAssembler::numFPRs> highOrderAdjacents;
         RELEASE_ASSERT(registerCount() <= MacroAssembler::numGPRs + MacroAssembler::numFPRs);
         unsigned numCandidates = adjacentsOfU.size() + adjacentsOfV.size();
         if (numCandidates < registerCount()) {
@@ -230,16 +228,16 @@ protected:
             ASSERT(adjacentTmpIndex != u);
             numCandidates--;
             if (!hasBeenSimplified(adjacentTmpIndex) && m_degrees[adjacentTmpIndex] >= registerCount()) {
-                ASSERT(std::find(highOrderAdjacents.begin(), highOrderAdjacents.begin() + highOrderAdjacentsSize, adjacentTmpIndex) == highOrderAdjacents.begin() + highOrderAdjacentsSize);
-                highOrderAdjacents[highOrderAdjacentsSize++] = adjacentTmpIndex;
-                if (highOrderAdjacentsSize >= registerCount())
+                ASSERT(std::find(highOrderAdjacents.begin(), highOrderAdjacents.end(), adjacentTmpIndex) == highOrderAdjacents.end());
+                highOrderAdjacents.uncheckedAppend(adjacentTmpIndex);
+                if (highOrderAdjacents.size() >= registerCount())
                     return false;
-            } else if (highOrderAdjacentsSize + numCandidates < registerCount())
+            } else if (highOrderAdjacents.size() + numCandidates < registerCount())
                 return true;
         }
         ASSERT(numCandidates == adjacentsOfV.size());
 
-        auto iteratorEndHighOrderAdjacentsOfU = highOrderAdjacents.begin() + highOrderAdjacentsSize;
+        auto iteratorEndHighOrderAdjacentsOfU = highOrderAdjacents.end();
         for (IndexType adjacentTmpIndex : adjacentsOfV) {
             ASSERT(adjacentTmpIndex != u);
             ASSERT(adjacentTmpIndex != v);
@@ -247,16 +245,16 @@ protected:
             if (!hasBeenSimplified(adjacentTmpIndex)
                 && m_degrees[adjacentTmpIndex] >= registerCount()
                 && std::find(highOrderAdjacents.begin(), iteratorEndHighOrderAdjacentsOfU, adjacentTmpIndex) == iteratorEndHighOrderAdjacentsOfU) {
-                ASSERT(std::find(iteratorEndHighOrderAdjacentsOfU, highOrderAdjacents.begin() + highOrderAdjacentsSize, adjacentTmpIndex) == highOrderAdjacents.begin() + highOrderAdjacentsSize);
-                highOrderAdjacents[highOrderAdjacentsSize++] = adjacentTmpIndex;
-                if (highOrderAdjacentsSize >= registerCount())
+                ASSERT(std::find(iteratorEndHighOrderAdjacentsOfU, highOrderAdjacents.end(), adjacentTmpIndex) == highOrderAdjacents.end());
+                highOrderAdjacents.uncheckedAppend(adjacentTmpIndex);
+                if (highOrderAdjacents.size() >= registerCount())
                     return false;
-            } else if (highOrderAdjacentsSize + numCandidates < registerCount())
+            } else if (highOrderAdjacents.size() + numCandidates < registerCount())
                 return true;
         }
 
         ASSERT(!numCandidates);
-        ASSERT(highOrderAdjacentsSize < registerCount());
+        ASSERT(highOrderAdjacents.size() < registerCount());
         return true;
     }
 
@@ -1446,7 +1444,10 @@ public:
         Tmp operator*() const { return TmpMapper::tmpFromAbsoluteIndex(*m_indexIterator); }
         IndexToTmpIteratorAdaptor& operator++() { ++m_indexIterator; return *this; }
 
-        friend bool operator==(const IndexToTmpIteratorAdaptor&, const IndexToTmpIteratorAdaptor&) = default;
+        bool operator==(const IndexToTmpIteratorAdaptor& other) const
+        {
+            return m_indexIterator == other.m_indexIterator;
+        }
 
     private:
         IndexIterator m_indexIterator;

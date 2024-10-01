@@ -31,12 +31,9 @@
 #pragma once
 
 #include "FrameLoaderTypes.h"
-#include "LoaderMalloc.h"
 #include "Timer.h"
-#include <wtf/CheckedRef.h>
 #include <wtf/CompletionHandler.h>
 #include <wtf/Forward.h>
-#include <wtf/WeakRef.h>
 
 namespace WebCore {
 
@@ -48,10 +45,9 @@ class ScheduledNavigation;
 class SecurityOrigin;
 
 enum class NewLoadInProgress : bool { No, Yes };
-enum class ScheduleLocationChangeResult : uint8_t { Stopped, Completed, Started };
 
-class NavigationScheduler : public CanMakeCheckedPtr {
-    WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Loader);
+class NavigationScheduler {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit NavigationScheduler(Frame&);
     ~NavigationScheduler();
@@ -60,7 +56,7 @@ public:
     bool locationChangePending();
 
     void scheduleRedirect(Document& initiatingDocument, double delay, const URL&, IsMetaRefresh);
-    void scheduleLocationChange(Document& initiatingDocument, SecurityOrigin&, const URL&, const String& referrer, LockHistory = LockHistory::Yes, LockBackForwardList = LockBackForwardList::Yes, CompletionHandler<void(ScheduleLocationChangeResult)>&& = [] (ScheduleLocationChangeResult) { });
+    void scheduleLocationChange(Document& initiatingDocument, SecurityOrigin&, const URL&, const String& referrer, LockHistory = LockHistory::Yes, LockBackForwardList = LockBackForwardList::Yes, CompletionHandler<void()>&& = [] { });
     void scheduleFormSubmission(Ref<FormSubmission>&&);
     void scheduleRefresh(Document& initiatingDocument);
     void scheduleHistoryNavigation(int steps);
@@ -79,11 +75,10 @@ private:
 
     void timerFired();
     void schedule(std::unique_ptr<ScheduledNavigation>);
-    Ref<Frame> protectedFrame() const;
 
     static LockBackForwardList mustLockBackForwardList(Frame& targetFrame);
 
-    WeakRef<Frame> m_frame;
+    Frame& m_frame;
     Timer m_timer;
     std::unique_ptr<ScheduledNavigation> m_redirect;
 };

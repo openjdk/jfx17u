@@ -63,6 +63,11 @@ String DiagnosticLoggingKeys::postPageBackgroundingMemoryUsageKey()
     return "postPageBackgroundingMemoryUsage"_s;
 }
 
+String DiagnosticLoggingKeys::pageHandlesWebGLContextLossKey()
+{
+    return "pageHandlesWebGLContextLoss"_s;
+}
+
 String DiagnosticLoggingKeys::postPageLoadCPUUsageKey()
 {
     return "postPageLoadCPUUsage"_s;
@@ -163,9 +168,24 @@ String DiagnosticLoggingKeys::noKey()
     return "no"_s;
 }
 
+String DiagnosticLoggingKeys::noCacheKey()
+{
+    return "noCache"_s;
+}
+
+String DiagnosticLoggingKeys::noStoreKey()
+{
+    return "noStore"_s;
+}
+
 String DiagnosticLoggingKeys::nonVisibleStateKey()
 {
     return "nonVisibleState"_s;
+}
+
+String DiagnosticLoggingKeys::notInMemoryCacheKey()
+{
+    return "notInMemoryCache"_s;
 }
 
 String DiagnosticLoggingKeys::backForwardCacheKey()
@@ -208,6 +228,11 @@ String DiagnosticLoggingKeys::isErrorPageKey()
     return "isErrorPage"_s;
 }
 
+String DiagnosticLoggingKeys::isExpiredKey()
+{
+    return "isExpired"_s;
+}
+
 String DiagnosticLoggingKeys::isReloadIgnoringCacheDataKey()
 {
     return "isReloadIgnoringCacheData"_s;
@@ -226,6 +251,16 @@ String DiagnosticLoggingKeys::httpsNoStoreKey()
 String DiagnosticLoggingKeys::imageKey()
 {
     return "image"_s;
+}
+
+String DiagnosticLoggingKeys::inMemoryCacheKey()
+{
+    return "inMemoryCache"_s;
+}
+
+String DiagnosticLoggingKeys::inactiveKey()
+{
+    return "inactive"_s;
 }
 
 String DiagnosticLoggingKeys::internalErrorKey()
@@ -338,6 +373,16 @@ String DiagnosticLoggingKeys::createSharedBufferFailedKey()
     return "createSharedBufferFailed"_s;
 }
 
+String DiagnosticLoggingKeys::activeInForegroundTabKey()
+{
+    return "activeInForegroundTab"_s;
+}
+
+String DiagnosticLoggingKeys::activeInBackgroundTabOnlyKey()
+{
+    return "activeInBackgroundTabOnly"_s;
+}
+
 String DiagnosticLoggingKeys::applicationCacheKey()
 {
     return "applicationCache"_s;
@@ -443,6 +488,11 @@ String DiagnosticLoggingKeys::resourceResponseSourceKey()
 String DiagnosticLoggingKeys::retrievalKey()
 {
     return "retrieval"_s;
+}
+
+String DiagnosticLoggingKeys::revalidatingKey()
+{
+    return "revalidating"_s;
 }
 
 String DiagnosticLoggingKeys::reloadFromOriginKey()
@@ -615,6 +665,41 @@ String DiagnosticLoggingKeys::unusedKey()
     return "unused"_s;
 }
 
+String DiagnosticLoggingKeys::unusedReasonCredentialSettingsKey()
+{
+    return "unused.reason.credentialSettings"_s;
+}
+
+String DiagnosticLoggingKeys::unusedReasonErrorKey()
+{
+    return "unused.reason.error"_s;
+}
+
+String DiagnosticLoggingKeys::unusedReasonMustRevalidateNoValidatorKey()
+{
+    return "unused.reason.mustRevalidateNoValidator"_s;
+}
+
+String DiagnosticLoggingKeys::unusedReasonNoStoreKey()
+{
+    return "unused.reason.noStore"_s;
+}
+
+String DiagnosticLoggingKeys::unusedReasonRedirectChainKey()
+{
+    return "unused.reason.redirectChain"_s;
+}
+
+String DiagnosticLoggingKeys::unusedReasonReloadKey()
+{
+    return "unused.reason.reload"_s;
+}
+
+String DiagnosticLoggingKeys::unusedReasonTypeMismatchKey()
+{
+    return "unused.reason.typeMismatch"_s;
+}
+
 String DiagnosticLoggingKeys::usedKey()
 {
     return "used"_s;
@@ -693,6 +778,11 @@ String DiagnosticLoggingKeys::prunedDueToProcessSuspended()
 String WebCore::DiagnosticLoggingKeys::notHTTPFamilyKey()
 {
     return "notHTTPFamily"_s;
+}
+
+String WebCore::DiagnosticLoggingKeys::webGLStateKey()
+{
+    return "webGLState"_s;
 }
 
 String DiagnosticLoggingKeys::memoryUsageToDiagnosticLoggingKey(uint64_t memoryUsage)

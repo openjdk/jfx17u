@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2017-2021 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,7 +30,6 @@
 #include "Allocator.h"
 #include "MarkedBlock.h"
 #include "MarkedSpace.h"
-#include <wtf/TZoneMalloc.h>
 #include <wtf/text/CString.h>
 
 namespace JSC {
@@ -43,7 +42,7 @@ class HeapCellType;
 // class is the baseclass of all subspaces e.g. CompleteSubspace, IsoSubspace.
 class Subspace {
     WTF_MAKE_NONCOPYABLE(Subspace);
-    WTF_MAKE_TZONE_ALLOCATED(Subspace);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     JS_EXPORT_PRIVATE virtual ~Subspace();
 
@@ -112,7 +111,7 @@ protected:
 
     BlockDirectory* m_firstDirectory { nullptr };
     BlockDirectory* m_directoryForEmptyAllocation { nullptr }; // Uses the MarkedSpace linked list of blocks.
-    SentinelLinkedList<PreciseAllocation, BasicRawSentinelNode<PreciseAllocation>> m_preciseAllocations;
+    SentinelLinkedList<PreciseAllocation, PackedRawSentinelNode<PreciseAllocation>> m_preciseAllocations;
 
     bool m_isIsoSubspace { false };
     uint8_t m_remainingLowerTierCellCount { 0 };

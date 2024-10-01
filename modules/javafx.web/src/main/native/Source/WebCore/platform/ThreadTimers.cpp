@@ -33,7 +33,6 @@
 #include "SharedTimer.h"
 #include "ThreadGlobalData.h"
 #include "Timer.h"
-#include <wtf/ApproximateTime.h>
 #include <wtf/MainThread.h>
 
 #if PLATFORM(IOS_FAMILY)
@@ -41,6 +40,9 @@
 #endif
 
 namespace WebCore {
+
+// Fire timers for this length of time, and then quit to let the run loop process user input events.
+static constexpr auto maxDurationOfFiringTimers { 16_ms };
 
 // Timers are created, started and fired on the same thread, and each thread has its own ThreadTimers
 // copy to keep the heap and a set of currently firing timers.
@@ -109,8 +111,8 @@ void ThreadTimers::sharedTimerFiredInternal()
     m_firingTimers = true;
     m_pendingSharedTimerFireTime = MonotonicTime { };
 
-    auto fireTime = MonotonicTime::now();
-    auto timeToQuit = ApproximateTime::now() + maxDurationOfFiringTimers;
+    MonotonicTime fireTime = MonotonicTime::now();
+    MonotonicTime timeToQuit = fireTime + maxDurationOfFiringTimers;
 
     while (!m_timerHeap.isEmpty()) {
         Ref<ThreadTimerHeapItem> item = *m_timerHeap.first();
@@ -131,7 +133,7 @@ void ThreadTimers::sharedTimerFiredInternal()
         item->timer().fired();
 
         // Catch the case where the timer asked timers to fire in a nested event loop, or we are over time limit.
-        if (!m_firingTimers || timeToQuit < ApproximateTime::now())
+        if (!m_firingTimers || timeToQuit < MonotonicTime::now())
             break;
 
         if (m_shouldBreakFireLoopForRenderingUpdate)

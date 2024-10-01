@@ -146,7 +146,7 @@ public:
             return *this;
         }
 
-        WeakListHashSetConstIterator& operator--()
+        WeakListHashSetIterator& operator--()
         {
             Base::advanceBackwards();
             return *this;
@@ -172,8 +172,9 @@ public:
     iterator find(const U& value)
     {
         increaseOperationCountSinceLastCleanup();
-        if (auto* impl = value.weakPtrFactory().impl(); impl && *impl)
-            return WeakListHashSetIterator(*this, m_set.find(*impl));
+        auto& weakPtrImpl = value.weakPtrFactory().m_impl;
+        if (auto* pointer = weakPtrImpl.pointer(); pointer && *pointer)
+            return WeakListHashSetIterator(*this, m_set.find(*pointer));
         return end();
     }
 
@@ -181,8 +182,9 @@ public:
     const_iterator find(const U& value) const
     {
         increaseOperationCountSinceLastCleanup();
-        if (auto* impl = value.weakPtrFactory().impl(); impl && *impl)
-            return WeakListHashSetConstIterator(*this, m_set.find(*impl));
+        auto& weakPtrImpl = value.weakPtrFactory().m_impl;
+        if (auto* pointer = weakPtrImpl.pointer(); pointer && *pointer)
+            return WeakListHashSetIterator(*this, m_set.find(*pointer));
         return end();
     }
 
@@ -190,8 +192,9 @@ public:
     bool contains(const U& value) const
     {
         increaseOperationCountSinceLastCleanup();
-        if (auto* impl = value.weakPtrFactory().impl(); impl && *impl)
-            return m_set.contains(*impl);
+        auto& weakPtrImpl = value.weakPtrFactory().m_impl;
+        if (auto* pointer = weakPtrImpl.pointer(); pointer && *pointer)
+            return m_set.contains(*pointer);
         return false;
     }
 
@@ -207,13 +210,6 @@ public:
     {
         amortizedCleanupIfNeeded();
         return m_set.appendOrMoveToLast(*static_cast<const T&>(value).weakPtrFactory().template createWeakPtr<T>(const_cast<U&>(value), assertionsPolicy).m_impl);
-    }
-
-    template <typename U>
-    bool moveToLastIfPresent(const U& value)
-    {
-        amortizedCleanupIfNeeded();
-        return m_set.moveToLastIfPresent(*static_cast<const T&>(value).weakPtrFactory().template createWeakPtr<T>(const_cast<U&>(value), assertionsPolicy).m_impl);
     }
 
     template <typename U>
@@ -242,8 +238,9 @@ public:
     bool remove(const U& value)
     {
         amortizedCleanupIfNeeded();
-        if (auto* impl = value.weakPtrFactory().impl(); impl && *impl)
-            return m_set.remove(*impl);
+        auto& weakPtrImpl = value.weakPtrFactory().m_impl;
+        if (auto* pointer = weakPtrImpl.pointer(); pointer && *pointer)
+            return m_set.remove(*pointer);
         return false;
     }
 
@@ -313,52 +310,6 @@ public:
         return didRemove;
     }
 
-    T& first()
-    {
-        auto it = begin();
-        ASSERT(it != end());
-        return *it;
-    }
-
-    const T& first() const
-    {
-        auto it = begin();
-        ASSERT(it != end());
-        return *it;
-    }
-
-    T& takeFirst()
-    {
-        auto it = begin();
-        auto& first = *it;
-        remove(it);
-        return first;
-    }
-
-    T* tryTakeFirst()
-    {
-        auto it = begin();
-        if (it == end())
-            return nullptr;
-        auto* first = it.get();
-        remove(it);
-        return first;
-    }
-
-    T& last()
-    {
-        auto it = end();
-        --it;
-        return *it;
-    }
-
-    const T& last() const
-    {
-        auto it = end();
-        --it;
-        return *it;
-    }
-
 private:
     ALWAYS_INLINE void cleanupHappened() const
     {
@@ -384,8 +335,20 @@ private:
     mutable unsigned m_maxOperationCountWithoutCleanup { 0 };
 };
 
-template<typename T, typename WeakMapImpl>
-size_t containerSize(const WeakListHashSet<T, WeakMapImpl>& container) { return container.computeSize(); }
+template<typename MapFunction, typename T, typename WeakMapImpl>
+struct Mapper<MapFunction, const WeakListHashSet<T, WeakMapImpl> &, void> {
+    using SourceItemType = T&;
+    using DestinationItemType = typename std::invoke_result<MapFunction, SourceItemType&>::type;
+
+    static Vector<DestinationItemType> map(const WeakListHashSet<T, WeakMapImpl>& source, const MapFunction& mapFunction)
+    {
+        Vector<DestinationItemType> result;
+        result.reserveInitialCapacity(source.computeSize());
+        for (auto& item : source)
+            result.uncheckedAppend(mapFunction(item));
+        return result;
+    }
+};
 
 template<typename T, typename WeakMapImpl>
 inline auto copyToVector(const WeakListHashSet<T, WeakMapImpl>& collection) -> Vector<WeakPtr<T, WeakMapImpl>> {

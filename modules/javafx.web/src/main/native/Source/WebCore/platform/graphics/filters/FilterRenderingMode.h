@@ -42,3 +42,17 @@ constexpr OptionSet<FilterRenderingMode> allFilterRenderingModes = {
 };
 
 } // namespace WebCore
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::FilterRenderingMode> {
+    using values = EnumValues<
+        WebCore::FilterRenderingMode,
+
+        WebCore::FilterRenderingMode::Software,
+        WebCore::FilterRenderingMode::Accelerated,
+        WebCore::FilterRenderingMode::GraphicsContext
+    >;
+};
+
+} // namespace WTF

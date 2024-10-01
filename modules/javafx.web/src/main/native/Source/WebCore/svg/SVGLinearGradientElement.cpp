@@ -27,7 +27,6 @@
 
 #include "Document.h"
 #include "FloatPoint.h"
-#include "LegacyRenderSVGResourceLinearGradient.h"
 #include "LinearGradientAttributes.h"
 #include "NodeName.h"
 #include "RenderSVGResourceLinearGradient.h"
@@ -92,7 +91,7 @@ void SVGLinearGradientElement::svgAttributeChanged(const QualifiedName& attrName
     if (PropertyRegistry::isKnownAttribute(attrName)) {
         InstanceInvalidationGuard guard(*this);
         updateRelativeLengthsInformation();
-        invalidateGradientResource();
+        updateSVGRendererForElementChange();
         return;
     }
 
@@ -101,11 +100,7 @@ void SVGLinearGradientElement::svgAttributeChanged(const QualifiedName& attrName
 
 RenderPtr<RenderElement> SVGLinearGradientElement::createElementRenderer(RenderStyle&& style, const RenderTreePosition&)
 {
-#if ENABLE(LAYER_BASED_SVG_ENGINE)
-    if (document().settings().layerBasedSVGEngineEnabled())
     return createRenderer<RenderSVGResourceLinearGradient>(*this, WTFMove(style));
-#endif
-    return createRenderer<LegacyRenderSVGResourceLinearGradient>(*this, WTFMove(style));
 }
 
 static void setGradientAttributes(SVGGradientElement& element, LinearGradientAttributes& attributes, bool isLinear = true)
@@ -153,8 +148,8 @@ bool SVGLinearGradientElement::collectGradientAttributes(LinearGradientAttribute
     while (true) {
         // Respect xlink:href, take attributes from referenced element
         auto target = SVGURIReference::targetElementFromIRIString(current->href(), treeScopeForSVGReferences());
-        if (auto* gradientElement = dynamicDowncast<SVGGradientElement>(target.element.get())) {
-            current = *gradientElement;
+        if (is<SVGGradientElement>(target.element)) {
+            current = downcast<SVGGradientElement>(*target.element);
 
             // Cycle detection
             if (processedGradients.contains(current))

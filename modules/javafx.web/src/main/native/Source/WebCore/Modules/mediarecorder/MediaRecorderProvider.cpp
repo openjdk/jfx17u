@@ -45,11 +45,9 @@ RefPtr<MediaRecorderPrivate> MediaRecorderProvider::createMediaRecorderPrivate(M
 {
 #if PLATFORM(COCOA) && USE(AVFOUNDATION)
     return MediaRecorderPrivateAVFImpl::create(stream, options);
-#elif USE(GSTREAMER_TRANSCODER)
+#endif
+#if USE(GSTREAMER_TRANSCODER)
     return MediaRecorderPrivateGStreamer::create(stream, options);
-#else
-    UNUSED_PARAM(stream);
-    UNUSED_PARAM(options);
 #endif
     return nullptr;
 }

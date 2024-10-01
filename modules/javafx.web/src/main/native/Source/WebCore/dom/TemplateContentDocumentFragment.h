@@ -45,7 +45,7 @@ public:
 
 private:
     TemplateContentDocumentFragment(Document& document, const Element& host)
-        : DocumentFragment(document)
+        : DocumentFragment(document, CreateDocumentFragment)
         , m_host(host)
     {
     }

@@ -69,7 +69,9 @@ WorkerParameters WorkerParameters::isolatedCopy() const
         settingsValues.isolatedCopy(),
         workerThreadMode,
         sessionID,
+#if ENABLE(SERVICE_WORKER)
         crossThreadCopy(serviceWorkerData),
+#endif
         clientIdentifier,
         noiseInjectionHashSalt
     };
@@ -165,12 +167,12 @@ void WorkerThread::evaluateScriptIfNecessary(String& exceptionMessage)
         sourceProvider = static_cast<ScriptBufferSourceProvider&>(sourceCode.provider());
         bool success = globalScope()->script()->loadModuleSynchronously(scriptFetcher.get(), sourceCode);
         if (success) {
-            if (auto error = scriptFetcher->error()) {
+            if (std::optional<LoadableScript::Error> error = scriptFetcher->error()) {
                 if (std::optional<LoadableScript::ConsoleMessage> message = error->consoleMessage)
                     exceptionMessage = message->message;
                 else
                     exceptionMessage = "Importing a module script failed."_s;
-                globalScope()->reportErrorToWorkerObject(exceptionMessage);
+                globalScope()->reportException(exceptionMessage, { }, { }, { }, { }, { });
             } else if (!scriptFetcher->wasCanceled()) {
                 globalScope()->script()->linkAndEvaluateModule(scriptFetcher.get(), sourceCode, &exceptionMessage);
                 finishedEvaluatingScript();

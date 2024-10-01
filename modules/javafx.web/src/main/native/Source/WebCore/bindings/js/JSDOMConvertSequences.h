@@ -95,9 +95,9 @@ struct NumericSequenceConverter {
                 auto indexValue = array->butterfly()->contiguousInt32().at(array, i).get();
                 ASSERT(!indexValue || indexValue.isInt32());
                 if (!indexValue)
-                    result.append(0);
+                    result.uncheckedAppend(0);
                 else
-                    result.append(indexValue.asInt32());
+                    result.uncheckedAppend(indexValue.asInt32());
             }
             return WTFMove(result);
         }
@@ -107,12 +107,12 @@ struct NumericSequenceConverter {
         for (unsigned i = 0; i < length; i++) {
             double doubleValue = array->butterfly()->contiguousDouble().at(array, i);
             if (std::isnan(doubleValue))
-                result.append(0);
+                result.uncheckedAppend(0);
             else {
                 auto convertedValue = Converter<IDLType>::convert(lexicalGlobalObject, scope, doubleValue);
                 RETURN_IF_EXCEPTION(scope, { });
 
-                result.append(convertedValue);
+                result.uncheckedAppend(convertedValue);
             }
         }
         return WTFMove(result);
@@ -220,7 +220,7 @@ struct SequenceConverter {
                 auto convertedValue = Converter<IDLType>::convert(lexicalGlobalObject, indexValue);
                 RETURN_IF_EXCEPTION(scope, { });
 
-                result.append(convertedValue);
+                result.uncheckedAppend(convertedValue);
             }
             return result;
         }
@@ -235,7 +235,7 @@ struct SequenceConverter {
             auto convertedValue = Converter<IDLType>::convert(lexicalGlobalObject, indexValue);
             RETURN_IF_EXCEPTION(scope, { });
 
-            result.append(convertedValue);
+            result.uncheckedAppend(convertedValue);
         }
         return result;
     }
@@ -381,7 +381,6 @@ template<typename T> struct JSConverter<IDLSequence<T>> {
         JSC::VM& vm = JSC::getVM(&lexicalGlobalObject);
         auto scope = DECLARE_THROW_SCOPE(vm);
         JSC::MarkedArgumentBuffer list;
-        list.ensureCapacity(vector.size());
         for (auto& element : vector) {
             auto jsValue = toJS<T>(lexicalGlobalObject, globalObject, element);
             RETURN_IF_EXCEPTION(scope, { });
@@ -419,7 +418,6 @@ template<typename T> struct JSConverter<IDLFrozenArray<T>> {
         JSC::VM& vm = JSC::getVM(&lexicalGlobalObject);
         auto scope = DECLARE_THROW_SCOPE(vm);
         JSC::MarkedArgumentBuffer list;
-        list.ensureCapacity(vector.size());
         for (auto& element : vector) {
             auto jsValue = toJS<T>(lexicalGlobalObject, globalObject, element);
             RETURN_IF_EXCEPTION(scope, { });

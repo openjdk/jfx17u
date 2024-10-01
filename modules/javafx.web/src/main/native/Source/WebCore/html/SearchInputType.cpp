@@ -41,9 +41,9 @@
 #include "NodeRenderStyle.h"
 #include "RenderSearchField.h"
 #include "ScriptDisallowedScope.h"
+#include "ShadowPseudoIds.h"
 #include "ShadowRoot.h"
 #include "TextControlInnerElements.h"
-#include "UserAgentParts.h"
 
 namespace WebCore {
 
@@ -63,19 +63,19 @@ void SearchInputType::addSearchResult()
     // we don't update the associated renderers until after the next tree update, so we could actually end up here
     // with a mismatched renderer (e.g. through form submission).
     ASSERT(element());
-    if (CheckedPtr renderer = dynamicDowncast<RenderSearchField>(element()->renderer()))
-        renderer->addSearchResult();
+    if (is<RenderSearchField>(element()->renderer()))
+        downcast<RenderSearchField>(*element()->renderer()).addSearchResult();
 #endif
 }
 
 static void updateResultButtonPseudoType(SearchFieldResultsButtonElement& resultButton, int maxResults)
 {
     if (!maxResults)
-        resultButton.setUserAgentPart(UserAgentParts::webkitSearchResultsDecoration());
+        resultButton.setPseudo(ShadowPseudoIds::webkitSearchResultsDecoration());
     else if (maxResults < 0)
-        resultButton.setUserAgentPart(UserAgentParts::webkitSearchDecoration());
+        resultButton.setPseudo(ShadowPseudoIds::webkitSearchDecoration());
     else
-        resultButton.setUserAgentPart(UserAgentParts::webkitSearchResultsButton());
+        resultButton.setPseudo(ShadowPseudoIds::webkitSearchResultsButton());
 }
 
 void SearchInputType::attributeChanged(const QualifiedName& name)
@@ -120,11 +120,11 @@ void SearchInputType::createShadowSubtree()
 
     ASSERT(element());
     m_resultsButton = SearchFieldResultsButtonElement::create(element()->document());
-    container->insertBefore(*m_resultsButton, textWrapper.copyRef());
+    container->insertBefore(*m_resultsButton, textWrapper.get());
     updateResultButtonPseudoType(*m_resultsButton, element()->maxResults());
 
     m_cancelButton = SearchFieldCancelButtonElement::create(element()->document());
-    container->insertBefore(*m_cancelButton, textWrapper->protectedNextSibling());
+    container->insertBefore(*m_cancelButton, textWrapper->nextSibling());
 }
 
 HTMLElement* SearchInputType::resultsButtonElement() const
@@ -155,9 +155,9 @@ auto SearchInputType::handleKeydownEvent(KeyboardEvent& event) -> ShouldCallBase
     return TextFieldInputType::handleKeydownEvent(event);
 }
 
-void SearchInputType::removeShadowSubtree()
+void SearchInputType::destroyShadowSubtree()
 {
-    TextFieldInputType::removeShadowSubtree();
+    TextFieldInputType::destroyShadowSubtree();
     m_resultsButton = nullptr;
     m_cancelButton = nullptr;
 }
@@ -199,10 +199,8 @@ bool SearchInputType::searchEventsShouldBeDispatched() const
 void SearchInputType::didSetValueByUserEdit()
 {
     ASSERT(element());
-    if (m_cancelButton) {
-        if (CheckedPtr renderer = dynamicDowncast<RenderSearchField>(element()->renderer()))
-            renderer->updateCancelButtonVisibility();
-    }
+    if (m_cancelButton && is<RenderSearchField>(element()->renderer()))
+        downcast<RenderSearchField>(*element()->renderer()).updateCancelButtonVisibility();
     // If the incremental attribute is set, then dispatch the search event
     if (searchEventsShouldBeDispatched())
         startSearchEventTimer();

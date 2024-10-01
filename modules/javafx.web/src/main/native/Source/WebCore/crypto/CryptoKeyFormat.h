@@ -26,14 +26,16 @@
 #pragma once
 
 #if ENABLE(WEB_CRYPTO)
+
 namespace WebCore {
 
-enum class CryptoKeyFormat : uint8_t {
+enum class CryptoKeyFormat {
     Raw,
     Spki,
     Pkcs8,
     Jwk
 };
 
-} // namespace WebCore
+}
+
 #endif

@@ -31,13 +31,13 @@
 
 namespace WebCore {
 
-Ref<FEDisplacementMap> FEDisplacementMap::create(ChannelSelectorType xChannelSelector, ChannelSelectorType yChannelSelector, float scale, DestinationColorSpace colorSpace)
+Ref<FEDisplacementMap> FEDisplacementMap::create(ChannelSelectorType xChannelSelector, ChannelSelectorType yChannelSelector, float scale)
 {
-    return adoptRef(*new FEDisplacementMap(xChannelSelector, yChannelSelector, scale, colorSpace));
+    return adoptRef(*new FEDisplacementMap(xChannelSelector, yChannelSelector, scale));
 }
 
-FEDisplacementMap::FEDisplacementMap(ChannelSelectorType xChannelSelector, ChannelSelectorType yChannelSelector, float scale, DestinationColorSpace colorSpace)
-    : FilterEffect(FilterEffect::Type::FEDisplacementMap, colorSpace)
+FEDisplacementMap::FEDisplacementMap(ChannelSelectorType xChannelSelector, ChannelSelectorType yChannelSelector, float scale)
+    : FilterEffect(FilterEffect::Type::FEDisplacementMap)
     , m_xChannelSelector(xChannelSelector)
     , m_yChannelSelector(yChannelSelector)
     , m_scale(scale)
@@ -105,19 +105,19 @@ std::unique_ptr<FilterEffectApplier> FEDisplacementMap::createSoftwareApplier() 
 static TextStream& operator<<(TextStream& ts, const ChannelSelectorType& type)
 {
     switch (type) {
-    case ChannelSelectorType::CHANNEL_UNKNOWN:
+    case CHANNEL_UNKNOWN:
         ts << "UNKNOWN";
         break;
-    case ChannelSelectorType::CHANNEL_R:
+    case CHANNEL_R:
         ts << "RED";
         break;
-    case ChannelSelectorType::CHANNEL_G:
+    case CHANNEL_G:
         ts << "GREEN";
         break;
-    case ChannelSelectorType::CHANNEL_B:
+    case CHANNEL_B:
         ts << "BLUE";
         break;
-    case ChannelSelectorType::CHANNEL_A:
+    case CHANNEL_A:
         ts << "ALPHA";
         break;
     }

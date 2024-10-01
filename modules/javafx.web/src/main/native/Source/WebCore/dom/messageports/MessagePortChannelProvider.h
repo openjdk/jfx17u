@@ -35,7 +35,7 @@ class ScriptExecutionContext;
 struct MessagePortIdentifier;
 struct MessageWithMessagePorts;
 
-class MessagePortChannelProvider : public CanMakeWeakPtr<MessagePortChannelProvider> {
+class MessagePortChannelProvider {
 public:
     static MessagePortChannelProvider& fromContext(ScriptExecutionContext&);
     static MessagePortChannelProvider& singleton();

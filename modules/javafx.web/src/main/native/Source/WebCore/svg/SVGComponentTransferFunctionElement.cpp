@@ -53,7 +53,7 @@ void SVGComponentTransferFunctionElement::attributeChanged(const QualifiedName& 
     switch (name.nodeName()) {
     case AttributeNames::typeAttr: {
         ComponentTransferType propertyValue = SVGPropertyTraits<ComponentTransferType>::fromString(newValue);
-        if (enumToUnderlyingType(propertyValue))
+        if (propertyValue > 0)
             m_type->setBaseValInternal<ComponentTransferType>(propertyValue);
         break;
     }
@@ -85,10 +85,13 @@ void SVGComponentTransferFunctionElement::attributeChanged(const QualifiedName& 
 void SVGComponentTransferFunctionElement::svgAttributeChanged(const QualifiedName& attrName)
 {
     if (PropertyRegistry::isKnownAttribute(attrName)) {
-        if (RefPtr transferElement = dynamicDowncast<SVGFEComponentTransferElement>(parentElement())) {
+        RefPtr parent = parentElement();
+
+        if (parent && is<SVGFEComponentTransferElement>(*parent)) {
         InstanceInvalidationGuard guard(*this);
-            transferElement->transferFunctionAttributeChanged(*this, attrName);
+            downcast<SVGFEComponentTransferElement>(*parent).transferFunctionAttributeChanged(*this, attrName);
         }
+
         return;
     }
 

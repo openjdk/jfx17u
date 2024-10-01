@@ -30,7 +30,6 @@
 #include "BufferImageJava.h"
 #include "GraphicsContext.h"
 #include "ImageData.h"
-#include "ImageBuffer.h"
 #include "MIMETypeRegistry.h"
 #include "PlatformContextJava.h"
 #include "GraphicsContextJava.h"
@@ -39,7 +38,7 @@ namespace WebCore {
 std::unique_ptr<ImageBufferJavaBackend> ImageBufferJavaBackend::create(
     const Parameters& parameters, const ImageBufferCreationContext&)
 {
-    IntSize backendSize = parameters.backendSize;
+    IntSize backendSize = ImageBufferBackend::calculateBackendSize(parameters);
     if (backendSize.isEmpty())
         return nullptr;
 
@@ -54,8 +53,8 @@ std::unique_ptr<ImageBufferJavaBackend> ImageBufferJavaBackend::create(
     jobject imageObj = env->CallObjectMethod(
         PL_GetGraphicsManager(env),
         midCreateImage,
-        (jint) ceilf(parameters.resolutionScale * parameters.backendSize.width()),
-        (jint) ceilf(parameters.resolutionScale * parameters.backendSize.height())
+        (jint) ceilf(parameters.resolutionScale * parameters.logicalSize.width()),
+        (jint) ceilf(parameters.resolutionScale * parameters.logicalSize.height())
     );
 
     if (WTF::CheckAndClearException(env) || !imageObj) {
@@ -88,11 +87,11 @@ std::unique_ptr<ImageBufferJavaBackend> ImageBufferJavaBackend::create(
         parameters, WTFMove(platformImage), WTFMove(context), backendSize));
 }
 
-/*std::unique_ptr<ImageBufferJavaBackend> ImageBufferJavaBackend::create(
+std::unique_ptr<ImageBufferJavaBackend> ImageBufferJavaBackend::create(
     const Parameters& parameters, const GraphicsContext&)
 {
     return ImageBufferJavaBackend::create(parameters, nullptr);
-}*/
+}
 
 ImageBufferJavaBackend::ImageBufferJavaBackend(
     const Parameters& parameters, PlatformImagePtr image, std::unique_ptr<GraphicsContext>&& context, IntSize backendSize)
@@ -139,7 +138,7 @@ Vector<uint8_t> ImageBufferJavaBackend::toDataJava(const String& mimeType, std::
     return { };
 }
 
-void* ImageBufferJavaBackend::getData()
+void *ImageBufferJavaBackend::getData() const
 {
     JNIEnv* env = WTF::GetJavaEnv();
 
@@ -176,7 +175,7 @@ void ImageBufferJavaBackend::update() const
     WTF::CheckAndClearException(env);
 }
 
-GraphicsContext& ImageBufferJavaBackend::context()
+GraphicsContext& ImageBufferJavaBackend::context() const
 {
     return *m_context;
 }
@@ -185,15 +184,19 @@ void ImageBufferJavaBackend::flushContext()
 {
 }
 
+IntSize ImageBufferJavaBackend::backendSize() const
+{
+    return m_backendSize;
+}
 
-RefPtr<NativeImage> ImageBufferJavaBackend::copyNativeImage()
+RefPtr<NativeImage> ImageBufferJavaBackend::copyNativeImage(BackingStoreCopy)
 {
     return NativeImage::create((m_image.get()));
 }
 
-RefPtr<NativeImage> ImageBufferJavaBackend::createNativeImageReference()
+RefPtr<NativeImage> ImageBufferJavaBackend::copyNativeImageForDrawing(GraphicsContext& destination)
 {
-     return copyNativeImage();
+     return copyNativeImage(DontCopyBackingStore);   //REVISIT
 }
 
 void ImageBufferJavaBackend::getPixelBuffer(const IntRect& srcRect, PixelBuffer& destination)
@@ -231,7 +234,7 @@ void ImageBufferJavaBackend::putPixelBuffer(const PixelBuffer& sourcePixelBuffer
 
 size_t ImageBufferJavaBackend::calculateMemoryCost(const Parameters& parameters)
 {
-    IntSize backendSize = parameters.backendSize;
+    IntSize backendSize = calculateBackendSize(parameters);
     return ImageBufferBackend::calculateMemoryCost(backendSize, calculateBytesPerRow(backendSize));
 }
 
@@ -243,7 +246,7 @@ unsigned ImageBufferJavaBackend::calculateBytesPerRow(const IntSize& backendSize
 
 unsigned ImageBufferJavaBackend::bytesPerRow() const
 {
-    IntSize backendSize = m_backendSize;
+    IntSize backendSize = calculateBackendSize(m_parameters);
     return calculateBytesPerRow(backendSize);
 }
 

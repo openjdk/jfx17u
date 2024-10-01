@@ -73,13 +73,22 @@ struct FormDataElement {
             return { filename.isolatedCopy(), fileStart, fileLength, expectedFileModificationTime };
         }
 
-        friend bool operator==(const EncodedFileData&, const EncodedFileData&) = default;
+        bool operator==(const EncodedFileData& other) const
+        {
+            return filename == other.filename
+                && fileStart == other.fileStart
+                && fileLength == other.fileLength
+                && expectedFileModificationTime == other.expectedFileModificationTime;
+        }
     };
 
     struct EncodedBlobData {
         URL url;
 
-        friend bool operator==(const EncodedBlobData&, const EncodedBlobData&) = default;
+        bool operator==(const EncodedBlobData& other) const
+        {
+            return url == other.url;
+        }
     };
 
     bool operator==(const FormDataElement& other) const

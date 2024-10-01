@@ -40,7 +40,7 @@ public:
 
     bool mapMouseEvent(LayoutPoint location, const LayoutSize&, HitTestResult&);
 
-    RefPtr<HTMLImageElement> imageElement();
+    HTMLImageElement* imageElement();
     WEBCORE_EXPORT Ref<HTMLCollection> areas();
 
 private:

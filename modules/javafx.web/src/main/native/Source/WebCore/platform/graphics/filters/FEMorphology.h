@@ -26,7 +26,7 @@
 
 namespace WebCore {
 
-enum class MorphologyOperatorType : uint8_t {
+enum class MorphologyOperatorType {
     Unknown,
     Erode,
     Dilate
@@ -34,7 +34,7 @@ enum class MorphologyOperatorType : uint8_t {
 
 class FEMorphology : public FilterEffect {
 public:
-    WEBCORE_EXPORT static Ref<FEMorphology> create(MorphologyOperatorType, float radiusX, float radiusY, DestinationColorSpace = DestinationColorSpace::SRGB());
+    WEBCORE_EXPORT static Ref<FEMorphology> create(MorphologyOperatorType, float radiusX, float radiusY);
 
     bool operator==(const FEMorphology&) const;
 
@@ -48,7 +48,7 @@ public:
     bool setRadiusY(float);
 
 private:
-    FEMorphology(MorphologyOperatorType, float radiusX, float radiusY, DestinationColorSpace);
+    FEMorphology(MorphologyOperatorType, float radiusX, float radiusY);
 
     bool operator==(const FilterEffect& other) const override { return areEqual<FEMorphology>(*this, other); }
 
@@ -67,4 +67,18 @@ private:
 
 } // namespace WebCore
 
-SPECIALIZE_TYPE_TRAITS_FILTER_FUNCTION(FEMorphology)
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::MorphologyOperatorType> {
+    using values = EnumValues<
+        WebCore::MorphologyOperatorType,
+
+        WebCore::MorphologyOperatorType::Unknown,
+        WebCore::MorphologyOperatorType::Erode,
+        WebCore::MorphologyOperatorType::Dilate
+    >;
+};
+
+} // namespace WTF
+
+SPECIALIZE_TYPE_TRAITS_FILTER_EFFECT(FEMorphology)

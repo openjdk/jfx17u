@@ -24,6 +24,7 @@
  */
 
 [
+    Conditional=SERVICE_WORKER,
     EnabledBySetting=ServiceWorkersEnabled&BackgroundFetchAPIEnabled,
     Exposed=(Window,Worker)
 ] interface BackgroundFetchUpdateUIEvent : BackgroundFetchEvent {

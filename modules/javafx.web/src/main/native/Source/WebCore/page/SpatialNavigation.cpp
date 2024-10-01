@@ -69,11 +69,11 @@ FocusCandidate::FocusCandidate(Node* node, FocusDirection direction)
 
     if (is<HTMLAreaElement>(*node)) {
         HTMLAreaElement& area = downcast<HTMLAreaElement>(*node);
-        RefPtr image = area.imageElement();
+        HTMLImageElement* image = area.imageElement();
         if (!image || !image->renderer())
             return;
 
-        visibleNode = image.get();
+        visibleNode = image;
         rect = virtualRectForAreaElementAndDirection(&area, direction);
     } else {
         if (!node->renderer())
@@ -506,11 +506,14 @@ static LayoutRect rectToAbsoluteCoordinates(LocalFrame* initialFrame, const Layo
 {
     LayoutRect rect = initialRect;
     for (Frame* frame = initialFrame; frame; frame = frame->tree().parent()) {
-        if (Element* element = frame->ownerElement()) {
+        auto* localFrame = dynamicDowncast<LocalFrame>(frame);
+        if (!localFrame)
+            continue;
+        if (Element* element = localFrame->ownerElement()) {
             do {
                 rect.move(LayoutUnit(element->offsetLeft()), LayoutUnit(element->offsetTop()));
             } while ((element = element->offsetParent()));
-            rect.moveBy((-frame->virtualView()->scrollPosition()));
+            rect.moveBy((-localFrame->view()->scrollPosition()));
         }
     }
     return rect;
@@ -766,7 +769,7 @@ LayoutRect virtualRectForAreaElementAndDirection(HTMLAreaElement* area, FocusDir
 
 HTMLFrameOwnerElement* frameOwnerElement(FocusCandidate& candidate)
 {
-    return dynamicDowncast<HTMLFrameOwnerElement>(candidate.visibleNode);
+    return candidate.isFrameOwnerElement() ? downcast<HTMLFrameOwnerElement>(candidate.visibleNode) : nullptr;
 }
 
 } // namespace WebCore

@@ -73,7 +73,7 @@ public:
     {
         if (isDetached())
             return nullptr;
-        return m_baseAddress.getMayBeNull();
+        return m_baseAddress.getMayBeNull(m_byteLength);
     }
 
     void* data() const { return baseAddress(); }
@@ -199,7 +199,7 @@ protected:
     size_t m_byteOffset;
     size_t m_byteLength;
 
-    using BaseAddress = CagedPtr<Gigacage::Primitive, void>;
+    using BaseAddress = CagedPtr<Gigacage::Primitive, void, tagCagedPtr>;
     // This is the address of the ArrayBuffer's storage, plus the byte offset.
     BaseAddress m_baseAddress;
 

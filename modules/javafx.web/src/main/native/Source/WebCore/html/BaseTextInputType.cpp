@@ -69,9 +69,4 @@ bool BaseTextInputType::supportsSelectionAPI() const
     return true;
 }
 
-bool BaseTextInputType::dirAutoUsesValue() const
-{
-    return true;
-}
-
 } // namespace WebCore

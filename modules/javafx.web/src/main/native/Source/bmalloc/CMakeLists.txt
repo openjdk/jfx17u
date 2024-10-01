@@ -192,7 +192,6 @@ set(bmalloc_PUBLIC_HEADERS
     bmalloc/Algorithm.h
     bmalloc/AllIsoHeaps.h
     bmalloc/AllIsoHeapsInlines.h
-    bmalloc/AllocationCounts.h
     bmalloc/Allocator.h
     bmalloc/AvailableMemory.h
     bmalloc/BAssert.h

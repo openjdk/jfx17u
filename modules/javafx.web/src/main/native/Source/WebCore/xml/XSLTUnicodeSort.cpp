@@ -254,6 +254,7 @@ void xsltUnicodeSortFunction(xsltTransformContextPtr ctxt, xmlNodePtr *sorts, in
     }
 
     for (j = 0; j < nbsorts; j++) {
+        comp = static_cast<xsltStylePreComp*>(sorts[j]->psvi);
         if (resultsTab[j] != NULL) {
             for (i = 0;i < len;i++)
                 xmlXPathFreeObject(resultsTab[j][i]);

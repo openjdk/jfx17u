@@ -33,7 +33,6 @@
 #include <wtf/NeverDestroyed.h>
 
 namespace WebCore {
-DEFINE_ALLOCATOR_WITH_HEAP_IDENTIFIER(CSSCounterStyleRegistry);
 
 
 void CSSCounterStyleRegistry::resolveUserAgentReferences()
@@ -165,7 +164,6 @@ CounterStyleMap& CSSCounterStyleRegistry::userAgentCounterStyles()
 
 bool CSSCounterStyleRegistry::operator==(const CSSCounterStyleRegistry& other) const
 {
-    // Intentionally doesn't check m_hasUnresolvedReferences.
     return m_authorCounterStyles == other.m_authorCounterStyles;
 }
 

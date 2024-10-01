@@ -204,7 +204,11 @@ public:
         return WTF::PtrHash<JSObject*>::hash(m_object) ^ m_condition.hash();
     }
 
-    friend bool operator==(const ObjectPropertyCondition&, const ObjectPropertyCondition&) = default;
+    bool operator==(const ObjectPropertyCondition& other) const
+    {
+        return m_object == other.m_object
+            && m_condition == other.m_condition;
+    }
 
     bool isHashTableDeletedValue() const
     {

@@ -101,12 +101,6 @@ DFG::CommonData* JITCode::dfgCommon()
     return nullptr;
 }
 
-const DFG::CommonData* JITCode::dfgCommon() const
-{
-    RELEASE_ASSERT_NOT_REACHED();
-    return nullptr;
-}
-
 DFG::JITCode* JITCode::dfg()
 {
     RELEASE_ASSERT_NOT_REACHED();

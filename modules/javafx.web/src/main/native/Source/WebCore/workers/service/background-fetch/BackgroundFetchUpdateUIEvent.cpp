@@ -29,6 +29,8 @@
 #include "NotImplemented.h"
 #include <wtf/IsoMallocInlines.h>
 
+#if ENABLE(SERVICE_WORKER)
+
 namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(BackgroundFetchUpdateUIEvent);
@@ -54,3 +56,7 @@ void BackgroundFetchUpdateUIEvent::updateUI(BackgroundFetchUIOptions&&, DOMPromi
 }
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)
+
+

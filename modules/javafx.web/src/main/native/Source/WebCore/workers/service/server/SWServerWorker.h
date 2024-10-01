@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "ClientOrigin.h"
 #include "ContentSecurityPolicyResponseHeaders.h"
 #include "CrossOriginEmbedderPolicy.h"
@@ -54,7 +56,7 @@ struct ServiceWorkerJobDataIdentifier;
 enum class WorkerThreadMode : bool;
 enum class WorkerType : bool;
 
-class SWServerWorker : public RefCounted<SWServerWorker>, public CanMakeWeakPtr<SWServerWorker> {
+class SWServerWorker : public RefCounted<SWServerWorker> {
 public:
     template <typename... Args> static Ref<SWServerWorker> create(Args&&... args)
     {
@@ -112,13 +114,13 @@ public:
     bool isSkipWaitingFlagSet() const { return m_isSkipWaitingFlagSet; }
 
     WEBCORE_EXPORT static SWServerWorker* existingWorkerForIdentifier(ServiceWorkerIdentifier);
-    static HashMap<ServiceWorkerIdentifier, WeakRef<SWServerWorker>>& allWorkers();
+    static HashMap<ServiceWorkerIdentifier, SWServerWorker*>& allWorkers();
 
     const ServiceWorkerData& data() const { return m_data; }
     ServiceWorkerContextData contextData() const;
 
     WEBCORE_EXPORT const ClientOrigin& origin() const;
-    const RegistrableDomain& topRegistrableDomain() const { return m_topRegistrableDomain; }
+    const RegistrableDomain& registrableDomain() const { return m_registrableDomain; }
     WEBCORE_EXPORT std::optional<ScriptExecutionContextIdentifier> serviceWorkerPageIdentifier() const;
 
     WEBCORE_EXPORT SWServerToContextConnection* contextConnection();
@@ -126,7 +128,7 @@ public:
 
     bool shouldSkipFetchEvent() const { return m_shouldSkipHandleFetch; }
 
-    WEBCORE_EXPORT SWServerRegistration* registration() const;
+    SWServerRegistration* registration() const;
 
     void setHasTimedOutAnyFetchTasks() { m_hasTimedOutAnyFetchTasks = true; }
     bool hasTimedOutAnyFetchTasks() const { return m_hasTimedOutAnyFetchTasks; }
@@ -162,8 +164,6 @@ private:
     void terminateIfPossible();
     bool shouldBeTerminated() const;
 
-    RefPtr<SWServer> protectedServer() const;
-
     WeakPtr<SWServer> m_server;
     ServiceWorkerRegistrationKey m_registrationKey;
     WeakPtr<SWServerRegistration> m_registration;
@@ -176,7 +176,7 @@ private:
     bool m_hasPendingEvents { false };
     State m_state { State::NotRunning };
     mutable std::optional<ClientOrigin> m_origin;
-    RegistrableDomain m_topRegistrableDomain;
+    RegistrableDomain m_registrableDomain;
     bool m_isSkipWaitingFlagSet { false };
     Vector<CompletionHandler<void(bool)>> m_whenActivatedHandlers;
     MemoryCompactRobinHoodHashMap<URL, ServiceWorkerContextData::ImportedScript> m_scriptResourceMap;
@@ -192,3 +192,5 @@ private:
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

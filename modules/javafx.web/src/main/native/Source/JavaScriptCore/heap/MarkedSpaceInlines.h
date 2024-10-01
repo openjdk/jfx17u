@@ -30,7 +30,7 @@
 
 namespace JSC {
 
-ALWAYS_INLINE JSC::Heap& MarkedSpace::heap() const
+ALWAYS_INLINE Heap& MarkedSpace::heap() const
 {
     return *bitwise_cast<Heap*>(bitwise_cast<uintptr_t>(this) - OBJECT_OFFSETOF(Heap, m_objectSpace));
 }
@@ -89,19 +89,18 @@ inline Ref<SharedTask<void(Visitor&)>> MarkedSpace::forEachWeakInParallel()
         {
         }
 
-        std::span<WeakBlock*> drain(std::array<WeakBlock*, batchSize>& results)
+        void drain(Vector<WeakBlock*, batchSize>& results)
         {
             Locker locker { m_lock };
-            size_t resultsSize = 0;
             while (true) {
                 if (m_current) {
                     auto* block = m_current;
                     m_current = m_current->next();
                     if (block->isEmpty())
                         continue;
-                    results[resultsSize++] = block;
-                    if (resultsSize == batchSize)
-                        return std::span { results.data(), resultsSize };
+                    results.uncheckedAppend(block);
+                    if (results.size() == batchSize)
+                        return;
                     continue;
                 }
 
@@ -116,19 +115,20 @@ inline Ref<SharedTask<void(Visitor&)>> MarkedSpace::forEachWeakInParallel()
                     ++m_activeCursor;
                     continue;
                 }
-                return std::span { results.data(), resultsSize };
+                return;
             }
         }
 
         void run(Visitor& visitor) final
         {
-            std::array<WeakBlock*, batchSize> resultsStorage;
+            Vector<WeakBlock*, batchSize> results;
             while (true) {
-                auto results = drain(resultsStorage);
-                if (!results.size())
+                drain(results);
+                if (results.isEmpty())
                     return;
-                for (auto* result : results)
-                    result->visit(visitor);
+                for (WeakBlock* block : results)
+                    block->visit(visitor);
+                results.clear();
             }
         }
 

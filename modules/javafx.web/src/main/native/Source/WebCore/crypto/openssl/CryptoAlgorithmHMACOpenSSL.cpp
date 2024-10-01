@@ -63,11 +63,11 @@ ExceptionOr<Vector<uint8_t>> CryptoAlgorithmHMAC::platformSign(const CryptoKeyHM
 {
     auto algorithm = digestAlgorithm(key.hashAlgorithmIdentifier());
     if (!algorithm)
-        return Exception { ExceptionCode::OperationError };
+        return Exception { OperationError };
 
     auto result = calculateSignature(algorithm, key.key(), data.data(), data.size());
     if (!result)
-        return Exception { ExceptionCode::OperationError };
+        return Exception { OperationError };
     return WTFMove(*result);
 }
 
@@ -75,11 +75,11 @@ ExceptionOr<bool> CryptoAlgorithmHMAC::platformVerify(const CryptoKeyHMAC& key, 
 {
     auto algorithm = digestAlgorithm(key.hashAlgorithmIdentifier());
     if (!algorithm)
-        return Exception { ExceptionCode::OperationError };
+        return Exception { OperationError };
 
     auto expectedSignature = calculateSignature(algorithm, key.key(), data.data(), data.size());
     if (!expectedSignature)
-        return Exception { ExceptionCode::OperationError };
+        return Exception { OperationError };
     // Using a constant time comparison to prevent timing attacks.
     return signature.size() == expectedSignature->size() && !constantTimeMemcmp(expectedSignature->data(), signature.data(), expectedSignature->size());
 }

@@ -39,6 +39,7 @@ public:
 
 private:
     ASCIILiteral renderName() const final { return "RenderMathMLPadded"_s; }
+    bool isRenderMathMLPadded() const final { return true; }
 
     void computePreferredLogicalWidths() final;
     void layoutBlock(bool relayoutChildren, LayoutUnit pageLogicalHeight = 0_lu) final;

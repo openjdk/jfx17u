@@ -103,7 +103,7 @@ public:
 
     struct ModuleRequest {
         RefPtr<UniquedStringImpl> m_specifier;
-        RefPtr<ScriptFetchParameters> m_attributes;
+        RefPtr<ScriptFetchParameters> m_assertions;
     };
 
     DECLARE_EXPORT_INFO;

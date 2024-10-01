@@ -31,18 +31,13 @@
 
 namespace WebCore {
 
-Ref<FEFlood> FEFlood::create(const Color& floodColor, float floodOpacity, DestinationColorSpace colorSpace)
+Ref<FEFlood> FEFlood::create(const Color& floodColor, float floodOpacity)
 {
-#if USE(CG)
-    return adoptRef(*new FEFlood(floodColor, floodOpacity, colorSpace));
-#else
-    UNUSED_PARAM(colorSpace);
     return adoptRef(*new FEFlood(floodColor, floodOpacity));
-#endif
 }
 
-FEFlood::FEFlood(const Color& floodColor, float floodOpacity, DestinationColorSpace colorSpace)
-    : FilterEffect(FilterEffect::Type::FEFlood, colorSpace)
+FEFlood::FEFlood(const Color& floodColor, float floodOpacity)
+    : FilterEffect(FilterEffect::Type::FEFlood)
     , m_floodColor(floodColor)
     , m_floodOpacity(floodOpacity)
 {

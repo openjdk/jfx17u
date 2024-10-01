@@ -139,31 +139,27 @@ bool isValidConstantReference(CSSParserTokenRange range, const CSSParserContext&
     return classifyBlock(range, hasReferences, parserContext);
 }
 
-struct VariableType {
-    std::optional<CSSValueID> cssWideKeyword { };
-    bool hasReferences { false };
-};
-
-static std::optional<VariableType> classifyVariableRange(CSSParserTokenRange range, const CSSParserContext& parserContext)
+static CSSValueID classifyVariableRange(CSSParserTokenRange range, bool& hasReferences, const CSSParserContext& parserContext)
 {
+    hasReferences = false;
+
     range.consumeWhitespace();
     if (range.peek().type() == IdentToken) {
         CSSValueID id = range.consumeIncludingWhitespace().id();
         if (range.atEnd() && isCSSWideKeyword(id))
-            return VariableType { id };
+            return id;
     }
 
-    VariableType type;
-    if (!classifyBlock(range, type.hasReferences, parserContext))
-        return { };
-
-    return type;
+    if (classifyBlock(range, hasReferences, parserContext))
+        return CSSValueInternalVariableValue;
+    return CSSValueInvalid;
 }
 
 bool CSSVariableParser::containsValidVariableReferences(CSSParserTokenRange range, const CSSParserContext& parserContext)
 {
-    auto type = classifyVariableRange(range, parserContext);
-    return type && type->hasReferences;
+    bool hasReferences;
+    CSSValueID type = classifyVariableRange(range, hasReferences, parserContext);
+    return type == CSSValueInternalVariableValue && hasReferences;
 }
 
 RefPtr<CSSCustomPropertyValue> CSSVariableParser::parseDeclarationValue(const AtomString& variableName, CSSParserTokenRange range, const CSSParserContext& parserContext)
@@ -171,18 +167,14 @@ RefPtr<CSSCustomPropertyValue> CSSVariableParser::parseDeclarationValue(const At
     if (range.atEnd())
         return nullptr;
 
-    auto type = classifyVariableRange(range, parserContext);
+    bool hasReferences;
+    CSSValueID type = classifyVariableRange(range, hasReferences, parserContext);
 
-    if (!type)
+    if (type == CSSValueInvalid)
         return nullptr;
-
-    if (type->cssWideKeyword)
-        return CSSCustomPropertyValue::createWithID(variableName, *type->cssWideKeyword);
-
-    if (type->hasReferences)
+    if (type == CSSValueInternalVariableValue)
         return CSSCustomPropertyValue::createUnresolved(variableName, CSSVariableReferenceValue::create(range, parserContext));
-
-    return CSSCustomPropertyValue::createSyntaxAll(variableName, CSSVariableData::create(range, parserContext));
+    return CSSCustomPropertyValue::createUnresolved(variableName, type);
 }
 
 RefPtr<CSSCustomPropertyValue> CSSVariableParser::parseInitialValueForUniversalSyntax(const AtomString& variableName, CSSParserTokenRange range)
@@ -190,9 +182,12 @@ RefPtr<CSSCustomPropertyValue> CSSVariableParser::parseInitialValueForUniversalS
     if (range.atEnd())
         return nullptr;
 
-    auto type = classifyVariableRange(range, strictCSSParserContext());
+    bool hasReferences;
+    CSSValueID valueID = classifyVariableRange(range, hasReferences, strictCSSParserContext());
 
-    if (!type || type->cssWideKeyword || type->hasReferences)
+    if (hasReferences)
+        return nullptr;
+    if (valueID != CSSValueInternalVariableValue)
         return nullptr;
 
     return CSSCustomPropertyValue::createSyntaxAll(variableName, CSSVariableData::create(range));

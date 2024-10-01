@@ -106,7 +106,7 @@ PasteboardCustomData StaticPasteboard::takeCustomData()
 
 void StaticPasteboard::writeMarkup(const String& markup)
 {
-    m_customData.writeString(textHTMLContentTypeAtom(), markup);
+    m_customData.writeString("text/html"_s, markup);
 }
 
 void StaticPasteboard::writePlainText(const String& text, SmartReplaceOption)
@@ -151,8 +151,6 @@ void StaticPasteboard::write(const PasteboardWebContent& content)
 #elif PLATFORM(GTK) || USE(LIBWPE)
     markup = content.markup;
     text = content.text;
-#else
-    UNUSED_PARAM(content);
 #endif
 
     if (!markup.isEmpty())

@@ -77,7 +77,7 @@ BaseAudioContext* AudioWorklet::audioContext() const
 
 void AudioWorklet::createProcessor(const String& name, TransferredMessagePort port, Ref<SerializedScriptValue>&& options, AudioWorkletNode& node)
 {
-    RefPtr proxy = this->proxy();
+    auto* proxy = this->proxy();
     ASSERT(proxy);
     if (!proxy)
         return;

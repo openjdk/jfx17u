@@ -25,8 +25,6 @@
 
 #include "config.h"
 #include "NumberPredictionFuzzerAgent.h"
-
-#include "Options.h"
 #include <wtf/NeverDestroyed.h>
 
 namespace JSC {
@@ -47,5 +45,4 @@ Vector<SpeculatedType> NumberPredictionFuzzerAgent::bytecodeNumberTypes()
     });
     return s_bytecodeNumberTypes;
 }
-
 } // namespace JSC

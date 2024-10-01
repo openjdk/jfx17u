@@ -30,12 +30,12 @@
 #include "ElementIterator.h"
 #include "EventNames.h"
 #include "FrameSelection.h"
-#include "LegacyRenderSVGResource.h"
 #include "LegacyRenderSVGRoot.h"
 #include "LegacyRenderSVGViewportContainer.h"
 #include "LocalFrame.h"
 #include "NodeName.h"
 #include "RenderBoxInlines.h"
+#include "RenderSVGResource.h"
 #include "RenderSVGRoot.h"
 #include "RenderSVGViewportContainer.h"
 #include "RenderView.h"
@@ -52,7 +52,6 @@
 #include "SVGViewElement.h"
 #include "SVGViewSpec.h"
 #include "StaticNodeList.h"
-#include "TreeScopeInlines.h"
 #include "TypedElementDescendantIteratorInlines.h"
 #include <wtf/IsoMallocInlines.h>
 
@@ -61,7 +60,7 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(SVGSVGElement);
 
 inline SVGSVGElement::SVGSVGElement(const QualifiedName& tagName, Document& document)
-    : SVGGraphicsElement(tagName, document, makeUniqueRef<PropertyRegistry>(*this), TypeFlag::HasDidMoveToNewDocument)
+    : SVGGraphicsElement(tagName, document, makeUniqueRef<PropertyRegistry>(*this))
     , SVGFitToViewBox(this)
     , m_timeContainer(SMILTimeContainer::create(*this))
 {
@@ -318,25 +317,25 @@ static bool checkEnclosureWithoutUpdatingLayout(SVGElement& element, SVGRect& re
 
 Ref<NodeList> SVGSVGElement::getIntersectionList(SVGRect& rect, SVGElement* referenceElement)
 {
-    document().updateLayoutIgnorePendingStylesheets({ LayoutOptions::ContentVisibilityForceLayout }, this);
+    document().updateLayoutIgnorePendingStylesheets();
     return collectIntersectionOrEnclosureList(rect, referenceElement, checkIntersectionWithoutUpdatingLayout);
 }
 
 Ref<NodeList> SVGSVGElement::getEnclosureList(SVGRect& rect, SVGElement* referenceElement)
 {
-    document().updateLayoutIgnorePendingStylesheets({ LayoutOptions::ContentVisibilityForceLayout }, this);
+    document().updateLayoutIgnorePendingStylesheets();
     return collectIntersectionOrEnclosureList(rect, referenceElement, checkEnclosureWithoutUpdatingLayout);
 }
 
 bool SVGSVGElement::checkIntersection(Ref<SVGElement>&& element, SVGRect& rect)
 {
-    element->document().updateLayoutIgnorePendingStylesheets({ LayoutOptions::ContentVisibilityForceLayout }, element.ptr());
+    element->document().updateLayoutIgnorePendingStylesheets();
     return checkIntersectionWithoutUpdatingLayout(element, rect);
 }
 
 bool SVGSVGElement::checkEnclosure(Ref<SVGElement>&& element, SVGRect& rect)
 {
-    element->document().updateLayoutIgnorePendingStylesheets({ LayoutOptions::ContentVisibilityForceLayout }, element.ptr());
+    element->document().updateLayoutIgnorePendingStylesheets();
     return checkEnclosureWithoutUpdatingLayout(element, rect);
 }
 
@@ -435,8 +434,8 @@ AffineTransform SVGSVGElement::localCoordinateSpaceTransform(SVGLocatable::CTMSc
             // to map an element from SVG viewport coordinates to CSS box coordinates.
             // LegacyRenderSVGRoot's localToAbsolute method expects CSS box coordinates.
             // We also need to adjust for the zoom level factored into CSS coordinates (bug #96361).
-            if (auto* legacyRenderSVGRoot = dynamicDowncast<LegacyRenderSVGRoot>(*renderer)) {
-                location = legacyRenderSVGRoot->localToBorderBoxTransform().mapPoint(location);
+            if (is<LegacyRenderSVGRoot>(*renderer)) {
+                location = downcast<LegacyRenderSVGRoot>(*renderer).localToBorderBoxTransform().mapPoint(location);
                 zoomFactor = 1 / renderer->style().effectiveZoom();
             }
 
@@ -687,7 +686,7 @@ AffineTransform SVGSVGElement::viewBoxToViewTransform(float viewWidth, float vie
     return transform;
 }
 
-RefPtr<SVGViewElement> SVGSVGElement::findViewAnchor(StringView fragmentIdentifier) const
+SVGViewElement* SVGSVGElement::findViewAnchor(StringView fragmentIdentifier) const
 {
     return dynamicDowncast<SVGViewElement>(document().findAnchor(fragmentIdentifier));
 }
@@ -699,15 +698,14 @@ SVGSVGElement* SVGSVGElement::findRootAnchor(const SVGViewElement* viewElement) 
 
 SVGSVGElement* SVGSVGElement::findRootAnchor(StringView fragmentIdentifier) const
 {
-    if (RefPtr viewElement = findViewAnchor(fragmentIdentifier))
-        return findRootAnchor(viewElement.get());
+    if (auto* viewElement = findViewAnchor(fragmentIdentifier))
+        return findRootAnchor(viewElement);
     return nullptr;
 }
 
 bool SVGSVGElement::scrollToFragment(StringView fragmentIdentifier)
 {
-    auto* renderer = downcast<RenderLayerModelObject>(this->renderer());
-
+    auto renderer = this->renderer();
     auto view = m_viewSpec;
     if (view)
         view->reset();
@@ -715,21 +713,10 @@ bool SVGSVGElement::scrollToFragment(StringView fragmentIdentifier)
     bool hadUseCurrentView = m_useCurrentView;
     m_useCurrentView = false;
 
-    auto invalidateView = [&](RenderElement& renderer) {
-#if ENABLE(LAYER_BASED_SVG_ENGINE)
-        if (renderer.document().settings().layerBasedSVGEngineEnabled()) {
-            renderer.repaint();
-            return;
-        }
-#endif
-
-        LegacyRenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
-    };
-
     if (fragmentIdentifier.startsWith("xpointer("_s)) {
         // FIXME: XPointer references are ignored (https://bugs.webkit.org/show_bug.cgi?id=17491)
         if (renderer && hadUseCurrentView)
-            invalidateView(*renderer);
+            RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
         return false;
     }
 
@@ -741,7 +728,7 @@ bool SVGSVGElement::scrollToFragment(StringView fragmentIdentifier)
         else
             view->reset();
         if (renderer && (hadUseCurrentView || m_useCurrentView))
-            invalidateView(*renderer);
+            RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
         return m_useCurrentView;
     }
 
@@ -749,8 +736,8 @@ bool SVGSVGElement::scrollToFragment(StringView fragmentIdentifier)
     // or MyDrawing.svg#xpointer(id('MyView'))) then the closest ancestor "svg" element is displayed in the viewport.
     // Any view specification attributes included on the given "view" element override the corresponding view specification
     // attributes on the closest ancestor "svg" element.
-    if (RefPtr viewElement = findViewAnchor(fragmentIdentifier)) {
-        if (auto* rootElement = findRootAnchor(viewElement.get())) {
+    if (auto* viewElement = findViewAnchor(fragmentIdentifier)) {
+        if (auto* rootElement = findRootAnchor(viewElement)) {
             if (rootElement->m_currentViewElement) {
                 ASSERT(rootElement->m_currentViewElement->targetElement() == rootElement);
 
@@ -766,7 +753,7 @@ bool SVGSVGElement::scrollToFragment(StringView fragmentIdentifier)
 
             rootElement->inheritViewAttributes(*viewElement);
             if (auto* renderer = rootElement->renderer())
-                invalidateView(*renderer);
+                RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
             m_currentViewFragmentIdentifier = fragmentIdentifier.toString();
             return true;
         }
@@ -796,19 +783,8 @@ void SVGSVGElement::resetScrollAnchor()
     }
 
     m_useCurrentView = false;
-
-    auto* renderer = this->renderer();
-    if (!renderer)
-        return;
-
-#if ENABLE(LAYER_BASED_SVG_ENGINE)
-    if (document().settings().layerBasedSVGEngineEnabled()) {
-        renderer->repaint();
-        return;
-    }
-#endif
-
-    LegacyRenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
+    if (renderer())
+        RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer());
 }
 
 void SVGSVGElement::inheritViewAttributes(const SVGViewElement& viewElement)
@@ -861,9 +837,9 @@ Element* SVGSVGElement::getElementById(const AtomString& id)
     if (element && element->isDescendantOf(*this))
         return element.get();
     if (treeScope().containsMultipleElementsWithId(id)) {
-        for (auto& element : *treeScope().getAllElementsById(id)) {
+        for (auto* element : *treeScope().getAllElementsById(id)) {
             if (element->isDescendantOf(*this))
-                return element.ptr();
+                return element;
         }
     }
 

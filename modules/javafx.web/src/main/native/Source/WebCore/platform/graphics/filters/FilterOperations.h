@@ -25,7 +25,6 @@
 
 #pragma once
 
-#include "CompositeOperation.h"
 #include "FilterOperation.h"
 #include <wtf/RefPtr.h>
 #include <wtf/Vector.h>
@@ -38,7 +37,7 @@ class FilterOperations {
     WTF_MAKE_FAST_ALLOCATED;
 public:
     FilterOperations() = default;
-    WEBCORE_EXPORT explicit FilterOperations(Vector<RefPtr<FilterOperation>>&&);
+    explicit FilterOperations(Vector<RefPtr<FilterOperation>>&&);
 
     WEBCORE_EXPORT bool operator==(const FilterOperations&) const;
 
@@ -62,12 +61,10 @@ public:
     bool hasFilterThatShouldBeRestrictedBySecurityOrigin() const;
 
     bool hasReferenceFilter() const;
-    bool isReferenceFilter() const;
 
     bool transformColor(Color&) const;
     bool inverseTransformColor(Color&) const;
 
-    WEBCORE_EXPORT bool canInterpolate(const FilterOperations&, CompositeOperation) const;
     WEBCORE_EXPORT FilterOperations blend(const FilterOperations&, const BlendingContext&) const;
 
 private:

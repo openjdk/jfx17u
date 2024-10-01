@@ -33,7 +33,7 @@
 namespace WebCore {
 
 class FEConvolveMatrix;
-enum class EdgeModeType : uint8_t;
+enum class EdgeModeType;
 
 class FEConvolveMatrixSoftwareApplier final : public FilterEffectConcreteApplier<FEConvolveMatrix> {
     WTF_MAKE_FAST_ALLOCATED;

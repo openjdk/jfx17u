@@ -154,8 +154,10 @@ String decodeEscapeSequences(StringView string, const TextEncoding& encoding)
     return result.toString();
 }
 
-inline Vector<uint8_t> decodeURLEscapeSequencesAsData(StringView string)
+inline Vector<uint8_t> decodeURLEscapeSequencesAsData(StringView string, const TextEncoding& encoding)
 {
+    ASSERT(encoding.isValid());
+
     Vector<uint8_t> result;
     size_t decodedPosition = 0;
     size_t searchPosition = 0;
@@ -172,7 +174,7 @@ inline Vector<uint8_t> decodeURLEscapeSequencesAsData(StringView string)
         }
 
         // Strings are encoded as requested.
-        result.appendVector(PAL::UTF8Encoding().encodeForURLParsing(string.substring(decodedPosition, encodedRunPosition - decodedPosition)));
+        result.appendVector(encoding.encode(string.substring(decodedPosition, encodedRunPosition - decodedPosition), PAL::UnencodableHandling::URLEncodedEntities));
 
         if (encodedRunPosition == notFound)
             return result;

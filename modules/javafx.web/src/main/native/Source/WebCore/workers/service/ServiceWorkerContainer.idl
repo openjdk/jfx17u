@@ -30,6 +30,7 @@
     ActiveDOMObject,
     SecureContext,
     Exposed=(Window,Worker),
+    Conditional=SERVICE_WORKER,
     EnabledBySetting=ServiceWorkersEnabled,
     GenerateIsReachable=ReachableFromNavigator
 ] interface ServiceWorkerContainer : EventTarget {

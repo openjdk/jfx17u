@@ -22,7 +22,6 @@
 
 #pragma once
 
-#include "GlyphDisplayListCacheRemoval.h"
 #include "LegacyInlineBox.h"
 #include "RenderText.h"
 #include "TextBoxSelectableRange.h"
@@ -88,7 +87,6 @@ public:
     using LegacyInlineBox::setForceRightExpansion;
     using LegacyInlineBox::forceLeftExpansion;
     using LegacyInlineBox::setForceLeftExpansion;
-    using LegacyInlineBox::setIsInGlyphDisplayListCache;
 
     LayoutUnit baselinePosition(FontBaseline) const final;
     LayoutUnit lineHeight() const final;
@@ -101,8 +99,6 @@ public:
     LayoutUnit logicalRightVisualOverflow() const { return logicalOverflowRect().maxX(); }
 
     virtual void dirtyOwnLineBoxes() { dirtyLineBoxes(); }
-
-    void removeFromGlyphDisplayListCache();
 
 #if ENABLE(TREE_DEBUGGING)
     void outputLineBox(WTF::TextStream&, bool mark, int depth) const final;
@@ -172,14 +168,6 @@ private:
     unsigned m_start { 0 };
     unsigned m_len { 0 };
 };
-
-inline void LegacyInlineTextBox::removeFromGlyphDisplayListCache()
-{
-    if (isInGlyphDisplayListCache()) {
-        removeBoxFromGlyphDisplayListCache(*this);
-        setIsInGlyphDisplayListCache(false);
-    }
-}
 
 LayoutRect snappedSelectionRect(const LayoutRect&, float logicalRight, float selectionTop, float selectionHeight, bool isHorizontal);
 

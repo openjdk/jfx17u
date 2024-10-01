@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2020 Igalia, S.L.
- * Copyright (C) 2020-2023 Apple Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -53,7 +52,7 @@ class OpenXRInput;
 class OpenXRDevice final : public Device {
 public:
     static Ref<OpenXRDevice> create(XrInstance, XrSystemId, Ref<WorkQueue>&&, const OpenXRExtensions&, CompletionHandler<void()>&&);
-    virtual ~OpenXRDevice() = default;
+    ~OpenXRDevice();
 
 private:
     OpenXRDevice(XrInstance, XrSystemId, Ref<WorkQueue>&&, const OpenXRExtensions&);
@@ -110,7 +109,7 @@ private:
     XrSpace m_localSpace { XR_NULL_HANDLE };
     XrSpace m_viewSpace { XR_NULL_HANDLE };
     XrSpace m_stageSpace { XR_NULL_HANDLE };
-    FrameData::StageParameters m_stageParameters;
+    Device::FrameData::StageParameters m_stageParameters;
 };
 
 } // namespace PlatformXR

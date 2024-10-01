@@ -40,14 +40,14 @@ static const int kGridMaxPosition = 1000000;
 
 void GridPosition::setExplicitPosition(int position, const String& namedGridLine)
 {
-    m_type = GridPositionType::ExplicitPosition;
+    m_type = ExplicitPosition;
     setIntegerPosition(position);
     m_namedGridLine = namedGridLine;
 }
 
 void GridPosition::setAutoPosition()
 {
-    m_type = GridPositionType::AutoPosition;
+    m_type = AutoPosition;
     m_integerPosition = 0;
 }
 
@@ -56,32 +56,32 @@ void GridPosition::setAutoPosition()
 // some precision here. It shouldn't be an issue in practice though.
 void GridPosition::setSpanPosition(int position, const String& namedGridLine)
 {
-    m_type = GridPositionType::SpanPosition;
+    m_type = SpanPosition;
     setIntegerPosition(position);
     m_namedGridLine = namedGridLine;
 }
 
 void GridPosition::setNamedGridArea(const String& namedGridArea)
 {
-    m_type = GridPositionType::NamedGridAreaPosition;
+    m_type = NamedGridAreaPosition;
     m_namedGridLine = namedGridArea;
 }
 
 int GridPosition::integerPosition() const
 {
-    ASSERT(type() == GridPositionType::ExplicitPosition);
+    ASSERT(type() == ExplicitPosition);
     return m_integerPosition;
 }
 
 String GridPosition::namedGridLine() const
 {
-    ASSERT(type() == GridPositionType::ExplicitPosition || type() == GridPositionType::SpanPosition || type() == GridPositionType::NamedGridAreaPosition);
+    ASSERT(type() == ExplicitPosition || type() == SpanPosition || type() == NamedGridAreaPosition);
     return m_namedGridLine;
 }
 
 int GridPosition::spanPosition() const
 {
-    ASSERT(type() == GridPositionType::SpanPosition);
+    ASSERT(type() == SpanPosition);
     return m_integerPosition;
 }
 
@@ -95,6 +95,11 @@ int GridPosition::min()
     return -max();
 }
 
+bool GridPosition::operator==(const GridPosition& other) const
+{
+    return m_type == other.m_type && m_integerPosition == other.m_integerPosition && m_namedGridLine == other.m_namedGridLine;
+}
+
 void GridPosition::setMaxPositionForTesting(unsigned maxPosition)
 {
     gMaxPositionForTesting = static_cast<int>(maxPosition);
@@ -103,13 +108,13 @@ void GridPosition::setMaxPositionForTesting(unsigned maxPosition)
 TextStream& operator<<(TextStream& ts, const GridPosition& o)
 {
     switch (o.type()) {
-    case GridPositionType::AutoPosition:
+    case AutoPosition:
         return ts << "auto";
-    case GridPositionType::ExplicitPosition:
+    case ExplicitPosition:
         return ts << o.namedGridLine() << " " << o.integerPosition();
-    case GridPositionType::SpanPosition:
+    case SpanPosition:
         return ts << "span" << " " << o.namedGridLine() << " " << o.integerPosition();
-    case GridPositionType::NamedGridAreaPosition:
+    case NamedGridAreaPosition:
         return ts << o.namedGridLine();
     }
     return ts;

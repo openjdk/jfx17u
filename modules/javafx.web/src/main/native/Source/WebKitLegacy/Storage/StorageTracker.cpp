@@ -39,8 +39,8 @@
 #include <wtf/Vector.h>
 #include <wtf/text/CString.h>
 
-#if PLATFORM(COCOA)
-#include <pal/spi/cocoa/SQLite3SPI.h>
+#if PLATFORM(IOS_FAMILY)
+#include <pal/spi/ios/SQLite3SPI.h>
 #endif
 
 using namespace WebCore;
@@ -358,7 +358,7 @@ Vector<SecurityOriginData> StorageTracker::origins()
             ASSERT_NOT_REACHED();
             continue;
         }
-        result.append(origin.value());
+        result.uncheckedAppend(origin.value());
     }
     return result;
 }

@@ -65,8 +65,8 @@ Ref<CSSValueList> SVGFontFaceSrcElement::createSrcValue() const
 void SVGFontFaceSrcElement::childrenChanged(const ChildChange& change)
 {
     SVGElement::childrenChanged(change);
-    if (RefPtr parent = dynamicDowncast<SVGFontFaceElement>(parentNode()))
-        parent->rebuildFontFace();
+    if (is<SVGFontFaceElement>(parentNode()))
+        downcast<SVGFontFaceElement>(*parentNode()).rebuildFontFace();
 }
 
 }

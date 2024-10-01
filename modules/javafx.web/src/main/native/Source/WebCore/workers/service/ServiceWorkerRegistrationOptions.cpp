@@ -26,6 +26,8 @@
 #include "config.h"
 #include "ServiceWorkerRegistrationOptions.h"
 
+#if ENABLE(SERVICE_WORKER)
+
 namespace WebCore {
 
 ServiceWorkerRegistrationOptions ServiceWorkerRegistrationOptions::isolatedCopy() const &
@@ -39,3 +41,5 @@ ServiceWorkerRegistrationOptions ServiceWorkerRegistrationOptions::isolatedCopy(
 }
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

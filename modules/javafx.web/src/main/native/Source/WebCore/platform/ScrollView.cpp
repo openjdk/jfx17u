@@ -430,15 +430,6 @@ ScrollPosition ScrollView::adjustScrollPositionWithinRange(const ScrollPosition&
     return scrollPosition.constrainedBetween(minimumScrollPosition(), maximumScrollPosition());
 }
 
-void ScrollView::cacheCurrentScrollState()
-{
-    m_cachedScrollPosition = scrollPosition();
-#if PLATFORM(IOS_FAMILY)
-    m_cachedUnobscuredContentRect = unobscuredContentRect();
-    m_cachedExposedContentRect = exposedContentRect();
-#endif
-}
-
 ScrollPosition ScrollView::documentScrollPositionRelativeToViewOrigin() const
 {
     return scrollPosition() - IntSize(
@@ -553,10 +544,8 @@ void ScrollView::setScrollPosition(const ScrollPosition& scrollPosition, const S
         return;
     }
 
-    auto newScrollPosition = (!delegatesScrollingToNativeView() && options.clamping == ScrollClamping::Clamped) ? adjustScrollPositionWithinRange(scrollPosition) : scrollPosition;
-    bool scrollPositionChanged = newScrollPosition != this->scrollPosition();
-
-    if (currentScrollType() == ScrollType::User && !scrollPositionChanged) {
+    ScrollPosition newScrollPosition = (!delegatesScrollingToNativeView() && options.clamping == ScrollClamping::Clamped) ? adjustScrollPositionWithinRange(scrollPosition) : scrollPosition;
+    if ((!delegatesScrollingToNativeView() || currentScrollType() == ScrollType::User) && newScrollPosition == this->scrollPosition()) {
         LOG_WITH_STREAM(Scrolling, stream << "ScrollView::setScrollPosition " << scrollPosition << " return for no change");
         return;
     }
@@ -1126,30 +1115,6 @@ Scrollbar* ScrollView::scrollbarAtPoint(const IntPoint& windowPoint)
     return 0;
 }
 
-IntPoint ScrollView::convertChildToSelf(const Widget* child, IntPoint point) const
-{
-    if (!isScrollViewScrollbar(child))
-        point -= toIntSize(documentScrollPositionRelativeToViewOrigin());
-    point.moveBy(child->location());
-    return point;
-}
-
-FloatPoint ScrollView::convertChildToSelf(const Widget* child, FloatPoint point) const
-{
-    if (!isScrollViewScrollbar(child))
-        point -= toFloatSize(documentScrollPositionRelativeToViewOrigin());
-    point.moveBy(child->location());
-    return point;
-}
-
-IntPoint ScrollView::convertSelfToChild(const Widget* child, IntPoint point) const
-{
-    if (!isScrollViewScrollbar(child))
-        point += toIntSize(documentScrollPositionRelativeToViewOrigin());
-    point.moveBy(-child->location());
-    return point;
-}
-
 void ScrollView::setScrollbarOverlayStyle(ScrollbarOverlayStyle overlayStyle)
 {
     ScrollableArea::setScrollbarOverlayStyle(overlayStyle);
@@ -1315,7 +1280,7 @@ void ScrollView::paintScrollbars(GraphicsContext& context, const IntRect& rect)
 
 void ScrollView::paintPanScrollIcon(GraphicsContext& context)
 {
-    static Image& panScrollIcon = ImageAdapter::loadPlatformResource("panIcon").leakRef();
+    static Image& panScrollIcon = Image::loadPlatformResource("panIcon").leakRef();
     IntPoint iconGCPoint = m_panScrollIconPoint;
     if (parent())
         iconGCPoint = parent()->windowToContents(iconGCPoint);

@@ -36,12 +36,12 @@ bool SVGPathByteStreamSource::hasMoreData() const
 
 SVGPathSegType SVGPathByteStreamSource::nextCommand(SVGPathSegType)
 {
-    return readSVGSegmentType();
+    return static_cast<SVGPathSegType>(readSVGSegmentType());
 }
 
 std::optional<SVGPathSegType> SVGPathByteStreamSource::parseSVGSegmentType()
 {
-    return readSVGSegmentType();
+    return static_cast<SVGPathSegType>(readSVGSegmentType());
 }
 
 std::optional<SVGPathSource::MoveToSegment> SVGPathByteStreamSource::parseMoveToSegment()

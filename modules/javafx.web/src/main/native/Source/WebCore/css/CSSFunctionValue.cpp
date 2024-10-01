@@ -27,7 +27,6 @@
 #include "CSSFunctionValue.h"
 
 #include "CSSValueKeywords.h"
-#include <wtf/Hasher.h>
 #include <wtf/text/StringBuilder.h>
 #include <wtf/text/WTFString.h>
 
@@ -106,12 +105,6 @@ String CSSFunctionValue::customCSSText() const
     serializeItems(result);
     result.append(')');
     return result.toString();
-}
-
-bool CSSFunctionValue::addDerivedHash(Hasher& hasher) const
-{
-    add(hasher, m_name);
-    return CSSValueContainingVector::addDerivedHash(hasher);
 }
 
 }

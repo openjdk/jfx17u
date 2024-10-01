@@ -46,7 +46,7 @@ public:
 
 private:
     SpeechSynthesis* speechSynthesis();
-    static ASCIILiteral supplementName();
+    static const char* supplementName();
 
     RefPtr<SpeechSynthesis> m_speechSynthesis;
 };

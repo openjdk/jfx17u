@@ -106,9 +106,9 @@ static inline SVGLengthType primitiveTypeToLengthType(CSSUnitType primitiveType)
         return SVGLengthType::Number;
     case CSSUnitType::CSS_PERCENTAGE:
         return SVGLengthType::Percentage;
-    case CSSUnitType::CSS_EM:
+    case CSSUnitType::CSS_EMS:
         return SVGLengthType::Ems;
-    case CSSUnitType::CSS_EX:
+    case CSSUnitType::CSS_EXS:
         return SVGLengthType::Exs;
     case CSSUnitType::CSS_PX:
         return SVGLengthType::Pixels;
@@ -139,9 +139,9 @@ static inline CSSUnitType lengthTypeToPrimitiveType(SVGLengthType lengthType)
     case SVGLengthType::Percentage:
         return CSSUnitType::CSS_PERCENTAGE;
     case SVGLengthType::Ems:
-        return CSSUnitType::CSS_EM;
+        return CSSUnitType::CSS_EMS;
     case SVGLengthType::Exs:
-        return CSSUnitType::CSS_EX;
+        return CSSUnitType::CSS_EXS;
     case SVGLengthType::Pixels:
         return CSSUnitType::CSS_PX;
     case SVGLengthType::Centimeters:
@@ -259,8 +259,8 @@ SVGLengthValue SVGLengthValue::fromCSSPrimitiveValue(const CSSPrimitiveValue& va
 
 Ref<CSSPrimitiveValue> SVGLengthValue::toCSSPrimitiveValue(const Element* element) const
 {
-    if (auto* svgElement = dynamicDowncast<SVGElement>(element)) {
-        SVGLengthContext context { svgElement };
+    if (is<SVGElement>(element)) {
+        SVGLengthContext context { downcast<SVGElement>(element) };
         auto computedValue = context.convertValueToUserUnits(valueInSpecifiedUnits(), lengthType(), lengthMode());
         if (!computedValue.hasException())
             return CSSPrimitiveValue::create(computedValue.releaseReturnValue(), CSSUnitType::CSS_PX);
@@ -329,11 +329,11 @@ ExceptionOr<void> SVGLengthValue::setValueAsString(StringView string)
     return readCharactersForParsing(string, [&](auto buffer) -> ExceptionOr<void> {
         auto convertedNumber = parseNumber(buffer, SuffixSkippingPolicy::DontSkip);
         if (!convertedNumber)
-            return Exception { ExceptionCode::SyntaxError };
+            return Exception { SyntaxError };
 
         auto lengthType = parseLengthType(buffer);
         if (lengthType == SVGLengthType::Unknown)
-            return Exception { ExceptionCode::SyntaxError };
+            return Exception { SyntaxError };
 
         m_lengthType = lengthType;
         m_valueInSpecifiedUnits = *convertedNumber;

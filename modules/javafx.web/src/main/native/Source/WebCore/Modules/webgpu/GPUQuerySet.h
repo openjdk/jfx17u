@@ -25,8 +25,6 @@
 
 #pragma once
 
-#include "GPUQuerySetDescriptor.h"
-#include "GPUQueryType.h"
 #include "WebGPUQuerySet.h"
 #include <wtf/Ref.h>
 #include <wtf/RefCounted.h>
@@ -36,9 +34,9 @@ namespace WebCore {
 
 class GPUQuerySet : public RefCounted<GPUQuerySet> {
 public:
-    static Ref<GPUQuerySet> create(Ref<WebGPU::QuerySet>&& backing, const GPUQuerySetDescriptor& descriptor)
+    static Ref<GPUQuerySet> create(Ref<WebGPU::QuerySet>&& backing)
     {
-        return adoptRef(*new GPUQuerySet(WTFMove(backing), descriptor));
+        return adoptRef(*new GPUQuerySet(WTFMove(backing)));
     }
 
     String label() const;
@@ -49,14 +47,13 @@ public:
     WebGPU::QuerySet& backing() { return m_backing; }
     const WebGPU::QuerySet& backing() const { return m_backing; }
 
-    GPUQueryType type() const;
-    GPUSize32Out count() const;
-
 private:
-    GPUQuerySet(Ref<WebGPU::QuerySet>&& backing, const GPUQuerySetDescriptor&);
+    GPUQuerySet(Ref<WebGPU::QuerySet>&& backing)
+        : m_backing(WTFMove(backing))
+    {
+    }
 
     Ref<WebGPU::QuerySet> m_backing;
-    const GPUQuerySetDescriptor m_descriptor;
 };
 
 }

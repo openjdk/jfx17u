@@ -70,7 +70,15 @@ struct Trigger {
             && conditions.isEmpty();
     }
 
-    friend bool operator==(const Trigger&, const Trigger&) = default;
+    bool operator==(const Trigger& other) const
+    {
+        return urlFilter == other.urlFilter
+            && urlFilterIsCaseSensitive == other.urlFilterIsCaseSensitive
+            && topURLFilterIsCaseSensitive == other.topURLFilterIsCaseSensitive
+            && frameURLFilterIsCaseSensitive == other.frameURLFilterIsCaseSensitive
+            && flags == other.flags
+            && conditions == other.conditions;
+    }
 };
 
 inline void add(Hasher& hasher, const Trigger& trigger)
@@ -119,7 +127,7 @@ struct Action {
     Action(ActionData&& data)
         : m_data(WTFMove(data)) { }
 
-    friend bool operator==(const Action&, const Action&) = default;
+    bool operator==(const Action& other) const { return m_data == other.m_data; }
 
     const ActionData& data() const { return m_data; }
 
@@ -153,7 +161,10 @@ public:
 
     ContentExtensionRule isolatedCopy() const & { return { m_trigger.isolatedCopy(), m_action.isolatedCopy() }; }
     ContentExtensionRule isolatedCopy() && { return { WTFMove(m_trigger).isolatedCopy(), WTFMove(m_action).isolatedCopy() }; }
-    friend bool operator==(const ContentExtensionRule&, const ContentExtensionRule&) = default;
+    bool operator==(const ContentExtensionRule& other) const
+    {
+        return m_trigger == other.m_trigger && m_action == other.m_action;
+    }
 
 private:
     Trigger m_trigger;

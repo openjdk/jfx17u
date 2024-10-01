@@ -46,9 +46,6 @@ BasicCredential::~BasicCredential() = default;
 String BasicCredential::type() const
 {
     switch (m_type) {
-    case Type::DigitalIdentity:
-        return "digital-identity"_s;
-
     case Type::PublicKey:
         return "public-key"_s;
     }
@@ -62,7 +59,7 @@ void BasicCredential::isConditionalMediationAvailable(Document& document, DOMPro
     if (auto* page = document.page())
         page->authenticatorCoordinator().isConditionalMediationAvailable(document, WTFMove(promise));
     else
-        promise.reject(Exception { ExceptionCode::InvalidStateError });
+        promise.reject(Exception { InvalidStateError });
 }
 
 } // namespace WebCore

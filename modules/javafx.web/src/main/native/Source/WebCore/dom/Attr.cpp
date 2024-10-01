@@ -44,14 +44,14 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(Attr);
 using namespace HTMLNames;
 
 Attr::Attr(Element& element, const QualifiedName& name)
-    : Node(element.document(), ATTRIBUTE_NODE, { })
+    : Node(element.document(), CreateOther)
     , m_element(element)
     , m_name(name)
 {
 }
 
 Attr::Attr(Document& document, const QualifiedName& name, const AtomString& standaloneValue)
-    : Node(document, ATTRIBUTE_NODE, { })
+    : Node(document, CreateOther)
     , m_name(name)
     , m_standaloneValue(standaloneValue)
 {
@@ -72,7 +72,6 @@ Attr::~Attr()
     ASSERT_WITH_SECURITY_IMPLICATION(!isInShadowTree());
     ASSERT_WITH_SECURITY_IMPLICATION(treeScope().rootNode().isDocumentNode());
 
-    // Unable to protect the document here as it may have started destruction.
     willBeDeletedFrom(document());
 }
 
@@ -83,7 +82,7 @@ ExceptionOr<void> Attr::setPrefix(const AtomString& prefix)
         return result.releaseException();
 
     if ((prefix == xmlnsAtom() && namespaceURI() != XMLNSNames::xmlnsNamespaceURI) || qualifiedName() == xmlnsAtom())
-        return Exception { ExceptionCode::NamespaceError };
+        return Exception { NamespaceError };
 
     const AtomString& newPrefix = prefix.isEmpty() ? nullAtom() : prefix;
     if (RefPtr element = m_element.get())
@@ -125,10 +124,9 @@ CSSStyleDeclaration* Attr::style()
     RefPtr styledElement = dynamicDowncast<StyledElement>(m_element.get());
     if (!styledElement)
         return nullptr;
-    Ref style = MutableStyleProperties::create();
-    m_style = style.copyRef();
-    styledElement->collectPresentationalHintsForAttribute(qualifiedName(), value(), style);
-    return &style->ensureCSSStyleDeclaration();
+    m_style = MutableStyleProperties::create();
+    styledElement->collectPresentationalHintsForAttribute(qualifiedName(), value(), *m_style);
+    return &m_style->ensureCSSStyleDeclaration();
 }
 
 AtomString Attr::value() const
@@ -144,13 +142,13 @@ void Attr::detachFromElementWithValue(const AtomString& value)
     ASSERT(m_standaloneValue.isNull());
     m_standaloneValue = value;
     m_element = nullptr;
-    setTreeScopeRecursively(RefAllowingPartiallyDestroyed<Document> { document() });
+    setTreeScopeRecursively(document());
 }
 
 void Attr::attachToElement(Element& element)
 {
     ASSERT(!m_element);
-    m_element = &element;
+    m_element = element;
     m_standaloneValue = nullAtom();
     setTreeScopeRecursively(element.treeScope());
 }

@@ -59,8 +59,6 @@ public:
 
     virtual RefPtr<Font> createFont(const FontDescription&, bool syntheticBold, bool syntheticItalic, const FontCreationContext&);
 
-    bool didRefuseToLoadCustomFont() const { return m_didRefuseToLoadCustomFont; }
-
 protected:
     FontPlatformData platformDataFromCustomData(const FontDescription&, bool bold, bool italic, const FontCreationContext&);
 
@@ -85,8 +83,6 @@ private:
 
     bool m_loadInitiated;
     bool m_hasCreatedFontDataWrappingResource;
-
-    bool m_didRefuseToLoadCustomFont { false };
 
     RefPtr<FontCustomPlatformData> m_fontCustomPlatformData;
 

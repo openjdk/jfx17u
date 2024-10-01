@@ -24,4 +24,4 @@
 platform/adwaita/ScrollbarThemeAdwaita.cpp
 platform/adwaita/ThemeAdwaita.cpp
 
-rendering/adwaita/RenderThemeAdwaita.cpp
+rendering/RenderThemeAdwaita.cpp

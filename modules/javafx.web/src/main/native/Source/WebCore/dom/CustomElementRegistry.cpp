@@ -28,7 +28,6 @@
 
 #include "CustomElementReactionQueue.h"
 #include "Document.h"
-#include "DocumentInlines.h"
 #include "ElementRareData.h"
 #include "ElementTraversal.h"
 #include "JSCustomElementInterface.h"
@@ -59,16 +58,16 @@ CustomElementRegistry::~CustomElementRegistry() = default;
 
 Document* CustomElementRegistry::document() const
 {
-    return m_window ? m_window->document() : nullptr;
+    return m_window.document();
 }
 
 // https://dom.spec.whatwg.org/#concept-shadow-including-tree-order
 static void enqueueUpgradeInShadowIncludingTreeOrder(ContainerNode& node, JSCustomElementInterface& elementInterface)
 {
-    for (RefPtr element = ElementTraversal::firstWithin(node); element; element = ElementTraversal::next(*element)) {
+    for (Element* element = ElementTraversal::firstWithin(node); element; element = ElementTraversal::next(*element)) {
         if (element->isCustomElementUpgradeCandidate() && element->tagQName().matches(elementInterface.name()))
             element->enqueueToUpgrade(elementInterface);
-        if (RefPtr shadowRoot = element->shadowRoot()) {
+        if (auto* shadowRoot = element->shadowRoot()) {
             if (shadowRoot->mode() != ShadowRootMode::UserAgent)
                 enqueueUpgradeInShadowIncludingTreeOrder(*shadowRoot, elementInterface);
         }
@@ -90,7 +89,7 @@ RefPtr<DeferredPromise> CustomElementRegistry::addElementDefinition(Ref<JSCustom
     if (elementInterface->isShadowDisabled())
         m_disabledShadowSet.add(localName);
 
-    if (RefPtr document = this->document()) {
+    if (auto* document = m_window.document()) {
         // ungap/@custom-elements detection for quirk (rdar://problem/111008826).
         if (localName == extendsLi.get())
             document->quirks().setNeedsConfigurableIndexedPropertiesQuirk();
@@ -117,7 +116,7 @@ JSCustomElementInterface* CustomElementRegistry::findInterface(const AtomString&
     return m_nameMap.get(name);
 }
 
-RefPtr<JSCustomElementInterface> CustomElementRegistry::findInterface(const JSC::JSObject* constructor) const
+JSCustomElementInterface* CustomElementRegistry::findInterface(const JSC::JSObject* constructor) const
 {
     Locker locker { m_constructorMapLock };
     return m_constructorMap.get(constructor);
@@ -131,7 +130,7 @@ bool CustomElementRegistry::containsConstructor(const JSC::JSObject* constructor
 
 JSC::JSValue CustomElementRegistry::get(const AtomString& name)
 {
-    if (RefPtr elementInterface = m_nameMap.get(name))
+    if (auto* elementInterface = m_nameMap.get(name))
         return elementInterface->constructor();
     return JSC::jsUndefined();
 }
@@ -141,7 +140,7 @@ String CustomElementRegistry::getName(JSC::JSValue constructorValue)
     auto* constructor = constructorValue.getObject();
     if (!constructor)
         return String { };
-    RefPtr elementInterface = findInterface(constructor);
+    auto* elementInterface = findInterface(constructor);
     if (!elementInterface)
         return String { };
     return elementInterface->name().localName();
@@ -149,25 +148,23 @@ String CustomElementRegistry::getName(JSC::JSValue constructorValue)
 
 static void upgradeElementsInShadowIncludingDescendants(ContainerNode& root)
 {
-    for (Ref element : descendantsOfType<Element>(root)) {
-        if (element->isCustomElementUpgradeCandidate())
+    for (auto& element : descendantsOfType<Element>(root)) {
+        if (element.isCustomElementUpgradeCandidate())
             CustomElementReactionQueue::tryToUpgradeElement(element);
-        if (RefPtr shadowRoot = element->shadowRoot())
+        if (auto* shadowRoot = element.shadowRoot())
             upgradeElementsInShadowIncludingDescendants(*shadowRoot);
     }
 }
 
 void CustomElementRegistry::upgrade(Node& root)
 {
-    auto* containerNode = dynamicDowncast<ContainerNode>(root);
-    if (!containerNode)
+    if (!is<ContainerNode>(root))
         return;
 
-    auto* element = dynamicDowncast<Element>(*containerNode);
-    if (element && element->isCustomElementUpgradeCandidate())
-        CustomElementReactionQueue::tryToUpgradeElement(*element);
+    if (is<Element>(root) && downcast<Element>(root).isCustomElementUpgradeCandidate())
+        CustomElementReactionQueue::tryToUpgradeElement(downcast<Element>(root));
 
-    upgradeElementsInShadowIncludingDescendants(*containerNode);
+    upgradeElementsInShadowIncludingDescendants(downcast<ContainerNode>(root));
 }
 
 template<typename Visitor>

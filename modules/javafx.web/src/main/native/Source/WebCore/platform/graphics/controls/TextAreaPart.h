@@ -51,7 +51,3 @@ private:
 };
 
 } // namespace WebCore
-
-SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::TextAreaPart) \
-    static bool isType(const WebCore::ControlPart& part) { return part.type() == WebCore::StyleAppearance::Listbox || part.type() == WebCore::StyleAppearance::TextArea; } \
-SPECIALIZE_TYPE_TRAITS_END()

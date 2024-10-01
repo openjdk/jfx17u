@@ -26,17 +26,16 @@
 #pragma once
 
 #include "WebGLExtension.h"
-#include "WebGLRenderingContextBase.h"
-#include <wtf/IsoMalloc.h>
-#include <wtf/Noncopyable.h>
 
 namespace WebCore {
 
-class OESShaderMultisampleInterpolation final : public WebGLExtension<WebGLRenderingContextBase> {
+class OESShaderMultisampleInterpolation final : public WebGLExtension {
     WTF_MAKE_ISO_ALLOCATED(OESShaderMultisampleInterpolation);
 public:
     explicit OESShaderMultisampleInterpolation(WebGLRenderingContextBase&);
-    ~OESShaderMultisampleInterpolation();
+    virtual ~OESShaderMultisampleInterpolation();
+
+    ExtensionName getName() const override;
 
     static bool supported(GraphicsContextGL&);
 };

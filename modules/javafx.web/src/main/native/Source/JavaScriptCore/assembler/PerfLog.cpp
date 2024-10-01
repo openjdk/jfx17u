@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2018 Yusuke Suzuki <yusukesuzuki@slowstart.org>.
- * Copyright (C) 2023 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,10 +26,10 @@
 #include "config.h"
 #include "PerfLog.h"
 
-#if ENABLE(ASSEMBLER) && (OS(LINUX) || OS(DARWIN))
+#if ENABLE(ASSEMBLER) && OS(LINUX)
 
-#include "Options.h"
 #include <array>
+#include <elf.h>
 #include <fcntl.h>
 #include <mutex>
 #include <sys/mman.h>
@@ -42,8 +41,6 @@
 #include <wtf/MonotonicTime.h>
 #include <wtf/PageBlock.h>
 #include <wtf/ProcessID.h>
-#include <wtf/StringPrintStream.h>
-#include <wtf/TZoneMallocInlines.h>
 
 namespace JSC {
 
@@ -66,17 +63,22 @@ static constexpr uint32_t magic = 0x4a695444;
 static constexpr uint32_t magic = 0x4454694a;
 #endif
 
-// https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
 #if CPU(X86)
-static constexpr uint32_t elfMachine = 0x03;
+static constexpr uint32_t elfMachine = EM_386;
 #elif CPU(X86_64)
-static constexpr uint32_t elfMachine = 0x3E;
+static constexpr uint32_t elfMachine = EM_X86_64;
 #elif CPU(ARM64)
-static constexpr uint32_t elfMachine = 0xB7;
+static constexpr uint32_t elfMachine = EM_AARCH64;
 #elif CPU(ARM)
-static constexpr uint32_t elfMachine = 0x28;
+static constexpr uint32_t elfMachine = EM_ARM;
+#elif CPU(MIPS)
+#if CPU(LITTLE_ENDIAN)
+static constexpr uint32_t elfMachine = EM_MIPS_RS3_LE;
+#else
+static constexpr uint32_t elfMachine = EM_MIPS;
+#endif
 #elif CPU(RISCV64)
-static constexpr uint32_t elfMachine = 0xF3;
+static constexpr uint32_t elfMachine = EM_RISCV;
 #endif
 
 } // namespace Constants
@@ -122,16 +124,14 @@ struct CodeLoadRecord {
 
 } // namespace JITDump
 
-WTF_MAKE_TZONE_ALLOCATED_IMPL(PerfLog);
-
 PerfLog& PerfLog::singleton()
 {
-    static LazyNeverDestroyed<PerfLog> logger;
+    static PerfLog* logger;
     static std::once_flag onceKey;
     std::call_once(onceKey, [] {
-        logger.construct();
+        logger = new PerfLog;
     });
-    return logger.get();
+    return *logger;
 }
 
 static inline uint64_t generateTimestamp()
@@ -139,19 +139,9 @@ static inline uint64_t generateTimestamp()
     return MonotonicTime::now().secondsSinceEpoch().nanosecondsAs<uint64_t>();
 }
 
-static inline uint32_t getCurrentThreadID()
+static inline pid_t getCurrentThreadID()
 {
-#if OS(LINUX)
-    return static_cast<uint32_t>(syscall(__NR_gettid));
-#elif OS(DARWIN)
-    // Ideally we would like to use pthread_threadid_np. But this is 64bit, while required one is 32bit.
-    // For now, as a workaround, we only report lower 32bit of thread ID.
-    uint64_t thread = 0;
-    pthread_threadid_np(NULL, &thread);
-    return static_cast<uint32_t>(thread);
-#else
-#error unsupported platform
-#endif
+    return static_cast<pid_t>(syscall(__NR_gettid));
 }
 
 PerfLog::PerfLog()
@@ -222,4 +212,4 @@ void PerfLog::log(CString&& name, const uint8_t* executableAddress, size_t size)
 
 } // namespace JSC
 
-#endif // ENABLE(ASSEMBLER) && (OS(LINUX) || OS(DARWIN))
+#endif // ENABLE(ASSEMBLER) && OS(LINUX)

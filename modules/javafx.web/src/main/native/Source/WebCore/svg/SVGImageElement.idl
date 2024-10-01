@@ -32,7 +32,6 @@
     readonly attribute SVGAnimatedLength width;
     readonly attribute SVGAnimatedLength height;
     readonly attribute SVGAnimatedPreserveAspectRatio preserveAspectRatio;
-    attribute [AtomString] DOMString? crossOrigin;
 };
 
 SVGImageElement includes SVGURIReference;

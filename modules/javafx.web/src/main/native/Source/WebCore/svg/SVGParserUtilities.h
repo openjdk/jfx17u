@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2002, 2003 The Karbon Developers
  * Copyright (C) 2006, 2007 Rob Buis <buis@kde.org>
- * Copyright (C) 2013-2024 Apple Inc. All rights reserved.
+ * Copyright (C) 2013 Apple Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -24,7 +24,7 @@
 #include "ParsingUtilities.h"
 #include <wtf/Forward.h>
 
-typedef std::pair<char32_t, char32_t> UnicodeRange;
+typedef std::pair<UChar32, UChar32> UnicodeRange;
 typedef Vector<UnicodeRange> UnicodeRanges;
 
 namespace WebCore {
@@ -55,26 +55,34 @@ std::optional<FloatPoint> parseFloatPoint(StringParsingBuffer<UChar>&);
 std::optional<std::pair<UnicodeRanges, HashSet<String>>> parseKerningUnicodeString(StringView);
 std::optional<HashSet<String>> parseGlyphName(StringView);
 
+
+// SVG allows several different whitespace characters:
+// http://www.w3.org/TR/SVG/paths.html#PathDataBNF
+template<typename CharacterType> constexpr bool isSVGSpace(CharacterType c)
+{
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+}
+
 template<typename CharacterType> constexpr bool isSVGSpaceOrComma(CharacterType c)
 {
-    return isASCIIWhitespace(c) || c == ',';
+    return isSVGSpace(c) || c == ',';
 }
 
 template<typename CharacterType> constexpr bool skipOptionalSVGSpaces(const CharacterType*& ptr, const CharacterType* end)
 {
-    skipWhile<isASCIIWhitespace>(ptr, end);
+    skipWhile<isSVGSpace>(ptr, end);
     return ptr < end;
 }
 
 template<typename CharacterType> constexpr bool skipOptionalSVGSpaces(StringParsingBuffer<CharacterType>& characters)
 {
-    skipWhile<isASCIIWhitespace>(characters);
+    skipWhile<isSVGSpace>(characters);
     return characters.hasCharactersRemaining();
 }
 
 template<typename CharacterType> constexpr bool skipOptionalSVGSpacesOrDelimiter(const CharacterType*& ptr, const CharacterType* end, char delimiter = ',')
 {
-    if (ptr < end && !isASCIIWhitespace(*ptr) && *ptr != delimiter)
+    if (ptr < end && !isSVGSpace(*ptr) && *ptr != delimiter)
         return false;
     if (skipOptionalSVGSpaces(ptr, end)) {
         if (ptr < end && *ptr == delimiter) {
@@ -87,21 +95,15 @@ template<typename CharacterType> constexpr bool skipOptionalSVGSpacesOrDelimiter
 
 template<typename CharacterType> constexpr bool skipOptionalSVGSpacesOrDelimiter(StringParsingBuffer<CharacterType>& characters, char delimiter = ',')
 {
-    if (!characters.hasCharactersRemaining())
+    if (characters.hasCharactersRemaining() && !isSVGSpace(*characters) && *characters != delimiter)
         return false;
-
-    if (!isASCIIWhitespace(*characters) && *characters != delimiter)
-        return false;
-
-    // There are only spaces in the remaining characters.
-    if (!skipOptionalSVGSpaces(characters))
-        return false;
-
-    if (*characters != delimiter)
-        return true;
-
-    // A delimiter is hit. Skip the following spaces also e.g. " , ".
-    return skipOptionalSVGSpaces(++characters);
+    if (skipOptionalSVGSpaces(characters)) {
+        if (characters.hasCharactersRemaining() && *characters == delimiter) {
+            characters++;
+            skipOptionalSVGSpaces(characters);
+        }
+    }
+    return characters.hasCharactersRemaining();
 }
 
 } // namespace WebCore

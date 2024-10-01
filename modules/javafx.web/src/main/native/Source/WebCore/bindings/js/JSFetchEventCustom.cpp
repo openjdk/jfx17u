@@ -26,6 +26,8 @@
 #include "config.h"
 #include "JSFetchEvent.h"
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "FetchRequest.h"
 #include "WebCoreOpaqueRootInlines.h"
 
@@ -40,3 +42,5 @@ void JSFetchEvent::visitAdditionalChildren(Visitor& visitor)
 DEFINE_VISIT_ADDITIONAL_CHILDREN(JSFetchEvent);
 
 } // namespace WebCore
+
+#endif

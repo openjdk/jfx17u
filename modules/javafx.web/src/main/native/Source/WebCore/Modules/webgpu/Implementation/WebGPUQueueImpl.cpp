@@ -70,58 +70,37 @@ void QueueImpl::onSubmittedWorkDone(CompletionHandler<void()>&& callback)
 }
 
 void QueueImpl::writeBuffer(
-    const Buffer&,
-    Size64,
-    const void*,
-    size_t,
-    Size64,
-    std::optional<Size64>)
-{
-    RELEASE_ASSERT_NOT_REACHED();
-}
-
-void QueueImpl::writeTexture(
-    const ImageCopyTexture&,
-    const void*,
-    size_t,
-    const ImageDataLayout&,
-    const Extent3D&)
-{
-    RELEASE_ASSERT_NOT_REACHED();
-}
-
-void QueueImpl::writeBuffer(
     const Buffer& buffer,
     Size64 bufferOffset,
-    void* source,
+    const void* source,
     size_t byteLength,
     Size64 dataOffset,
     std::optional<Size64> size)
 {
     // FIXME: Use checked arithmetic and check the cast
-    wgpuQueueWriteBuffer(m_backing.get(), m_convertToBackingContext->convertToBacking(buffer), bufferOffset, static_cast<uint8_t*>(source) + dataOffset, static_cast<size_t>(size.value_or(byteLength - dataOffset)));
+    wgpuQueueWriteBuffer(m_backing.get(), m_convertToBackingContext->convertToBacking(buffer), bufferOffset, static_cast<const uint8_t*>(source) + dataOffset, static_cast<size_t>(size.value_or(byteLength - dataOffset)));
 }
 
 void QueueImpl::writeTexture(
     const ImageCopyTexture& destination,
-    void* source,
+    const void* source,
     size_t byteLength,
     const ImageDataLayout& dataLayout,
     const Extent3D& size)
 {
     WGPUImageCopyTexture backingDestination {
-        .nextInChain = nullptr,
-        .texture = m_convertToBackingContext->convertToBacking(destination.texture),
-        .mipLevel = destination.mipLevel,
-        .origin = destination.origin ? m_convertToBackingContext->convertToBacking(*destination.origin) : WGPUOrigin3D { 0, 0, 0 },
-        .aspect = m_convertToBackingContext->convertToBacking(destination.aspect),
+        nullptr,
+        m_convertToBackingContext->convertToBacking(destination.texture),
+        destination.mipLevel,
+        destination.origin ? m_convertToBackingContext->convertToBacking(*destination.origin) : WGPUOrigin3D { 0, 0, 0 },
+        m_convertToBackingContext->convertToBacking(destination.aspect),
     };
 
     WGPUTextureDataLayout backingDataLayout {
-        .nextInChain = nullptr,
-        .offset = dataLayout.offset,
-        .bytesPerRow = dataLayout.bytesPerRow.value_or(WGPU_COPY_STRIDE_UNDEFINED),
-        .rowsPerImage = dataLayout.rowsPerImage.value_or(WGPU_COPY_STRIDE_UNDEFINED),
+        nullptr,
+        dataLayout.offset,
+        dataLayout.bytesPerRow.value_or(0),
+        dataLayout.rowsPerImage.value_or(1),
     };
 
     WGPUExtent3D backingSize = m_convertToBackingContext->convertToBacking(size);

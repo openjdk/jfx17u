@@ -257,8 +257,6 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node, bool igno
     case SameValue:
     case CheckTypeInfoFlags:
     case ParseInt:
-    case ToIntegerOrInfinity:
-    case ToLength:
     case OverridesHasInstance:
     case IsEmpty:
     case TypeOfIsUndefined:
@@ -326,6 +324,7 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node, bool igno
     case DataViewGetInt:
     case DataViewGetFloat:
     case ResolveRope:
+    case GetWebAssemblyInstanceExports:
     case NumberIsNaN:
     case StringIndexOf:
         return true;
@@ -435,22 +434,6 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node, bool igno
             if (checkOffset != desiredOffset || !(attributes & PropertyAttribute::Accessor))
                 return false;
         }
-        return true;
-    }
-
-    case GetWebAssemblyInstanceExports: {
-        if (!state.forNode(node->child1()).isType(SpecCell))
-            return false;
-
-        StructureAbstractValue& value = state.forNode(node->child1()).m_structure;
-        if (value.isInfinite())
-            return false;
-        for (unsigned i = value.size(); i--;) {
-            Structure* structure = value[i].get();
-            if (structure->typeInfo().type() != WebAssemblyInstanceType)
-                return false;
-        }
-
         return true;
     }
 
@@ -608,8 +591,6 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node, bool igno
     case TailCallForwardVarargsInlinedCaller:
     case ConstructVarargs:
     case CallWasm:
-    case CallCustomAccessorGetter:
-    case CallCustomAccessorSetter:
     case VarargsLength:
     case LoadVarargs:
     case CallForwardVarargs:
@@ -626,8 +607,6 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node, bool igno
     case NewInternalFieldObject:
     case Spread:
     case NewRegexp:
-    case NewMap:
-    case NewSet:
     case NewSymbol:
     case ProfileType:
     case ProfileControlFlow:

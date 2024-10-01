@@ -33,6 +33,15 @@
 
 namespace WebCore {
 
+IntSize ImageBufferBackend::calculateBackendSize(const Parameters& parameters)
+{
+    FloatSize scaledSize = { ceilf(parameters.resolutionScale * parameters.logicalSize.width()), ceilf(parameters.resolutionScale * parameters.logicalSize.height()) };
+    if (scaledSize.isEmpty() || !scaledSize.isExpressibleAsIntSize())
+        return { };
+
+    return IntSize(scaledSize);
+}
+
 size_t ImageBufferBackend::calculateMemoryCost(const IntSize& backendSize, unsigned bytesPerRow)
 {
     ASSERT(!backendSize.isEmpty());
@@ -46,14 +55,19 @@ ImageBufferBackend::ImageBufferBackend(const Parameters& parameters)
 
 ImageBufferBackend::~ImageBufferBackend() = default;
 
+RefPtr<NativeImage> ImageBufferBackend::copyNativeImageForDrawing(GraphicsContext&)
+{
+    return copyNativeImage(DontCopyBackingStore);
+}
+
 RefPtr<NativeImage> ImageBufferBackend::sinkIntoNativeImage()
 {
-    return createNativeImageReference();
+    return copyNativeImage(DontCopyBackingStore);
 }
 
 void ImageBufferBackend::convertToLuminanceMask()
 {
-    IntRect sourceRect { { }, size() };
+    auto sourceRect = backendRect();
     PixelBufferFormat format { AlphaPremultiplication::Unpremultiplied, PixelFormat::RGBA8, colorSpace() };
     auto pixelBuffer = ImageBufferAllocator().createPixelBuffer(format, sourceRect.size());
     if (!pixelBuffer)
@@ -78,8 +92,7 @@ void ImageBufferBackend::convertToLuminanceMask()
 
 void ImageBufferBackend::getPixelBuffer(const IntRect& sourceRect, void* sourceData, PixelBuffer& destinationPixelBuffer)
 {
-    IntRect backendRect { { }, size() };
-    auto sourceRectClipped = intersection(backendRect, sourceRect);
+    auto sourceRectClipped = intersection(backendRect(), sourceRect);
     IntRect destinationRect { IntPoint::zero(), sourceRectClipped.size() };
 
     if (sourceRect.x() < 0)
@@ -109,7 +122,6 @@ void ImageBufferBackend::getPixelBuffer(const IntRect& sourceRect, void* sourceD
 
 void ImageBufferBackend::putPixelBuffer(const PixelBuffer& sourcePixelBuffer, const IntRect& sourceRect, const IntPoint& destinationPoint, AlphaPremultiplication destinationAlphaFormat, void* destinationData)
 {
-    IntRect backendRect { { }, size() };
     auto sourceRectClipped = intersection({ IntPoint::zero(), sourcePixelBuffer.size() }, sourceRect);
     auto destinationRect = sourceRectClipped;
     destinationRect.moveBy(destinationPoint);
@@ -120,7 +132,7 @@ void ImageBufferBackend::putPixelBuffer(const PixelBuffer& sourcePixelBuffer, co
     if (sourceRect.y() < 0)
         destinationRect.setY(destinationRect.y() - sourceRect.y());
 
-    destinationRect.intersect(backendRect);
+    destinationRect.intersect(backendRect());
     sourceRectClipped.setSize(destinationRect.size());
 
     unsigned sourceBytesPerRow = static_cast<unsigned>(4u * sourcePixelBuffer.size().width());
@@ -145,7 +157,7 @@ AffineTransform ImageBufferBackend::calculateBaseTransform(const Parameters& par
 
     if (originAtBottomLeftCorner) {
         baseTransform.scale(1, -1);
-        baseTransform.translate(0, -parameters.backendSize.height());
+        baseTransform.translate(0, -calculateBackendSize(parameters).height());
     }
 
     baseTransform.scale(parameters.resolutionScale);

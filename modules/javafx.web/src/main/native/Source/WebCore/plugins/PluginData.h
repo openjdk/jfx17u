@@ -53,9 +53,12 @@ struct MimeClassInfo {
     AtomString type;
     String desc;
     Vector<String> extensions;
-
-    friend bool operator==(const MimeClassInfo&, const MimeClassInfo&) = default;
 };
+
+inline bool operator==(const MimeClassInfo& a, const MimeClassInfo& b)
+{
+    return a.type == b.type && a.desc == b.desc && a.extensions == b.extensions;
+}
 
 struct PluginInfo {
     String name;
@@ -70,9 +73,16 @@ struct PluginInfo {
 #if PLATFORM(MAC)
     String versionString;
 #endif
-
-    friend bool operator==(const PluginInfo&, const PluginInfo&) = default;
 };
+
+inline bool operator==(PluginInfo& a, PluginInfo& b)
+{
+    bool result = a.name == b.name && a.file == b.file && a.desc == b.desc && a.mimes == b.mimes && a.isApplicationPlugin == b.isApplicationPlugin && a.clientLoadPolicy == b.clientLoadPolicy && a.bundleIdentifier == b.bundleIdentifier;
+#if PLATFORM(MAC)
+    result = result && a.versionString == b.versionString;
+#endif
+    return result;
+}
 
 struct SupportedPluginIdentifier {
     String matchingDomain;

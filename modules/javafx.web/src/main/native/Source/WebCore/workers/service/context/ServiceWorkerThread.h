@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "BackgroundFetchInformation.h"
 #include "NotificationClient.h"
 #include "NotificationEventType.h"
@@ -48,7 +50,6 @@ class SerializedScriptValue;
 class WorkerObjectProxy;
 struct MessageWithMessagePorts;
 struct NotificationData;
-struct NotificationPayload;
 
 class ServiceWorkerThread : public WorkerThread, public CanMakeWeakPtr<ServiceWorkerThread, WeakPtrFactoryInitialization::Eager> {
 public:
@@ -71,10 +72,7 @@ public:
     void queueTaskToPostMessage(MessageWithMessagePorts&&, ServiceWorkerOrClientData&& sourceData);
     void queueTaskToFireInstallEvent();
     void queueTaskToFireActivateEvent();
-    void queueTaskToFirePushEvent(std::optional<Vector<uint8_t>>&&, std::optional<NotificationPayload>&&, Function<void(bool, std::optional<NotificationPayload>&&)>&&);
-#if ENABLE(DECLARATIVE_WEB_PUSH)
-    void queueTaskToFirePushNotificationEvent(NotificationPayload&&, Function<void(bool, std::optional<NotificationPayload>&&)>&&);
-#endif
+    void queueTaskToFirePushEvent(std::optional<Vector<uint8_t>>&&, Function<void(bool)>&&);
     void queueTaskToFirePushSubscriptionChangeEvent(std::optional<PushSubscriptionData>&& newSubscriptionData, std::optional<PushSubscriptionData>&& oldSubscriptionData);
 #if ENABLE(NOTIFICATION_EVENT)
     void queueTaskToFireNotificationEvent(NotificationData&&, NotificationEventType, Function<void(bool)>&&);
@@ -90,8 +88,6 @@ public:
     void stopFetchEventMonitoring() { m_isHandlingFetchEvent = false; }
     void startFunctionalEventMonitoring();
     void stopFunctionalEventMonitoring() { m_isHandlingFunctionalEvent = false; }
-    void startNotificationPayloadFunctionalEventMonitoring();
-    void stopNotificationPayloadFunctionalEventMonitoring() { m_isHandlingNotificationPayloadFunctionalEvent = false; }
 
 protected:
     Ref<WorkerGlobalScope> createWorkerGlobalScope(const WorkerParameters&, Ref<SecurityOrigin>&&, Ref<SecurityOrigin>&& topOrigin) final;
@@ -122,7 +118,6 @@ private:
 
     bool m_isHandlingFetchEvent { false };
     bool m_isHandlingFunctionalEvent { false };
-    bool m_isHandlingNotificationPayloadFunctionalEvent { false };
     uint64_t m_pushSubscriptionChangeEventCount { 0 };
     uint64_t m_messageEventCount { 0 };
     enum class State { Idle, Starting, Installing, Activating };
@@ -137,3 +132,5 @@ private:
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

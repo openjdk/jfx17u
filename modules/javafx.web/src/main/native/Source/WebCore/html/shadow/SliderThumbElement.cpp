@@ -50,10 +50,10 @@
 #include "RenderTheme.h"
 #include "ResolvedStyle.h"
 #include "ScriptDisallowedScope.h"
+#include "ShadowPseudoIds.h"
 #include "ShadowRoot.h"
 #include "StepRange.h"
 #include "StyleResolver.h"
-#include "UserAgentParts.h"
 #include <wtf/IsoMallocInlines.h>
 
 #if ENABLE(IOS_TOUCH_EVENTS)
@@ -93,7 +93,7 @@ class RenderSliderContainer final : public RenderFlexibleBox {
     WTF_MAKE_ISO_ALLOCATED_INLINE(RenderSliderContainer);
 public:
     RenderSliderContainer(SliderContainerElement& element, RenderStyle&& style)
-        : RenderFlexibleBox(Type::SliderContainer, element, WTFMove(style))
+        : RenderFlexibleBox(element, WTFMove(style))
     {
     }
 
@@ -112,7 +112,7 @@ RenderBox::LogicalExtentComputedValues RenderSliderContainer::computeLogicalHeig
     bool isVertical = hasVerticalAppearance(input);
 
 #if ENABLE(DATALIST_ELEMENT)
-    if (input.renderer()->isRenderSlider() && !isVertical && input.list()) {
+    if (input.renderer()->isSlider() && !isVertical && input.list()) {
         int offsetFromCenter = theme().sliderTickOffsetFromTrackCenter();
         LayoutUnit trackHeight;
         if (offsetFromCenter < 0)
@@ -188,12 +188,12 @@ Ref<SliderThumbElement> SliderThumbElement::create(Document& document)
 {
     auto element = adoptRef(*new SliderThumbElement(document));
     ScriptDisallowedScope::EventAllowedScope eventAllowedScope { element };
-    element->setUserAgentPart(UserAgentParts::webkitSliderThumb());
+    element->setPseudo(ShadowPseudoIds::webkitSliderThumb());
     return element;
 }
 
 SliderThumbElement::SliderThumbElement(Document& document)
-    : HTMLDivElement(HTMLNames::divTag, document, TypeFlag::HasCustomStyleResolveCallbacks)
+    : HTMLDivElement(HTMLNames::divTag, document, CreateSliderThumbElement)
 {
 }
 
@@ -316,8 +316,7 @@ void SliderThumbElement::stopDragging()
 
 void SliderThumbElement::defaultEventHandler(Event& event)
 {
-    auto* mouseEvent = dynamicDowncast<MouseEvent>(event);
-    if (!mouseEvent) {
+    if (!is<MouseEvent>(event)) {
         HTMLDivElement::defaultEventHandler(event);
         return;
     }
@@ -330,8 +329,9 @@ void SliderThumbElement::defaultEventHandler(Event& event)
         return;
     }
 
-    bool isLeftButton = mouseEvent->button() == MouseButton::Left;
-    const AtomString& eventType = mouseEvent->type();
+    MouseEvent& mouseEvent = downcast<MouseEvent>(event);
+    bool isLeftButton = mouseEvent.button() == LeftButton;
+    const AtomString& eventType = mouseEvent.type();
 
     // We intentionally do not call event->setDefaultHandled() here because
     // MediaControlTimelineElement::defaultEventHandler() wants to handle these
@@ -345,11 +345,11 @@ void SliderThumbElement::defaultEventHandler(Event& event)
         return;
     } else if (eventType == eventNames().mousemoveEvent) {
         if (m_inDragMode)
-            setPositionFromPoint(mouseEvent->absoluteLocation());
+            setPositionFromPoint(mouseEvent.absoluteLocation());
         return;
     }
 
-    HTMLDivElement::defaultEventHandler(*mouseEvent);
+    HTMLDivElement::defaultEventHandler(mouseEvent);
 }
 
 bool SliderThumbElement::willRespondToMouseMoveEvents() const
@@ -590,7 +590,7 @@ Ref<Element> SliderThumbElement::cloneElementWithoutAttributesAndChildren(Docume
 // --------------------------------
 
 inline SliderContainerElement::SliderContainerElement(Document& document)
-    : HTMLDivElement(HTMLNames::divTag, document, TypeFlag::HasCustomStyleResolveCallbacks)
+    : HTMLDivElement(HTMLNames::divTag, document, CreateSliderContainerElement)
 {
 }
 
@@ -598,7 +598,7 @@ Ref<SliderContainerElement> SliderContainerElement::create(Document& document)
 {
     auto element = adoptRef(*new SliderContainerElement(document));
     ScriptDisallowedScope::EventAllowedScope eventAllowedScope { element };
-    element->setUserAgentPart(UserAgentParts::webkitSliderContainer());
+    element->setPseudo(ShadowPseudoIds::webkitSliderContainer());
     return element;
 }
 

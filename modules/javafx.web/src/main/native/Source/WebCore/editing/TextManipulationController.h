@@ -30,7 +30,6 @@
 #include "TextManipulationControllerExclusionRule.h"
 #include "TextManipulationControllerManipulationFailure.h"
 #include "TextManipulationItem.h"
-#include <wtf/CheckedRef.h>
 #include <wtf/CompletionHandler.h>
 #include <wtf/EnumTraits.h>
 #include <wtf/ObjectIdentifier.h>
@@ -43,7 +42,7 @@ class Document;
 class Element;
 class VisiblePosition;
 
-class TextManipulationController : public CanMakeWeakPtr<TextManipulationController>, public CanMakeCheckedPtr {
+class TextManipulationController : public CanMakeWeakPtr<TextManipulationController> {
     WTF_MAKE_FAST_ALLOCATED;
 public:
     TextManipulationController(Document&);
@@ -102,6 +101,8 @@ private:
     std::optional<ManipulationFailure::Type> replace(const ManipulationItemData&, const Vector<TextManipulationToken>&, HashSet<Ref<Node>>& containersWithoutVisualOverflowBeforeReplacement);
 
     WeakPtr<Document, WeakPtrImplWithEventTargetData> m_document;
+    WeakHashSet<Element, WeakPtrImplWithEventTargetData> m_elementsWithNewRenderer;
+    WeakHashSet<Node, WeakPtrImplWithEventTargetData> m_textNodesWithNewRenderer;
     WeakHashSet<Node, WeakPtrImplWithEventTargetData> m_manipulatedNodes;
     WeakHashSet<Node, WeakPtrImplWithEventTargetData> m_manipulatedNodesWithNewContent;
     WeakHashSet<Node, WeakPtrImplWithEventTargetData> m_addedOrNewlyRenderedNodes;

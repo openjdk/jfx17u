@@ -32,7 +32,7 @@
 namespace WebCore {
 
 class Attr;
-class ImmutableStyleProperties;
+class MutableStyleProperties;
 class ShareableElementData;
 class StyleProperties;
 class UniqueElementData;
@@ -48,13 +48,6 @@ public:
     const Attribute& operator*() const { return m_array[m_offset]; }
     const Attribute* operator->() const { return &m_array[m_offset]; }
     AttributeConstIterator& operator++() { ++m_offset; return *this; }
-    AttributeConstIterator& operator--() { ++m_offset; return *this; }
-
-    using difference_type = ptrdiff_t;
-    using value_type = Attribute;
-    using pointer = const Attribute*;
-    using reference = const Attribute&;
-    using iterator_category = std::random_access_iterator_tag;
 
     bool operator==(const AttributeConstIterator& other) const { return m_offset == other.m_offset; }
 
@@ -74,7 +67,6 @@ public:
     AttributeConstIterator begin() const { return AttributeConstIterator(m_array, 0); }
     AttributeConstIterator end() const { return AttributeConstIterator(m_array, m_size); }
 
-    unsigned size() const { return m_size; }
     unsigned attributeCount() const { return m_size; }
 
 private:
@@ -101,7 +93,7 @@ public:
     void setIdForStyleResolution(const AtomString& newId) const { m_idForStyleResolution = newId; }
 
     const StyleProperties* inlineStyle() const { return m_inlineStyle.get(); }
-    const ImmutableStyleProperties* presentationalHintStyle() const;
+    const MutableStyleProperties* presentationalHintStyle() const;
 
     unsigned length() const;
     bool isEmpty() const { return !length(); }
@@ -229,7 +221,7 @@ public:
 
     static ptrdiff_t attributeVectorMemoryOffset() { return OBJECT_OFFSETOF(UniqueElementData, m_attributeVector); }
 
-    mutable RefPtr<ImmutableStyleProperties> m_presentationalHintStyle;
+    mutable RefPtr<MutableStyleProperties> m_presentationalHintStyle;
     typedef Vector<Attribute, 4> AttributeVector;
     AttributeVector m_attributeVector;
 };
@@ -243,29 +235,29 @@ inline void ElementData::deref()
 
 inline unsigned ElementData::length() const
 {
-    if (auto* uniqueData = dynamicDowncast<UniqueElementData>(*this))
-        return uniqueData->m_attributeVector.size();
+    if (is<UniqueElementData>(*this))
+        return downcast<UniqueElementData>(*this).m_attributeVector.size();
     return arraySize();
 }
 
 inline const Attribute* ElementData::attributeBase() const
 {
-    if (auto* uniqueData = dynamicDowncast<UniqueElementData>(*this))
-        return uniqueData->m_attributeVector.data();
-    return uncheckedDowncast<ShareableElementData>(*this).m_attributeArray;
+    if (is<UniqueElementData>(*this))
+        return downcast<UniqueElementData>(*this).m_attributeVector.data();
+    return downcast<ShareableElementData>(*this).m_attributeArray;
 }
 
-inline const ImmutableStyleProperties* ElementData::presentationalHintStyle() const
+inline const MutableStyleProperties* ElementData::presentationalHintStyle() const
 {
-    if (auto* uniqueData = dynamicDowncast<UniqueElementData>(*this))
-        return uniqueData->m_presentationalHintStyle.get();
+    if (!is<UniqueElementData>(*this))
         return nullptr;
+    return downcast<UniqueElementData>(*this).m_presentationalHintStyle.get();
 }
 
 inline AttributeIteratorAccessor ElementData::attributesIterator() const
 {
-    if (auto* uniqueData = dynamicDowncast<UniqueElementData>(*this)) {
-        auto& attributeVector = uniqueData->m_attributeVector;
+    if (is<UniqueElementData>(*this)) {
+        const Vector<Attribute, 4>& attributeVector = downcast<UniqueElementData>(*this).m_attributeVector;
         return AttributeIteratorAccessor(attributeVector.data(), attributeVector.size());
     }
     return AttributeIteratorAccessor(downcast<ShareableElementData>(*this).m_attributeArray, arraySize());

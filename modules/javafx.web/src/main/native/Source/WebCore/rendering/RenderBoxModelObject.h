@@ -138,7 +138,6 @@ public:
     virtual inline LayoutUnit borderEnd() const;
 
     inline LayoutUnit borderAndPaddingStart() const;
-    inline LayoutUnit borderAndPaddingEnd() const;
     inline LayoutUnit borderAndPaddingBefore() const;
     inline LayoutUnit borderAndPaddingAfter() const;
 
@@ -152,7 +151,6 @@ public:
     inline LayoutUnit borderAndPaddingLogicalHeight() const;
     inline LayoutUnit borderAndPaddingLogicalWidth() const;
     inline LayoutUnit borderAndPaddingLogicalLeft() const;
-    inline LayoutUnit borderAndPaddingLogicalRight() const;
 
     inline LayoutUnit borderLogicalLeft() const;
     inline LayoutUnit borderLogicalRight() const;
@@ -190,7 +188,7 @@ public:
 
     void setSelectionState(HighlightState) override;
 
-    bool canHaveBoxInfoInFragment() const { return !isFloating() && !isReplacedOrInlineBlock() && !isInline() && !isRenderTableCell() && isRenderBlock() && !isRenderSVGBlock(); }
+    bool canHaveBoxInfoInFragment() const { return !isFloating() && !isReplacedOrInlineBlock() && !isInline() && !isTableCell() && isRenderBlock() && !isRenderSVGBlock(); }
 
     void contentChanged(ContentChangeType);
     bool hasAcceleratedCompositing() const;
@@ -213,8 +211,8 @@ public:
     void applyTransform(TransformationMatrix&, const RenderStyle&, const FloatRect& boundingBox, OptionSet<RenderStyle::TransformOperationOption>) const override;
 
 protected:
-    RenderBoxModelObject(Type, Element&, RenderStyle&&, OptionSet<TypeFlag>, TypeSpecificFlags);
-    RenderBoxModelObject(Type, Document&, RenderStyle&&, OptionSet<TypeFlag>, TypeSpecificFlags);
+    RenderBoxModelObject(Element&, RenderStyle&&, BaseTypeFlags);
+    RenderBoxModelObject(Document&, RenderStyle&&, BaseTypeFlags);
 
     void willBeDestroyed() override;
 
@@ -233,7 +231,7 @@ public:
 
     void paintMaskForTextFillBox(ImageBuffer*, const FloatRect&, const InlineIterator::InlineBoxIterator&, const LayoutRect&);
 
-    // For RenderBlocks and RenderInlines with m_style->pseudoElementType() == PseudoId::FirstLetter, this tracks their remaining text fragments
+    // For RenderBlocks and RenderInlines with m_style->styleType() == PseudoId::FirstLetter, this tracks their remaining text fragments
     RenderTextFragment* firstLetterRemainingText() const;
     void setFirstLetterRemainingText(RenderTextFragment&);
     void clearFirstLetterRemainingText();
@@ -246,7 +244,7 @@ public:
     struct ContinuationChainNode {
         WTF_MAKE_STRUCT_FAST_ALLOCATED;
 
-        SingleThreadWeakPtr<RenderBoxModelObject> renderer;
+        WeakPtr<RenderBoxModelObject> renderer;
         ContinuationChainNode* previous { nullptr };
         ContinuationChainNode* next { nullptr };
 
@@ -259,7 +257,7 @@ public:
     ContinuationChainNode* continuationChainNode() const;
 
 protected:
-    LayoutUnit computedCSSPadding(const Length&) const;
+    WEBCORE_EXPORT LayoutUnit computedCSSPadding(const Length&) const;
     virtual void absoluteQuadsIgnoringContinuation(const FloatRect&, Vector<FloatQuad>&, bool* /*wasFixed*/) const { ASSERT_NOT_REACHED(); }
     void collectAbsoluteQuadsForContinuation(Vector<FloatQuad>& quads, bool* wasFixed) const;
 
@@ -271,4 +269,4 @@ private:
 
 } // namespace WebCore
 
-SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderBoxModelObject, isRenderBoxModelObject())
+SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderBoxModelObject, isBoxModelObject())

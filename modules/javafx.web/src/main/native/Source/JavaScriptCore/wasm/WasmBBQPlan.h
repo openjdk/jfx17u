@@ -25,9 +25,10 @@
 
 #pragma once
 
-#if ENABLE(WEBASSEMBLY_BBQJIT)
+#if ENABLE(WEBASSEMBLY_B3JIT)
 
 #include "CompilationResult.h"
+#include "WasmB3IRGenerator.h"
 #include "WasmEntryPlan.h"
 #include "WasmModuleInformation.h"
 #include "WasmTierUpCount.h"
@@ -76,6 +77,7 @@ public:
     }
 
     static FunctionAllowlist& ensureGlobalBBQAllowlist();
+    static bool planGeneratesLoopOSREntrypoints(const ModuleInformation&);
 
 private:
     bool prepareImpl() final;
@@ -101,4 +103,4 @@ private:
 
 } } // namespace JSC::Wasm
 
-#endif // ENABLE(WEBASSEMBLY_BBQJIT)
+#endif // ENABLE(WEBASSEMBLY_B3JIT)

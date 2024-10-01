@@ -61,7 +61,6 @@ public:
     CSSBoxType cssBox() const { return m_cssBox; }
     CSSBoxType effectiveCSSBox() const;
     StyleImage* image() const { return m_image.get(); }
-    RefPtr<StyleImage> protectedImage() const { return m_image; }
     bool isImageValid() const;
 
     void setImage(Ref<StyleImage>&& image)

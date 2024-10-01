@@ -86,8 +86,7 @@ public:
 
     bool topologyMatches(const AudioBuffer&) const;
 
-    void increaseNoiseInjectionMultiplier(float amount = 0.001) { m_noiseInjectionMultiplier += amount; }
-    float noiseInjectionMultiplier() const { return m_noiseInjectionMultiplier; }
+    void setNeedsAdditionalNoise() { m_needsAdditionalNoise = true; }
 
 private:
     AudioBuffer(unsigned numberOfChannels, size_t length, float sampleRate, LegacyPreventDetaching = LegacyPreventDetaching::No);
@@ -110,7 +109,7 @@ private:
     FixedVector<JSValueInWrappedObject> m_channelWrappers;
     bool m_isDetachable { true };
     mutable Lock m_channelsLock;
-    float m_noiseInjectionMultiplier { 0 };
+    bool m_needsAdditionalNoise { false };
 };
 
 WebCoreOpaqueRoot root(AudioBuffer*);

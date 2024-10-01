@@ -26,7 +26,6 @@
 #pragma once
 
 #include "EventTrackingRegions.h"
-#include "LayerHostingContextIdentifier.h"
 #include "LayoutRect.h"
 #include "PlatformWheelEvent.h"
 #include "ScrollSnapOffsetsInfo.h"
@@ -184,7 +183,7 @@ public:
     virtual bool hasSubscrollers() const { return false; }
 
     // Generated a unique id for scrolling nodes.
-    WEBCORE_EXPORT ScrollingNodeID uniqueScrollingNodeID();
+    ScrollingNodeID uniqueScrollingNodeID();
 
     bool shouldUpdateScrollLayerPositionSynchronously(const LocalFrameView&) const;
 
@@ -210,7 +209,6 @@ public:
     WEBCORE_EXPORT virtual void setMouseMovedInContentArea(ScrollableArea&) { }
     WEBCORE_EXPORT virtual void setMouseIsOverScrollbar(Scrollbar*, bool) { }
     WEBCORE_EXPORT virtual void setScrollbarEnabled(Scrollbar&) { }
-    WEBCORE_EXPORT virtual void setLayerHostingContextIdentifierForFrameHostingNode(ScrollingNodeID, std::optional<LayerHostingContextIdentifier>) { }
 
 protected:
     explicit ScrollingCoordinator(Page*);
@@ -226,7 +224,7 @@ protected:
 
     virtual void willCommitTree() { }
 
-    SingleThreadWeakPtr<Page> m_page; // FIXME: ideally this would be a WeakRef but it gets nulled on async teardown.
+    WeakPtr<Page> m_page; // FIXME: ideally this would be a reference but it gets nulled on async teardown.
 
 private:
     virtual bool hasVisibleSlowRepaintViewportConstrainedObjects(const LocalFrameView&) const;

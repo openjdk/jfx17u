@@ -27,7 +27,6 @@
 
 #include "ExceptionOr.h"
 #include "Position.h"
-#include "Range.h"
 #include "StaticRange.h"
 #include <wtf/RefCounted.h>
 
@@ -37,11 +36,11 @@ class CSSStyleDeclaration;
 class DOMSetAdapter;
 class PropertySetCSSStyleDeclaration;
 
-class HighlightRange : public RefCounted<HighlightRange>, public CanMakeWeakPtr<HighlightRange> {
+class HighlightRangeData : public RefCounted<HighlightRangeData>, public CanMakeWeakPtr<HighlightRangeData> {
 public:
-    static Ref<HighlightRange> create(Ref<AbstractRange>&& range)
+    static Ref<HighlightRangeData> create(Ref<AbstractRange>&& range)
     {
-        return adoptRef(*new HighlightRange(WTFMove(range)));
+        return adoptRef(*new HighlightRangeData(WTFMove(range)));
     }
 
     AbstractRange& range() const { return m_range.get(); }
@@ -51,11 +50,9 @@ public:
     void setEndPosition(Position&& endPosition) { m_endPosition = WTFMove(endPosition); }
 
 private:
-    explicit HighlightRange(Ref<AbstractRange>&& range)
+    explicit HighlightRangeData(Ref<AbstractRange>&& range)
         : m_range(WTFMove(range))
     {
-        if (auto liveRange = dynamicDowncast<Range>(m_range))
-            liveRange->didAssociateWithHighlight();
     }
 
     Ref<AbstractRange> m_range;
@@ -66,7 +63,6 @@ private:
 class Highlight : public RefCounted<Highlight> {
 public:
     WEBCORE_EXPORT static Ref<Highlight> create(FixedVector<std::reference_wrapper<AbstractRange>>&&);
-    static void repaintRange(const AbstractRange&);
     void clearFromSetLike();
     bool addToSetLike(AbstractRange&);
     bool removeFromSetLike(const AbstractRange&);
@@ -80,12 +76,13 @@ public:
     void setPriority(int);
 
     void repaint();
-    const Vector<Ref<HighlightRange>>& highlightRanges() const { return m_highlightRanges; }
+    const Vector<Ref<HighlightRangeData>>& rangesData() const { return m_rangesData; }
 
+    // FIXME: Add WEBCORE_EXPORT CSSStyleDeclaration& style();
 private:
     explicit Highlight(FixedVector<std::reference_wrapper<AbstractRange>>&&);
 
-    Vector<Ref<HighlightRange>> m_highlightRanges;
+    Vector<Ref<HighlightRangeData>> m_rangesData;
     Type m_type { Type::Highlight };
     int m_priority { 0 };
 };

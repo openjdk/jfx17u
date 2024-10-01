@@ -28,7 +28,7 @@
 
 namespace WebCore {
 
-enum class ComponentTransferType : uint8_t {
+enum ComponentTransferType {
     FECOMPONENTTRANSFER_TYPE_UNKNOWN  = 0,
     FECOMPONENTTRANSFER_TYPE_IDENTITY = 1,
     FECOMPONENTTRANSFER_TYPE_TABLE    = 2,
@@ -38,7 +38,7 @@ enum class ComponentTransferType : uint8_t {
 };
 
 struct ComponentTransferFunction {
-    ComponentTransferType type { ComponentTransferType::FECOMPONENTTRANSFER_TYPE_UNKNOWN };
+    ComponentTransferType type { FECOMPONENTTRANSFER_TYPE_UNKNOWN };
 
     float slope { 0 };
     float intercept { 0 };
@@ -55,13 +55,23 @@ enum class ComponentTransferChannel : uint8_t { Red, Green, Blue, Alpha };
 
 } // namespace WebCore
 
+namespace WTF {
+template<> struct EnumTraits<WebCore::ComponentTransferChannel> {
+    using values = EnumValues<WebCore::ComponentTransferChannel,
+        WebCore::ComponentTransferChannel::Red,
+        WebCore::ComponentTransferChannel::Green,
+        WebCore::ComponentTransferChannel::Blue,
+        WebCore::ComponentTransferChannel::Alpha>;
+};
+}
+
 namespace WebCore {
 
-using ComponentTransferFunctions = EnumeratedArray<ComponentTransferChannel, ComponentTransferFunction, ComponentTransferChannel::Alpha>;
+using ComponentTransferFunctions = EnumeratedArray<ComponentTransferChannel, ComponentTransferFunction>;
 
 class FEComponentTransfer : public FilterEffect {
 public:
-    WEBCORE_EXPORT static Ref<FEComponentTransfer> create(const ComponentTransferFunction& redFunc, const ComponentTransferFunction& greenFunc, const ComponentTransferFunction& blueFunc, const ComponentTransferFunction& alphaFunc, DestinationColorSpace = DestinationColorSpace::SRGB());
+    WEBCORE_EXPORT static Ref<FEComponentTransfer> create(const ComponentTransferFunction& redFunc, const ComponentTransferFunction& greenFunc, const ComponentTransferFunction& blueFunc, const ComponentTransferFunction& alphaFunc);
     static Ref<FEComponentTransfer> create(ComponentTransferFunctions&&);
 
     bool operator==(const FEComponentTransfer&) const;
@@ -79,8 +89,11 @@ public:
     bool setOffset(ComponentTransferChannel, float);
     bool setTableValues(ComponentTransferChannel, Vector<float>&&);
 
+    template<class Encoder> void encode(Encoder&) const;
+    template<class Decoder> static std::optional<Ref<FEComponentTransfer>> decode(Decoder&);
+
 private:
-    FEComponentTransfer(const ComponentTransferFunction& redFunc, const ComponentTransferFunction& greenFunc, const ComponentTransferFunction& blueFunc, const ComponentTransferFunction& alphaFunc, DestinationColorSpace);
+    FEComponentTransfer(const ComponentTransferFunction& redFunc, const ComponentTransferFunction& greenFunc, const ComponentTransferFunction& blueFunc, const ComponentTransferFunction& alphaFunc);
     FEComponentTransfer(ComponentTransferFunctions&&);
 
     bool operator==(const FilterEffect& other) const override { return areEqual<FEComponentTransfer>(*this, other); }
@@ -96,4 +109,21 @@ private:
 
 } // namespace WebCore
 
-SPECIALIZE_TYPE_TRAITS_FILTER_FUNCTION(FEComponentTransfer)
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::ComponentTransferType> {
+    using values = EnumValues<
+        WebCore::ComponentTransferType,
+
+        WebCore::FECOMPONENTTRANSFER_TYPE_UNKNOWN,
+        WebCore::FECOMPONENTTRANSFER_TYPE_IDENTITY,
+        WebCore::FECOMPONENTTRANSFER_TYPE_TABLE,
+        WebCore::FECOMPONENTTRANSFER_TYPE_DISCRETE,
+        WebCore::FECOMPONENTTRANSFER_TYPE_LINEAR,
+        WebCore::FECOMPONENTTRANSFER_TYPE_GAMMA
+    >;
+};
+
+} // namespace WTF
+
+SPECIALIZE_TYPE_TRAITS_FILTER_EFFECT(FEComponentTransfer)

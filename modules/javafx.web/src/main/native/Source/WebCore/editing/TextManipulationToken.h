@@ -26,7 +26,7 @@
 #pragma once
 namespace WebCore {
 
-enum class TextManipulationTokenIdentifierType { };
+enum TextManipulationTokenIdentifierType { };
 using TextManipulationTokenIdentifier = ObjectIdentifier<TextManipulationTokenIdentifierType>;
 
 struct TextManipulationTokenInfo {

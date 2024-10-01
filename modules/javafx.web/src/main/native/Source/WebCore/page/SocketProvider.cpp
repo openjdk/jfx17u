@@ -26,8 +26,7 @@
 #include "config.h"
 #if PLATFORM(JAVA)
 #include "SocketProvider.h"
-#include "WebTransportSession.h"
-#include <wtf/CompletionHandler.h>
+
 #include "SocketStreamHandleImpl.h"
 #include "ThreadableWebSocketChannel.h"
 
@@ -49,11 +48,6 @@ Ref<SocketStreamHandle> SocketProvider::createSocketStreamHandle(const URL& url,
 RefPtr<ThreadableWebSocketChannel> SocketProvider::createWebSocketChannel(Document&, WebSocketChannelClient&)
 {
     return nullptr;
-}
-void SocketProvider::initializeWebTransportSession(WebCore::ScriptExecutionContext&, const URL&, CompletionHandler<void(RefPtr<WebCore::WebTransportSession>&&)>&& completionHandler)
-{
-    ASSERT_NOT_REACHED();
-    completionHandler(nullptr);
 }
 
 }

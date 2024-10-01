@@ -40,7 +40,14 @@ struct KeyboardScroll {
     ScrollGranularity granularity { ScrollGranularity::Line };
     ScrollDirection direction { ScrollDirection::ScrollUp };
 
-    friend bool operator==(const KeyboardScroll&, const KeyboardScroll&) = default;
+    bool operator==(const KeyboardScroll& other) const
+    {
+        return offset == other.offset
+            && maximumVelocity == other.maximumVelocity
+            && force == other.force
+            && granularity == other.granularity
+            && direction == other.direction;
+    }
 };
 
 struct KeyboardScrollParameters {

@@ -43,7 +43,7 @@ extern "C" {
     EncodedJSValue vmEntryHostFunction(JSGlobalObject*, CallFrame*, void*);
 }
 
-#if CPU(ARM64E) && !ENABLE(C_LOOP)
+#if CPU(ARM64E)
 extern "C" {
     void jitCagePtrGateAfter(void);
     void vmEntryToJavaScriptGateAfter(void);
@@ -77,7 +77,6 @@ MacroAssemblerCodeRef<JSEntryPtrTag> functionForConstructArityCheckThunk();
 MacroAssemblerCodeRef<JSEntryPtrTag> evalEntryThunk();
 MacroAssemblerCodeRef<JSEntryPtrTag> programEntryThunk();
 MacroAssemblerCodeRef<JSEntryPtrTag> moduleProgramEntryThunk();
-MacroAssemblerCodeRef<JSEntryPtrTag> defaultCallThunk();
 MacroAssemblerCodeRef<JSEntryPtrTag> getHostCallReturnValueThunk();
 MacroAssemblerCodeRef<JSEntryPtrTag> genericReturnPointThunk(OpcodeSize);
 MacroAssemblerCodeRef<JSEntryPtrTag> fuzzerReturnEarlyFromLoopHintThunk();
@@ -120,7 +119,6 @@ MacroAssemblerCodeRef<JSEntryPtrTag> returnLocationThunk(OpcodeID, OpcodeSize);
 MacroAssemblerCodeRef<JITThunkPtrTag> wasmFunctionEntryThunk();
 MacroAssemblerCodeRef<JITThunkPtrTag> wasmFunctionEntryThunkSIMD();
 MacroAssemblerCodeRef<JITThunkPtrTag> inPlaceInterpreterEntryThunk();
-MacroAssemblerCodeRef<JITThunkPtrTag> inPlaceInterpreterEntryThunkSIMD();
 #endif // ENABLE(WEBASSEMBLY)
 
 } } // namespace JSC::LLInt

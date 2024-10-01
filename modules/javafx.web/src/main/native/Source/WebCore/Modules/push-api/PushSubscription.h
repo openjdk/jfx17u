@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "EpochTimeStamp.h"
 #include "ExceptionOr.h"
 #include "JSDOMPromiseDeferredForward.h"
@@ -44,9 +46,9 @@ class ArrayBuffer;
 namespace WebCore {
 
 class PushSubscriptionOptions;
-class PushSubscriptionOwner;
 class ScriptExecutionContext;
 class ServiceWorkerContainer;
+class ServiceWorkerRegistration;
 
 class PushSubscription : public RefCounted<PushSubscription> {
     WTF_MAKE_ISO_ALLOCATED_EXPORT(PushSubscription, WEBCORE_EXPORT);
@@ -68,11 +70,13 @@ public:
     PushSubscriptionJSON toJSON() const;
 
 private:
-    WEBCORE_EXPORT explicit PushSubscription(PushSubscriptionData&&, RefPtr<PushSubscriptionOwner>&& = nullptr);
+    WEBCORE_EXPORT explicit PushSubscription(PushSubscriptionData&&, RefPtr<ServiceWorkerRegistration>&& = nullptr);
 
     PushSubscriptionData m_data;
-    RefPtr<PushSubscriptionOwner> m_pushSubscriptionOwner;
+    RefPtr<ServiceWorkerRegistration> m_serviceWorkerRegistration;
     mutable RefPtr<PushSubscriptionOptions> m_options;
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

@@ -27,11 +27,10 @@
 
 #include "ExceptionOr.h"
 #include "IDLTypes.h"
-#include "ImageBuffer.h"
+#include "ImageBitmapBacking.h"
 #include "ScriptWrappable.h"
 #include <atomic>
 #include <wtf/RefCounted.h>
-#include <wtf/UniqueRef.h>
 
 namespace JSC {
 class ArrayBuffer;
@@ -42,7 +41,6 @@ using JSC::ArrayBuffer;
 namespace WebCore {
 
 class Blob;
-class CachedImage;
 class CanvasBase;
 class CSSStyleImageValue;
 class HTMLCanvasElement;
@@ -56,9 +54,7 @@ class IntSize;
 class OffscreenCanvas;
 #endif
 class PendingImageBitmap;
-class RenderElement;
 class ScriptExecutionContext;
-class SVGImageElement;
 #if ENABLE(WEB_CODECS)
 class WebCodecsVideoFrame;
 #endif
@@ -66,21 +62,6 @@ class WebCodecsVideoFrame;
 struct ImageBitmapOptions;
 
 template<typename IDLType> class DOMPromiseDeferred;
-
-class DetachedImageBitmap {
-public:
-    DetachedImageBitmap(DetachedImageBitmap&&);
-    WEBCORE_EXPORT ~DetachedImageBitmap();
-    DetachedImageBitmap& operator=(DetachedImageBitmap&&);
-    size_t memoryCost() const { return m_bitmap->memoryCost(); }
-private:
-    DetachedImageBitmap(UniqueRef<SerializedImageBuffer>, bool originClean, bool premultiplyAlpha, bool forciblyPremultiplyAlpha);
-    UniqueRef<SerializedImageBuffer> m_bitmap;
-    bool m_originClean : 1 { false };
-    bool m_premultiplyAlpha : 1 { false };
-    bool m_forciblyPremultiplyAlpha : 1 { false };
-    friend class ImageBitmap;
-};
 
 class ImageBitmap final : public ScriptWrappable, public RefCounted<ImageBitmap> {
     WTF_MAKE_ISO_ALLOCATED(ImageBitmap);
@@ -91,7 +72,6 @@ public:
         RefPtr<HTMLVideoElement>,
 #endif
         RefPtr<HTMLCanvasElement>,
-        RefPtr<SVGImageElement>,
         RefPtr<ImageBitmap>,
 #if ENABLE(OFFSCREEN_CANVAS)
         RefPtr<OffscreenCanvas>,
@@ -115,37 +95,40 @@ public:
     static RefPtr<ImageBuffer> createImageBuffer(ScriptExecutionContext&, const FloatSize&, RenderingMode, DestinationColorSpace, float resolutionScale = 1);
     static RefPtr<ImageBuffer> createImageBuffer(ScriptExecutionContext&, const FloatSize&, DestinationColorSpace, float resolutionScale = 1);
 
-    static RefPtr<ImageBitmap> create(ScriptExecutionContext&, const IntSize&, DestinationColorSpace);
-    static Ref<ImageBitmap> create(ScriptExecutionContext&, DetachedImageBitmap);
-    static Ref<ImageBitmap> create(Ref<ImageBuffer>, bool originClean, bool premultiplyAlpha = false, bool forciblyPremultiplyAlpha = false);
+    static Ref<ImageBitmap> create(ScriptExecutionContext&, const IntSize&, DestinationColorSpace);
+    static Ref<ImageBitmap> create(std::optional<ImageBitmapBacking>&&);
 
     ~ImageBitmap();
 
-    ImageBuffer* buffer() const { return m_bitmap.get(); }
-
+    ImageBuffer* buffer() const { return m_backingStore ? m_backingStore->buffer() : nullptr; }
+    // This function has the implicit side-effect of detaching the backing store.
+    // It returns nullptr if the ImageBitmap's already detached.
     RefPtr<ImageBuffer> takeImageBuffer();
+    OptionSet<SerializationState> serializationState() const { return m_backingStore ? m_backingStore->serializationState() : SerializationState(); }
 
-    unsigned width() const;
-    unsigned height() const;
+    unsigned width() const { return m_backingStore ? m_backingStore->width() : 0; }
+    unsigned height() const { return m_backingStore ? m_backingStore->height() : 0; }
 
-    bool originClean() const { return m_originClean; }
-    bool premultiplyAlpha() const { return m_premultiplyAlpha; }
-    bool forciblyPremultiplyAlpha() const { return m_forciblyPremultiplyAlpha; }
+    bool originClean() const { return m_backingStore && m_backingStore->originClean(); }
+    bool premultiplyAlpha() const { return m_backingStore && m_backingStore->premultiplyAlpha(); }
+    bool forciblyPremultiplyAlpha() const { return m_backingStore && m_backingStore->forciblyPremultiplyAlpha(); }
 
-    std::optional<DetachedImageBitmap> detach();
-    bool isDetached() const { return !m_bitmap; }
-    void close() { takeImageBuffer(); }
+    std::optional<ImageBitmapBacking> takeImageBitmapBacking();
+    bool isDetached() const { return !m_backingStore; }
+    void close() { takeImageBitmapBacking(); }
+
+    static Vector<std::optional<ImageBitmapBacking>> detachBitmaps(Vector<RefPtr<ImageBitmap>>&&);
 
     size_t memoryCost() const;
 private:
     friend class ImageBitmapImageObserver;
     friend class PendingImageBitmap;
-    ImageBitmap(Ref<ImageBuffer>, bool originClean, bool premultiplyAlpha, bool forciblyPremultiplyAlpha);
+
+    ImageBitmap(std::optional<ImageBitmapBacking>&&);
+
     static Ref<ImageBitmap> createBlankImageBuffer(ScriptExecutionContext&, bool originClean);
 
     static void createCompletionHandler(ScriptExecutionContext&, RefPtr<HTMLImageElement>&, ImageBitmapOptions&&, std::optional<IntRect>, ImageBitmapCompletionHandler&&);
-    static void createCompletionHandler(ScriptExecutionContext&, RefPtr<SVGImageElement>&, ImageBitmapOptions&&, std::optional<IntRect>, ImageBitmapCompletionHandler&&);
-    static void createCompletionHandler(ScriptExecutionContext&, CachedImage*, RenderElement*, ImageBitmapOptions&&, std::optional<IntRect>, ImageBitmapCompletionHandler&&);
 #if ENABLE(VIDEO)
     static void createCompletionHandler(ScriptExecutionContext&, RefPtr<HTMLVideoElement>&, ImageBitmapOptions&&, std::optional<IntRect>, ImageBitmapCompletionHandler&&);
 #endif
@@ -164,11 +147,8 @@ private:
     static void createFromBuffer(ScriptExecutionContext&, Ref<ArrayBuffer>&&, String mimeType, long long expectedContentLength, const URL&, ImageBitmapOptions&&, std::optional<IntRect>, ImageBitmapCompletionHandler&&);
     void updateMemoryCost();
 
-    RefPtr<ImageBuffer> m_bitmap;
+    std::optional<ImageBitmapBacking> m_backingStore;
     std::atomic<size_t> m_memoryCost { 0 };
-    const bool m_originClean : 1 { false };
-    const bool m_premultiplyAlpha : 1 { false };
-    const bool m_forciblyPremultiplyAlpha : 1 { false };
 };
 
 }

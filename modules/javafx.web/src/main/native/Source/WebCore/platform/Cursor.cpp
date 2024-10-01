@@ -56,94 +56,93 @@ IntPoint determineHotSpot(Image* image, const IntPoint& specifiedHotSpot)
 const Cursor& Cursor::fromType(Cursor::Type type)
 {
     switch (type) {
-    case Type::Pointer:
+    case Cursor::Pointer:
         return pointerCursor();
-    case Type::Cross:
+    case Cursor::Cross:
         return crossCursor();
-    case Type::Hand:
+    case Cursor::Hand:
         return handCursor();
-    case Type::IBeam:
+    case Cursor::IBeam:
         return iBeamCursor();
-    case Type::Wait:
+    case Cursor::Wait:
         return waitCursor();
-    case Type::Help:
+    case Cursor::Help:
         return helpCursor();
-    case Type::EastResize:
+    case Cursor::EastResize:
         return eastResizeCursor();
-    case Type::NorthResize:
+    case Cursor::NorthResize:
         return northResizeCursor();
-    case Type::NorthEastResize:
+    case Cursor::NorthEastResize:
         return northEastResizeCursor();
-    case Type::NorthWestResize:
+    case Cursor::NorthWestResize:
         return northWestResizeCursor();
-    case Type::SouthResize:
+    case Cursor::SouthResize:
         return southResizeCursor();
-    case Type::SouthEastResize:
+    case Cursor::SouthEastResize:
         return southEastResizeCursor();
-    case Type::SouthWestResize:
+    case Cursor::SouthWestResize:
         return southWestResizeCursor();
-    case Type::WestResize:
+    case Cursor::WestResize:
         return westResizeCursor();
-    case Type::NorthSouthResize:
+    case Cursor::NorthSouthResize:
         return northSouthResizeCursor();
-    case Type::EastWestResize:
+    case Cursor::EastWestResize:
         return eastWestResizeCursor();
-    case Type::NorthEastSouthWestResize:
+    case Cursor::NorthEastSouthWestResize:
         return northEastSouthWestResizeCursor();
-    case Type::NorthWestSouthEastResize:
+    case Cursor::NorthWestSouthEastResize:
         return northWestSouthEastResizeCursor();
-    case Type::ColumnResize:
+    case Cursor::ColumnResize:
         return columnResizeCursor();
-    case Type::RowResize:
+    case Cursor::RowResize:
         return rowResizeCursor();
-    case Type::MiddlePanning:
+    case Cursor::MiddlePanning:
         return middlePanningCursor();
-    case Type::EastPanning:
+    case Cursor::EastPanning:
         return eastPanningCursor();
-    case Type::NorthPanning:
+    case Cursor::NorthPanning:
         return northPanningCursor();
-    case Type::NorthEastPanning:
+    case Cursor::NorthEastPanning:
         return northEastPanningCursor();
-    case Type::NorthWestPanning:
+    case Cursor::NorthWestPanning:
         return northWestPanningCursor();
-    case Type::SouthPanning:
+    case Cursor::SouthPanning:
         return southPanningCursor();
-    case Type::SouthEastPanning:
+    case Cursor::SouthEastPanning:
         return southEastPanningCursor();
-    case Type::SouthWestPanning:
+    case Cursor::SouthWestPanning:
         return southWestPanningCursor();
-    case Type::WestPanning:
+    case Cursor::WestPanning:
         return westPanningCursor();
-    case Type::Move:
+    case Cursor::Move:
         return moveCursor();
-    case Type::VerticalText:
+    case Cursor::VerticalText:
         return verticalTextCursor();
-    case Type::Cell:
+    case Cursor::Cell:
         return cellCursor();
-    case Type::ContextMenu:
+    case Cursor::ContextMenu:
         return contextMenuCursor();
-    case Type::Alias:
+    case Cursor::Alias:
         return aliasCursor();
-    case Type::Progress:
+    case Cursor::Progress:
         return progressCursor();
-    case Type::NoDrop:
+    case Cursor::NoDrop:
         return noDropCursor();
-    case Type::Copy:
+    case Cursor::Copy:
         return copyCursor();
-    case Type::None:
+    case Cursor::None:
         return noneCursor();
-    case Type::NotAllowed:
+    case Cursor::NotAllowed:
         return notAllowedCursor();
-    case Type::ZoomIn:
+    case Cursor::ZoomIn:
         return zoomInCursor();
-    case Type::ZoomOut:
+    case Cursor::ZoomOut:
         return zoomOutCursor();
-    case Type::Grab:
+    case Cursor::Grab:
         return grabCursor();
-    case Type::Grabbing:
+    case Cursor::Grabbing:
         return grabbingCursor();
-    case Type::Custom:
-    case Type::Invalid:
+    case Cursor::Custom:
         ASSERT_NOT_REACHED();
     }
     return pointerCursor();
@@ -151,7 +150,7 @@ const Cursor& Cursor::fromType(Cursor::Type type)
 
 #if !PLATFORM(JAVA)
 Cursor::Cursor(Image* image, const IntPoint& hotSpot)
-    : m_type(Type::Custom)
+    : m_type(Custom)
     , m_image(image)
     , m_hotSpot(determineHotSpot(image, hotSpot))
 {
@@ -160,7 +159,7 @@ Cursor::Cursor(Image* image, const IntPoint& hotSpot)
 
 #if ENABLE(MOUSE_CURSOR_SCALE)
 Cursor::Cursor(Image* image, const IntPoint& hotSpot, float scale)
-    : m_type(Type::Custom)
+    : m_type(Custom)
     , m_image(image)
     , m_hotSpot(determineHotSpot(image, hotSpot))
     , m_imageScaleFactor(scale)
@@ -187,259 +186,259 @@ PlatformCursor Cursor::platformCursor() const
 
 const Cursor& pointerCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::Pointer);
+    static NeverDestroyed<Cursor> c(Cursor::Pointer);
     return c;
 }
 
 const Cursor& crossCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::Cross);
+    static NeverDestroyed<Cursor> c(Cursor::Cross);
     return c;
 }
 
 const Cursor& handCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::Hand);
+    static NeverDestroyed<Cursor> c(Cursor::Hand);
     return c;
 }
 
 const Cursor& moveCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::Move);
+    static NeverDestroyed<Cursor> c(Cursor::Move);
     return c;
 }
 
 const Cursor& verticalTextCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::VerticalText);
+    static NeverDestroyed<Cursor> c(Cursor::VerticalText);
     return c;
 }
 
 const Cursor& cellCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::Cell);
+    static NeverDestroyed<Cursor> c(Cursor::Cell);
     return c;
 }
 
 const Cursor& contextMenuCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::ContextMenu);
+    static NeverDestroyed<Cursor> c(Cursor::ContextMenu);
     return c;
 }
 
 const Cursor& aliasCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::Alias);
+    static NeverDestroyed<Cursor> c(Cursor::Alias);
     return c;
 }
 
 const Cursor& zoomInCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::ZoomIn);
+    static NeverDestroyed<Cursor> c(Cursor::ZoomIn);
     return c;
 }
 
 const Cursor& zoomOutCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::ZoomOut);
+    static NeverDestroyed<Cursor> c(Cursor::ZoomOut);
     return c;
 }
 
 const Cursor& copyCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::Copy);
+    static NeverDestroyed<Cursor> c(Cursor::Copy);
     return c;
 }
 
 const Cursor& noneCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::None);
+    static NeverDestroyed<Cursor> c(Cursor::None);
     return c;
 }
 
 const Cursor& progressCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::Progress);
+    static NeverDestroyed<Cursor> c(Cursor::Progress);
     return c;
 }
 
 const Cursor& noDropCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::NoDrop);
+    static NeverDestroyed<Cursor> c(Cursor::NoDrop);
     return c;
 }
 
 const Cursor& notAllowedCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::NotAllowed);
+    static NeverDestroyed<Cursor> c(Cursor::NotAllowed);
     return c;
 }
 
 const Cursor& iBeamCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::IBeam);
+    static NeverDestroyed<Cursor> c(Cursor::IBeam);
     return c;
 }
 
 const Cursor& waitCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::Wait);
+    static NeverDestroyed<Cursor> c(Cursor::Wait);
     return c;
 }
 
 const Cursor& helpCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::Help);
+    static NeverDestroyed<Cursor> c(Cursor::Help);
     return c;
 }
 
 const Cursor& eastResizeCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::EastResize);
+    static NeverDestroyed<Cursor> c(Cursor::EastResize);
     return c;
 }
 
 const Cursor& northResizeCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::NorthResize);
+    static NeverDestroyed<Cursor> c(Cursor::NorthResize);
     return c;
 }
 
 const Cursor& northEastResizeCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::NorthEastResize);
+    static NeverDestroyed<Cursor> c(Cursor::NorthEastResize);
     return c;
 }
 
 const Cursor& northWestResizeCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::NorthWestResize);
+    static NeverDestroyed<Cursor> c(Cursor::NorthWestResize);
     return c;
 }
 
 const Cursor& southResizeCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::SouthResize);
+    static NeverDestroyed<Cursor> c(Cursor::SouthResize);
     return c;
 }
 
 const Cursor& southEastResizeCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::SouthEastResize);
+    static NeverDestroyed<Cursor> c(Cursor::SouthEastResize);
     return c;
 }
 
 const Cursor& southWestResizeCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::SouthWestResize);
+    static NeverDestroyed<Cursor> c(Cursor::SouthWestResize);
     return c;
 }
 
 const Cursor& westResizeCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::WestResize);
+    static NeverDestroyed<Cursor> c(Cursor::WestResize);
     return c;
 }
 
 const Cursor& northSouthResizeCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::NorthSouthResize);
+    static NeverDestroyed<Cursor> c(Cursor::NorthSouthResize);
     return c;
 }
 
 const Cursor& eastWestResizeCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::EastWestResize);
+    static NeverDestroyed<Cursor> c(Cursor::EastWestResize);
     return c;
 }
 
 const Cursor& northEastSouthWestResizeCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::NorthEastSouthWestResize);
+    static NeverDestroyed<Cursor> c(Cursor::NorthEastSouthWestResize);
     return c;
 }
 
 const Cursor& northWestSouthEastResizeCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::NorthWestSouthEastResize);
+    static NeverDestroyed<Cursor> c(Cursor::NorthWestSouthEastResize);
     return c;
 }
 
 const Cursor& columnResizeCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::ColumnResize);
+    static NeverDestroyed<Cursor> c(Cursor::ColumnResize);
     return c;
 }
 
 const Cursor& rowResizeCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::RowResize);
+    static NeverDestroyed<Cursor> c(Cursor::RowResize);
     return c;
 }
 
 const Cursor& middlePanningCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::MiddlePanning);
+    static NeverDestroyed<Cursor> c(Cursor::MiddlePanning);
     return c;
 }
 
 const Cursor& eastPanningCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::EastPanning);
+    static NeverDestroyed<Cursor> c(Cursor::EastPanning);
     return c;
 }
 
 const Cursor& northPanningCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::NorthPanning);
+    static NeverDestroyed<Cursor> c(Cursor::NorthPanning);
     return c;
 }
 
 const Cursor& northEastPanningCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::NorthEastPanning);
+    static NeverDestroyed<Cursor> c(Cursor::NorthEastPanning);
     return c;
 }
 
 const Cursor& northWestPanningCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::NorthWestPanning);
+    static NeverDestroyed<Cursor> c(Cursor::NorthWestPanning);
     return c;
 }
 
 const Cursor& southPanningCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::SouthPanning);
+    static NeverDestroyed<Cursor> c(Cursor::SouthPanning);
     return c;
 }
 
 const Cursor& southEastPanningCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::SouthEastPanning);
+    static NeverDestroyed<Cursor> c(Cursor::SouthEastPanning);
     return c;
 }
 
 const Cursor& southWestPanningCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::SouthWestPanning);
+    static NeverDestroyed<Cursor> c(Cursor::SouthWestPanning);
     return c;
 }
 
 const Cursor& westPanningCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::WestPanning);
+    static NeverDestroyed<Cursor> c(Cursor::WestPanning);
     return c;
 }
 
 const Cursor& grabCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::Grab);
+    static NeverDestroyed<Cursor> c(Cursor::Grab);
     return c;
 }
 
 const Cursor& grabbingCursor()
 {
-    static NeverDestroyed<Cursor> c(Cursor::Type::Grabbing);
+    static NeverDestroyed<Cursor> c(Cursor::Grabbing);
     return c;
 }
 

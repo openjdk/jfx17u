@@ -199,14 +199,14 @@ void InspectorFrontendAPIDispatcher::evaluateOrQueueExpression(const String& exp
         if (!weakThis)
             return;
 
-        Ref protectedThis = { *weakThis };
-        if (!protectedThis->m_pendingResponses.size())
+        Ref strongThis = { *weakThis };
+        if (!strongThis->m_pendingResponses.size())
             return;
 
-        EvaluationResultHandler resultHandler = protectedThis->m_pendingResponses.take(promise);
+        EvaluationResultHandler resultHandler = strongThis->m_pendingResponses.take(promise);
         ASSERT(resultHandler);
 
-        JSDOMGlobalObject* globalObject = protectedThis->frontendGlobalObject();
+        JSDOMGlobalObject* globalObject = strongThis->frontendGlobalObject();
         if (!globalObject) {
             resultHandler(makeUnexpected(EvaluationError::ContextDestroyed));
             return;
@@ -265,7 +265,7 @@ ValueOrException InspectorFrontendAPIDispatcher::evaluateExpression(const String
     JSC::SuspendExceptionScope scope(m_frontendPage->inspectorController().vm());
 
     auto* localMainFrame = dynamicDowncast<LocalFrame>(m_frontendPage->mainFrame());
-    return localMainFrame->script().evaluateInWorld(ScriptSourceCode(expression, JSC::SourceTaintedOrigin::Untainted), mainThreadNormalWorld());
+    return localMainFrame->script().evaluateInWorld(ScriptSourceCode(expression), mainThreadNormalWorld());
 }
 
 void InspectorFrontendAPIDispatcher::evaluateExpressionForTesting(const String& expression)

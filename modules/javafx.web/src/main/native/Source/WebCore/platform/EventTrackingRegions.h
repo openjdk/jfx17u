@@ -81,8 +81,8 @@ struct EventTrackingRegions {
     void unite(const EventTrackingRegions&);
 
     TrackingType trackingTypeForPoint(EventType, const IntPoint&);
-
-    friend bool operator==(const EventTrackingRegions&, const EventTrackingRegions&) = default;
 };
+
+bool operator==(const EventTrackingRegions&, const EventTrackingRegions&);
 
 } // namespace WebCore

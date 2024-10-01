@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include <optional>
 #include <wtf/text/WTFString.h>
 
@@ -41,3 +43,5 @@ struct NavigationPreloadState {
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

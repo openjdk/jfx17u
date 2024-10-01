@@ -56,7 +56,6 @@
     [CEReactions=NotNeeded] attribute unsigned long size;
     [CEReactions=NotNeeded, Reflect, URL] attribute USVString src;
     [CEReactions=NotNeeded, Reflect] attribute DOMString step;
-    [EnabledBySetting=SwitchControlEnabled, CEReactions=NotNeeded, Reflect] attribute boolean switch;
     [CEReactions=NotNeeded] attribute [AtomString] DOMString type;
     [CEReactions=NotNeeded] attribute [AtomString] DOMString defaultValue;
     // See the discussion in https://bugs.webkit.org/show_bug.cgi?id=100085
@@ -98,6 +97,3 @@
 };
 
 HTMLInputElement includes PopoverInvokerElement;
-
-HTMLInputElement includes InvokerElement;
-

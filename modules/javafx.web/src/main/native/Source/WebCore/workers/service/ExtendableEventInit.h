@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "Event.h"
 
 namespace WebCore {
@@ -33,3 +35,5 @@ struct ExtendableEventInit : EventInit {
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

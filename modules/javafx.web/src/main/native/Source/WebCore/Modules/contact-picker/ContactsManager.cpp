@@ -77,24 +77,24 @@ void ContactsManager::getProperties(Ref<DeferredPromise>&& promise)
 
 void ContactsManager::select(const Vector<ContactProperty>& properties, const ContactsSelectOptions& options, Ref<DeferredPromise>&& promise)
 {
-    RefPtr frame = this->frame();
+    auto* frame = this->frame();
     if (!frame || !frame->isMainFrame() || !frame->document() || !frame->page()) {
-        promise->reject(ExceptionCode::InvalidStateError);
+        promise->reject(InvalidStateError);
         return;
     }
 
     if (!UserGestureIndicator::processingUserGesture()) {
-        promise->reject(ExceptionCode::SecurityError);
+        promise->reject(SecurityError);
         return;
     }
 
     if (m_contactPickerIsShowing) {
-        promise->reject(ExceptionCode::InvalidStateError);
+        promise->reject(InvalidStateError);
         return;
     }
 
     if (properties.isEmpty()) {
-        promise->reject(ExceptionCode::TypeError);
+        promise->reject(TypeError);
         return;
     }
 
@@ -114,7 +114,7 @@ void ContactsManager::select(const Vector<ContactProperty>& properties, const Co
             return;
         }
 
-        promise->reject(ExceptionCode::UnknownError);
+        promise->reject(UnknownError);
     });
 }
 

@@ -68,15 +68,13 @@ void AttributeChangeInvalidation::invalidateStyle(const QualifiedName& attribute
     if (shouldInvalidateCurrent)
         m_element.invalidateStyle();
 
-    auto collect = [&](auto& ruleSets, std::optional<MatchElement> onlyMatchElement = { }) {
+    auto& ruleSets = m_element.styleResolver().ruleSets();
+
     auto* invalidationRuleSets = ruleSets.attributeInvalidationRuleSets(attributeNameForLookups);
     if (!invalidationRuleSets)
         return;
 
     for (auto& invalidationRuleSet : *invalidationRuleSets) {
-            if (onlyMatchElement && invalidationRuleSet.matchElement != onlyMatchElement)
-                continue;
-
         for (auto* selector : invalidationRuleSet.invalidationSelectors) {
             if (!selector->isAttributeSelector()) {
                 ASSERT_NOT_REACHED();
@@ -90,12 +88,6 @@ void AttributeChangeInvalidation::invalidateStyle(const QualifiedName& attribute
             }
         }
     }
-    };
-
-    collect(m_element.styleResolver().ruleSets());
-
-    if (auto* shadowRoot = m_element.shadowRoot())
-        collect(shadowRoot->styleScope().resolver().ruleSets(), MatchElement::Host);
 }
 
 void AttributeChangeInvalidation::invalidateStyleWithRuleSets()

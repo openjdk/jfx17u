@@ -103,7 +103,8 @@ public:
     enum class ShouldFoldCase : bool { No, Yes };
     SpaceSplitString(const AtomString&, ShouldFoldCase);
 
-    friend bool operator==(const SpaceSplitString&, const SpaceSplitString&) = default;
+    bool operator==(const SpaceSplitString& other) const { return m_data == other.m_data; }
+
     void set(const AtomString&, ShouldFoldCase);
     void clear() { m_data = nullptr; }
 

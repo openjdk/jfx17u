@@ -49,6 +49,6 @@
     const unsigned short PATHSEG_CURVETO_QUADRATIC_SMOOTH_ABS = 18;
     const unsigned short PATHSEG_CURVETO_QUADRATIC_SMOOTH_REL = 19;
 
-    [ImplementedAs=pathSegTypeForBindings] readonly attribute unsigned short pathSegType;
+    readonly attribute unsigned short pathSegType;
     readonly attribute DOMString pathSegTypeAsLetter;
 };

@@ -39,7 +39,7 @@
 
 namespace WebCore {
 
-using AccumulatorMap = HashMap<WeakRef<ContainerNode, WeakPtrImplWithEventTargetData>, SingleThreadWeakRef<ChildListMutationAccumulator>>;
+typedef HashMap<ContainerNode*, ChildListMutationAccumulator*> AccumulatorMap;
 static AccumulatorMap& accumulatorMap()
 {
     static NeverDestroyed<AccumulatorMap> map;
@@ -48,6 +48,7 @@ static AccumulatorMap& accumulatorMap()
 
 ChildListMutationAccumulator::ChildListMutationAccumulator(ContainerNode& target, std::unique_ptr<MutationObserverInterestGroup> observers)
     : m_target(target)
+    , m_lastAdded(nullptr)
     , m_observers(WTFMove(observers))
 {
 }
@@ -56,19 +57,21 @@ ChildListMutationAccumulator::~ChildListMutationAccumulator()
 {
     if (!isEmpty())
         enqueueMutationRecord();
-    accumulatorMap().remove(m_target.get());
+    accumulatorMap().remove(m_target.ptr());
 }
 
 Ref<ChildListMutationAccumulator> ChildListMutationAccumulator::getOrCreate(ContainerNode& target)
 {
-    RefPtr<ChildListMutationAccumulator> newAccumulator;
-    auto addResult = accumulatorMap().ensure(target, [&]() -> SingleThreadWeakRef<ChildListMutationAccumulator> {
-        newAccumulator = adoptRef(new ChildListMutationAccumulator(target, MutationObserverInterestGroup::createForChildListMutation(target)));
-        return *newAccumulator;
-    });
-    if (newAccumulator)
-        return newAccumulator.releaseNonNull();
-    return addResult.iterator->value.get();
+    AccumulatorMap::AddResult result = accumulatorMap().add(&target, nullptr);
+    RefPtr<ChildListMutationAccumulator> accumulator;
+    if (!result.isNewEntry)
+        accumulator = result.iterator->value;
+    else {
+        accumulator = adoptRef(new ChildListMutationAccumulator(target, MutationObserverInterestGroup::createForChildListMutation(target)));
+        result.iterator->value = accumulator.get();
+    }
+    ASSERT(accumulator);
+    return accumulator.releaseNonNull();
 }
 
 inline bool ChildListMutationAccumulator::isAddedNodeInOrder(Node& child)
@@ -76,22 +79,22 @@ inline bool ChildListMutationAccumulator::isAddedNodeInOrder(Node& child)
     return isEmpty() || (m_lastAdded == child.previousSibling() && m_nextSibling == child.nextSibling());
 }
 
-void ChildListMutationAccumulator::childAdded(Node& child)
+void ChildListMutationAccumulator::childAdded(Node& childRef)
 {
     ASSERT(hasObservers());
 
-    Ref protectedChild { child }; // FIXME: The call sites should be refing the child, not us.
+    Ref<Node> child(childRef);
 
     if (!isAddedNodeInOrder(child))
         enqueueMutationRecord();
 
     if (isEmpty()) {
-        m_previousSibling = child.previousSibling();
-        m_nextSibling = child.nextSibling();
+        m_previousSibling = child->previousSibling();
+        m_nextSibling = child->nextSibling();
     }
 
-    m_lastAdded = &child;
-    m_addedNodes.append(child);
+    m_lastAdded = child.ptr();
+    m_addedNodes.append(child.get());
 }
 
 inline bool ChildListMutationAccumulator::isRemovedNodeInOrder(Node& child)
@@ -99,23 +102,23 @@ inline bool ChildListMutationAccumulator::isRemovedNodeInOrder(Node& child)
     return isEmpty() || m_nextSibling == &child;
 }
 
-void ChildListMutationAccumulator::willRemoveChild(Node& child)
+void ChildListMutationAccumulator::willRemoveChild(Node& childRef)
 {
     ASSERT(hasObservers());
 
-    Ref protectedChild { child }; // FIXME: The call sites should be refing the child, not us.
+    Ref<Node> child(childRef);
 
     if (!m_addedNodes.isEmpty() || !isRemovedNodeInOrder(child))
         enqueueMutationRecord();
 
     if (isEmpty()) {
-        m_previousSibling = child.previousSibling();
-        m_nextSibling = child.nextSibling();
-        m_lastAdded = child.previousSibling();
+        m_previousSibling = child->previousSibling();
+        m_nextSibling = child->nextSibling();
+        m_lastAdded = child->previousSibling();
     } else
-        m_nextSibling = child.nextSibling();
+        m_nextSibling = child->nextSibling();
 
-    m_removedNodes.append(child);
+    m_removedNodes.append(child.get());
 }
 
 void ChildListMutationAccumulator::enqueueMutationRecord()
@@ -123,15 +126,10 @@ void ChildListMutationAccumulator::enqueueMutationRecord()
     ASSERT(hasObservers());
     ASSERT(!isEmpty());
 
-    Ref record = MutationRecord::createChildList(protectedTarget(), StaticNodeList::create(WTFMove(m_addedNodes)), StaticNodeList::create(WTFMove(m_removedNodes)), WTFMove(m_previousSibling), WTFMove(m_nextSibling));
+    auto record = MutationRecord::createChildList(m_target, StaticNodeList::create(WTFMove(m_addedNodes)), StaticNodeList::create(WTFMove(m_removedNodes)), WTFMove(m_previousSibling), WTFMove(m_nextSibling));
     m_observers->enqueueMutationRecord(WTFMove(record));
     m_lastAdded = nullptr;
     ASSERT(isEmpty());
-}
-
-Ref<ContainerNode> ChildListMutationAccumulator::protectedTarget() const
-{
-    return m_target;
 }
 
 bool ChildListMutationAccumulator::isEmpty()

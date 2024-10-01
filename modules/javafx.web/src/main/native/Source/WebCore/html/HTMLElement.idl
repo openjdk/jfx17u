@@ -18,8 +18,6 @@
  * Boston, MA 02110-1301, USA.
  */
 
-// https://html.spec.whatwg.org/multipage/dom.html#htmlelement
-
 [
     CustomPushEventHandlerScope,
     CustomToJSObject,
@@ -36,10 +34,6 @@
     [CEReactions=Needed] attribute boolean translate;
     [CEReactions=Needed] attribute [AtomString] DOMString dir;
 
-    // TextTrackCue related
-    [CEReactions=Needed, Reflect] attribute boolean cue;
-    [CEReactions=Needed, Reflect] attribute boolean cuebackground;
-
     // user interaction
     [CEReactions=Needed, Reflect] attribute boolean hidden;
     undefined click();
@@ -47,13 +41,14 @@
     readonly attribute DOMString accessKeyLabel;
     [CEReactions=Needed] attribute boolean draggable;
     [CEReactions=Needed] attribute boolean spellcheck;
-    [Conditional=AUTOCAPITALIZE, CEReactions=Needed] attribute [AtomString] DOMString autocapitalize;
+    // FIXME: 'autocapitalize' should not be [LegacyNullToEmptyString].
+    [Conditional=AUTOCAPITALIZE, CEReactions=Needed] attribute [LegacyNullToEmptyString, AtomString] DOMString autocapitalize;
 
     [CEReactions=Needed] attribute [LegacyNullToEmptyString] DOMString innerText;
 
     [EnabledBySetting=FormAssociatedCustomElementsEnabled] ElementInternals attachInternals();
 
-    [CEReactions=Needed, Reflect] attribute boolean inert;
+    [CEReactions=Needed, Reflect, EnabledBySetting=InertAttributeEnabled] attribute boolean inert;
 
     // The popover API
     [EnabledBySetting=PopoverAttributeEnabled, DisabledByQuirk=shouldDisablePopoverAttribute] undefined showPopover();

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2017 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,7 +28,6 @@
 #if ENABLE(B3_JIT)
 
 #include "MacroAssembler.h"
-#include <wtf/TZoneMalloc.h>
 
 namespace JSC {
 
@@ -42,7 +41,7 @@ class Code;
 struct Inst;
 
 class Disassembler {
-    WTF_MAKE_TZONE_ALLOCATED(Disassembler);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     Disassembler() = default;
 

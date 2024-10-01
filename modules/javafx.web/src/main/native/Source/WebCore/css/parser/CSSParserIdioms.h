@@ -60,7 +60,7 @@ bool isNameCodePoint(CharacterType c)
     return isNameStartCodePoint(c) || isASCIIDigit(c) || c == '-';
 }
 
-bool isColorKeywordAllowedInMode(CSSValueID, CSSParserMode);
+bool isValueAllowedInMode(unsigned short, CSSParserMode);
 
 inline bool isCSSWideKeyword(CSSValueID valueID)
 {

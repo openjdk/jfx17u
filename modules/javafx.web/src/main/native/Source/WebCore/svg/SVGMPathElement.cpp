@@ -67,8 +67,8 @@ void SVGMPathElement::buildPendingResource()
             treeScope.addPendingSVGResource(target.identifier, *this);
             ASSERT(hasPendingResources());
         }
-    } else if (auto* svgElement = dynamicDowncast<SVGElement>(*target.element))
-        svgElement->addReferencingElement(*this);
+    } else if (is<SVGElement>(*target.element))
+        downcast<SVGElement>(*target.element).addReferencingElement(*this);
 
     targetPathChanged();
 }
@@ -119,14 +119,16 @@ void SVGMPathElement::svgAttributeChanged(const QualifiedName& attrName)
 RefPtr<SVGPathElement> SVGMPathElement::pathElement()
 {
     auto target = targetElementFromIRIString(href(), treeScopeForSVGReferences());
-    return dynamicDowncast<SVGPathElement>(target.element);
+    if (is<SVGPathElement>(target.element))
+        return downcast<SVGPathElement>(target.element.get());
+    return nullptr;
 }
 
 void SVGMPathElement::targetPathChanged()
 {
     auto* parent = parentNode();
-    if (auto* animateMotionElement = dynamicDowncast<SVGAnimateMotionElement>(parent))
-        animateMotionElement->updateAnimationPath();
+    if (is<SVGAnimateMotionElement>(parent))
+        downcast<SVGAnimateMotionElement>(*parent).updateAnimationPath();
 }
 
 } // namespace WebCore

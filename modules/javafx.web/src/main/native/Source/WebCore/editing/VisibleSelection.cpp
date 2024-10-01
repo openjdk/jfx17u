@@ -27,9 +27,8 @@
 #include "VisibleSelection.h"
 
 #include "Document.h"
-#include "DocumentInlines.h"
 #include "Editing.h"
-#include "ElementInlines.h"
+#include "Element.h"
 #include "HTMLInputElement.h"
 #include "Settings.h"
 #include "ShadowRoot.h"
@@ -147,7 +146,7 @@ RefPtr<Document> VisibleSelection::document() const
     if (!document) {
         document = m_anchor.document();
         if (!document || !document->settings().liveRangeSelectionEnabled())
-            return nullptr;
+        return nullptr;
     }
 
     if (m_extent.document() != document.get() || m_start.document() != document.get() || m_end.document() != document.get())
@@ -176,7 +175,7 @@ std::optional<SimpleRange> VisibleSelection::toNormalizedRange() const
     // in the course of running edit commands which modify the DOM.
     // Failing to call this can result in equivalentXXXPosition calls returning
     // incorrect results.
-    m_start.anchorNode()->protectedDocument()->updateLayout();
+    m_start.anchorNode()->document().updateLayout();
 
     // Check again, because updating layout can clear the selection.
     if (isNoneOrOrphaned())
@@ -229,7 +228,7 @@ bool VisibleSelection::isAll(EditingBoundaryCrossingRule rule) const
 
 void VisibleSelection::appendTrailingWhitespace()
 {
-    RefPtr scope = deprecatedEnclosingBlockFlowElement(m_end.protectedDeprecatedNode().get());
+    auto scope = deprecatedEnclosingBlockFlowElement(m_end.deprecatedNode());
     if (!scope)
         return;
 
@@ -284,26 +283,26 @@ void VisibleSelection::adjustSelectionRespectingGranularity(TextGranularity gran
             // last word to the line break (also RightWordIfOnBoundary);
             VisiblePosition start = VisiblePosition(m_start, m_affinity);
             VisiblePosition originalEnd(m_end, m_affinity);
-            WordSide side = WordSide::RightWordIfOnBoundary;
+            EWordSide side = RightWordIfOnBoundary;
             if (isEndOfEditableOrNonEditableContent(start) || (isEndOfLine(start) && !isStartOfLine(start) && !isEndOfParagraph(start)))
-                side = WordSide::LeftWordIfOnBoundary;
+                side = LeftWordIfOnBoundary;
             m_start = startOfWord(start, side).deepEquivalent();
-            side = WordSide::RightWordIfOnBoundary;
+            side = RightWordIfOnBoundary;
             if (isEndOfEditableOrNonEditableContent(originalEnd) || (isEndOfLine(originalEnd) && !isStartOfLine(originalEnd) && !isEndOfParagraph(originalEnd)))
-                side = WordSide::LeftWordIfOnBoundary;
+                side = LeftWordIfOnBoundary;
 
             VisiblePosition wordEnd(endOfWord(originalEnd, side));
             VisiblePosition end(wordEnd);
 
-            if (isEndOfParagraph(originalEnd) && !isEmptyTableCell(m_start.protectedDeprecatedNode().get())) {
+            if (isEndOfParagraph(originalEnd) && !isEmptyTableCell(m_start.deprecatedNode())) {
                 // Select the paragraph break (the space from the end of a paragraph to the start of
                 // the next one) to match TextEdit.
                 end = wordEnd.next();
 
-                if (RefPtr table = isFirstPositionAfterTable(end)) {
+                if (auto* table = isFirstPositionAfterTable(end)) {
                     // The paragraph break after the last paragraph in the last cell of a block table ends
                     // at the start of the paragraph after the table.
-                    if (isBlock(*table))
+                    if (isBlock(table))
                         end = end.next(CannotCrossEditingBoundary);
                     else
                         end = wordEnd;
@@ -353,10 +352,10 @@ void VisibleSelection::adjustSelectionRespectingGranularity(TextGranularity gran
             // of the next one) in the selection.
             VisiblePosition end(visibleParagraphEnd.next());
 
-            if (RefPtr table = isFirstPositionAfterTable(end)) {
+            if (Node* table = isFirstPositionAfterTable(end)) {
                 // The paragraph break after the last paragraph in the last cell of a block table ends
                 // at the start of the paragraph after the table, not at the position just after the table.
-                if (isBlock(*table))
+                if (isBlock(table))
                     end = end.next(CannotCrossEditingBoundary);
                 // There is no parargraph break after the last paragraph in the last cell of an inline table.
                 else
@@ -479,14 +478,14 @@ Position VisibleSelection::adjustPositionForEnd(const Position& currentPosition,
 
     ASSERT(&currentPosition.containerNode()->treeScope() != &treeScope);
 
-    if (RefPtr ancestor = treeScope.ancestorNodeInThisScope(currentPosition.protectedContainerNode().get())) {
+    if (Node* ancestor = treeScope.ancestorNodeInThisScope(currentPosition.containerNode())) {
         if (ancestor->contains(startContainerNode))
-            return positionAfterNode(ancestor.get());
-        return positionBeforeNode(ancestor.get());
+            return positionAfterNode(ancestor);
+        return positionBeforeNode(ancestor);
     }
 
-    if (RefPtr lastChild = treeScope.rootNode().lastChild())
-        return positionAfterNode(lastChild.get());
+    if (Node* lastChild = treeScope.rootNode().lastChild())
+        return positionAfterNode(lastChild);
 
     return Position();
 }
@@ -497,28 +496,28 @@ Position VisibleSelection::adjustPositionForStart(const Position& currentPositio
 
     ASSERT(&currentPosition.containerNode()->treeScope() != &treeScope);
 
-    if (RefPtr ancestor = treeScope.ancestorNodeInThisScope(currentPosition.protectedContainerNode().get())) {
+    if (Node* ancestor = treeScope.ancestorNodeInThisScope(currentPosition.containerNode())) {
         if (ancestor->contains(endContainerNode))
-            return positionBeforeNode(ancestor.get());
-        return positionAfterNode(ancestor.get());
+            return positionBeforeNode(ancestor);
+        return positionAfterNode(ancestor);
     }
 
-    if (RefPtr firstChild = treeScope.rootNode().firstChild())
-        return positionBeforeNode(firstChild.get());
+    if (Node* firstChild = treeScope.rootNode().firstChild())
+        return positionBeforeNode(firstChild);
 
     return Position();
 }
 
 static bool isInUserAgentShadowRootOrHasEditableShadowAncestor(Node& node)
 {
-    RefPtr shadowRoot = node.containingShadowRoot();
+    auto* shadowRoot = node.containingShadowRoot();
     if (!shadowRoot)
         return false;
 
     if (shadowRoot->mode() == ShadowRootMode::UserAgent)
         return true;
 
-    for (RefPtr currentNode = &node; currentNode; currentNode = currentNode->parentOrShadowHostNode()) {
+    for (RefPtr<Node> currentNode = &node; currentNode; currentNode = currentNode->parentOrShadowHostNode()) {
         if (currentNode->hasEditableStyle())
             return true;
     }
@@ -541,10 +540,10 @@ void VisibleSelection::adjustSelectionToAvoidCrossingShadowBoundaries()
 
     // Correct the focus if necessary.
     if (m_anchorIsFirst) {
-        m_extent = adjustPositionForEnd(m_end, m_start.protectedContainerNode().get());
+        m_extent = adjustPositionForEnd(m_end, m_start.containerNode());
         m_end = m_extent;
     } else {
-        m_extent = adjustPositionForStart(m_start, m_end.protectedContainerNode().get());
+        m_extent = adjustPositionForStart(m_start, m_end.containerNode());
         m_start = m_extent;
     }
     m_focus = m_extent;
@@ -560,11 +559,11 @@ void VisibleSelection::adjustSelectionToAvoidCrossingEditingBoundaries()
     if (m_base == m_start && m_base == m_end)
         return;
 
-    auto baseRoot = highestEditableRoot(m_base);
-    auto startRoot = highestEditableRoot(m_start);
-    auto endRoot = highestEditableRoot(m_end);
+    auto* baseRoot = highestEditableRoot(m_base);
+    auto* startRoot = highestEditableRoot(m_start);
+    auto* endRoot = highestEditableRoot(m_end);
 
-    RefPtr baseEditableAncestor = lowestEditableAncestor(m_base.protectedContainerNode().get());
+    auto* baseEditableAncestor = lowestEditableAncestor(m_base.containerNode());
 
     // The base, start and end are all in the same region.  No adjustment necessary.
     if (baseRoot == startRoot && baseRoot == endRoot)
@@ -576,7 +575,7 @@ void VisibleSelection::adjustSelectionToAvoidCrossingEditingBoundaries()
         // If the start is in non-editable content that is inside the base's editable root, put it
         // at the first editable position after start inside the base's editable root.
         if (startRoot != baseRoot) {
-            VisiblePosition first = firstEditablePositionAfterPositionInRoot(m_start, baseRoot.get());
+            VisiblePosition first = firstEditablePositionAfterPositionInRoot(m_start, baseRoot);
             m_start = first.deepEquivalent();
             if (m_start.isNull()) {
                 ASSERT_NOT_REACHED();
@@ -587,7 +586,7 @@ void VisibleSelection::adjustSelectionToAvoidCrossingEditingBoundaries()
         // If the end is in non-editable content that is inside the base's root, put it
         // at the last editable position before the end inside the base's root.
         if (endRoot != baseRoot) {
-            VisiblePosition last = lastEditablePositionBeforePositionInRoot(m_end, baseRoot.get());
+            VisiblePosition last = lastEditablePositionBeforePositionInRoot(m_end, baseRoot);
             m_end = last.deepEquivalent();
             if (m_end.isNull())
                 m_end = m_start;
@@ -599,19 +598,19 @@ void VisibleSelection::adjustSelectionToAvoidCrossingEditingBoundaries()
 
         // The selection ends in editable content or non-editable content inside a different editable ancestor,
         // move backward until non-editable content inside the same lowest editable ancestor is reached.
-        RefPtr endEditableAncestor = lowestEditableAncestor(m_end.protectedContainerNode().get());
+        auto* endEditableAncestor = lowestEditableAncestor(m_end.containerNode());
         if (endRoot || endEditableAncestor != baseEditableAncestor) {
 
             Position p = previousVisuallyDistinctCandidate(m_end);
-            RefPtr shadowAncestor = endRoot ? endRoot->shadowHost() : nullptr;
+            Node* shadowAncestor = endRoot ? endRoot->shadowHost() : 0;
             if (p.isNull() && shadowAncestor)
-                p = positionAfterNode(shadowAncestor.get());
-            while (p.isNotNull() && !(lowestEditableAncestor(p.protectedContainerNode().get()) == baseEditableAncestor && !isEditablePosition(p))) {
-                RefPtr root = editableRootForPosition(p);
-                shadowAncestor = root ? root->shadowHost() : nullptr;
-                p = isAtomicNode(p.protectedContainerNode().get()) ? positionInParentBeforeNode(p.protectedContainerNode().get()) : previousVisuallyDistinctCandidate(p);
+                p = positionAfterNode(shadowAncestor);
+            while (p.isNotNull() && !(lowestEditableAncestor(p.containerNode()) == baseEditableAncestor && !isEditablePosition(p))) {
+                Node* root = editableRootForPosition(p);
+                shadowAncestor = root ? root->shadowHost() : 0;
+                p = isAtomicNode(p.containerNode()) ? positionInParentBeforeNode(p.containerNode()) : previousVisuallyDistinctCandidate(p);
                 if (p.isNull() && shadowAncestor)
-                    p = positionAfterNode(shadowAncestor.get());
+                    p = positionAfterNode(shadowAncestor);
             }
             VisiblePosition previous(p);
 
@@ -624,18 +623,18 @@ void VisibleSelection::adjustSelectionToAvoidCrossingEditingBoundaries()
 
         // The selection starts in editable content or non-editable content inside a different editable ancestor,
         // move forward until non-editable content inside the same lowest editable ancestor is reached.
-        RefPtr startEditableAncestor = lowestEditableAncestor(m_start.protectedContainerNode().get());
+        auto* startEditableAncestor = lowestEditableAncestor(m_start.containerNode());
         if (startRoot || startEditableAncestor != baseEditableAncestor) {
             Position p = nextVisuallyDistinctCandidate(m_start);
-            RefPtr shadowAncestor = startRoot ? startRoot->shadowHost() : nullptr;
+            Node* shadowAncestor = startRoot ? startRoot->shadowHost() : 0;
             if (p.isNull() && shadowAncestor)
-                p = positionBeforeNode(shadowAncestor.get());
-            while (p.isNotNull() && !(lowestEditableAncestor(p.protectedContainerNode().get()) == baseEditableAncestor && !isEditablePosition(p))) {
-                RefPtr root = editableRootForPosition(p);
-                shadowAncestor = root ? root->shadowHost() : nullptr;
-                p = isAtomicNode(p.protectedContainerNode().get()) ? positionInParentAfterNode(p.protectedContainerNode().get()) : nextVisuallyDistinctCandidate(p);
+                p = positionBeforeNode(shadowAncestor);
+            while (p.isNotNull() && !(lowestEditableAncestor(p.containerNode()) == baseEditableAncestor && !isEditablePosition(p))) {
+                Node* root = editableRootForPosition(p);
+                shadowAncestor = root ? root->shadowHost() : 0;
+                p = isAtomicNode(p.containerNode()) ? positionInParentAfterNode(p.containerNode()) : nextVisuallyDistinctCandidate(p);
                 if (p.isNull() && shadowAncestor)
-                    p = positionBeforeNode(shadowAncestor.get());
+                    p = positionBeforeNode(shadowAncestor);
             }
             VisiblePosition next(p);
 
@@ -648,7 +647,7 @@ void VisibleSelection::adjustSelectionToAvoidCrossingEditingBoundaries()
     }
 
     // Correct the focus if necessary.
-    if (baseEditableAncestor != lowestEditableAncestor(m_extent.protectedContainerNode().get())) {
+    if (baseEditableAncestor != lowestEditableAncestor(m_extent.containerNode())) {
         m_extent = m_anchorIsFirst ? m_end : m_start;
         m_focus = m_extent;
     }
@@ -661,7 +660,7 @@ bool VisibleSelection::isContentEditable() const
 
 bool VisibleSelection::hasEditableStyle() const
 {
-    if (RefPtr containerNode = start().containerNode())
+    if (Node* containerNode = start().containerNode())
         return containerNode->hasEditableStyle();
     return false;
 }
@@ -683,13 +682,13 @@ Node* VisibleSelection::nonBoundaryShadowTreeRootNode() const
 
 bool VisibleSelection::isInPasswordField() const
 {
-    RefPtr textControl = dynamicDowncast<HTMLInputElement>(enclosingTextFormControl(start()));
-    return textControl && textControl->isPasswordField();
+    HTMLTextFormControlElement* textControl = enclosingTextFormControl(start());
+    return is<HTMLInputElement>(textControl) && downcast<HTMLInputElement>(*textControl).isPasswordField();
 }
 
 bool VisibleSelection::isInAutoFilledAndViewableField() const
 {
-    if (RefPtr input = dynamicDowncast<HTMLInputElement>(enclosingTextFormControl(start())))
+    if (auto* input = dynamicDowncast<HTMLInputElement>(enclosingTextFormControl(start())))
         return input->isAutoFilledAndViewable();
     return false;
 }
@@ -724,8 +723,8 @@ String VisibleSelection::debugDescription() const
 
 void VisibleSelection::showTreeForThis() const
 {
-    if (RefPtr startAnchorNode = start().anchorNode()) {
-        startAnchorNode->showTreeAndMark(startAnchorNode.get(), "S", end().protectedAnchorNode().get(), "E");
+    if (start().anchorNode()) {
+        start().anchorNode()->showTreeAndMark(start().anchorNode(), "S", end().anchorNode(), "E");
         fputs("start: ", stderr);
         start().showAnchorTypeAndOffset();
         fputs("end: ", stderr);

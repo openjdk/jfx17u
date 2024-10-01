@@ -212,7 +212,7 @@ AccessibilityObject* AccessibilityScrollView::webAreaObject() const
     return nullptr;
 }
 
-AccessibilityObject* AccessibilityScrollView::accessibilityHitTest(const IntPoint& point) const
+AXCoreObject* AccessibilityScrollView::accessibilityHitTest(const IntPoint& point) const
 {
     AccessibilityObject* webArea = webAreaObject();
     if (!webArea)
@@ -235,7 +235,8 @@ LayoutRect AccessibilityScrollView::elementRect() const
 Document* AccessibilityScrollView::document() const
 {
     if (auto* frameView = dynamicDowncast<LocalFrameView>(m_scrollView.get())) {
-        return frameView->frame().document();
+        if (auto* localFrame = dynamicDowncast<LocalFrame>(frameView->frame()))
+            return localFrame->document();
     }
     return AccessibilityObject::document();
 }

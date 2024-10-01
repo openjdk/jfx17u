@@ -31,7 +31,6 @@
 #include "config.h"
 #include "FileReader.h"
 
-#include "ContextDestructionObserverInlines.h"
 #include "DOMException.h"
 #include "EventLoop.h"
 #include "EventNames.h"
@@ -123,7 +122,7 @@ ExceptionOr<void> FileReader::readInternal(Blob& blob, FileReaderLoader::ReadTyp
 {
     // If multiple concurrent read methods are called on the same FileReader, InvalidStateError should be thrown when the state is LOADING.
     if (m_state == LOADING)
-        return Exception { ExceptionCode::InvalidStateError };
+        return Exception { InvalidStateError };
 
     m_blob = &blob;
     m_readType = type;
@@ -146,7 +145,7 @@ void FileReader::abort()
 
     m_pendingTasks.clear();
     stop();
-    m_error = DOMException::create(Exception { ExceptionCode::AbortError });
+    m_error = DOMException::create(Exception { AbortError });
 
     Ref protectedThis { *this };
     fireEvent(eventNames().abortEvent);
@@ -164,7 +163,7 @@ void FileReader::didReceiveData()
 {
     enqueueTask([this] {
         auto now = MonotonicTime::now();
-        if (m_lastProgressNotificationTime.isNaN()) {
+        if (std::isnan(m_lastProgressNotificationTime)) {
             m_lastProgressNotificationTime = now;
             return;
         }

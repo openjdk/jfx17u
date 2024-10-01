@@ -45,19 +45,64 @@ String toString(TokenType type)
         return "IntegerLiteralUnsigned"_s;
     case TokenType::FloatLiteral:
         return "FloatLiteral"_s;
-    case TokenType::HalfLiteral:
-        return "HalfLiteral"_s;
     case TokenType::Identifier:
         return "Identifier"_s;
     case TokenType::ReservedWord:
         return "ReservedWord"_s;
-
-#define KEYWORD_TO_STRING(lexeme, name) \
-    case TokenType::Keyword##name: \
-        return #lexeme##_s;
-FOREACH_KEYWORD(KEYWORD_TO_STRING)
-#undef KEYWORD_TO_STRING
-
+    case TokenType::KeywordArray:
+        return "array"_s;
+    case TokenType::KeywordConst:
+        return "const"_s;
+    case TokenType::KeywordElse:
+        return "else"_s;
+    case TokenType::KeywordStruct:
+        return "struct"_s;
+    case TokenType::KeywordFn:
+        return "fn"_s;
+    case TokenType::KeywordFor:
+        return "for"_s;
+    case TokenType::KeywordFunction:
+        return "function"_s;
+    case TokenType::KeywordIf:
+        return "if"_s;
+    case TokenType::KeywordLet:
+        return "let"_s;
+    case TokenType::KeywordOverride:
+        return "override"_s;
+    case TokenType::KeywordPrivate:
+        return "private"_s;
+    case TokenType::KeywordRead:
+        return "read"_s;
+    case TokenType::KeywordReadWrite:
+        return "read_write"_s;
+    case TokenType::KeywordReturn:
+        return "return"_s;
+    case TokenType::KeywordStorage:
+        return "storage"_s;
+    case TokenType::KeywordUniform:
+        return "uniform"_s;
+    case TokenType::KeywordVar:
+        return "var"_s;
+    case TokenType::KeywordWorkgroup:
+        return "workgroup"_s;
+    case TokenType::KeywordWrite:
+        return "write"_s;
+    case TokenType::KeywordI32:
+        return "i32"_s;
+    case TokenType::KeywordU32:
+        return "u32"_s;
+    case TokenType::KeywordF32:
+        return "f32"_s;
+    case TokenType::KeywordBool:
+        return "bool"_s;
+    case TokenType::KeywordBreak:
+        return "break"_s;
+    case TokenType::KeywordContinue:
+        return "continue"_s;
+    case TokenType::LiteralTrue:
+        return "true"_s;
+    case TokenType::LiteralFalse:
+        return "false"_s;
     case TokenType::And:
         return "&"_s;
     case TokenType::AndAnd:
@@ -88,7 +133,6 @@ FOREACH_KEYWORD(KEYWORD_TO_STRING)
         return "="_s;
     case TokenType::EqEq:
         return "=="_s;
-    case TokenType::TemplateArgsRight:
     case TokenType::Gt:
         return ">"_s;
     case TokenType::GtEq:
@@ -97,7 +141,6 @@ FOREACH_KEYWORD(KEYWORD_TO_STRING)
         return ">>"_s;
     case TokenType::GtGtEq:
         return ">>="_s;
-    case TokenType::TemplateArgsLeft:
     case TokenType::Lt:
         return "<"_s;
     case TokenType::LtEq:
@@ -152,8 +195,6 @@ FOREACH_KEYWORD(KEYWORD_TO_STRING)
         return "^"_s;
     case TokenType::XorEq:
         return "^="_s;
-    case TokenType::Placeholder:
-        return "<placeholder>"_s;
     }
 }
 

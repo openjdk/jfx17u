@@ -74,12 +74,14 @@ private:
     RefPtr<StorageManager> m_storageManager;
     RefPtr<WebLockManager> m_webLockManager;
 
+#if ENABLE(SERVICE_WORKER)
 public:
     ServiceWorkerContainer& serviceWorker();
     ExceptionOr<ServiceWorkerContainer&> serviceWorker(ScriptExecutionContext&);
 
 private:
     std::unique_ptr<ServiceWorkerContainer> m_serviceWorkerContainer;
+#endif
 };
 
 WebCoreOpaqueRoot root(NavigatorBase*);

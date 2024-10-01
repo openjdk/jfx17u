@@ -29,7 +29,6 @@
 #include "CSSComputedStyleDeclaration.h"
 #include "CSSPropertyParser.h"
 #include "Document.h"
-#include "DocumentInlines.h"
 #include "Element.h"
 #include "RenderStyleInlines.h"
 #include "StylePropertyShorthand.h"
@@ -89,22 +88,20 @@ Vector<StylePropertyMapReadOnly::StylePropertyMapEntry> ComputedStylePropertyMap
     if (!style)
         return values;
 
-    Ref document = m_element->protectedDocument();
     const auto& inheritedCustomProperties = style->inheritedCustomProperties();
     const auto& nonInheritedCustomProperties = style->nonInheritedCustomProperties();
-    const auto& exposedComputedCSSPropertyIDs = document->exposedComputedCSSPropertyIDs();
+    const auto& exposedComputedCSSPropertyIDs = m_element->document().exposedComputedCSSPropertyIDs();
     values.reserveInitialCapacity(exposedComputedCSSPropertyIDs.size() + inheritedCustomProperties.size() + nonInheritedCustomProperties.size());
 
     ComputedStyleExtractor extractor { m_element.ptr() };
-    values.appendContainerWithMapping(exposedComputedCSSPropertyIDs, [&](auto propertyID) {
+    for (auto propertyID : exposedComputedCSSPropertyIDs) {
         auto value = extractor.propertyValue(propertyID, ComputedStyleExtractor::UpdateLayout::No, ComputedStyleExtractor::PropertyValueType::Computed);
-        return makeKeyValuePair(nameString(propertyID), StylePropertyMapReadOnly::reifyValueToVector(WTFMove(value), propertyID, document));
-    });
+        values.uncheckedAppend(makeKeyValuePair(nameString(propertyID), StylePropertyMapReadOnly::reifyValueToVector(WTFMove(value), propertyID, m_element->document())));
+    }
 
     for (auto* map : { &nonInheritedCustomProperties, &inheritedCustomProperties }) {
         map->forEach([&](auto& it) {
-            values.append(makeKeyValuePair(it.key, StylePropertyMapReadOnly::reifyValueToVector(const_cast<CSSCustomPropertyValue*>(it.value.get()), std::nullopt, document)));
-            return IterationStatus::Continue;
+            values.uncheckedAppend(makeKeyValuePair(it.key, StylePropertyMapReadOnly::reifyValueToVector(const_cast<CSSCustomPropertyValue*>(it.value.get()), std::nullopt, m_element->document())));
         });
     }
 

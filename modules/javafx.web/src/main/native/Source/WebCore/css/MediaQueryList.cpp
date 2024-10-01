@@ -21,14 +21,11 @@
 #include "MediaQueryList.h"
 
 #include "AddEventListenerOptions.h"
-#include "Document.h"
-#include "DocumentInlines.h"
 #include "EventNames.h"
 #include "HTMLFrameOwnerElement.h"
 #include "MediaQueryEvaluator.h"
 #include "MediaQueryListEvent.h"
 #include "MediaQueryParser.h"
-#include "Quirks.h"
 #include <wtf/IsoMallocInlines.h>
 #include <wtf/text/StringBuilder.h>
 

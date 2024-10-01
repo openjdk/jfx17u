@@ -95,10 +95,9 @@ static LocalFrame* targetFrame(LocalFrame& frame, Event* event)
 {
     if (!event)
         return &frame;
-    auto* node = dynamicDowncast<Node>(event->target());
-    if (!node)
+    if (!is<Node>(event->target()))
         return &frame;
-    return node->document().frame();
+    return downcast<Node>(*event->target()).document().frame();
 }
 
 static bool applyCommandToFrame(LocalFrame& frame, EditorCommandSource source, EditAction action, Ref<EditingStyle>&& style)
@@ -218,16 +217,16 @@ static TriState stateTextWritingDirection(LocalFrame& frame, WritingDirection di
 
 static unsigned verticalScrollDistance(LocalFrame& frame)
 {
-    RefPtr focusedElement = frame.document()->focusedElement();
+    Element* focusedElement = frame.document()->focusedElement();
     if (!focusedElement)
         return 0;
-    CheckedPtr renderBox = dynamicDowncast<RenderBox>(focusedElement->renderer());
-    if (!renderBox)
+    auto* renderer = focusedElement->renderer();
+    if (!is<RenderBox>(renderer))
         return 0;
-    const RenderStyle& style = renderBox->style();
+    const RenderStyle& style = renderer->style();
     if (!(style.overflowY() == Overflow::Scroll || style.overflowY() == Overflow::Auto || focusedElement->hasEditableStyle()))
         return 0;
-    int height = std::min<int>(renderBox->clientHeight(), frame.view()->visibleHeight());
+    int height = std::min<int>(downcast<RenderBox>(*renderer).clientHeight(), frame.view()->visibleHeight());
     return static_cast<unsigned>(Scrollbar::pageStep(height));
 }
 
@@ -504,7 +503,7 @@ static bool executeInsertLineBreak(LocalFrame& frame, Event* event, EditorComman
 
 static bool executeInsertNewline(LocalFrame& frame, Event* event, EditorCommandSource, const String&)
 {
-    RefPtr targetFrame = WebCore::targetFrame(frame, event);
+    LocalFrame* targetFrame = WebCore::targetFrame(frame, event);
     return targetFrame->eventHandler().handleTextInputEvent("\n"_s, event, targetFrame->editor().canEditRichly() ? TextEventInputKeyboard : TextEventInputLineBreak);
 }
 
@@ -1037,12 +1036,12 @@ static bool executeScrollPageForward(LocalFrame& frame, Event*, EditorCommandSou
 
 static bool executeScrollLineUp(LocalFrame& frame, Event*, EditorCommandSource, const String&)
 {
-    return frame.eventHandler().scrollRecursively(ScrollDirection::ScrollUp, ScrollGranularity::Line);
+    return frame.eventHandler().scrollRecursively(ScrollUp, ScrollGranularity::Line);
 }
 
 static bool executeScrollLineDown(LocalFrame& frame, Event*, EditorCommandSource, const String&)
 {
-    return frame.eventHandler().scrollRecursively(ScrollDirection::ScrollDown, ScrollGranularity::Line);
+    return frame.eventHandler().scrollRecursively(ScrollDown, ScrollGranularity::Line);
 }
 
 static bool executeScrollToBeginningOfDocument(LocalFrame& frame, Event*, EditorCommandSource, const String&)
@@ -1617,7 +1616,7 @@ static String valueFormatBlock(LocalFrame& frame, Event*)
     const VisibleSelection& selection = frame.selection().selection();
     if (selection.isNoneOrOrphaned() || !selection.isContentEditable())
         return emptyString();
-    RefPtr formatBlockElement = FormatBlockCommand::elementForFormatBlockCommand(selection.firstRange());
+    auto* formatBlockElement = FormatBlockCommand::elementForFormatBlockCommand(selection.firstRange());
     if (!formatBlockElement)
         return emptyString();
     return formatBlockElement->localName();

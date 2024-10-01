@@ -31,7 +31,7 @@
 #include "config.h"
 #include "ActiveDOMCallback.h"
 
-#include "ContextDestructionObserverInlines.h"
+#include "ScriptExecutionContext.h"
 
 namespace WebCore {
 
@@ -44,19 +44,19 @@ ActiveDOMCallback::~ActiveDOMCallback() = default;
 
 bool ActiveDOMCallback::canInvokeCallback() const
 {
-    RefPtr context = scriptExecutionContext();
+    ScriptExecutionContext* context = scriptExecutionContext();
     return context && !context->activeDOMObjectsAreSuspended() && !context->activeDOMObjectsAreStopped();
 }
 
 bool ActiveDOMCallback::activeDOMObjectsAreSuspended() const
 {
-    RefPtr context = scriptExecutionContext();
+    auto* context = scriptExecutionContext();
     return context && context->activeDOMObjectsAreSuspended();
 }
 
 bool ActiveDOMCallback::activeDOMObjectAreStopped() const
 {
-    RefPtr context = scriptExecutionContext();
+    auto* context = scriptExecutionContext();
     return !context || context->activeDOMObjectsAreStopped();
 }
 

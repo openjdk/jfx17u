@@ -27,7 +27,6 @@
 #include "CSSFontSelector.h"
 #include "CSSValueKeywords.h"
 #include "Chrome.h"
-#include "DocumentInlines.h"
 #include "ElementInlines.h"
 #include "Font.h"
 #include "FrameSelection.h"
@@ -57,12 +56,11 @@ using namespace HTMLNames;
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderSearchField);
 
 RenderSearchField::RenderSearchField(HTMLInputElement& element, RenderStyle&& style)
-    : RenderTextControlSingleLine(Type::SearchField, element, WTFMove(style))
+    : RenderTextControlSingleLine(element, WTFMove(style))
     , m_searchPopupIsVisible(false)
     , m_searchPopup(nullptr)
 {
     ASSERT(element.isSearchField());
-    ASSERT(isRenderSearchField());
 }
 
 RenderSearchField::~RenderSearchField()

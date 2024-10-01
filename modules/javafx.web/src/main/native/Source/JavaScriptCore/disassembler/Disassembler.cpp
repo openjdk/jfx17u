@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2012-2022 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,7 +33,6 @@
 #include <wtf/Deque.h>
 #include <wtf/Lock.h>
 #include <wtf/NeverDestroyed.h>
-#include <wtf/TZoneMallocInlines.h>
 #include <wtf/Threading.h>
 
 namespace JSC {
@@ -70,7 +69,7 @@ namespace {
 // expect.
 class DisassemblyTask {
     WTF_MAKE_NONCOPYABLE(DisassemblyTask);
-    WTF_MAKE_TZONE_ALLOCATED(DisassemblyTask);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     DisassemblyTask()
     {
@@ -138,8 +137,6 @@ private:
 };
 
 bool hadAnyAsynchronousDisassembly = false;
-
-WTF_MAKE_TZONE_ALLOCATED_IMPL(DisassemblyTask);
 
 AsynchronousDisassembler& asynchronousDisassembler()
 {

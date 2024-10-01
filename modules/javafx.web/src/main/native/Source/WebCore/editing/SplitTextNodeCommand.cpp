@@ -28,7 +28,6 @@
 
 #include "CompositeEditCommand.h"
 #include "Document.h"
-#include "DocumentInlines.h"
 #include "DocumentMarkerController.h"
 #include "Text.h"
 #include <wtf/Assertions.h>
@@ -51,11 +50,11 @@ SplitTextNodeCommand::SplitTextNodeCommand(Ref<Text>&& text, int offset)
 
 void SplitTextNodeCommand::doApply()
 {
-    RefPtr parent = m_text2->parentNode();
+    ContainerNode* parent = m_text2->parentNode();
     if (!parent || !parent->hasEditableStyle())
         return;
 
-    auto result = protectedText2()->substringData(0, m_offset);
+    auto result = m_text2->substringData(0, m_offset);
     if (result.hasException())
         return;
     auto prefixText = result.releaseReturnValue();
@@ -64,28 +63,24 @@ void SplitTextNodeCommand::doApply()
 
     m_text1 = Text::create(document(), WTFMove(prefixText));
     ASSERT(m_text1);
-    if (CheckedPtr markers = document().markersIfExists())
-        markers->copyMarkers(protectedText2(), { 0, m_offset }, *protectedText1());
+    document().markers().copyMarkers(m_text2, { 0, m_offset }, *m_text1);
 
     insertText1AndTrimText2();
 }
 
 void SplitTextNodeCommand::doUnapply()
 {
-    RefPtr text1 = m_text1;
-    if (!text1 || !text1->hasEditableStyle())
+    if (!m_text1 || !m_text1->hasEditableStyle())
         return;
 
-    ASSERT(&text1->document() == &document());
+    ASSERT(&m_text1->document() == &document());
 
-    String prefixText = text1->data();
+    String prefixText = m_text1->data();
 
-    Ref text2 = m_text2;
-    text2->insertData(0, prefixText);
+    m_text2->insertData(0, prefixText);
 
-    if (CheckedPtr markers = document().markersIfExists())
-        markers->copyMarkers(*text1, { 0, prefixText.length() }, text2);
-    text1->remove();
+    document().markers().copyMarkers(*m_text1, { 0, prefixText.length() }, m_text2);
+    m_text1->remove();
 }
 
 void SplitTextNodeCommand::doReapply()
@@ -93,7 +88,7 @@ void SplitTextNodeCommand::doReapply()
     if (!m_text1)
         return;
 
-    RefPtr parent = m_text2->parentNode();
+    ContainerNode* parent = m_text2->parentNode();
     if (!parent || !parent->hasEditableStyle())
         return;
 
@@ -102,18 +97,17 @@ void SplitTextNodeCommand::doReapply()
 
 void SplitTextNodeCommand::insertText1AndTrimText2()
 {
-    Ref text2 = m_text2;
-    if (text2->parentNode()->insertBefore(*m_text1, text2.copyRef()).hasException())
+    if (m_text2->parentNode()->insertBefore(*m_text1, m_text2.ptr()).hasException())
         return;
-    text2->deleteData(0, m_offset);
+    m_text2->deleteData(0, m_offset);
 }
 
 #ifndef NDEBUG
 
 void SplitTextNodeCommand::getNodesInCommand(HashSet<Ref<Node>>& nodes)
 {
-    addNodeAndDescendants(protectedText1().get(), nodes);
-    addNodeAndDescendants(protectedText2().ptr(), nodes);
+    addNodeAndDescendants(m_text1.get(), nodes);
+    addNodeAndDescendants(m_text2.ptr(), nodes);
 }
 
 #endif

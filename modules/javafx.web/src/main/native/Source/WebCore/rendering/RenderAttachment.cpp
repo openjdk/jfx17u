@@ -32,7 +32,7 @@
 #include "FloatRoundedRect.h"
 #include "FrameSelection.h"
 #include "HTMLAttachmentElement.h"
-#include "RenderBoxInlines.h"
+#include "RenderBoxModelObjectInlines.h"
 #include "RenderChildIterator.h"
 #include "RenderStyleSetters.h"
 #include "RenderTheme.h"
@@ -46,10 +46,9 @@ using namespace HTMLNames;
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderAttachment);
 
 RenderAttachment::RenderAttachment(HTMLAttachmentElement& element, RenderStyle&& style)
-    : RenderReplaced(Type::Attachment, element, WTFMove(style), LayoutSize())
+    : RenderReplaced(element, WTFMove(style), LayoutSize())
     , m_isWideLayout(element.isWideLayout())
 {
-    ASSERT(isRenderAttachment());
 #if ENABLE(SERVICE_CONTROLS)
     m_hasShadowControls = element.isImageMenuEnabled();
 #endif
@@ -127,7 +126,8 @@ void RenderAttachment::paintReplaced(PaintInfo& paintInfo, const LayoutPoint& of
     auto paintRect = borderBoxRect();
     paintRect.moveBy(offset);
 
-    theme().paint(*this, paintInfo, paintRect);
+    ControlStates controlStates;
+    theme().paint(*this, controlStates, paintInfo, paintRect);
 }
 
 void RenderAttachment::layoutShadowContent(const LayoutSize& size)

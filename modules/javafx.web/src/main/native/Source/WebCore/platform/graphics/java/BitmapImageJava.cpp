@@ -38,6 +38,10 @@
 
 namespace WebCore {
 
+void BitmapImage::invalidatePlatformData()
+{
+}
+
 Ref<Image> BitmapImage::createFromName(const char* name)
 {
     Ref<BitmapImage> img(create());

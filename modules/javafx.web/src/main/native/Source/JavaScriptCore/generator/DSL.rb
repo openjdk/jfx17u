@@ -213,7 +213,6 @@ module DSL
 #pragma once
 
 #include "ArithProfile.h"
-#include "ArrayAllocationProfile.h"
 #include "BytecodeDumper.h"
 #include "Fits.h"
 #include "GetByIdMetadata.h"

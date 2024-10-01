@@ -28,21 +28,19 @@
 namespace WebCore {
 namespace Style {
 
-enum class Validity : uint8_t {
+enum class Validity {
     Valid,
-    AnimationInvalid,
     ElementInvalid,
     SubtreeInvalid,
+    SubtreeAndRenderersInvalid
 };
 
-enum class InvalidationMode : uint8_t {
+enum class InvalidationMode {
     Normal,
-    RecompositeLayer,
-    RebuildRenderer,
-    InsertedIntoAncestor
+    RecompositeLayer
 };
 
-enum class InvalidationScope : uint8_t {
+enum class InvalidationScope {
     All,
     SelfChildrenAndSiblings,
     Descendants

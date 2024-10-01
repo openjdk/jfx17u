@@ -83,7 +83,7 @@ auto AutosizeStatus::computeStatus(const RenderStyle& style) -> AutosizeStatus
         if (lineHeight.isFixed() && lineHeight.value() - style.specifiedFontSize() > maximumDifferenceBetweenFixedLineHeightAndFontSize)
             return false;
 
-        if (style.whiteSpaceCollapse() == WhiteSpaceCollapse::Collapse && style.textWrapMode() == TextWrapMode::NoWrap)
+        if (style.whiteSpace() == WhiteSpace::NoWrap)
             return false;
 
         return probablyContainsASmallFixedNumberOfLines(style);

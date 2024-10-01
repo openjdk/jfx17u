@@ -91,17 +91,15 @@ static inline void updateLogicalHeightForCell(RenderTableSection::RowStruct& row
 }
 
 RenderTableSection::RenderTableSection(Element& element, RenderStyle&& style)
-    : RenderBox(Type::TableSection, element, WTFMove(style))
+    : RenderBox(element, WTFMove(style), 0)
 {
     setInline(false);
-    ASSERT(isRenderTableSection());
 }
 
 RenderTableSection::RenderTableSection(Document& document, RenderStyle&& style)
-    : RenderBox(Type::TableSection, document, WTFMove(style))
+    : RenderBox(document, WTFMove(style), 0)
 {
     setInline(false);
-    ASSERT(isRenderTableSection());
 }
 
 RenderTableSection::~RenderTableSection() = default;
@@ -113,7 +111,7 @@ void RenderTableSection::styleDidChange(StyleDifference diff, const RenderStyle*
 
     // If border was changed, notify table.
     RenderTable* table = this->table();
-    if (table && oldStyle && !oldStyle->borderIsEquivalentForPainting(style()))
+    if (table && oldStyle && oldStyle->border() != style().border())
         table->invalidateCollapsedBorders();
 }
 
@@ -506,19 +504,18 @@ void RenderTableSection::relayoutCellIfFlexed(RenderTableCell& cell, int rowInde
     bool flexAllChildren = cell.style().logicalHeight().isFixed() || (!table()->style().logicalHeight().isAuto() && rowHeight != cell.logicalHeight());
 
     for (auto& renderer : childrenOfType<RenderBox>(cell)) {
-        if (renderer.style().logicalHeight().isPercentOrCalculated() && (flexAllChildren || shouldFlexCellChild(cell, renderer))) {
-            auto* renderTable = dynamicDowncast<RenderTable>(renderer);
-            if (!renderTable || renderTable->hasSections()) {
+        if (renderer.style().logicalHeight().isPercentOrCalculated()
+            && (flexAllChildren || shouldFlexCellChild(cell, renderer))
+            && (!is<RenderTable>(renderer) || downcast<RenderTable>(renderer).hasSections())) {
             cellChildrenFlex = true;
             break;
         }
     }
-    }
 
     if (!cellChildrenFlex) {
         if (TrackedRendererListHashSet* percentHeightDescendants = cell.percentHeightDescendants()) {
-            for (auto& descendant : *percentHeightDescendants) {
-                if (flexAllChildren || shouldFlexCellChild(cell, descendant)) {
+            for (auto* descendant : *percentHeightDescendants) {
+                if (flexAllChildren || shouldFlexCellChild(cell, *descendant)) {
                     cellChildrenFlex = true;
                     break;
                 }
@@ -669,13 +666,13 @@ void RenderTableSection::computeOverflowFromCells(unsigned totalRows, unsigned n
                 continue;
             if (r < totalRows - 1 && cell == primaryCellAt(r + 1, c))
                 continue;
-            addOverflowFromChild(*cell);
+            addOverflowFromChild(cell);
 #if ASSERT_ENABLED
             hasOverflowingCell |= cell->hasVisualOverflow();
 #endif
             if (cell->hasVisualOverflow() && !m_forceSlowPaintPathWithOverflowingCell) {
-                m_overflowingCells.add(*cell);
-                if (m_overflowingCells.computeSize() > maxAllowedOverflowingCellsCount) {
+                m_overflowingCells.add(cell);
+                if (m_overflowingCells.size() > maxAllowedOverflowingCellsCount) {
                     // We need to set m_forcesSlowPaintPath only if there is a least one overflowing cells as the hit testing code rely on this information.
                     m_forceSlowPaintPathWithOverflowingCell = true;
                     // The slow path does not make any use of the overflowing cells info, don't hold on to the memory.
@@ -947,14 +944,14 @@ void RenderTableSection::paint(PaintInfo& paintInfo, const LayoutPoint& paintOff
         paintOutline(paintInfo, LayoutRect(adjustedPaintOffset, size()));
 }
 
-static inline bool compareCellPositions(const SingleThreadWeakPtr<RenderTableCell>& elem1, const SingleThreadWeakPtr<RenderTableCell>& elem2)
+static inline bool compareCellPositions(RenderTableCell* elem1, RenderTableCell* elem2)
 {
     return elem1->rowIndex() < elem2->rowIndex();
 }
 
 // This comparison is used only when we have overflowing cells as we have an unsorted array to sort. We thus need
 // to sort both on rows and columns to properly repaint.
-static inline bool compareCellPositionsWithOverflowingCells(const SingleThreadWeakPtr<RenderTableCell>& elem1, const SingleThreadWeakPtr<RenderTableCell>& elem2)
+static inline bool compareCellPositionsWithOverflowingCells(RenderTableCell* elem1, RenderTableCell* elem2)
 {
     if (elem1->rowIndex() != elem2->rowIndex())
         return elem1->rowIndex() < elem2->rowIndex();
@@ -1226,7 +1223,7 @@ void RenderTableSection::paintObject(PaintInfo& paintInfo, const LayoutPoint& pa
     CellSpan dirtiedColumns = this->dirtiedColumns(tableAlignedRect);
 
     if (dirtiedColumns.start < dirtiedColumns.end) {
-        if (!m_hasMultipleCellLevels && m_overflowingCells.isEmptyIgnoringNullReferences()) {
+        if (!m_hasMultipleCellLevels && !m_overflowingCells.size()) {
             if (paintInfo.phase == PaintPhase::CollapsedTableBorders) {
                 // Collapsed borders are painted from the bottom right to the top left so that precedence
                 // due to cell position is respected. We need to paint one row beyond the topmost dirtied
@@ -1284,13 +1281,13 @@ void RenderTableSection::paintObject(PaintInfo& paintInfo, const LayoutPoint& pa
 #if ASSERT_ENABLED
             unsigned totalRows = m_grid.size();
             unsigned totalCols = table()->columns().size();
-            ASSERT(m_overflowingCells.computeSize() < totalRows * totalCols * gMaxAllowedOverflowingCellRatioForFastPaintPath);
+            ASSERT(m_overflowingCells.size() < totalRows * totalCols * gMaxAllowedOverflowingCellRatioForFastPaintPath);
 #endif
 
             // To make sure we properly repaint the section, we repaint all the overflowing cells that we collected.
             auto cells = copyToVector(m_overflowingCells);
 
-            HashSet<CheckedPtr<RenderTableCell>> spanningCells;
+            HashSet<RenderTableCell*> spanningCells;
 
             for (unsigned r = dirtiedRows.start; r < dirtiedRows.end; r++) {
                 RenderTableRow* row = m_grid[r].rowRenderer;
@@ -1301,7 +1298,7 @@ void RenderTableSection::paintObject(PaintInfo& paintInfo, const LayoutPoint& pa
                     if (!current.hasCells())
                         continue;
                     for (unsigned i = 0; i < current.cells.size(); ++i) {
-                        if (m_overflowingCells.contains(*current.cells[i]))
+                        if (m_overflowingCells.contains(current.cells[i]))
                             continue;
 
                         if (current.cells[i]->rowSpan() > 1 || current.cells[i]->colSpan() > 1) {
@@ -1315,7 +1312,7 @@ void RenderTableSection::paintObject(PaintInfo& paintInfo, const LayoutPoint& pa
             }
 
             // Sort the dirty cells by paint order.
-            if (m_overflowingCells.isEmptyIgnoringNullReferences())
+            if (!m_overflowingCells.size())
                 std::stable_sort(cells.begin(), cells.end(), compareCellPositions);
             else
                 std::sort(cells.begin(), cells.end(), compareCellPositionsWithOverflowingCells);
@@ -1327,7 +1324,7 @@ void RenderTableSection::paintObject(PaintInfo& paintInfo, const LayoutPoint& pa
                 }
             } else {
                 for (unsigned i = 0; i < cells.size(); ++i)
-                    paintCell(cells[i].get(), paintInfo, paintOffset);
+                    paintCell(cells[i], paintInfo, paintOffset);
             }
         }
     }
@@ -1375,7 +1372,7 @@ void RenderTableSection::removeRedundantColumns()
     for (auto& rowItem : m_grid) {
         if (rowItem.row.size() <= maximumNumberOfColumns)
             continue;
-        rowItem.row.shrink(maximumNumberOfColumns);
+        rowItem.row.resize(maximumNumberOfColumns);
     }
 }
 

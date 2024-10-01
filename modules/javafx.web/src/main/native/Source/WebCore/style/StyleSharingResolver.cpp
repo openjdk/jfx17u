@@ -72,60 +72,57 @@ static inline bool parentElementPreventsSharing(const Element& parentElement)
 
 static inline bool elementHasDirectionAuto(const Element& element)
 {
-    auto* htmlElement = dynamicDowncast<HTMLElement>(element);
-    return htmlElement && htmlElement->hasDirectionAuto();
+    return is<HTMLElement>(element) && downcast<HTMLElement>(element).hasDirectionAuto();
 }
 
 std::unique_ptr<RenderStyle> SharingResolver::resolve(const Styleable& searchStyleable, const Update& update)
 {
-    auto* element = dynamicDowncast<StyledElement>(searchStyleable.element);
-    if (!element)
+    if (!is<StyledElement>(searchStyleable.element))
         return nullptr;
-    if (!element->parentElement())
+    auto& element = downcast<StyledElement>(searchStyleable.element);
+    if (!element.parentElement())
         return nullptr;
-    auto& parentElement = *element->parentElement();
+    auto& parentElement = *element.parentElement();
     if (parentElement.shadowRoot())
         return nullptr;
     if (!update.elementStyle(parentElement))
         return nullptr;
     // If the element has inline style it is probably unique.
-    if (element->inlineStyle())
+    if (element.inlineStyle())
         return nullptr;
-    if (auto* svgElement = dynamicDowncast<SVGElement>(*element); svgElement && svgElement->animatedSMILStyleProperties())
+    if (element.isSVGElement() && downcast<SVGElement>(element).animatedSMILStyleProperties())
         return nullptr;
     // Ids stop style sharing if they show up in the stylesheets.
-    auto& id = element->idForStyleResolution();
+    auto& id = element.idForStyleResolution();
     if (!id.isNull() && m_ruleSets.features().idsInRules.contains(id))
         return nullptr;
     if (parentElementPreventsSharing(parentElement))
         return nullptr;
-    if (element == m_document.cssTarget())
+    if (&element == m_document.cssTarget())
         return nullptr;
-    if (elementHasDirectionAuto(*element))
+    if (elementHasDirectionAuto(element))
         return nullptr;
-    if (element->shadowRoot() && element->shadowRoot()->styleScope().resolver().ruleSets().hasMatchingUserOrAuthorStyle([] (auto& style) { return !style.hostPseudoClassRules().isEmpty(); }))
+    if (element.shadowRoot() && element.shadowRoot()->styleScope().resolver().ruleSets().hasMatchingUserOrAuthorStyle([] (auto& style) { return !style.hostPseudoClassRules().isEmpty(); }))
         return nullptr;
     if (auto* keyframeEffectStack = searchStyleable.keyframeEffectStack()) {
         if (keyframeEffectStack->hasEffectWithImplicitKeyframes())
             return nullptr;
     }
     // FIXME: Do something smarter here, for example RuleSet based matching like with attribute/sibling selectors.
-    if (Scope::forNode(*element).usesHasPseudoClass())
-        return nullptr;
-    if (m_ruleSets.hasScopeRules())
+    if (Scope::forNode(element).usesHasPseudoClass())
         return nullptr;
 
     Context context {
         update,
-        *element,
-        element->hasClass() && classNamesAffectedByRules(element->classNames()),
-        m_document.visitedLinkState().determineLinkState(*element)
+        element,
+        element.hasClass() && classNamesAffectedByRules(element.classNames()),
+        m_document.visitedLinkState().determineLinkState(element)
     };
 
     // Check previous siblings and their cousins.
     unsigned count = 0;
     StyledElement* shareElement = nullptr;
-    Node* cousinList = element->previousSibling();
+    Node* cousinList = element.previousSibling();
     while (cousinList) {
         shareElement = findSibling(context, cousinList, count);
         if (shareElement)
@@ -140,16 +137,16 @@ std::unique_ptr<RenderStyle> SharingResolver::resolve(const Styleable& searchSty
         return nullptr;
 
     // Can't share if sibling rules apply. This is checked at the end as it should rarely fail.
-    if (styleSharingCandidateMatchesRuleSet(*element, m_ruleSets.sibling()))
+    if (styleSharingCandidateMatchesRuleSet(element, m_ruleSets.sibling()))
         return nullptr;
     // Can't share if attribute rules apply.
-    if (styleSharingCandidateMatchesRuleSet(*element, m_ruleSets.uncommonAttribute()))
+    if (styleSharingCandidateMatchesRuleSet(element, m_ruleSets.uncommonAttribute()))
         return nullptr;
     // Tracking child index requires unique style for each node. This may get set by the sibling rule match above.
     if (parentElementPreventsSharing(parentElement))
         return nullptr;
 
-    m_elementsSharingStyle.add(element, shareElement);
+    m_elementsSharingStyle.add(&element, shareElement);
 
     return RenderStyle::clonePtr(*update.elementStyle(*shareElement));
 }
@@ -157,15 +154,14 @@ std::unique_ptr<RenderStyle> SharingResolver::resolve(const Styleable& searchSty
 StyledElement* SharingResolver::findSibling(const Context& context, Node* node, unsigned& count) const
 {
     for (; node; node = node->previousSibling()) {
-        auto* styledElement = dynamicDowncast<StyledElement>(*node);
-        if (!styledElement)
+        if (!is<StyledElement>(*node))
             continue;
-        if (canShareStyleWithElement(context, *styledElement))
-            return styledElement;
+        if (canShareStyleWithElement(context, downcast<StyledElement>(*node)))
+            break;
         if (count++ >= cStyleSearchThreshold)
             return nullptr;
     }
-    return nullptr;
+    return downcast<StyledElement>(node);
 }
 
 Node* SharingResolver::locateCousinList(const Element* parent) const
@@ -200,7 +196,7 @@ bool SharingResolver::canShareStyleWithElement(const Context& context, const Sty
         return false;
     if (candidateElement.needsStyleRecalc())
         return false;
-    if (auto* svgElement = dynamicDowncast<SVGElement>(candidateElement); svgElement && svgElement->animatedSMILStyleProperties())
+    if (candidateElement.isSVGElement() && downcast<SVGElement>(candidateElement).animatedSMILStyleProperties())
         return false;
     if (candidateElement.isLink() != element.isLink())
         return false;
@@ -216,7 +212,7 @@ bool SharingResolver::canShareStyleWithElement(const Context& context, const Sty
         return false;
     if (candidateElement.isBeingDragged() != element.isBeingDragged())
         return false;
-    if (element.isInUserAgentShadowTree() && (candidateElement.userAgentPart() != element.userAgentPart()))
+    if (candidateElement.shadowPseudoId() != element.shadowPseudoId())
         return false;
     if (element.isInShadowTree() && candidateElement.partNames() != element.partNames())
         return false;
@@ -284,7 +280,7 @@ bool SharingResolver::canShareStyleWithElement(const Context& context, const Sty
         }
 
         // Elements that may get StyleAdjuster's inert attribute adjustment.
-        if (candidateElement.hasAttributeWithoutSynchronization(HTMLNames::inertAttr) != element.hasAttributeWithoutSynchronization(HTMLNames::inertAttr))
+        if (m_document.settings().inertAttributeEnabled() && candidateElement.hasAttributeWithoutSynchronization(HTMLNames::inertAttr) != element.hasAttributeWithoutSynchronization(HTMLNames::inertAttr))
             return false;
     }
 
@@ -300,7 +296,7 @@ bool SharingResolver::canShareStyleWithElement(const Context& context, const Sty
         return false;
 
 #if ENABLE(FULLSCREEN_API)
-    if (CheckedPtr fullscreenManager = m_document.fullscreenManagerIfExists(); fullscreenManager && (&candidateElement == fullscreenManager->currentFullscreenElement() || &element == fullscreenManager->currentFullscreenElement()))
+    if (&candidateElement == m_document.fullscreenManager().currentFullscreenElement() || &element == m_document.fullscreenManager().currentFullscreenElement())
         return false;
 #endif
 

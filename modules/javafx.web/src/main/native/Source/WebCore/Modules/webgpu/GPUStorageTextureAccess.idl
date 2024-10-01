@@ -29,7 +29,5 @@
     EnabledBySetting=WebGPUEnabled
 ]
 enum GPUStorageTextureAccess {
-    "write-only",
-    "read-only",
-    "read-write",
+    "write-only"
 };

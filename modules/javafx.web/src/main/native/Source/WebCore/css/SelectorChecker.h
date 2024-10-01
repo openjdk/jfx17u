@@ -32,7 +32,6 @@
 #include "SelectorMatchingState.h"
 #include "StyleRelations.h"
 #include "StyleScopeOrdinal.h"
-#include "StyleScrollbarState.h"
 
 namespace WebCore {
 
@@ -40,6 +39,16 @@ class CSSSelector;
 class Element;
 class RenderScrollbar;
 class RenderStyle;
+
+struct StyleScrollbarState {
+    ScrollbarPart scrollbarPart { NoPart };
+    ScrollbarPart hoveredPart { NoPart };
+    ScrollbarPart pressedPart { NoPart };
+    ScrollbarOrientation orientation { ScrollbarOrientation::Vertical };
+    ScrollbarButtonsPlacement buttonsPlacement { ScrollbarButtonsNone };
+    bool enabled { false };
+    bool scrollCornerIsVisible { false };
+};
 
 class SelectorChecker {
     WTF_MAKE_NONCOPYABLE(SelectorChecker);
@@ -82,13 +91,11 @@ public:
         { }
 
         const SelectorChecker::Mode resolvingMode;
-        // FIXME: Switch to PseudoElementIdentifier.
         PseudoId pseudoId { PseudoId::None };
-        AtomString pseudoElementNameArgument;
         std::optional<StyleScrollbarState> scrollbarState;
+        AtomString nameForHightlightPseudoElement;
         const ContainerNode* scope { nullptr };
-        const Element* hasScope { nullptr };
-        bool matchesAllHasScopes { false };
+        bool matchesAllScopes { false };
         Style::ScopeOrdinal styleScopeOrdinal { Style::ScopeOrdinal::Element };
         Style::SelectorMatchingState* selectorMatchingState { nullptr };
 
@@ -126,11 +133,12 @@ inline bool SelectorChecker::isCommonPseudoClassSelector(const CSSSelector* sele
 {
     if (selector->match() != CSSSelector::Match::PseudoClass)
         return false;
-    auto pseudoType = selector->pseudoClass();
-    return pseudoType == CSSSelector::PseudoClass::Link
-        || pseudoType == CSSSelector::PseudoClass::AnyLink
-        || pseudoType == CSSSelector::PseudoClass::Visited
-        || pseudoType == CSSSelector::PseudoClass::Focus;
+    CSSSelector::PseudoClassType pseudoType = selector->pseudoClassType();
+    return pseudoType == CSSSelector::PseudoClassType::Link
+        || pseudoType == CSSSelector::PseudoClassType::AnyLink
+        || pseudoType == CSSSelector::PseudoClassType::AnyLinkDeprecated
+        || pseudoType == CSSSelector::PseudoClassType::Visited
+        || pseudoType == CSSSelector::PseudoClassType::Focus;
 }
 
 } // namespace WebCore

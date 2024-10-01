@@ -24,6 +24,7 @@
  */
 
 [
+    Conditional=SERVICE_WORKER,
     EnabledBySetting=ServiceWorkersEnabled&BackgroundFetchAPIEnabled,
     ImplementedBy=ServiceWorkerRegistrationBackgroundFetchAPI
 ] partial interface ServiceWorkerRegistration {

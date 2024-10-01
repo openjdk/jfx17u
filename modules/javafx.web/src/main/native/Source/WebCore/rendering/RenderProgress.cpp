@@ -33,11 +33,10 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderProgress);
 
 RenderProgress::RenderProgress(HTMLElement& element, RenderStyle&& style)
-    : RenderBlockFlow(Type::Progress, element, WTFMove(style))
+    : RenderBlockFlow(element, WTFMove(style))
     , m_position(HTMLProgressElement::InvalidPosition)
     , m_animationTimer(*this, &RenderProgress::animationTimerFired)
 {
-    ASSERT(isRenderProgress());
 }
 
 RenderProgress::~RenderProgress() = default;
@@ -69,9 +68,8 @@ RenderBox::LogicalExtentComputedValues RenderProgress::computeLogicalHeight(Layo
 
 double RenderProgress::animationProgress() const
 {
-    auto duration = theme().animationDurationForProgressBar();
-    ASSERT(duration > 0_s);
-    return m_animating ? (fmod((MonotonicTime::now() - m_animationStartTime).seconds(), duration.seconds()) / duration.seconds()) : 0;
+    ASSERT(m_animationDuration > 0_s);
+    return m_animating ? (fmod((MonotonicTime::now() - m_animationStartTime).seconds(), m_animationDuration.seconds()) / m_animationDuration.seconds()) : 0;
 }
 
 bool RenderProgress::isDeterminate() const
@@ -82,27 +80,27 @@ bool RenderProgress::isDeterminate() const
 
 void RenderProgress::animationTimerFired()
 {
-    // FIXME: Ideally obtaining the repeat interval from Page is not RenderTheme-specific, but it
-    // currently is as it also determines whether we animate at all.
-    auto repeatInterval = theme().animationRepeatIntervalForProgressBar(*this);
+    // FIXME: Progress bar animation should be performed as part of the rendering update
+    // lifecycle, to match the display's refresh rate.
 
     repaint();
     if (!m_animationTimer.isActive() && m_animating)
-        m_animationTimer.startOneShot(repeatInterval);
+        m_animationTimer.startOneShot(m_animationRepeatInterval);
 }
 
 void RenderProgress::updateAnimationState()
 {
-    auto repeatInterval = theme().animationRepeatIntervalForProgressBar(*this);
+    m_animationDuration = theme().animationDurationForProgressBar(*this);
+    m_animationRepeatInterval = theme().animationRepeatIntervalForProgressBar(*this);
 
-    bool animating = style().hasEffectiveAppearance() && repeatInterval > 0_s && !isDeterminate();
+    bool animating = style().hasEffectiveAppearance() && m_animationRepeatInterval > 0_s && !isDeterminate();
     if (animating == m_animating)
         return;
 
     m_animating = animating;
     if (m_animating) {
         m_animationStartTime = MonotonicTime::now();
-        m_animationTimer.startOneShot(repeatInterval);
+        m_animationTimer.startOneShot(m_animationRepeatInterval);
     } else
         m_animationTimer.stop();
 }
@@ -112,8 +110,8 @@ HTMLProgressElement* RenderProgress::progressElement() const
     if (!element())
         return nullptr;
 
-    if (auto* progressElement = dynamicDowncast<HTMLProgressElement>(*element()))
-        return progressElement;
+    if (is<HTMLProgressElement>(*element()))
+        return downcast<HTMLProgressElement>(element());
 
     ASSERT(element()->shadowHost());
     return downcast<HTMLProgressElement>(element()->shadowHost());

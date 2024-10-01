@@ -31,7 +31,6 @@
 namespace WebCore {
 
 class CSSCustomPropertyValue;
-class CSSVariableData;
 
 struct CSSRegisteredCustomProperty {
     WTF_MAKE_STRUCT_FAST_ALLOCATED;
@@ -40,7 +39,6 @@ struct CSSRegisteredCustomProperty {
     CSSCustomPropertySyntax syntax;
     bool inherits;
     RefPtr<const CSSCustomPropertyValue> initialValue;
-    RefPtr<const CSSVariableData> initialValueTokensForViewportUnits;
 
     ~CSSRegisteredCustomProperty();
 };

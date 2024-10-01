@@ -132,10 +132,6 @@ void MonthInputType::handleDOMActivateEvent(Event&)
 {
 }
 
-void MonthInputType::showPicker()
-{
-}
-
 bool MonthInputType::isValidFormat(OptionSet<DateTimeFormatValidationResults> results) const
 {
     return results.containsAll({ DateTimeFormatValidationResults::HasYear, DateTimeFormatValidationResults::HasMonth });

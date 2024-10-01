@@ -39,10 +39,10 @@ class WebGL2RenderingContext;
 
 class WebGLVertexArrayObject final : public WebGLVertexArrayObjectBase {
 public:
-    static RefPtr<WebGLVertexArrayObject> create(WebGLRenderingContextBase&, Type);
+    static Ref<WebGLVertexArrayObject> create(WebGLRenderingContextBase&, Type);
     virtual ~WebGLVertexArrayObject();
 private:
-    WebGLVertexArrayObject(WebGLRenderingContextBase&, PlatformGLObject, Type);
+    WebGLVertexArrayObject(WebGLRenderingContextBase&, Type);
     void deleteObjectImpl(const AbstractLocker&, GraphicsContextGL*, PlatformGLObject) final;
 };
 

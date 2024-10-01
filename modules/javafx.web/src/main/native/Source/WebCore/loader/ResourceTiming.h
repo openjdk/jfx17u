@@ -25,7 +25,6 @@
 
 #pragma once
 
-#include "LoaderMalloc.h"
 #include "NetworkLoadMetrics.h"
 #include "ResourceLoadTiming.h"
 #include "ServerTiming.h"
@@ -40,7 +39,7 @@ class ResourceLoadTiming;
 class SecurityOrigin;
 
 class ResourceTiming {
-    WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Loader);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     static ResourceTiming fromMemoryCache(const URL&, const String& initiator, const ResourceLoadTiming&, const ResourceResponse&, const NetworkLoadMetrics&, const SecurityOrigin&);
     static ResourceTiming fromLoad(CachedResource&, const URL&, const String& initiator, const ResourceLoadTiming&, const NetworkLoadMetrics&, const SecurityOrigin&);

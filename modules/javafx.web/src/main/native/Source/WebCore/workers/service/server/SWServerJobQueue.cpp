@@ -26,6 +26,8 @@
 #include "config.h"
 #include "SWServerJobQueue.h"
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "ExceptionData.h"
 #include "Logging.h"
 #include "SWServer.h"
@@ -74,20 +76,19 @@ void SWServerJobQueue::scriptFetchFinished(const ServiceWorkerJobDataIdentifier&
 
     auto& job = firstJob();
 
-    Ref server = m_server.get();
-    RefPtr registration = server->getRegistration(m_registrationKey);
+    auto* registration = m_server.getRegistration(m_registrationKey);
     if (!registration)
         return;
 
-    RefPtr newestWorker = registration->getNewestWorker();
+    auto* newestWorker = registration->getNewestWorker();
 
     if (!result.error.isNull()) {
         // Invoke Reject Job Promise with job and TypeError.
-        server->rejectJob(job, ExceptionData { ExceptionCode::TypeError, makeString("Script URL ", job.scriptURL.string(), " fetch resulted in error: ", result.error.localizedDescription()) });
+        m_server.rejectJob(job, ExceptionData { TypeError, makeString("Script URL ", job.scriptURL.string(), " fetch resulted in error: ", result.error.localizedDescription()) });
 
         // If newestWorker is null, invoke Clear Registration algorithm passing registration as its argument.
         if (!newestWorker)
-            registration->clear(); // Will destroy the registration.
+            registration->clear();
 
         // Invoke Finish Job with job and abort these steps.
         finishCurrentJob();
@@ -104,7 +105,7 @@ void SWServerJobQueue::scriptFetchFinished(const ServiceWorkerJobDataIdentifier&
         auto scriptURLs = newestWorker->importedScriptURLs();
         if (!scriptURLs.isEmpty()) {
             m_workerFetchResult = WTFMove(result);
-            protectedServer()->refreshImportedScripts(job, *registration, scriptURLs, requestingProcessIdentifier);
+            m_server.refreshImportedScripts(job, *registration, scriptURLs, requestingProcessIdentifier);
             return;
         }
 
@@ -115,7 +116,7 @@ void SWServerJobQueue::scriptFetchFinished(const ServiceWorkerJobDataIdentifier&
         return;
     }
 
-    protectedServer()->updateWorker(job.identifier(), requestingProcessIdentifier, *registration, job.scriptURL, result.script, result.certificateInfo, result.contentSecurityPolicy, result.crossOriginEmbedderPolicy, result.referrerPolicy, job.workerType, { }, job.serviceWorkerPageIdentifier());
+    m_server.updateWorker(job.identifier(), requestingProcessIdentifier, *registration, job.scriptURL, result.script, result.certificateInfo, result.contentSecurityPolicy, result.crossOriginEmbedderPolicy, result.referrerPolicy, job.workerType, { }, job.serviceWorkerPageIdentifier());
 }
 
 void SWServerJobQueue::importedScriptsFetchFinished(const ServiceWorkerJobDataIdentifier& jobDataIdentifier, const Vector<std::pair<URL, ScriptBuffer>>& importedScripts, const std::optional<ProcessIdentifier>& requestingProcessIdentifier)
@@ -125,24 +126,24 @@ void SWServerJobQueue::importedScriptsFetchFinished(const ServiceWorkerJobDataId
 
     auto& job = firstJob();
 
-    RefPtr registration = protectedServer()->getRegistration(m_registrationKey);
+    auto* registration = m_server.getRegistration(m_registrationKey);
     if (!registration)
         return;
 
-    RefPtr newestWorker = registration->getNewestWorker();
+    auto* newestWorker = registration->getNewestWorker();
     if (newestWorker && newestWorker->matchingImportedScripts(importedScripts)) {
         RELEASE_LOG(ServiceWorker, "%p - SWServerJobQueue::importedScriptsFetchFinished, script, certificate and imported scripts are matching for registrationID=%llu", this, registration->identifier().toUInt64());
         scriptAndImportedScriptsFetchFinished(job, *registration);
         return;
     }
 
-    protectedServer()->updateWorker(job.identifier(), requestingProcessIdentifier, *registration, job.scriptURL, m_workerFetchResult.script, m_workerFetchResult.certificateInfo, m_workerFetchResult.contentSecurityPolicy, m_workerFetchResult.crossOriginEmbedderPolicy, m_workerFetchResult.referrerPolicy, job.workerType, { }, job.serviceWorkerPageIdentifier());
+    m_server.updateWorker(job.identifier(), requestingProcessIdentifier, *registration, job.scriptURL, m_workerFetchResult.script, m_workerFetchResult.certificateInfo, m_workerFetchResult.contentSecurityPolicy, m_workerFetchResult.crossOriginEmbedderPolicy, m_workerFetchResult.referrerPolicy, job.workerType, { }, job.serviceWorkerPageIdentifier());
 }
 
 void SWServerJobQueue::scriptAndImportedScriptsFetchFinished(const ServiceWorkerJobData& job, SWServerRegistration& registration)
 {
     // Invoke Resolve Job Promise with job and registration.
-    protectedServer()->resolveRegistrationJob(job, registration.data(), ShouldNotifyWhenResolved::No);
+    m_server.resolveRegistrationJob(job, registration.data(), ShouldNotifyWhenResolved::No);
 
     // Invoke Finish Job with job and abort these steps.
     finishCurrentJob();
@@ -155,8 +156,7 @@ void SWServerJobQueue::scriptContextFailedToStart(const ServiceWorkerJobDataIden
         return;
 
     // If an uncaught runtime script error occurs during the above step, then:
-    Ref server = m_server.get();
-    RefPtr registration = server->getRegistration(m_registrationKey);
+    auto* registration = m_server.getRegistration(m_registrationKey);
     ASSERT(registration);
     if (!registration || !registration->preInstallationWorker()) {
         RELEASE_LOG_ERROR(ServiceWorker, "SWServerJobQueue::scriptContextFailedToStart registration is null (%d) or pre installation worker is null", !registration);
@@ -168,11 +168,11 @@ void SWServerJobQueue::scriptContextFailedToStart(const ServiceWorkerJobDataIden
     registration->setPreInstallationWorker(nullptr);
 
     // Invoke Reject Job Promise with job and TypeError.
-    server->rejectJob(firstJob(), { ExceptionCode::TypeError, message });
+    m_server.rejectJob(firstJob(), { TypeError, message });
 
     // If newestWorker is null, invoke Clear Registration algorithm passing registration as its argument.
     if (!registration->getNewestWorker())
-        registration->clear(); // Will destroy the registation.
+        registration->clear();
 
     // Invoke Finish Job with job and abort these steps.
     finishCurrentJob();
@@ -183,7 +183,7 @@ void SWServerJobQueue::scriptContextStarted(const ServiceWorkerJobDataIdentifier
     if (!isCurrentlyProcessingJob(jobDataIdentifier))
         return;
 
-    RefPtr registration = protectedServer()->getRegistration(m_registrationKey);
+    auto* registration = m_server.getRegistration(m_registrationKey);
     ASSERT(registration);
     if (!registration) {
         RELEASE_LOG_ERROR(ServiceWorker, "SWServerJobQueue::scriptContextStarted registration is null");
@@ -197,18 +197,17 @@ void SWServerJobQueue::scriptContextStarted(const ServiceWorkerJobDataIdentifier
 void SWServerJobQueue::install(SWServerRegistration& registration, ServiceWorkerIdentifier installingWorker)
 {
     // The Install algorithm should never be invoked with a null worker.
-    Ref server = m_server.get();
-    RefPtr worker = server->workerByID(installingWorker);
+    auto* worker = m_server.workerByID(installingWorker);
     RELEASE_ASSERT(worker);
 
-    ASSERT(registration.preInstallationWorker() == worker.get());
+    ASSERT(registration.preInstallationWorker() == worker);
     registration.setPreInstallationWorker(nullptr);
 
-    registration.updateRegistrationState(ServiceWorkerRegistrationState::Installing, worker.get());
+    registration.updateRegistrationState(ServiceWorkerRegistrationState::Installing, worker);
     registration.updateWorkerState(*worker, ServiceWorkerState::Installing);
 
     // Invoke Resolve Job Promise with job and registration.
-    server->resolveRegistrationJob(firstJob(), registration.data(), ShouldNotifyWhenResolved::Yes);
+    m_server.resolveRegistrationJob(firstJob(), registration.data(), ShouldNotifyWhenResolved::Yes);
 
     // FIXME: https://bugs.webkit.org/show_bug.cgi?id=215122. We do not need to wait for the registration promise to resolve to continue the install steps.
 }
@@ -216,8 +215,7 @@ void SWServerJobQueue::install(SWServerRegistration& registration, ServiceWorker
 // https://w3c.github.io/ServiceWorker/#install (after resolving promise).
 void SWServerJobQueue::didResolveRegistrationPromise()
 {
-    Ref server = m_server.get();
-    RefPtr registration = server->getRegistration(m_registrationKey);
+    auto* registration = m_server.getRegistration(m_registrationKey);
     ASSERT(registration);
     ASSERT(registration->installingWorker());
 
@@ -235,7 +233,7 @@ void SWServerJobQueue::didResolveRegistrationPromise()
 
     // Queue a task to fire the InstallEvent.
     ASSERT(registration->installingWorker());
-    server->fireInstallEvent(*registration->installingWorker());
+    m_server.fireInstallEvent(*registration->installingWorker());
 }
 
 // https://w3c.github.io/ServiceWorker/#install
@@ -244,7 +242,7 @@ void SWServerJobQueue::didFinishInstall(const ServiceWorkerJobDataIdentifier& jo
     if (!isCurrentlyProcessingJob(jobDataIdentifier))
         return;
 
-    RefPtr registration = worker.registration();
+    auto* registration = worker.registration();
     ASSERT(registration);
     ASSERT(registration->installingWorker() == &worker);
 
@@ -257,14 +255,14 @@ void SWServerJobQueue::didFinishInstall(const ServiceWorkerJobDataIdentifier& jo
 
         // If newestWorker is null, invoke Clear Registration algorithm passing registration as its argument.
         if (!registration->getNewestWorker())
-            registration->clear(); // Will destroy the registration.
+            registration->clear();
 
         // Invoke Finish Job with job and abort these steps.
         finishCurrentJob();
         return;
     }
 
-    if (RefPtr waitingWorker = registration->waitingWorker()) {
+    if (auto* waitingWorker = registration->waitingWorker()) {
         waitingWorker->terminate();
         registration->updateWorkerState(*waitingWorker, ServiceWorkerState::Redundant);
     }
@@ -315,24 +313,23 @@ void SWServerJobQueue::runRegisterJob(const ServiceWorkerJobData& job)
     ASSERT(job.type == ServiceWorkerJobType::Register);
     ASSERT(job.registrationOptions);
 
-    Ref server = m_server.get();
-    if (!job.isFromServiceWorkerPage && !shouldTreatAsPotentiallyTrustworthy(job.scriptURL) && !server->canHandleScheme(job.scriptURL.protocol()))
-        return rejectCurrentJob(ExceptionData { ExceptionCode::SecurityError, "Script URL is not potentially trustworthy"_s });
+    if (!job.isFromServiceWorkerPage && !shouldTreatAsPotentiallyTrustworthy(job.scriptURL) && !m_server.canHandleScheme(job.scriptURL.protocol()))
+        return rejectCurrentJob(ExceptionData { SecurityError, "Script URL is not potentially trustworthy"_s });
 
     // If the origin of job's script url is not job's referrer's origin, then:
     if (!protocolHostAndPortAreEqual(job.scriptURL, job.clientCreationURL))
-        return rejectCurrentJob(ExceptionData { ExceptionCode::SecurityError, "Script origin does not match the registering client's origin"_s });
+        return rejectCurrentJob(ExceptionData { SecurityError, "Script origin does not match the registering client's origin"_s });
 
     // If the origin of job's scope url is not job's referrer's origin, then:
     if (!protocolHostAndPortAreEqual(job.scopeURL, job.clientCreationURL))
-        return rejectCurrentJob(ExceptionData { ExceptionCode::SecurityError, "Scope origin does not match the registering client's origin"_s });
+        return rejectCurrentJob(ExceptionData { SecurityError, "Scope origin does not match the registering client's origin"_s });
 
     // If registration is not null (in our parlance "empty"), then:
-    if (RefPtr registration = server->getRegistration(m_registrationKey)) {
-        RefPtr newestWorker = registration->getNewestWorker();
+    if (auto* registration = m_server.getRegistration(m_registrationKey)) {
+        auto* newestWorker = registration->getNewestWorker();
         if (newestWorker && equalIgnoringFragmentIdentifier(job.scriptURL, newestWorker->scriptURL()) && job.workerType == newestWorker->type() && job.registrationOptions->updateViaCache == registration->updateViaCache()) {
             RELEASE_LOG(ServiceWorker, "%p - SWServerJobQueue::runRegisterJob: Found directly reusable registration %llu for job %s (DONE)", this, registration->identifier().toUInt64(), job.identifier().loggingString().utf8().data());
-            server->resolveRegistrationJob(job, registration->data(), ShouldNotifyWhenResolved::No);
+            m_server.resolveRegistrationJob(job, registration->data(), ShouldNotifyWhenResolved::No);
             finishCurrentJob();
             return;
         }
@@ -341,8 +338,8 @@ void SWServerJobQueue::runRegisterJob(const ServiceWorkerJobData& job)
             registration->setUpdateViaCache(job.registrationOptions->updateViaCache);
         RELEASE_LOG(ServiceWorker, "%p - SWServerJobQueue::runRegisterJob: Found registration %llu for job %s but it needs updating", this, registration->identifier().toUInt64(), job.identifier().loggingString().utf8().data());
     } else {
-        Ref newRegistration = SWServerRegistration::create(server.get(), m_registrationKey, job.registrationOptions->updateViaCache, job.scopeURL, job.scriptURL, job.serviceWorkerPageIdentifier(), NavigationPreloadState::defaultValue());
-        server->addRegistration(WTFMove(newRegistration));
+        auto newRegistration = makeUnique<SWServerRegistration>(m_server, m_registrationKey, job.registrationOptions->updateViaCache, job.scopeURL, job.scriptURL, job.serviceWorkerPageIdentifier(), NavigationPreloadState::defaultValue());
+        m_server.addRegistration(WTFMove(newRegistration));
 
         RELEASE_LOG(ServiceWorker, "%p - SWServerJobQueue::runRegisterJob: No existing registration for job %s, constructing a new one.", this, job.identifier().loggingString().utf8().data());
     }
@@ -355,28 +352,27 @@ void SWServerJobQueue::runUnregisterJob(const ServiceWorkerJobData& job)
 {
     // If the origin of job's scope url is not job's client's origin, then:
     if (!protocolHostAndPortAreEqual(job.scopeURL, job.clientCreationURL))
-        return rejectCurrentJob(ExceptionData { ExceptionCode::SecurityError, "Origin of scope URL does not match the client's origin"_s });
+        return rejectCurrentJob(ExceptionData { SecurityError, "Origin of scope URL does not match the client's origin"_s });
 
     // Let registration be the result of running "Get Registration" algorithm passing job's scope url as the argument.
-    Ref server = m_server.get();
-    RefPtr registration = server->getRegistration(m_registrationKey);
+    auto* registration = m_server.getRegistration(m_registrationKey);
 
     // If registration is null, then:
     if (!registration) {
         // Invoke Resolve Job Promise with job and false.
-        server->resolveUnregistrationJob(job, m_registrationKey, false);
+        m_server.resolveUnregistrationJob(job, m_registrationKey, false);
         finishCurrentJob();
         return;
     }
 
     // Remove scope to registration map[job’s scope url].
-    server->removeFromScopeToRegistrationMap(m_registrationKey);
+    m_server.removeFromScopeToRegistrationMap(m_registrationKey);
 
     // Invoke Resolve Job Promise with job and true.
-    server->resolveUnregistrationJob(job, m_registrationKey, true);
+    m_server.resolveUnregistrationJob(job, m_registrationKey, true);
 
     // Invoke Try Clear Registration with registration.
-    registration->tryClear(); // This may destroy the registration.
+    registration->tryClear();
     finishCurrentJob();
 }
 
@@ -384,26 +380,25 @@ void SWServerJobQueue::runUnregisterJob(const ServiceWorkerJobData& job)
 void SWServerJobQueue::runUpdateJob(const ServiceWorkerJobData& job)
 {
     // Let registration be the result of running the Get Registration algorithm passing job's scope url as the argument.
-    Ref server = m_server.get();
-    RefPtr registration = server->getRegistration(m_registrationKey);
+    auto* registration = m_server.getRegistration(m_registrationKey);
 
     // If registration is null (in our parlance "empty") or registration's uninstalling flag is set, then:
     if (!registration)
-        return rejectCurrentJob(ExceptionData { ExceptionCode::TypeError, "Cannot update a null/nonexistent service worker registration"_s });
+        return rejectCurrentJob(ExceptionData { TypeError, "Cannot update a null/nonexistent service worker registration"_s });
 
     // Let newestWorker be the result of running Get Newest Worker algorithm passing registration as the argument.
-    RefPtr newestWorker = registration->getNewestWorker();
+    auto* newestWorker = registration->getNewestWorker();
 
     // If job’s type is update, and newestWorker is not null and its script url does not equal job’s script url, then:
     if (job.type == ServiceWorkerJobType::Update && newestWorker && !equalIgnoringFragmentIdentifier(job.scriptURL, newestWorker->scriptURL()))
-        return rejectCurrentJob(ExceptionData { ExceptionCode::TypeError, "Cannot update a service worker with a requested script URL whose newest worker has a different script URL"_s });
+        return rejectCurrentJob(ExceptionData { TypeError, "Cannot update a service worker with a requested script URL whose newest worker has a different script URL"_s });
 
-    server->startScriptFetch(job, *registration);
+    m_server.startScriptFetch(job, *registration);
 }
 
 void SWServerJobQueue::rejectCurrentJob(const ExceptionData& exceptionData)
 {
-    protectedServer()->rejectJob(firstJob(), exceptionData);
+    m_server.rejectJob(firstJob(), exceptionData);
 
     finishCurrentJob();
 }
@@ -454,3 +449,5 @@ void SWServerJobQueue::cancelJobsFromServiceWorker(ServiceWorkerIdentifier servi
 }
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2018 Yusuke Suzuki <yusukesuzuki@slowstart.org>.
- * Copyright (C) 2023 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,7 +30,6 @@
 #include "WasmSections.h"
 #include <wtf/CrossThreadCopier.h>
 #include <wtf/SHA1.h>
-#include <wtf/TZoneMalloc.h>
 #include <wtf/Vector.h>
 #include <wtf/text/WTFString.h>
 
@@ -51,7 +49,7 @@ public:
 };
 
 class StreamingParser {
-    WTF_MAKE_TZONE_ALLOCATED(StreamingParser);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     // The layout of the Wasm module is the following.
     //

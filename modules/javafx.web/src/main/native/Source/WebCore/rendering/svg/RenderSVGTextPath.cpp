@@ -41,9 +41,8 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderSVGTextPath);
 
 RenderSVGTextPath::RenderSVGTextPath(SVGTextPathElement& element, RenderStyle&& style)
-    : RenderSVGInline(Type::SVGTextPath, element, WTFMove(style))
+    : RenderSVGInline(element, WTFMove(style))
 {
-    ASSERT(isRenderSVGTextPath());
 }
 
 SVGTextPathElement& RenderSVGTextPath::textPathElement() const
@@ -59,11 +58,11 @@ SVGGeometryElement* RenderSVGTextPath::targetElement() const
 
 Path RenderSVGTextPath::layoutPath() const
 {
-    RefPtr element = targetElement();
+    auto element = targetElement();
     if (!is<SVGGeometryElement>(element))
         return { };
 
-    auto path = pathFromGraphicsElement(*element);
+    auto path = pathFromGraphicsElement(element);
 
     // Spec:  The transform attribute on the referenced 'path' element represents a
     // supplemental transformation relative to the current user coordinate system for

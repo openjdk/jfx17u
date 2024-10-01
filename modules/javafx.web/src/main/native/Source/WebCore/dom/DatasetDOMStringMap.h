@@ -27,12 +27,10 @@
 
 #include "ExceptionOr.h"
 #include "ScriptWrappable.h"
-#include <wtf/WeakRef.h>
 
 namespace WebCore {
 
 class Element;
-class WeakPtrImplWithEventTargetData;
 
 class DatasetDOMStringMap final : public ScriptWrappable {
     WTF_MAKE_ISO_ALLOCATED(DatasetDOMStringMap);
@@ -52,13 +50,12 @@ public:
     ExceptionOr<void> setNamedItem(const String& name, const AtomString& value);
     bool deleteNamedProperty(const String& name);
 
-    Element& element() { return m_element.get(); }
-    Ref<Element> protectedElement() const;
+    Element& element() { return m_element; }
 
 private:
     const AtomString* item(const String& name) const;
 
-    WeakRef<Element, WeakPtrImplWithEventTargetData> m_element;
+    Element& m_element;
 };
 
 } // namespace WebCore

@@ -27,7 +27,6 @@
 
 #include "CSSPropertyNames.h"
 #include "CSSValue.h"
-#include <wtf/BitSet.h>
 #include <wtf/HashMap.h>
 #include <wtf/ListHashSet.h>
 #include <wtf/Markable.h>
@@ -69,35 +68,13 @@ using AnimationCollection = ListHashSet<Ref<WebAnimation>>;
 using AnimationEvents = Vector<Ref<AnimationEventBase>>;
 using CSSAnimationCollection = ListHashSet<Ref<CSSAnimation>>;
 
-using AnimatableCSSProperty = std::variant<CSSPropertyID, AtomString>;
-using AnimatableCSSPropertyToTransitionMap = HashMap<AnimatableCSSProperty, Ref<CSSTransition>>;
-
-enum class AcceleratedEffectProperty : uint16_t {
-    Invalid = 1 << 0,
-    Opacity = 1 << 1,
-    Transform = 1 << 2,
-    Translate = 1 << 3,
-    Rotate = 1 << 4,
-    Scale = 1 << 5,
-    OffsetPath = 1 << 6,
-    OffsetDistance = 1 << 7,
-    OffsetPosition = 1 << 8,
-    OffsetAnchor = 1 << 9,
-    OffsetRotate = 1 << 10,
-    Filter = 1 << 11,
-    BackdropFilter = 1 << 12
-};
-
-struct CSSPropertiesBitSet {
-    WTF::BitSet<numCSSProperties> m_properties { };
-};
+using AnimatableProperty = std::variant<CSSPropertyID, AtomString>;
+using AnimatablePropertyToTransitionMap = HashMap<AnimatableProperty, Ref<CSSTransition>>;
 
 } // namespace WebCore
-
 namespace WTF {
-
-template<> struct DefaultHash<WebCore::AnimatableCSSProperty> {
-    static unsigned hash(const WebCore::AnimatableCSSProperty& key) {
+template<> struct DefaultHash<WebCore::AnimatableProperty> {
+    static unsigned hash(const WebCore::AnimatableProperty& key) {
         return WTF::switchOn(key,
             [] (WebCore::CSSPropertyID property) {
                 return DefaultHash<WebCore::CSSPropertyID>::hash(property);
@@ -107,18 +84,18 @@ template<> struct DefaultHash<WebCore::AnimatableCSSProperty> {
             }
         );
     }
-    static bool equal(const WebCore::AnimatableCSSProperty& a, const WebCore::AnimatableCSSProperty& b) { return a == b; }
+    static bool equal(const WebCore::AnimatableProperty& a, const WebCore::AnimatableProperty& b) { return a == b; }
     static const bool safeToCompareToEmptyOrDeleted = true;
 };
 
-template<> struct HashTraits<WebCore::AnimatableCSSProperty> : GenericHashTraits<WebCore::AnimatableCSSProperty> {
+template<> struct HashTraits<WebCore::AnimatableProperty> : GenericHashTraits<WebCore::AnimatableProperty> {
     static const bool emptyValueIsZero = true;
-    static void constructDeletedValue(WebCore::AnimatableCSSProperty& slot) {
+    static void constructDeletedValue(WebCore::AnimatableProperty& slot) {
         WebCore::CSSPropertyID property;
         HashTraits<WebCore::CSSPropertyID>::constructDeletedValue(property);
-        new (NotNull, &slot) WebCore::AnimatableCSSProperty(property);
+        new (NotNull, &slot) WebCore::AnimatableProperty(property);
     }
-    static bool isDeletedValue(const WebCore::AnimatableCSSProperty& value) {
+    static bool isDeletedValue(const WebCore::AnimatableProperty& value) {
         return WTF::switchOn(value,
             [] (WebCore::CSSPropertyID property) {
                 return HashTraits<WebCore::CSSPropertyID>::isDeletedValue(property);

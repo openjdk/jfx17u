@@ -10,28 +10,22 @@ list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/adwaita/ScrollbarThemeAdwaita.h
     platform/adwaita/ThemeAdwaita.h
 
-    rendering/adwaita/RenderThemeAdwaita.h
+    rendering/RenderThemeAdwaita.h
 )
 
 list(APPEND WebCore_USER_AGENT_STYLE_SHEETS
     ${WEBCORE_DIR}/css/themeAdwaita.css
 )
 
-if (ENABLE_MODERN_MEDIA_CONTROLS)
-    list(APPEND WebCore_USER_AGENT_STYLE_SHEETS
+list(APPEND WebCore_USER_AGENT_STYLE_SHEETS
     ${WebCore_DERIVED_SOURCES_DIR}/ModernMediaControls.css
-    )
+)
 
-    list(APPEND WebCore_USER_AGENT_SCRIPTS
+list(APPEND WebCore_USER_AGENT_SCRIPTS
     ${WebCore_DERIVED_SOURCES_DIR}/ModernMediaControls.js
-    )
-else ()
-    list(APPEND WebCore_USER_AGENT_STYLE_SHEETS
-        ${WEBCORE_DIR}/css/mediaControls.css
-    )
-endif ()
+)
 
-set(WebCore_USER_AGENT_SCRIPTS_DEPENDENCIES ${WEBCORE_DIR}/rendering/adwaita/RenderThemeAdwaita.cpp)
+set(WebCore_USER_AGENT_SCRIPTS_DEPENDENCIES ${WEBCORE_DIR}/rendering/RenderThemeAdwaita.cpp)
 
 set(ModernMediaControlsImageFiles
     ${WEBCORE_DIR}/Modules/modern-media-controls/images/adwaita/EnterFullscreen.svg

@@ -45,13 +45,13 @@ namespace WebCore {
 // This information is needed by spell checking service to update user specific data.
 class SpellingCorrectionRecordUndoCommand : public SimpleEditCommand {
 public:
-    static Ref<SpellingCorrectionRecordUndoCommand> create(Ref<Document>&& document, const String& corrected, const String& correction)
+    static Ref<SpellingCorrectionRecordUndoCommand> create(Document& document, const String& corrected, const String& correction)
     {
-        return adoptRef(*new SpellingCorrectionRecordUndoCommand(WTFMove(document), corrected, correction));
+        return adoptRef(*new SpellingCorrectionRecordUndoCommand(document, corrected, correction));
     }
 private:
-    SpellingCorrectionRecordUndoCommand(Ref<Document>&& document, const String& corrected, const String& correction)
-        : SimpleEditCommand(WTFMove(document))
+    SpellingCorrectionRecordUndoCommand(Document& document, const String& corrected, const String& correction)
+        : SimpleEditCommand(document)
         , m_corrected(corrected)
         , m_correction(correction)
         , m_hasBeenUndone(false)
@@ -65,7 +65,7 @@ private:
     void doUnapply() override
     {
         if (!m_hasBeenUndone) {
-            protectedDocument()->editor().unappliedSpellCorrection(startingSelection(), m_corrected, m_correction);
+            document().editor().unappliedSpellCorrection(startingSelection(), m_corrected, m_correction);
             m_hasBeenUndone = true;
         }
 
@@ -108,16 +108,15 @@ void SpellingCorrectionCommand::doApply()
     if (!m_corrected.length())
         return;
 
-    Ref document = protectedDocument();
-    if (!document->selection().shouldChangeSelection(m_selectionToBeCorrected))
+    if (!document().selection().shouldChangeSelection(m_selectionToBeCorrected))
         return;
 
     applyCommandToComposite(SetSelectionCommand::create(m_selectionToBeCorrected, FrameSelection::defaultSetSelectionOptions() | FrameSelection::SetSelectionOption::SpellCorrectionTriggered));
 #if USE(AUTOCORRECTION_PANEL)
-    applyCommandToComposite(SpellingCorrectionRecordUndoCommand::create(document.copyRef(), m_corrected, m_correction));
+    applyCommandToComposite(SpellingCorrectionRecordUndoCommand::create(document(), m_corrected, m_correction));
 #endif
 
-    applyCommandToComposite(ReplaceSelectionCommand::create(WTFMove(document), protectedCorrectionFragment(), ReplaceSelectionCommand::MatchStyle, EditAction::Paste));
+    applyCommandToComposite(ReplaceSelectionCommand::create(document(), WTFMove(m_correctionFragment), ReplaceSelectionCommand::MatchStyle, EditAction::Paste));
 }
 
 String SpellingCorrectionCommand::inputEventData() const
@@ -136,7 +135,7 @@ Vector<RefPtr<StaticRange>> SpellingCorrectionCommand::targetRanges() const
 RefPtr<DataTransfer> SpellingCorrectionCommand::inputEventDataTransfer() const
 {
     if (!isEditingTextAreaOrTextInput())
-        return DataTransfer::createForInputEvent(m_correction, serializeFragment(*protectedCorrectionFragment(), SerializedNodes::SubtreeIncludingNode));
+        return DataTransfer::createForInputEvent(m_correction, serializeFragment(*m_correctionFragment, SerializedNodes::SubtreeIncludingNode));
 
     return CompositeEditCommand::inputEventDataTransfer();
 }

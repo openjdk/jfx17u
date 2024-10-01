@@ -35,27 +35,41 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(WebGLLoseContext);
 
 WebGLLoseContext::WebGLLoseContext(WebGLRenderingContextBase& context)
-    : WebGLExtension(context, WebGLExtensionName::WebGLLoseContext)
+    : WebGLExtension(context)
 {
 }
 
 WebGLLoseContext::~WebGLLoseContext() = default;
 
+WebGLExtension::ExtensionName WebGLLoseContext::getName() const
+{
+    return WebGLLoseContextName;
+}
+
 void WebGLLoseContext::loseContext()
 {
-    if (isContextLost())
+    auto context = WebGLExtensionScopedContext(this);
+    if (context.isLost())
         return;
-    auto& context = this->context();
-    context.forceLostContext(WebGLRenderingContextBase::SyntheticLostContext);
+
+    context->forceLostContext(WebGLRenderingContextBase::SyntheticLostContext);
 }
 
 void WebGLLoseContext::restoreContext()
 {
-    if (isContextLost())
+    auto context = WebGLExtensionScopedContext(this);
+    if (context.isLost())
         return;
-    auto& context = this->context();
-    context.forceRestoreContext();
+
+    context->forceRestoreContext();
 }
+
+void WebGLLoseContext::loseParentContext(WebGLRenderingContextBase::LostContextMode mode)
+{
+    if (mode == WebGLRenderingContextBase::LostContextMode::RealLostContext)
+        WebGLExtension::loseParentContext(mode);
+}
+
 
 } // namespace WebCore
 

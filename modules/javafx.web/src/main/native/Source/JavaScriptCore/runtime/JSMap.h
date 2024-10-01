@@ -42,13 +42,10 @@ public:
         return vm.mapSpace<mode>();
     }
 
-    static size_t allocationSize(Checked<size_t> inlineCapacity)
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
     {
-        ASSERT_UNUSED(inlineCapacity, !inlineCapacity);
-        return sizeof(JSMap);
+        return Structure::create(vm, globalObject, prototype, TypeInfo(JSMapType, StructureFlags), info());
     }
-
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
 
     static JSMap* create(VM& vm, Structure* structure)
     {

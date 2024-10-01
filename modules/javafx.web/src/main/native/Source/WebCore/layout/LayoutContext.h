@@ -55,7 +55,7 @@ public:
 
     static std::unique_ptr<FormattingContext> createFormattingContext(const ElementBox& formattingContextRoot, LayoutState&);
 
-#if ASSERT_ENABLED
+#ifndef NDEBUG
     // For testing purposes only
     static void verifyAndOutputMismatchingLayoutTree(const LayoutState&, const RenderView&);
 #endif

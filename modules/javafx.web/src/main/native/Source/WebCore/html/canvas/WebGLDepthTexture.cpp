@@ -35,12 +35,17 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(WebGLDepthTexture);
 
 WebGLDepthTexture::WebGLDepthTexture(WebGLRenderingContextBase& context)
-    : WebGLExtension(context, WebGLExtensionName::WebGLDepthTexture)
+    : WebGLExtension(context)
 {
-    context.protectedGraphicsContextGL()->ensureExtensionEnabled("GL_OES_depth_texture"_s);
+    context.graphicsContextGL()->ensureExtensionEnabled("GL_OES_depth_texture"_s);
 }
 
 WebGLDepthTexture::~WebGLDepthTexture() = default;
+
+WebGLExtension::ExtensionName WebGLDepthTexture::getName() const
+{
+    return WebGLDepthTextureName;
+}
 
 bool WebGLDepthTexture::supported(GraphicsContextGL& context)
 {

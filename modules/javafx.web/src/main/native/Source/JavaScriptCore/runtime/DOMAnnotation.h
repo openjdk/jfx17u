@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2023 Yusuke Suzuki <utatane.tea@gmail.com>.
+ * Copyright (C) 2017 Yusuke Suzuki <utatane.tea@gmail.com>.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include <wtf/TZoneMalloc.h>
+#include <wtf/FastMalloc.h>
 
 namespace JSC {
 
@@ -36,12 +36,15 @@ class GetterSetter;
 }
 
 struct DOMAttributeAnnotation {
-    WTF_MAKE_TZONE_ALLOCATED(DOMAttributeAnnotation);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     const ClassInfo* classInfo;
     const DOMJIT::GetterSetter* domJIT;
-
-    friend bool operator==(const DOMAttributeAnnotation&, const DOMAttributeAnnotation&) = default;
 };
+
+inline bool operator==(const DOMAttributeAnnotation& left, const DOMAttributeAnnotation& right)
+{
+    return left.classInfo == right.classInfo && left.domJIT == right.domJIT;
+}
 
 } // namespace JSC

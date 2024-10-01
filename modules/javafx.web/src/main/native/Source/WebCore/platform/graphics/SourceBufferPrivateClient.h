@@ -28,9 +28,7 @@
 #if ENABLE(MEDIA_SOURCE)
 
 #include "MediaDescription.h"
-#include "PlatformMediaError.h"
 #include <wtf/MediaTime.h>
-#include <wtf/Ref.h>
 #include <wtf/Vector.h>
 #include <wtf/WeakPtr.h>
 
@@ -43,7 +41,7 @@ class MediaDescription;
 class PlatformTimeRanges;
 class VideoTrackPrivate;
 
-class SourceBufferPrivateClient : public ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr<SourceBufferPrivateClient> {
+class SourceBufferPrivateClient : public CanMakeWeakPtr<SourceBufferPrivateClient> {
 public:
     virtual ~SourceBufferPrivateClient() = default;
 
@@ -69,14 +67,69 @@ public:
         Vector<TextTrackInformation> textTracks;
     };
 
-    virtual Ref<MediaPromise> sourceBufferPrivateDidReceiveInitializationSegment(InitializationSegment&&) = 0;
-    virtual Ref<MediaPromise> sourceBufferPrivateBufferedChanged(const Vector<PlatformTimeRanges>&, uint64_t) = 0;
-    virtual Ref<MediaPromise> sourceBufferPrivateDurationChanged(const MediaTime&) = 0;
+    enum class ReceiveResult : uint8_t {
+        Succeeded,
+        AppendError,
+        ClientDisconnected,
+        BufferRemoved,
+        IPCError,
+    };
+    virtual void sourceBufferPrivateDidReceiveInitializationSegment(InitializationSegment&&, CompletionHandler<void(ReceiveResult)>&&) = 0;
+    virtual void sourceBufferPrivateStreamEndedWithDecodeError() = 0;
+    enum class AppendResult : uint8_t {
+        Succeeded,
+        ReadStreamFailed,
+        ParsingFailed
+    };
+    virtual void sourceBufferPrivateAppendComplete(AppendResult) = 0;
+    virtual void sourceBufferPrivateBufferedChanged(const PlatformTimeRanges&, CompletionHandler<void()>&&) = 0;
+    virtual void sourceBufferPrivateTrackBuffersChanged(const Vector<PlatformTimeRanges>&) { };
+    virtual void sourceBufferPrivateDurationChanged(const MediaTime&, CompletionHandler<void()>&&) = 0;
     virtual void sourceBufferPrivateHighestPresentationTimestampChanged(const MediaTime&) = 0;
+    virtual void sourceBufferPrivateDidParseSample(double frameDuration) = 0;
     virtual void sourceBufferPrivateDidDropSample() = 0;
     virtual void sourceBufferPrivateDidReceiveRenderingError(int64_t errorCode) = 0;
+    virtual void sourceBufferPrivateReportExtraMemoryCost(uint64_t) = 0;
+    virtual bool isAsync() const { return false; }
 };
 
+String convertEnumerationToString(SourceBufferPrivateClient::ReceiveResult);
+
 } // namespace WebCore
+
+namespace WTF {
+
+template<typename Type>
+struct LogArgument;
+
+template <>
+struct LogArgument<WebCore::SourceBufferPrivateClient::ReceiveResult> {
+    static String toString(const WebCore::SourceBufferPrivateClient::ReceiveResult result)
+    {
+        return convertEnumerationToString(result);
+    }
+};
+
+template<> struct EnumTraits<WebCore::SourceBufferPrivateClient::ReceiveResult> {
+    using values = EnumValues<
+        WebCore::SourceBufferPrivateClient::ReceiveResult,
+        WebCore::SourceBufferPrivateClient::ReceiveResult::Succeeded,
+        WebCore::SourceBufferPrivateClient::ReceiveResult::AppendError,
+        WebCore::SourceBufferPrivateClient::ReceiveResult::ClientDisconnected,
+        WebCore::SourceBufferPrivateClient::ReceiveResult::BufferRemoved,
+        WebCore::SourceBufferPrivateClient::ReceiveResult::IPCError
+    >;
+};
+
+template<> struct EnumTraits<WebCore::SourceBufferPrivateClient::AppendResult> {
+    using values = EnumValues<
+        WebCore::SourceBufferPrivateClient::AppendResult,
+        WebCore::SourceBufferPrivateClient::AppendResult::Succeeded,
+        WebCore::SourceBufferPrivateClient::AppendResult::ReadStreamFailed,
+        WebCore::SourceBufferPrivateClient::AppendResult::ParsingFailed
+    >;
+};
+
+} // namespace WTF
 
 #endif // ENABLE(MEDIA_SOURCE)

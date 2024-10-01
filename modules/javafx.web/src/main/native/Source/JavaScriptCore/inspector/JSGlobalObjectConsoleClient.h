@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,7 +26,6 @@
 #pragma once
 
 #include "ConsoleClient.h"
-#include <wtf/TZoneMalloc.h>
 #include <wtf/Vector.h>
 #include <wtf/text/WTFString.h>
 
@@ -39,7 +38,7 @@ class InspectorDebuggerAgent;
 class InspectorScriptProfilerAgent;
 
 class JSGlobalObjectConsoleClient final : public JSC::ConsoleClient {
-    WTF_MAKE_TZONE_ALLOCATED(JSGlobalObjectConsoleClient);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit JSGlobalObjectConsoleClient(InspectorConsoleAgent*);
     ~JSGlobalObjectConsoleClient() final { }

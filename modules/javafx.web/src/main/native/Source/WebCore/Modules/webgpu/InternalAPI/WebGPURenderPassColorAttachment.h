@@ -26,7 +26,6 @@
 #pragma once
 
 #include "WebGPUColor.h"
-#include "WebGPUIntegralTypes.h"
 #include "WebGPULoadOp.h"
 #include "WebGPUStoreOp.h"
 #include <variant>
@@ -39,7 +38,6 @@ class TextureView;
 
 struct RenderPassColorAttachment {
     TextureView& view;
-    std::optional<IntegerCoordinate> depthSlice;
     TextureView* resolveTarget { nullptr };
 
     std::optional<Color> clearValue;

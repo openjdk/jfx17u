@@ -26,6 +26,7 @@
 #pragma once
 
 #include <cstdint>
+#include <wtf/EnumTraits.h>
 
 namespace WebCore::WebGPU {
 
@@ -41,3 +42,21 @@ enum class CompareFunction : uint8_t {
 };
 
 } // namespace WebCore::WebGPU
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::WebGPU::CompareFunction> {
+    using values = EnumValues<
+        WebCore::WebGPU::CompareFunction,
+        WebCore::WebGPU::CompareFunction::Never,
+        WebCore::WebGPU::CompareFunction::Less,
+        WebCore::WebGPU::CompareFunction::Equal,
+        WebCore::WebGPU::CompareFunction::LessEqual,
+        WebCore::WebGPU::CompareFunction::Greater,
+        WebCore::WebGPU::CompareFunction::NotEqual,
+        WebCore::WebGPU::CompareFunction::GreaterEqual,
+        WebCore::WebGPU::CompareFunction::Always
+    >;
+};
+
+} // namespace WTF

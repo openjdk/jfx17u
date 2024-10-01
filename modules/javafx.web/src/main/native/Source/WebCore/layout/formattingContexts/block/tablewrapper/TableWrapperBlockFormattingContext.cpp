@@ -103,44 +103,44 @@ void TableWrapperBlockFormattingContext::computeBorderAndPaddingForTableBox(cons
     auto tableBorder = formattingGeometry().computedBorder(tableBox);
 
     auto& firstColumnFirstRowBox = grid.slot({ 0 , 0 })->cell().box();
-    auto leftBorder = std::max(tableBorder.horizontal.start, formattingGeometry().computedBorder(firstColumnFirstRowBox).horizontal.start);
+    auto leftBorder = std::max(tableBorder.horizontal.left, formattingGeometry().computedBorder(firstColumnFirstRowBox).horizontal.left);
 
     auto& lastColumnFirstRow = grid.slot({ grid.columns().size() - 1, 0 })->cell().box();
-    auto rightBorder = std::max(tableBorder.horizontal.end, formattingGeometry().computedBorder(lastColumnFirstRow).horizontal.end);
+    auto rightBorder = std::max(tableBorder.horizontal.right, formattingGeometry().computedBorder(lastColumnFirstRow).horizontal.right);
 
-    auto topBorder = tableBorder.vertical.before;
-    auto bottomBorder = tableBorder.vertical.after;
+    auto topBorder = tableBorder.vertical.top;
+    auto bottomBorder = tableBorder.vertical.bottom;
     auto lastRowIndex = grid.rows().size() - 1;
     for (size_t columnIndex = 0; columnIndex < grid.columns().size(); ++columnIndex) {
         auto& boxInFirstRox = grid.slot({ columnIndex, 0 })->cell().box();
         auto& boxInLastRow = grid.slot({ columnIndex, lastRowIndex })->cell().box();
 
-        topBorder = std::max(topBorder, formattingGeometry().computedBorder(boxInFirstRox).vertical.before);
-        bottomBorder = std::max(bottomBorder, formattingGeometry().computedBorder(boxInLastRow).vertical.after);
+        topBorder = std::max(topBorder, formattingGeometry().computedBorder(boxInFirstRox).vertical.top);
+        bottomBorder = std::max(bottomBorder, formattingGeometry().computedBorder(boxInLastRow).vertical.bottom);
     }
 
-    topBorder = std::max(topBorder, formattingGeometry().computedBorder(*tableBox.firstChild()).vertical.before);
+    topBorder = std::max(topBorder, formattingGeometry().computedBorder(*tableBox.firstChild()).vertical.top);
     for (auto& section : childrenOfType<ElementBox>(tableBox)) {
-        auto horizontalBorder = formattingGeometry().computedBorder(section).horizontal;
-        leftBorder = std::max(leftBorder, horizontalBorder.start);
-        rightBorder = std::max(rightBorder, horizontalBorder.end);
+        auto horiztonalBorder = formattingGeometry().computedBorder(section).horizontal;
+        leftBorder = std::max(leftBorder, horiztonalBorder.left);
+        rightBorder = std::max(rightBorder, horiztonalBorder.right);
     }
-    bottomBorder = std::max(bottomBorder, formattingGeometry().computedBorder(*tableBox.lastChild()).vertical.after);
+    bottomBorder = std::max(bottomBorder, formattingGeometry().computedBorder(*tableBox.lastChild()).vertical.bottom);
 
     auto& rows = grid.rows().list();
-    topBorder = std::max(topBorder, formattingGeometry().computedBorder(rows.first().box()).vertical.before);
+    topBorder = std::max(topBorder, formattingGeometry().computedBorder(rows.first().box()).vertical.top);
     for (auto& row : rows) {
-        auto horizontalBorder = formattingGeometry().computedBorder(row.box()).horizontal;
-        leftBorder = std::max(leftBorder, horizontalBorder.start);
-        rightBorder = std::max(rightBorder, horizontalBorder.end);
+        auto horiztonalBorder = formattingGeometry().computedBorder(row.box()).horizontal;
+        leftBorder = std::max(leftBorder, horiztonalBorder.left);
+        rightBorder = std::max(rightBorder, horiztonalBorder.right);
     }
-    bottomBorder = std::max(bottomBorder, formattingGeometry().computedBorder(rows.last().box()).vertical.after);
+    bottomBorder = std::max(bottomBorder, formattingGeometry().computedBorder(rows.last().box()).vertical.bottom);
 
-    auto collapsedBorder = BoxGeometry::Edges { { leftBorder, rightBorder }, { topBorder, bottomBorder } };
+    auto collapsedBorder = Edges { { leftBorder, rightBorder }, { topBorder, bottomBorder } };
     grid.setCollapsedBorder(collapsedBorder);
 
     auto& boxGeometry = formattingState().boxGeometry(tableBox);
-    boxGeometry.setBorder({ { collapsedBorder.horizontal.start / 2, collapsedBorder.horizontal.end / 2 }, { collapsedBorder.vertical.before / 2, collapsedBorder.vertical.after / 2 } });
+    boxGeometry.setBorder(collapsedBorder / 2);
     boxGeometry.setPadding(formattingGeometry().computedPadding(tableBox, horizontalConstraints.logicalWidth));
 }
 
@@ -234,7 +234,7 @@ void TableWrapperBlockFormattingContext::computeHeightAndMarginForTableBox(const
     formattingState().setUsedVerticalMargin(tableBox, verticalMargin);
 
     auto& boxGeometry = formattingState().boxGeometry(tableBox);
-    boxGeometry.setTop(verticalPositionWithMargin(tableBox, verticalMargin, constraints.logicalTop()));
+    boxGeometry.setLogicalTop(verticalPositionWithMargin(tableBox, verticalMargin, constraints.logicalTop()));
     boxGeometry.setContentBoxHeight(heightAndMargin.contentHeight);
     boxGeometry.setVerticalMargin({ marginBefore(verticalMargin), marginAfter(verticalMargin) });
     // Adjust the previous sibling's margin bottom now that this box's vertical margin is computed.

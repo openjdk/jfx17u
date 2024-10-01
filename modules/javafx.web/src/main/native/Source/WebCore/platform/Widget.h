@@ -34,7 +34,6 @@
 
 #include "IntRect.h"
 #include "PlatformScreen.h"
-#include <wtf/CheckedRef.h>
 #include <wtf/Forward.h>
 #include <wtf/RefCounted.h>
 #include <wtf/TypeCasts.h>
@@ -66,8 +65,8 @@ namespace WebCore {
 class Cursor;
 class Event;
 class FontCascade;
-class FrameView;
 class GraphicsContext;
+class LocalFrameView;
 class PlatformMouseEvent;
 class RegionContext;
 class ScrollView;
@@ -90,7 +89,7 @@ enum WidgetNotification { WillPaintFlattened, DidPaintFlattened };
 // Scrollbar - Mac, Gtk
 // Plugin - Mac, Windows (windowed only), Qt (windowed only, widget is an HWND on windows), Gtk (windowed only)
 //
-class Widget : public RefCounted<Widget>, public CanMakeSingleThreadWeakPtr<Widget> {
+class Widget : public RefCounted<Widget>, public CanMakeWeakPtr<Widget> {
 public:
     WEBCORE_EXPORT explicit Widget(PlatformWidget = nullptr);
     WEBCORE_EXPORT virtual ~Widget();
@@ -143,7 +142,7 @@ public:
     WEBCORE_EXPORT void removeFromParent();
     WEBCORE_EXPORT virtual void setParent(ScrollView* view);
     WEBCORE_EXPORT ScrollView* parent() const;
-    FrameView* root() const;
+    LocalFrameView* root() const;
 
     virtual void handleEvent(Event&) { }
 
@@ -218,7 +217,7 @@ private:
     bool m_selfVisible { false };
     bool m_parentVisible { false };
 
-    SingleThreadWeakPtr<ScrollView> m_parent;
+    WeakPtr<ScrollView> m_parent;
 #if !PLATFORM(COCOA)
     PlatformWidget m_widget;
 #else

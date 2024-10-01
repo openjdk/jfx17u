@@ -31,7 +31,6 @@
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
-DEFINE_ALLOCATOR_WITH_HEAP_IDENTIFIER(CSSNumericFactory);
 
 CSSNumericFactory* CSSNumericFactory::from(DOMCSSNamespace& css)
 {
@@ -44,9 +43,9 @@ CSSNumericFactory* CSSNumericFactory::from(DOMCSSNamespace& css)
     return supplement;
 }
 
-ASCIILiteral CSSNumericFactory::supplementName()
+const char* CSSNumericFactory::supplementName()
 {
-    return "CSSNumericFactory"_s;
+    return "CSSNumericFactory";
 }
 
 }

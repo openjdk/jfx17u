@@ -33,13 +33,13 @@ class EditingStyle;
 
 class InsertParagraphSeparatorCommand : public CompositeEditCommand {
 public:
-    static Ref<InsertParagraphSeparatorCommand> create(Ref<Document>&& document, bool useDefaultParagraphElement = false, bool pasteBlockqutoeIntoUnquotedArea = false, EditAction editingAction = EditAction::Insert)
+    static Ref<InsertParagraphSeparatorCommand> create(Document& document, bool useDefaultParagraphElement = false, bool pasteBlockqutoeIntoUnquotedArea = false, EditAction editingAction = EditAction::Insert)
     {
-        return adoptRef(*new InsertParagraphSeparatorCommand(WTFMove(document), useDefaultParagraphElement, pasteBlockqutoeIntoUnquotedArea, editingAction));
+        return adoptRef(*new InsertParagraphSeparatorCommand(document, useDefaultParagraphElement, pasteBlockqutoeIntoUnquotedArea, editingAction));
     }
 
 private:
-    InsertParagraphSeparatorCommand(Ref<Document>&&, bool useDefaultParagraphElement, bool pasteBlockqutoeIntoUnquotedArea, EditAction);
+    InsertParagraphSeparatorCommand(Document&, bool useDefaultParagraphElement, bool pasteBlockqutoeIntoUnquotedArea, EditAction);
 
     void doApply() override;
 
@@ -51,8 +51,6 @@ private:
     bool shouldUseDefaultParagraphElement(Node*) const;
 
     bool preservesTypingStyle() const override;
-
-    RefPtr<EditingStyle> protectedStyle() const { return m_style; }
 
     RefPtr<EditingStyle> m_style;
 

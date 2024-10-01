@@ -29,7 +29,6 @@
 #if ENABLE(GAMEPAD)
 
 #include "Document.h"
-#include "FeaturePolicy.h"
 #include "Gamepad.h"
 #include "GamepadManager.h"
 #include "GamepadProvider.h"
@@ -50,9 +49,9 @@ NavigatorGamepad::~NavigatorGamepad()
     GamepadManager::singleton().unregisterNavigator(*this);
 }
 
-ASCIILiteral NavigatorGamepad::supplementName()
+const char* NavigatorGamepad::supplementName()
 {
-    return "NavigatorGamepad"_s;
+    return "NavigatorGamepad";
 }
 
 NavigatorGamepad* NavigatorGamepad::from(Navigator& navigator)
@@ -75,12 +74,13 @@ Ref<Gamepad> NavigatorGamepad::gamepadFromPlatformGamepad(PlatformGamepad& platf
     return *m_gamepads[index];
 }
 
-ExceptionOr<const Vector<RefPtr<Gamepad>>&> NavigatorGamepad::getGamepads(Navigator& navigator)
+const Vector<RefPtr<Gamepad>>& NavigatorGamepad::getGamepads(Navigator& navigator)
 {
-    RefPtr document = navigator.document() ? navigator.document() : nullptr;
-    if (!document || !document->isFullyActive()) {
+    auto* domWindow = navigator.window();
+    Document* document = domWindow ? domWindow->document() : nullptr;
+    if (!document) {
         static NeverDestroyed<Vector<RefPtr<Gamepad>>> emptyGamepads;
-        return { emptyGamepads.get() };
+        return emptyGamepads;
     }
 
     if (!document->isSecureContext()) {
@@ -90,9 +90,6 @@ ExceptionOr<const Vector<RefPtr<Gamepad>>&> NavigatorGamepad::getGamepads(Naviga
         });
 
     }
-
-    if (!isFeaturePolicyAllowedByDocumentAndAllOwners(FeaturePolicy::Type::Gamepad, *document, LogFeaturePolicyFailure::Yes))
-        return Exception { ExceptionCode::SecurityError, "Third-party iframes are not allowed to call getGamepads() unless explicitly allowed via Feature-Policy (gamepad)"_s };
 
     return NavigatorGamepad::from(navigator)->gamepads();
 }

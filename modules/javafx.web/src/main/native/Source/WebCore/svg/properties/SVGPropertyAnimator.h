@@ -89,10 +89,12 @@ protected:
 
     String computeInheritedCSSPropertyValue(SVGElement& targetElement) const
     {
-        RefPtr svgParent = dynamicDowncast<SVGElement>(targetElement.parentElement());
-        if (!svgParent)
+        RefPtr<Element> parent = targetElement.parentElement();
+        if (!parent || !parent->isSVGElement())
             return emptyString();
-        return computeCSSPropertyValue(*svgParent, cssPropertyID(m_attributeName.localName()));
+
+        SVGElement& svgParent = downcast<SVGElement>(*parent);
+        return computeCSSPropertyValue(svgParent, cssPropertyID(m_attributeName.localName()));
     }
 
     AnimationFunction m_function;

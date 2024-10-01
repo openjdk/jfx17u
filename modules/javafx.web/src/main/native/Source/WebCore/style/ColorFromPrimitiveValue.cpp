@@ -50,9 +50,9 @@ StyleColor colorFromPrimitiveValue(const Document& document, RenderStyle& style,
     case CSSValueInternalDocumentTextColor:
         return { document.textColor() };
     case CSSValueWebkitLink:
-        return { forVisitedLink == ForVisitedLink::Yes ? document.visitedLinkColor(style) : document.linkColor(style) };
+        return { forVisitedLink == ForVisitedLink::Yes ? document.visitedLinkColor() : document.linkColor() };
     case CSSValueWebkitActivelink:
-        return { document.activeLinkColor(style) };
+        return { document.activeLinkColor() };
     case CSSValueWebkitFocusRingColor:
         return { RenderTheme::singleton().focusRingColor(document.styleColorOptions(&style)) };
     case CSSValueCurrentcolor:

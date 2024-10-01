@@ -25,6 +25,10 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
+#include <wtf/EnumTraits.h>
+
 namespace WebCore {
 
 enum class BackgroundFetchFailureReason : uint8_t {
@@ -37,3 +41,21 @@ enum class BackgroundFetchFailureReason : uint8_t {
 };
 
 } // namespace WebCore
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::BackgroundFetchFailureReason> {
+    using values = EnumValues<
+    WebCore::BackgroundFetchFailureReason,
+    WebCore::BackgroundFetchFailureReason::EmptyString,
+    WebCore::BackgroundFetchFailureReason::Aborted,
+    WebCore::BackgroundFetchFailureReason::BadStatus,
+    WebCore::BackgroundFetchFailureReason::FetchError,
+    WebCore::BackgroundFetchFailureReason::QuotaExceeded,
+    WebCore::BackgroundFetchFailureReason::DownloadTotalExceeded
+    >;
+};
+
+} // namespace WTF
+
+#endif // ENABLE(SERVICE_WORKER)

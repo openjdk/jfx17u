@@ -35,13 +35,13 @@ MouseButton getWebCoreMouseButton(jint javaButton)
     // This code assumes that we have three-buttons mouse
     // otherwise BUTTON2 is a right button.
     if (javaButton == com_sun_webkit_event_WCMouseEvent_BUTTON1) {
-        return MouseButton::Left;
+        return LeftButton;
     } else if (javaButton == com_sun_webkit_event_WCMouseEvent_BUTTON2) {
-        return MouseButton::Middle;
+        return MiddleButton;
     } else if (javaButton == com_sun_webkit_event_WCMouseEvent_BUTTON3) {
-        return MouseButton::Right;
+        return RightButton;
     } else {
-        return MouseButton::None;
+        return NoButton;
     }
 }
 

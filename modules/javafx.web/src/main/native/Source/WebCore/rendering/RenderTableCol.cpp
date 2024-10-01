@@ -46,19 +46,17 @@ using namespace HTMLNames;
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderTableCol);
 
 RenderTableCol::RenderTableCol(Element& element, RenderStyle&& style)
-    : RenderBox(Type::TableCol, element, WTFMove(style))
+    : RenderBox(element, WTFMove(style), 0)
 {
     // init RenderObject attributes
     setInline(true); // our object is not Inline
     updateFromElement();
-    ASSERT(isRenderTableCol());
 }
 
 RenderTableCol::RenderTableCol(Document& document, RenderStyle&& style)
-    : RenderBox(Type::TableCol, document, WTFMove(style))
+    : RenderBox(document, WTFMove(style), 0)
 {
     setInline(true);
-    ASSERT(isRenderTableCol());
 }
 
 void RenderTableCol::styleDidChange(StyleDifference diff, const RenderStyle* oldStyle)
@@ -70,7 +68,7 @@ void RenderTableCol::styleDidChange(StyleDifference diff, const RenderStyle* old
     // If border was changed, notify table.
     if (!oldStyle)
         return;
-    if (!oldStyle->borderIsEquivalentForPainting(style())) {
+    if (oldStyle->border() != style().border()) {
         table->invalidateCollapsedBorders();
         return;
     }
@@ -139,17 +137,10 @@ LayoutRect RenderTableCol::clippedOverflowRect(const RenderLayerModelObject* rep
     // might have propagated a background color or borders into.
     // FIXME: check for repaintContainer each time here?
 
-    auto* parentTable = table();
+    RenderTable* parentTable = table();
     if (!parentTable)
-        return { };
-
+        return LayoutRect();
     return parentTable->clippedOverflowRect(repaintContainer, context);
-}
-
-auto RenderTableCol::rectsForRepaintingAfterLayout(const RenderLayerModelObject* repaintContainer, RepaintOutlineBounds) const -> RepaintRects
-{
-    // Ignore RepaintOutlineBounds because it doesn't make sense to use the table's outline bounds to repaint a column.
-    return { clippedOverflowRect(repaintContainer, visibleRectContextForRepaint()) };
 }
 
 void RenderTableCol::imageChanged(WrappedImagePtr, const IntRect*)
@@ -176,13 +167,13 @@ RenderTable* RenderTableCol::table() const
 
 RenderTableCol* RenderTableCol::enclosingColumnGroup() const
 {
-    auto* parentColumnGroup = dynamicDowncast<RenderTableCol>(*parent());
-    if (!parentColumnGroup)
+    if (!is<RenderTableCol>(*parent()))
         return nullptr;
 
-    ASSERT(parentColumnGroup->isTableColumnGroup());
+    RenderTableCol& parentColumnGroup = downcast<RenderTableCol>(*parent());
+    ASSERT(parentColumnGroup.isTableColumnGroup());
     ASSERT(isTableColumn());
-    return parentColumnGroup;
+    return &parentColumnGroup;
 }
 
 RenderTableCol* RenderTableCol::nextColumn() const
@@ -198,12 +189,9 @@ RenderTableCol* RenderTableCol::nextColumn() const
     if (!next && is<RenderTableCol>(*parent()))
         next = parent()->nextSibling();
 
-    for (; next; next = next->nextSibling()) {
-        if (auto* column = dynamicDowncast<RenderTableCol>(*next))
-            return column;
-    }
+    for (; next && !is<RenderTableCol>(*next); next = next->nextSibling()) { }
 
-    return nullptr;
+    return downcast<RenderTableCol>(next);
 }
 
 const BorderValue& RenderTableCol::borderAdjoiningCellStartBorder() const

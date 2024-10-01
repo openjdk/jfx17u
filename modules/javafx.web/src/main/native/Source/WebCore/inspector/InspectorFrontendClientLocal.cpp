@@ -237,9 +237,9 @@ bool InspectorFrontendClientLocal::canAttachWindow()
         return true;
 
     // Don't allow the attach if the window would be too small to accommodate the minimum inspector size.
-    Ref mainFrame = m_inspectedPageController->inspectedPage().mainFrame();
-    unsigned inspectedPageHeight = mainFrame->virtualView()->visibleHeight();
-    unsigned inspectedPageWidth = mainFrame->virtualView()->visibleWidth();
+    auto* localMainFrame = dynamicDowncast<LocalFrame>(m_inspectedPageController->inspectedPage().mainFrame());
+    unsigned inspectedPageHeight = localMainFrame ? localMainFrame->view()->visibleHeight() : 0;
+    unsigned inspectedPageWidth = localMainFrame ? localMainFrame->view()->visibleWidth() : 0;
     unsigned maximumAttachedHeight = inspectedPageHeight * maximumAttachedHeightRatio;
     return minimumAttachedHeight <= maximumAttachedHeight && minimumAttachedWidth <= inspectedPageWidth;
 }
@@ -251,7 +251,11 @@ void InspectorFrontendClientLocal::setDockingUnavailable(bool unavailable)
 
 void InspectorFrontendClientLocal::changeAttachedWindowHeight(unsigned height)
 {
-    unsigned totalHeight = m_frontendPage->mainFrame().virtualView()->visibleHeight() + m_inspectedPageController->inspectedPage().mainFrame().virtualView()->visibleHeight();
+    auto* localMainFrame = dynamicDowncast<LocalFrame>(m_frontendPage->mainFrame());
+    if (!localMainFrame)
+        return;
+    auto* otherMainFrame = dynamicDowncast<LocalFrame>(m_inspectedPageController->inspectedPage().mainFrame());
+    unsigned totalHeight = localMainFrame->view()->visibleHeight() + (otherMainFrame ? otherMainFrame->view()->visibleHeight() : 0);
     unsigned attachedHeight = constrainedAttachedWindowHeight(height, totalHeight);
     m_settings->setProperty(inspectorAttachedHeightSetting, String::number(attachedHeight));
     setAttachedWindowHeight(attachedHeight);
@@ -259,7 +263,11 @@ void InspectorFrontendClientLocal::changeAttachedWindowHeight(unsigned height)
 
 void InspectorFrontendClientLocal::changeAttachedWindowWidth(unsigned width)
 {
-    unsigned totalWidth = m_frontendPage->mainFrame().virtualView()->visibleWidth() + m_inspectedPageController->inspectedPage().mainFrame().virtualView()->visibleWidth();
+    auto* localMainFrame = dynamicDowncast<LocalFrame>(m_frontendPage->mainFrame());
+    if (!localMainFrame)
+        return;
+    auto* otherMainFrame = dynamicDowncast<LocalFrame>(m_inspectedPageController->inspectedPage().mainFrame());
+    unsigned totalWidth = localMainFrame->view()->visibleWidth() + (otherMainFrame ? localMainFrame->view()->visibleWidth() : 0);
     unsigned attachedWidth = constrainedAttachedWindowWidth(width, totalWidth);
     setAttachedWindowWidth(attachedWidth);
 }
@@ -274,24 +282,24 @@ void InspectorFrontendClientLocal::openURLExternally(const String& url)
     auto* localMainFrame = dynamicDowncast<LocalFrame>(m_inspectedPageController->inspectedPage().mainFrame());
     if (!localMainFrame)
         return;
-    Ref mainFrame = *localMainFrame;
+    LocalFrame& mainFrame = *localMainFrame;
 
-    UserGestureIndicator indicator { IsProcessingUserGesture::Yes, mainFrame->document() };
+    UserGestureIndicator indicator { ProcessingUserGesture, mainFrame.document() };
 
-    FrameLoadRequest frameLoadRequest { *mainFrame->document(), mainFrame->document()->securityOrigin(), { }, blankTargetFrameName(), InitiatedByMainFrame::Unknown };
+    FrameLoadRequest frameLoadRequest { *mainFrame.document(), mainFrame.document()->securityOrigin(), { }, blankTargetFrameName(), InitiatedByMainFrame::Unknown };
 
     bool created;
     WindowFeatures features;
-    RefPtr frame = dynamicDowncast<LocalFrame>(WebCore::createWindow(mainFrame, mainFrame, WTFMove(frameLoadRequest), features, created));
+    auto frame = WebCore::createWindow(mainFrame, mainFrame, WTFMove(frameLoadRequest), features, created);
     if (!frame)
         return;
 
-    frame->loader().setOpener(mainFrame.ptr());
+    frame->loader().setOpener(&mainFrame);
     frame->page()->setOpenedByDOM();
 
     // FIXME: Why do we compute the absolute URL with respect to |frame| instead of |mainFrame|?
     ResourceRequest resourceRequest { frame->document()->completeURL(url) };
-    FrameLoadRequest frameLoadRequest2 { mainFrame->protectedDocument().releaseNonNull(), mainFrame->document()->securityOrigin(), WTFMove(resourceRequest), selfTargetFrameName(), InitiatedByMainFrame::Unknown };
+    FrameLoadRequest frameLoadRequest2 { *mainFrame.document(), mainFrame.document()->securityOrigin(), WTFMove(resourceRequest), selfTargetFrameName(), InitiatedByMainFrame::Unknown };
     frame->loader().changeLocation(WTFMove(frameLoadRequest2));
 }
 
@@ -304,28 +312,31 @@ void InspectorFrontendClientLocal::moveWindowBy(float x, float y)
 
 void InspectorFrontendClientLocal::setAttachedWindow(DockSide dockSide)
 {
-    ASCIILiteral side = [&] {
+    const char* side = "undocked";
     switch (dockSide) {
+    case DockSide::Undocked:
+        side = "undocked";
+        break;
     case DockSide::Right:
-            return "right"_s;
+        side = "right";
+        break;
     case DockSide::Left:
-            return "left"_s;
+        side = "left";
+        break;
     case DockSide::Bottom:
-            return "bottom"_s;
-        case DockSide::Undocked:
+        side = "bottom";
         break;
     }
-        return "undocked"_s;
-    }();
 
     m_dockSide = dockSide;
 
-    m_frontendAPIDispatcher->dispatchCommandWithResultAsync("setDockSide"_s, { JSON::Value::create(String { side }) });
+    m_frontendAPIDispatcher->dispatchCommandWithResultAsync("setDockSide"_s, { JSON::Value::create(makeString(side)) });
 }
 
 void InspectorFrontendClientLocal::restoreAttachedWindowHeight()
 {
-    unsigned inspectedPageHeight = m_inspectedPageController->inspectedPage().mainFrame().virtualView()->visibleHeight();
+    auto* localMainFrame = dynamicDowncast<LocalFrame>(m_inspectedPageController->inspectedPage().mainFrame());
+    unsigned inspectedPageHeight = localMainFrame ? localMainFrame->view()->visibleHeight() : 0;
     String value = m_settings->getProperty(inspectorAttachedHeightSetting);
     unsigned preferredHeight = value.isEmpty() ? defaultAttachedHeight : parseIntegerAllowingTrailingJunk<unsigned>(value).value_or(0);
 

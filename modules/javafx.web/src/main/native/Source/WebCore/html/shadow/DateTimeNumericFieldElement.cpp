@@ -107,6 +107,11 @@ bool DateTimeNumericFieldElement::hasValue() const
     return m_hasValue;
 }
 
+void DateTimeNumericFieldElement::initialize(const AtomString& pseudo)
+{
+    DateTimeFieldElement::initialize(pseudo);
+}
+
 void DateTimeNumericFieldElement::setEmptyValue(EventBehavior eventBehavior)
 {
     m_value = 0;

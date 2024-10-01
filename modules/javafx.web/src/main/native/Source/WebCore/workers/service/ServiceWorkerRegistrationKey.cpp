@@ -26,6 +26,8 @@
 #include "config.h"
 #include "ServiceWorkerRegistrationKey.h"
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "ClientOrigin.h"
 #include "RegistrableDomain.h"
 #include "SecurityOrigin.h"
@@ -44,6 +46,11 @@ ServiceWorkerRegistrationKey::ServiceWorkerRegistrationKey(SecurityOriginData&& 
 ServiceWorkerRegistrationKey ServiceWorkerRegistrationKey::emptyKey()
 {
     return { };
+}
+
+bool ServiceWorkerRegistrationKey::operator==(const ServiceWorkerRegistrationKey& other) const
+{
+    return m_topOrigin == other.m_topOrigin && m_scope == other.m_scope;
 }
 
 ServiceWorkerRegistrationKey ServiceWorkerRegistrationKey::isolatedCopy() const &
@@ -142,3 +149,5 @@ String ServiceWorkerRegistrationKey::loggingString() const
 #endif
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

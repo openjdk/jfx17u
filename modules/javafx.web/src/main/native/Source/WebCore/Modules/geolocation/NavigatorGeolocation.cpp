@@ -41,9 +41,9 @@ NavigatorGeolocation::NavigatorGeolocation(Navigator& navigator)
 
 NavigatorGeolocation::~NavigatorGeolocation() = default;
 
-ASCIILiteral NavigatorGeolocation::supplementName()
+const char* NavigatorGeolocation::supplementName()
 {
-    return "NavigatorGeolocation"_s;
+    return "NavigatorGeolocation";
 }
 
 NavigatorGeolocation* NavigatorGeolocation::from(Navigator& navigator)

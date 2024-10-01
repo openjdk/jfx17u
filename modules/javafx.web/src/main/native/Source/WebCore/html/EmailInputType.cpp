@@ -94,7 +94,7 @@ bool EmailInputType::supportsSelectionAPI() const
 void EmailInputType::attributeChanged(const QualifiedName& name)
 {
     if (name == multipleAttr)
-        element()->setValueInternal(sanitizeValue(element()->value()), TextFieldEventBehavior::DispatchNoEvent);
+        element()->setValueFromRenderer(sanitizeValue(element()->value()));
 
     BaseTextInputType::attributeChanged(name);
 }

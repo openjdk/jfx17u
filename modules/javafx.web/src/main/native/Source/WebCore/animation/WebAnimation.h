@@ -29,7 +29,6 @@
 #include "AnimationFrameRate.h"
 #include "AnimationFrameRatePreset.h"
 #include "CSSNumericValue.h"
-#include "ContextDestructionObserverInlines.h"
 #include "EventTarget.h"
 #include "ExceptionOr.h"
 #include "IDLTypes.h"
@@ -65,11 +64,9 @@ public:
 
     WEBCORE_EXPORT static HashSet<WebAnimation*>& instances();
 
-    virtual bool isStyleOriginatedAnimation() const { return false; }
+    virtual bool isDeclarativeAnimation() const { return false; }
     virtual bool isCSSAnimation() const { return false; }
     virtual bool isCSSTransition() const { return false; }
-
-    bool isSkippedContentAnimation() const;
 
     const String& id() const { return m_id; }
     void setId(String&&);

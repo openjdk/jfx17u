@@ -31,13 +31,13 @@ namespace WebCore {
 
 class UnlinkCommand : public CompositeEditCommand {
 public:
-    static Ref<UnlinkCommand> create(Ref<Document>&& document)
+    static Ref<UnlinkCommand> create(Document& document)
     {
-        return adoptRef(*new UnlinkCommand(WTFMove(document)));
+        return adoptRef(*new UnlinkCommand(document));
     }
 
 private:
-    explicit UnlinkCommand(Ref<Document>&&);
+    explicit UnlinkCommand(Document&);
 
     void doApply() override;
     EditAction editingAction() const override { return EditAction::Unlink; }

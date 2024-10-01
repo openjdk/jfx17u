@@ -41,7 +41,7 @@ Ref<DistantLightSource> DistantLightSource::create(float azimuth, float elevatio
 }
 
 DistantLightSource::DistantLightSource(float azimuth, float elevation)
-    : LightSource(LightType::LS_DISTANT)
+    : LightSource(LS_DISTANT)
     , m_azimuth(azimuth)
     , m_elevation(elevation)
 {

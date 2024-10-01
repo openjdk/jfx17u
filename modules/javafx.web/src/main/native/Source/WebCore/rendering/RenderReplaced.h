@@ -50,9 +50,9 @@ public:
     void computeIntrinsicRatioInformation(FloatSize& intrinsicSize, FloatSize& intrinsicRatio) const override;
 
 protected:
-    RenderReplaced(Type, Element&, RenderStyle&&, OptionSet<ReplacedFlag> = { });
-    RenderReplaced(Type, Element&, RenderStyle&&, const LayoutSize& intrinsicSize, OptionSet<ReplacedFlag> = { });
-    RenderReplaced(Type, Document&, RenderStyle&&, const LayoutSize& intrinsicSize, OptionSet<ReplacedFlag> = { });
+    RenderReplaced(Element&, RenderStyle&&);
+    RenderReplaced(Element&, RenderStyle&&, const LayoutSize& intrinsicSize);
+    RenderReplaced(Document&, RenderStyle&&, const LayoutSize& intrinsicSize);
 
     void layout() override;
 
@@ -85,7 +85,7 @@ private:
     void computePreferredLogicalWidths() final;
     virtual void paintReplaced(PaintInfo&, const LayoutPoint&) { }
 
-    RepaintRects localRectsForRepaint(RepaintOutlineBounds) const override;
+    LayoutRect clippedOverflowRect(const RenderLayerModelObject* repaintContainer, VisibleRectContext) const override;
 
     VisiblePosition positionForPoint(const LayoutPoint&, const RenderFragmentContainer*) final;
 
@@ -98,7 +98,7 @@ private:
     virtual bool shouldDrawSelectionTint() const;
 
     Color calculateHighlightColor() const;
-    bool isHighlighted(HighlightState, const RenderHighlight&) const;
+    bool isHighlighted(HighlightState, const HighlightData&) const;
 
     bool hasReplacedLogicalHeight() const;
 

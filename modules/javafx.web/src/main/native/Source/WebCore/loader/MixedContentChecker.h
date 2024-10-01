@@ -35,7 +35,6 @@ namespace WebCore {
 
 class LocalFrame;
 class SecurityOrigin;
-enum class Initiator : uint8_t;
 
 namespace MixedContentChecker {
 

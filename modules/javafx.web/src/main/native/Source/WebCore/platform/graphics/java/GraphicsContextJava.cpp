@@ -151,7 +151,7 @@ GraphicsContextJava::~GraphicsContextJava()
     delete m_platformContext;
 }
 
-void GraphicsContextJava::save(GraphicsContextState::Purpose) {
+void GraphicsContextJava::save() {
     GraphicsContext::save();
     savePlatformState();
 }
@@ -165,7 +165,7 @@ void GraphicsContextJava::savePlatformState()
     << (jint)com_sun_webkit_graphics_GraphicsDecoder_SAVESTATE;
 }
 
-void GraphicsContextJava::restore(GraphicsContextState::Purpose) {
+void GraphicsContextJava::restore() {
     GraphicsContext::restore();
     restorePlatformState();
 }
@@ -251,7 +251,7 @@ void GraphicsContextJava::fillRect(const FloatRect& rect)
             fillPattern()->repeatY() ? rect.height() : image->size().height());
         drawPlatformPattern(image, destRect,
             FloatRect(0., 0., image->size().width(), image->size().height()),
-            fillPattern()->patternSpaceTransform(), FloatPoint(), FloatSize(), {CompositeOperator::Copy});
+            fillPattern()->patternSpaceTransform(), FloatPoint(), FloatSize(), CompositeOperator::Copy);
     } else {
         if (fillGradient()) {
             setGradient(
@@ -267,10 +267,7 @@ void GraphicsContextJava::fillRect(const FloatRect& rect)
         << rect.width() << rect.height();
     }
 }
-void GraphicsContextJava::fillRect(const FloatRect&, Gradient&, const AffineTransform&)
-{
-    notImplemented();
-}
+
 void GraphicsContextJava::resetClip()
 {
     notImplemented();
@@ -798,7 +795,7 @@ void GraphicsContextJava::clipOut(const FloatRect& rect)
     clipOut(path);
 }
 
-void GraphicsContextJava::drawPlatformImage(const PlatformImagePtr& image, const FloatRect& destRect, const FloatRect& srcRect, ImagePaintingOptions options)
+void GraphicsContextJava::drawPlatformImage(const PlatformImagePtr& image, const FloatSize&, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions& options)
 {
     if (!image || !image->getImage())
         return;
@@ -831,7 +828,7 @@ void GraphicsContextJava::drawPlatformImage(const PlatformImagePtr& image, const
     restorePlatformState();
 }
 
-void GraphicsContextJava::drawPlatformPattern(const PlatformImagePtr& image, const FloatRect& destRect, const FloatRect& tileRect, const AffineTransform& patternTransform, const FloatPoint& phase, const FloatSize&,ImagePaintingOptions)
+void GraphicsContextJava::drawPlatformPattern(const PlatformImagePtr& image, const FloatRect& destRect, const FloatRect& tileRect, const AffineTransform& patternTransform, const FloatPoint& phase, const FloatSize&, const ImagePaintingOptions&)
 {
     if (paintingDisabled() || !patternTransform.isInvertible())
         return;
@@ -881,7 +878,7 @@ void GraphicsContextJava::fillPath(const Path& path)
             fillPattern()->repeatY() ? rect.height() : image->size().height());
         drawPlatformPattern(image, destRect,
             FloatRect(0., 0., image->size().width(), image->size().height()),
-            fillPattern()->patternSpaceTransform(), FloatPoint(), FloatSize(), {CompositeOperator::Copy});
+            fillPattern()->patternSpaceTransform(), FloatPoint(), FloatSize(), CompositeOperator::Copy);
 
         restorePlatformState();
     } else {
@@ -1020,12 +1017,10 @@ void GraphicsContextJava::didUpdateState(GraphicsContextState& state)
         setPlatformAlpha(alpha());
     }
 
-    if (state.changes() & GraphicsContextState::Change::DropShadow) {
-        auto dropShadowOpt = state.dropShadow();
-        if (dropShadowOpt.has_value()) {
-            const auto& dropShadow = dropShadowOpt.value();
-            setPlatformShadow(dropShadow.offset,dropShadow.radius, dropShadow.color);
-        }
+    if (state.changes().contains(GraphicsContextState::Change::Style)) {
+        auto dropShadow = state.dropShadow();
+        if (dropShadow)
+            setPlatformShadow(dropShadow->offset,dropShadow->radius, dropShadow->color);
     }
 
     if (state.changes() & GraphicsContextState::Change::FillBrush) {
@@ -1038,11 +1033,12 @@ void GraphicsContextJava::fillRoundedRectImpl(const FloatRoundedRect& rect, cons
     fillRoundedRect(rect, color, BlendMode::Normal);
 }
 
-void GraphicsContextJava::drawNativeImageInternal(NativeImage& image, const FloatRect& destRect, const FloatRect& srcRect, ImagePaintingOptions options)
+void GraphicsContextJava::drawNativeImageInternal(NativeImage& image, const FloatSize& selfSize, const FloatRect& destRect,
+                            const FloatRect& srcRect, const ImagePaintingOptions& options)
 {
     /* flush ImageRq  to decode previous recorded  command buffer */
     flushImageRQ(platformContext(), image.platformImage());
-    drawPlatformImage(image.platformImage(), destRect, srcRect, options);
+    drawPlatformImage(image.platformImage(), selfSize, destRect, srcRect, options);
 }
 
 /*void GraphicsContextJava::drawPattern(NativeImage& image, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& tileRect,
@@ -1050,7 +1046,7 @@ void GraphicsContextJava::drawNativeImageInternal(NativeImage& image, const Floa
                             const ImagePaintingOptions& imagePaintingOptions)
 */
 void GraphicsContextJava::drawPattern(NativeImage& image, const FloatRect& destRect, const FloatRect& tileRect, const AffineTransform& patternTransform,
-                       const FloatPoint& phase, const FloatSize& spacing, ImagePaintingOptions imagePaintingOptions){
+                       const FloatPoint& phase, const FloatSize& spacing, const ImagePaintingOptions& imagePaintingOptions){
     drawPlatformPattern(image.platformImage(), destRect, tileRect, patternTransform, phase, spacing, imagePaintingOptions);
 }
 

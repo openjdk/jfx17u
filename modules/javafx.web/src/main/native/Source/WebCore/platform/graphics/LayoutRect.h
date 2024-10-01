@@ -204,8 +204,6 @@ public:
 
     operator FloatRect() const { return FloatRect(m_location, m_size); }
 
-    friend bool operator==(const LayoutRect&, const LayoutRect&) = default;
-
 private:
     friend struct IPC::ArgumentCoder<WebCore::LayoutRect, void>;
     void setLocationAndSizeFromEdges(LayoutUnit left, LayoutUnit top, LayoutUnit right, LayoutUnit bottom);
@@ -229,6 +227,11 @@ inline LayoutRect unionRect(const LayoutRect& a, const LayoutRect& b)
 }
 
 LayoutRect unionRect(const Vector<LayoutRect>&);
+
+inline bool operator==(const LayoutRect& a, const LayoutRect& b)
+{
+    return a.location() == b.location() && a.size() == b.size();
+}
 
 inline bool LayoutRect::isInfinite() const
 {

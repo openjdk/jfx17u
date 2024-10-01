@@ -364,7 +364,7 @@ void FontCascade::drawGlyphs(GraphicsContext& context, const Font& font, const G
     bool hasSimpleShadow = context.textDrawingMode() == TextDrawingMode::Fill && shadow && shadow->color.isValid() && !shadow->radius && !platformData.isColorBitmapFont() && (!context.shadowsIgnoreTransforms() || contextCTM.isIdentityOrTranslationOrFlipped()) && !context.isInTransparencyLayer();
     if (hasSimpleShadow) {
         // Paint simple shadows ourselves instead of relying on CG shadows, to avoid losing subpixel antialiasing.
-        context.clearDropShadow();
+        context.clearShadow();
         Color fillColor = context.fillColor();
         Color shadowFillColor = shadow->color.colorWithAlphaMultipliedBy(fillColor.alphaAsFloat());
         context.setFillColor(shadowFillColor);
@@ -400,23 +400,20 @@ bool FontCascade::primaryFontIsSystemFont() const
     return isSystemFont(fontData.platformData().ctFont());
 }
 
-const Font* FontCascade::fontForCombiningCharacterSequence(StringView stringView) const
+// FIXME: Use this on all ports.
+const Font* FontCascade::fontForCombiningCharacterSequence(const UChar* characters, size_t length) const
 {
-    auto codePoints = stringView.codePoints();
-    auto codePointsIterator = codePoints.begin();
-
-    ASSERT(!stringView.isEmpty());
-    char32_t baseCharacter = *codePointsIterator;
-    ++codePointsIterator;
-    bool isOnlySingleCodePoint = codePointsIterator == codePoints.end();
+    UChar32 baseCharacter;
+    size_t baseCharacterLength = 0;
+    U16_NEXT(characters, baseCharacterLength, length, baseCharacter);
 
     GlyphData baseCharacterGlyphData = glyphDataForCharacter(baseCharacter, false, NormalVariant);
 
     if (!baseCharacterGlyphData.glyph)
         return nullptr;
 
-    if (isOnlySingleCodePoint)
-        return baseCharacterGlyphData.font.get();
+    if (length == baseCharacterLength)
+        return baseCharacterGlyphData.font;
 
     bool triedBaseCharacterFont = false;
 
@@ -451,17 +448,17 @@ const Font* FontCascade::fontForCombiningCharacterSequence(StringView stringView
         if (font == baseCharacterGlyphData.font)
             triedBaseCharacterFont = true;
 
-        if (font->canRenderCombiningCharacterSequence(stringView))
+        if (font->canRenderCombiningCharacterSequence(characters, length))
             return font;
     }
 
-    if (!triedBaseCharacterFont && baseCharacterGlyphData.font && baseCharacterGlyphData.font->canRenderCombiningCharacterSequence(stringView))
-        return baseCharacterGlyphData.font.get();
+    if (!triedBaseCharacterFont && baseCharacterGlyphData.font && baseCharacterGlyphData.font->canRenderCombiningCharacterSequence(characters, length))
+        return baseCharacterGlyphData.font;
 
     return Font::systemFallback();
 }
 
-ResolvedEmojiPolicy FontCascade::resolveEmojiPolicy(FontVariantEmoji fontVariantEmoji, char32_t character)
+ResolvedEmojiPolicy FontCascade::resolveEmojiPolicy(FontVariantEmoji fontVariantEmoji, UChar32 character)
 {
     // You may think that this function should be different between macOS and iOS. And you may even be right!
     //

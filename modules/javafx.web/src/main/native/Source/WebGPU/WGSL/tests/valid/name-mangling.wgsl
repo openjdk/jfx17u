@@ -2,17 +2,17 @@
 
 // CHECK-NOT-L: MyStruct1
 struct MyStruct1 {
-  // CHECK-NOT-L: myStructField1
+  // FIXME: mangle struct fields
   myStructField1: i32,
 };
 
 // CHECK-NOT-L: MyStruct2
 struct MyStruct2 {
-  // CHECK-NOT-L: myStructField2
+  // FIXME: mangle struct fields
   myStructField2: MyStruct1,
 };
 
-// CHECK-NOT-L: myGlobal1
+// FIXME: this still appears in a struct field
 @group(0) @binding(0) var<storage> myGlobal1: MyStruct2;
 
 // CHECK-NOT-L: myGlobal2

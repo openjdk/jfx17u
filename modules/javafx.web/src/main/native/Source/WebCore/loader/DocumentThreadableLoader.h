@@ -33,7 +33,6 @@
 
 #include "ContentSecurityPolicy.h"
 #include "CrossOriginPreflightChecker.h"
-#include "LoaderMalloc.h"
 #include "ResourceLoaderIdentifier.h"
 #include "ResourceResponse.h"
 #include "SecurityOrigin.h"
@@ -45,10 +44,9 @@ namespace WebCore {
     class ContentSecurityPolicy;
     class Document;
     class ThreadableLoaderClient;
-    class WeakPtrImplWithEventTargetData;
 
     class DocumentThreadableLoader : public RefCounted<DocumentThreadableLoader>, public ThreadableLoader, public CachedRawResourceClient {
-        WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Loader);
+        WTF_MAKE_FAST_ALLOCATED;
     public:
         static void loadResourceSynchronously(Document&, ResourceRequest&&, ThreadableLoaderClient&, const ThreadableLoaderOptions&, RefPtr<SecurityOrigin>&&, std::unique_ptr<ContentSecurityPolicy>&&, std::optional<CrossOriginEmbedderPolicy>&&);
         static void loadResourceSynchronously(Document&, ResourceRequest&&, ThreadableLoaderClient&, const ThreadableLoaderOptions&);
@@ -110,14 +108,10 @@ namespace WebCore {
         bool isResponseAllowedByContentSecurityPolicy(const ResourceResponse&);
 
         SecurityOrigin& securityOrigin() const;
-        Ref<SecurityOrigin> protectedSecurityOrigin() const;
         const ContentSecurityPolicy& contentSecurityPolicy() const;
-        CheckedRef<const ContentSecurityPolicy> checkedContentSecurityPolicy() const;
         const CrossOriginEmbedderPolicy& crossOriginEmbedderPolicy() const;
 
-        Document& document() { return *m_document; }
-        Ref<Document> protectedDocument();
-
+        Document& document() { return m_document; }
         const ThreadableLoaderOptions& options() const { return m_options; }
         const String& referrer() const { return m_referrer; }
         bool isLoading() { return m_resource || m_preflightChecker; }
@@ -131,11 +125,9 @@ namespace WebCore {
         bool shouldSetHTTPHeadersToKeep() const;
         bool checkURLSchemeAsCORSEnabled(const URL&);
 
-        CachedResourceHandle<CachedRawResource> protectedResource() const;
-
         CachedResourceHandle<CachedRawResource> m_resource;
-        ThreadableLoaderClient* m_client; // FIXME: Use a smart pointer.
-        WeakPtr<Document, WeakPtrImplWithEventTargetData> m_document;
+        ThreadableLoaderClient* m_client;
+        Document& m_document;
         ThreadableLoaderOptions m_options;
         bool m_responsesCanBeOpaque { true };
         RefPtr<SecurityOrigin> m_origin;
@@ -151,7 +143,9 @@ namespace WebCore {
         URL m_responseURL;
 
         ShouldLogError m_shouldLogError;
+#if ENABLE(SERVICE_WORKER)
         std::optional<ResourceRequest> m_bypassingPreflightForServiceWorkerRequest;
+#endif
     };
 
 } // namespace WebCore

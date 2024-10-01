@@ -46,6 +46,7 @@ public:
     explicit SVGTextLayoutAttributes(RenderSVGInlineText&);
 
     void clear();
+    void dump() const;
     static float emptyValue();
 
     RenderSVGInlineText& context() { return m_context; }

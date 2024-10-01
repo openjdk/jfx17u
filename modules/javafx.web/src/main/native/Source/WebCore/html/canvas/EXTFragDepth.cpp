@@ -35,12 +35,17 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(EXTFragDepth);
 
 EXTFragDepth::EXTFragDepth(WebGLRenderingContextBase& context)
-    : WebGLExtension(context, WebGLExtensionName::EXTFragDepth)
+    : WebGLExtension(context)
 {
-    context.protectedGraphicsContextGL()->ensureExtensionEnabled("GL_EXT_frag_depth"_s);
+    context.graphicsContextGL()->ensureExtensionEnabled("GL_EXT_frag_depth"_s);
 }
 
 EXTFragDepth::~EXTFragDepth() = default;
+
+WebGLExtension::ExtensionName EXTFragDepth::getName() const
+{
+    return EXTFragDepthName;
+}
 
 bool EXTFragDepth::supported(GraphicsContextGL& context)
 {

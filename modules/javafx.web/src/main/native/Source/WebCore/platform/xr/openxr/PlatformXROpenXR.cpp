@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2020 Igalia, S.L.
- * Copyright (C) 2020-2023 Apple Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -53,6 +52,8 @@ OpenXRDevice::OpenXRDevice(XrInstance instance, XrSystemId system, Ref<WorkQueue
     , m_extensions(extensions)
 {
 }
+
+OpenXRDevice::~OpenXRDevice() = default;
 
 void OpenXRDevice::initialize(CompletionHandler<void()>&& callback)
 {
@@ -189,7 +190,7 @@ void OpenXRDevice::requestFrame(RequestFrameCallback&& callback)
         result = xrBeginFrame(m_session, &frameBeginInfo);
         RETURN_IF_FAILED(result, "xrBeginFrame", m_instance);
 
-        FrameData frameData;
+        Device::FrameData frameData;
         frameData.predictedDisplayTime = m_frameState.predictedDisplayTime;
         frameData.shouldRender = m_frameState.shouldRender;
         frameData.stageParameters = m_stageParameters;
@@ -366,14 +367,14 @@ void OpenXRDevice::collectSupportedSessionModes()
     auto result = xrEnumerateViewConfigurations(m_instance, m_systemId, 0, &viewConfigurationCount, nullptr);
     RETURN_IF_FAILED(result, "xrEnumerateViewConfigurations", m_instance);
 
-    Vector<XrViewConfigurationType> viewConfigurations(viewConfigurationCount);
-    result = xrEnumerateViewConfigurations(m_instance, m_systemId, viewConfigurationCount, &viewConfigurationCount, viewConfigurations.data());
+    XrViewConfigurationType viewConfigurations[viewConfigurationCount];
+    result = xrEnumerateViewConfigurations(m_instance, m_systemId, viewConfigurationCount, &viewConfigurationCount, viewConfigurations);
     RETURN_IF_FAILED(result, "xrEnumerateViewConfigurations", m_instance);
 
     FeatureList features = collectSupportedFeatures();
-    for (auto& viewConfiguration : viewConfigurations) {
+    for (uint32_t i = 0; i < viewConfigurationCount; ++i) {
         auto viewConfigurationProperties = createStructure<XrViewConfigurationProperties, XR_TYPE_VIEW_CONFIGURATION_PROPERTIES>();
-        result = xrGetViewConfigurationProperties(m_instance, m_systemId, viewConfiguration, &viewConfigurationProperties);
+        result = xrGetViewConfigurationProperties(m_instance, m_systemId, viewConfigurations[i], &viewConfigurationProperties);
         if (result != XR_SUCCESS) {
             LOG(XR, "xrGetViewConfigurationProperties(): error %s\n", resultToString(result, m_instance).utf8().data());
             continue;
@@ -498,9 +499,8 @@ void OpenXRDevice::endSession()
         return;
 
     // Notify did end event
-    callOnMainThread([this, weakThis = ThreadSafeWeakPtr { *this }]() {
-        auto protectedThis = weakThis.get();
-        if (!protectedThis)
+    callOnMainThread([this, weakThis = WeakPtr { *this }]() {
+        if (!weakThis)
             return;
         if (m_trackingAndRenderingClient)
             m_trackingAndRenderingClient->sessionDidEnd();
@@ -588,9 +588,8 @@ void OpenXRDevice::updateInteractionProfile()
 
     didNotifyInputInitialization = true;
     auto inputSources = m_input->collectInputSources(m_frameState);
-    callOnMainThread([this, weakThis = ThreadSafeWeakPtr { *this }, inputSources = WTFMove(inputSources)]() mutable {
-        auto protectedThis = weakThis.get();
-        if (!protectedThis)
+    callOnMainThread([this, weakThis = WeakPtr { *this }, inputSources = WTFMove(inputSources)]() mutable {
+        if (!weakThis)
             return;
         if (m_trackingAndRenderingClient)
             m_trackingAndRenderingClient->sessionDidInitializeInputSources(WTFMove(inputSources));

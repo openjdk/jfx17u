@@ -46,7 +46,7 @@ public:
 private:
     WakeLock& wakeLock();
 
-    static ASCIILiteral supplementName();
+    static const char* supplementName();
 
     RefPtr<WakeLock> m_wakeLock;
     Navigator& m_navigator;

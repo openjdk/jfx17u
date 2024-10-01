@@ -44,6 +44,7 @@ public:
 private:
     void node() const = delete;
 
+    bool isCombineText() const override { return true; }
     ASCIILiteral renderName() const override { return "RenderCombineText"_s; }
     void styleDidChange(StyleDifference, const RenderStyle* oldStyle) override;
     void setRenderedText(const String&) override;
@@ -58,4 +59,4 @@ private:
 
 } // namespace WebCore
 
-SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderCombineText, isRenderCombineText())
+SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderCombineText, isCombineText())

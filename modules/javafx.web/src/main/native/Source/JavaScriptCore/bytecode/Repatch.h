@@ -31,7 +31,6 @@
 namespace JSC {
 
 class CallLinkInfo;
-class DirectCallLinkInfo;
 class OptimizingCallLinkInfo;
 class StructureStubInfo;
 
@@ -62,10 +61,8 @@ enum class PutByKind {
 };
 
 enum class DelByKind {
-    ByIdStrict,
-    ByIdSloppy,
-    ByValStrict,
-    ByValSloppy,
+    ById,
+    ByVal
 };
 
 enum class InByKind {
@@ -79,15 +76,15 @@ void repatchGetBy(JSGlobalObject*, CodeBlock*, JSValue, CacheableIdentifier, con
 void repatchArrayPutByVal(JSGlobalObject*, CodeBlock*, JSValue base, JSValue index, StructureStubInfo&, PutByKind);
 void repatchPutBy(JSGlobalObject*, CodeBlock*, JSValue, Structure*, CacheableIdentifier, const PutPropertySlot&, StructureStubInfo&, PutByKind);
 void repatchDeleteBy(JSGlobalObject*, CodeBlock*, DeletePropertySlot&, JSValue, Structure*, CacheableIdentifier, StructureStubInfo&, DelByKind, ECMAMode);
-void repatchArrayInByVal(JSGlobalObject*, CodeBlock*, JSValue base, JSValue index, StructureStubInfo&, InByKind);
 void repatchInBy(JSGlobalObject*, CodeBlock*, JSObject*, CacheableIdentifier, bool wasFound, const PropertySlot&, StructureStubInfo&, InByKind);
 void repatchHasPrivateBrand(JSGlobalObject*, CodeBlock*, JSObject*, CacheableIdentifier, bool wasFound,  StructureStubInfo&);
 void repatchCheckPrivateBrand(JSGlobalObject*, CodeBlock*, JSObject*, CacheableIdentifier, StructureStubInfo&);
 void repatchSetPrivateBrand(JSGlobalObject*, CodeBlock*, JSObject*, Structure*, CacheableIdentifier, StructureStubInfo&);
 void repatchInstanceOf(JSGlobalObject*, CodeBlock*, JSValue, JSValue prototype, StructureStubInfo&, bool wasFound);
-void linkMonomorphicCall(VM&, JSCell*, CallLinkInfo&, CodeBlock*, JSObject* callee, CodePtr<JSEntryPtrTag>);
-void linkDirectCall(DirectCallLinkInfo&, CodeBlock*, CodePtr<JSEntryPtrTag>);
-void linkPolymorphicCall(VM&, JSCell*, CallFrame*, CallLinkInfo&, CallVariant);
+void linkMonomorphicCall(VM&, CallFrame*, CallLinkInfo&, CodeBlock*, JSObject* callee, CodePtr<JSEntryPtrTag>);
+void linkDirectCall(CallFrame*, OptimizingCallLinkInfo&, CodeBlock*, CodePtr<JSEntryPtrTag>);
+void unlinkCall(VM&, CallLinkInfo&);
+void linkPolymorphicCall(JSGlobalObject*, CallFrame*, CallLinkInfo&, CallVariant);
 void resetGetBy(CodeBlock*, StructureStubInfo&, GetByKind);
 void resetPutBy(CodeBlock*, StructureStubInfo&, PutByKind);
 void resetDelBy(CodeBlock*, StructureStubInfo&, DelByKind);

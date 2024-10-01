@@ -32,9 +32,6 @@
 
 namespace WebCore {
 
-enum class AttachmentAssociatedElementType : uint8_t;
-
-class AttachmentAssociatedElement;
 class DOMRectReadOnly;
 class File;
 class HTMLImageElement;
@@ -46,7 +43,7 @@ class HTMLAttachmentElement final : public HTMLElement {
     WTF_MAKE_ISO_ALLOCATED(HTMLAttachmentElement);
 public:
     static Ref<HTMLAttachmentElement> create(const QualifiedName&, Document&);
-    WEBCORE_EXPORT static String getAttachmentIdentifier(HTMLElement&);
+    WEBCORE_EXPORT static const String& getAttachmentIdentifier(HTMLImageElement&);
     static URL archiveResourceURL(const String&);
 
     WEBCORE_EXPORT URL blobURL() const;
@@ -61,7 +58,7 @@ public:
     void copyNonAttributePropertiesFromElement(const Element&) final;
 
     WEBCORE_EXPORT void updateAttributes(std::optional<uint64_t>&& newFileSize, const AtomString& newContentType, const AtomString& newFilename);
-    WEBCORE_EXPORT void updateAssociatedElementWithData(const String& contentType, Ref<FragmentedSharedBuffer>&& data);
+    WEBCORE_EXPORT void updateEnclosingImageWithData(const String& contentType, Ref<FragmentedSharedBuffer>&& data);
     WEBCORE_EXPORT void updateThumbnailForNarrowLayout(const RefPtr<Image>& thumbnail);
     WEBCORE_EXPORT void updateThumbnailForWideLayout(Vector<uint8_t>&&);
     WEBCORE_EXPORT void updateIconForNarrowLayout(const RefPtr<Image>& icon, const WebCore::FloatSize&);
@@ -70,9 +67,8 @@ public:
     InsertedIntoAncestorResult insertedIntoAncestor(InsertionType, ContainerNode&) final;
     void removedFromAncestor(RemovalType, ContainerNode&) final;
 
-    String ensureUniqueIdentifier();
-    AttachmentAssociatedElement* associatedElement() const;
-    AttachmentAssociatedElementType associatedElementType() const;
+    const String& ensureUniqueIdentifier();
+    RefPtr<HTMLImageElement> enclosingImageElement() const;
 
     WEBCORE_EXPORT String attachmentTitle() const;
     const AtomString& attachmentSubtitle() const;
@@ -83,7 +79,7 @@ public:
     String attachmentPath() const;
     RefPtr<Image> thumbnail() const { return m_thumbnail; }
     RefPtr<Image> icon() const { return m_icon; }
-    void requestIconWithSize(const FloatSize&);
+    void requestIconWithSize(const FloatSize&) const;
     void requestWideLayoutIconIfNeeded();
     FloatSize iconSize() const { return m_iconSize; }
     void invalidateRendering();

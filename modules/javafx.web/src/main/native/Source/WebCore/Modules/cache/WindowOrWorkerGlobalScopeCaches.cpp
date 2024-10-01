@@ -49,7 +49,7 @@ public:
     DOMCacheStorage* caches() const;
 
 private:
-    static ASCIILiteral supplementName() { return "DOMWindowCaches"_s; }
+    static const char* supplementName() { return "DOMWindowCaches"; }
 
     mutable RefPtr<DOMCacheStorage> m_caches;
 };
@@ -64,7 +64,7 @@ public:
     DOMCacheStorage* caches() const;
 
 private:
-    static ASCIILiteral supplementName() { return "WorkerGlobalScopeCaches"_s; }
+    static const char* supplementName() { return "WorkerGlobalScopeCaches"; }
 
     WorkerGlobalScope& m_scope;
     mutable RefPtr<DOMCacheStorage> m_caches;
@@ -127,7 +127,7 @@ DOMCacheStorage* WorkerGlobalScopeCaches::caches() const
 ExceptionOr<DOMCacheStorage*> WindowOrWorkerGlobalScopeCaches::caches(ScriptExecutionContext& context, LocalDOMWindow& window)
 {
     if (downcast<Document>(context).isSandboxed(SandboxOrigin))
-        return Exception { ExceptionCode::SecurityError, "Cache storage is disabled because the context is sandboxed and lacks the 'allow-same-origin' flag"_s };
+        return Exception { SecurityError, "Cache storage is disabled because the context is sandboxed and lacks the 'allow-same-origin' flag"_s };
 
     if (!window.isCurrentlyDisplayedInFrame())
         return nullptr;

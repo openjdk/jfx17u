@@ -25,10 +25,11 @@
 
 class MediaController
 {
+
     constructor(shadowRoot, media, host)
     {
-        this.shadowRootWeakRef = new WeakRef(shadowRoot);
-        this.mediaWeakRef = new WeakRef(media);
+        this.shadowRoot = shadowRoot;
+        this.media = media;
         this.host = host;
 
         this.fullscreenChangeEventType = media.webkitSupportsPresentationMode ? "webkitpresentationmodechanged" : "webkitfullscreenchange";
@@ -64,16 +65,6 @@ class MediaController
     }
 
     // Public
-    get media()
-    {
-        return this.mediaWeakRef ? this.mediaWeakRef.deref() : null;
-    }
-
-    get shadowRoot()
-    {
-
-        return this.shadowRootWeakRef ? this.shadowRootWeakRef.deref() : null;
-    }
 
     get isAudio()
     {
@@ -100,10 +91,7 @@ class MediaController
 
     get isFullscreen()
     {
-        if (!this.media)
-            return false;
-
-        return this.media.webkitSupportsPresentationMode ? this.media.webkitPresentationMode === "fullscreen" || this.media.webkitPresentationMode === "in-window" : this.media.webkitDisplayingFullscreen;
+        return this.media.webkitSupportsPresentationMode ? this.media.webkitPresentationMode === "fullscreen" : this.media.webkitDisplayingFullscreen;
     }
 
     get layoutTraits()
@@ -274,22 +262,6 @@ class MediaController
         };
         update();
 
-        return true;
-    }
-
-    deinitialize()
-    {
-        this.shadowRoot.removeChild(this.container);
-        return true;
-    }
-
-    reinitialize(shadowRoot, media, host)
-    {
-        iconService.shadowRoot = shadowRoot;
-        this.shadowRootWeakRef = new WeakRef(shadowRoot);
-        this.mediaWeakRef = new WeakRef(media);
-        this.host = host;
-        shadowRoot.appendChild(this.container);
         return true;
     }
 

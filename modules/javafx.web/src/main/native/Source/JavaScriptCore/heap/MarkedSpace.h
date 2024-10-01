@@ -96,7 +96,7 @@ public:
     MarkedSpace(Heap*);
     ~MarkedSpace();
 
-    JSC::Heap& heap() const;
+    Heap& heap() const;
 
     void lastChanceToFinalize(); // Must call stopAllocatingForGood first.
     void freeMemory();
@@ -154,7 +154,6 @@ public:
 
     HeapVersion markingVersion() const { return m_markingVersion; }
     HeapVersion newlyAllocatedVersion() const { return m_newlyAllocatedVersion; }
-    HeapVersion edenVersion() const { return m_edenVersion; }
 
     const Vector<PreciseAllocation*>& preciseAllocations() const { return m_preciseAllocations; }
     unsigned preciseAllocationsNurseryOffset() const { return m_preciseAllocationsNurseryOffset; }
@@ -215,7 +214,6 @@ private:
     size_t m_capacity { 0 };
     HeapVersion m_markingVersion { initialVersion };
     HeapVersion m_newlyAllocatedVersion { initialVersion };
-    HeapVersion m_edenVersion { initialVersion };
     bool m_isIterating { false };
     bool m_isMarking { false };
     Lock m_directoryLock;

@@ -464,7 +464,8 @@ public:
 
     RegisteredStructureSet* addStructureSet(const StructureSet& structureSet)
     {
-        RegisteredStructureSet* result = &m_structureSets.alloc();
+        m_structureSets.append();
+        RegisteredStructureSet* result = &m_structureSets.last();
 
         for (Structure* structure : structureSet)
             result->add(registerStructure(structure));
@@ -474,7 +475,8 @@ public:
 
     RegisteredStructureSet* addStructureSet(const RegisteredStructureSet& structureSet)
     {
-        RegisteredStructureSet* result = &m_structureSets.alloc();
+        m_structureSets.append();
+        RegisteredStructureSet* result = &m_structureSets.last();
 
         for (RegisteredStructure structure : structureSet)
             result->add(structure);
@@ -1149,8 +1151,6 @@ public:
 
     void freeDFGIRAfterLowering();
 
-    bool isNeverResizableOrGrowableSharedTypedArrayIncludingDataView(const AbstractValue&);
-
     const BoyerMooreHorspoolTable<uint8_t>* tryAddStringSearchTable8(const String&);
 
     StackCheck m_stackChecker;
@@ -1179,7 +1179,7 @@ public:
     HashMap<String, std::unique_ptr<BoyerMooreHorspoolTable<uint8_t>>> m_stringSearchTable8;
 
     HashMap<EncodedJSValue, FrozenValue*, EncodedJSValueHash, EncodedJSValueHashTraits> m_frozenValueMap;
-    SegmentedVector<FrozenValue, 16> m_frozenValues;
+    Bag<FrozenValue> m_frozenValues;
 
     Vector<uint32_t> m_uint32ValuesInUse;
 
@@ -1231,7 +1231,6 @@ public:
     Bag<StackAccessData> m_stackAccessData;
     Bag<LazyJSValue> m_lazyJSValues;
     Bag<CallDOMGetterData> m_callDOMGetterData;
-    Bag<CallCustomAccessorData> m_callCustomAccessorData;
     Bag<BitVector> m_bitVectors;
     Vector<InlineVariableData, 4> m_inlineVariableData;
     HashMap<CodeBlock*, std::unique_ptr<FullBytecodeLiveness>> m_bytecodeLiveness;
@@ -1283,7 +1282,6 @@ public:
     bool m_hasExceptionHandlers { false };
     bool m_isInSSAConversion { false };
     bool m_isValidating { false };
-    bool m_frozenValuesAreFinalized { false };
     std::optional<uint32_t> m_maxLocalsForCatchOSREntry;
     std::unique_ptr<FlowIndexing> m_indexingCache;
     std::unique_ptr<FlowMap<AbstractValue>> m_abstractValuesCache;

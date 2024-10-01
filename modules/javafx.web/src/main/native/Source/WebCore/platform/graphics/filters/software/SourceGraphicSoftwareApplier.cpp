@@ -31,8 +31,8 @@ bool SourceGraphicSoftwareApplier::apply(const Filter&, const FilterImageVector&
 {
     auto& input = inputs[0].get();
 
-    RefPtr resultImage = result.imageBuffer();
-    RefPtr sourceImage = input.imageBuffer();
+    auto resultImage = result.imageBuffer();
+    auto sourceImage = input.imageBuffer();
     if (!resultImage || !sourceImage)
         return false;
 

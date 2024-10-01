@@ -62,8 +62,7 @@ public:
     void replaceJSFunctionForAttributeListener(JSC::JSObject* function, JSC::JSObject* wrapper);
     static bool wasCreatedFromMarkup(const EventListener& listener)
     {
-        auto* jsEventListener = dynamicDowncast<JSEventListener>(listener);
-        return jsEventListener && jsEventListener->wasCreatedFromMarkup();
+        return is<JSEventListener>(listener) && downcast<JSEventListener>(listener).wasCreatedFromMarkup();
     }
 
 private:

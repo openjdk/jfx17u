@@ -26,16 +26,28 @@
 #include "config.h"
 #include "CSSUnresolvedColorMix.h"
 
-#include "CSSColorMixSerialization.h"
 #include "ColorFromPrimitiveValue.h"
 #include "ColorSerialization.h"
 #include "StyleBuilderState.h"
 
 namespace WebCore {
 
-void serializationForCSS(StringBuilder& builder, const CSSUnresolvedColorMix& colorMix)
+static void serializationForCSS(StringBuilder& builder, const CSSUnresolvedColorMix::Component& component)
 {
-    serializationForCSSColorMix<CSSUnresolvedColorMix>(builder, colorMix);
+    builder.append(component.color->customCSSText());
+    if (component.percentage)
+        builder.append(' ', component.percentage->customCSSText());
+}
+
+void serializationForCSS(StringBuilder& builder, const CSSUnresolvedColorMix& unresolved)
+{
+    builder.append("color-mix(in ");
+    serializationForCSS(builder, unresolved.colorInterpolationMethod);
+    builder.append(", ");
+    serializationForCSS(builder, unresolved.mixComponents1);
+    builder.append(", ");
+    serializationForCSS(builder, unresolved.mixComponents2);
+    builder.append(')');
 }
 
 String serializationForCSS(const CSSUnresolvedColorMix& unresolved)
@@ -45,10 +57,17 @@ String serializationForCSS(const CSSUnresolvedColorMix& unresolved)
     return builder.toString();
 }
 
-bool operator==(const CSSUnresolvedColorMix::Component& a, const CSSUnresolvedColorMix::Component& b)
+static bool operator==(const CSSUnresolvedColorMix::Component& a, const CSSUnresolvedColorMix::Component& b)
 {
     return compareCSSValue(a.color, b.color)
         && compareCSSValuePtr(a.percentage, b.percentage);
+}
+
+bool operator==(const CSSUnresolvedColorMix& a, const CSSUnresolvedColorMix& b)
+{
+    return a.colorInterpolationMethod == b.colorInterpolationMethod
+        && a.mixComponents1 == b.mixComponents1
+        && a.mixComponents2 == b.mixComponents2;
 }
 
 StyleColor createStyleColor(const CSSUnresolvedColorMix& unresolved, const Document& document, RenderStyle& style, Style::ForVisitedLink forVisitedLink)

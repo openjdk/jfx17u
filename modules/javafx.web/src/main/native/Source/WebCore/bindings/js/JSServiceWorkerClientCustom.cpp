@@ -24,6 +24,8 @@
  */
 
 #include "config.h"
+
+#if ENABLE(SERVICE_WORKER)
 #include "JSServiceWorkerClient.h"
 
 #include "JSDOMBinding.h"
@@ -46,3 +48,5 @@ JSValue toJS(JSGlobalObject* lexicalGlobalObject, JSDOMGlobalObject* globalObjec
 }
 
 } // namespace WebCore
+
+#endif

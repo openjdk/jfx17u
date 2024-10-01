@@ -449,7 +449,21 @@ inline void setExceptionPorts(const AbstractLocker& threadGroupLocker, Thread& t
 {
     UNUSED_PARAM(threadGroupLocker);
     SignalHandlers& handlers = g_wtfConfig.signalHandlers;
-    kern_return_t result = thread_set_exception_ports(thread.machThread(), handlers.addedExceptions & activeExceptions, handlers.exceptionPort, EXCEPTION_STATE | MACH_EXCEPTION_CODES, MACHINE_THREAD_STATE);
+
+#ifdef EXCEPTION_IDENTITY_PROTECTED
+    exception_behavior_t newBehavior = MACH_EXCEPTION_CODES;
+    if (WTF::isX86BinaryRunningOnARM()) {
+        // If we are a translated process in rosetta, use the old exception style
+        newBehavior |= EXCEPTION_STATE;
+    } else {
+        // Otherwise use the new style
+        newBehavior |= EXCEPTION_IDENTITY_PROTECTED;
+    }
+#else
+    exception_behavior_t newBehavior = EXCEPTION_STATE | MACH_EXCEPTION_CODES;
+#endif // EXCEPTION_IDENTITY_PROTECTED
+
+    kern_return_t result = thread_set_exception_ports(thread.machThread(), handlers.addedExceptions &activeExceptions, handlers.exceptionPort, newBehavior, MACHINE_THREAD_STATE);
     if (result != KERN_SUCCESS) {
         dataLogLn("thread set port failed due to ", mach_error_string(result));
         CRASH();
@@ -458,13 +472,13 @@ inline void setExceptionPorts(const AbstractLocker& threadGroupLocker, Thread& t
 
 static ThreadGroup& activeThreads()
 {
-    static LazyNeverDestroyed<std::shared_ptr<ThreadGroup>> activeThreads;
+    static LazyNeverDestroyed<Ref<ThreadGroup>> activeThreads;
     static std::once_flag initializeKey;
     std::call_once(initializeKey, [&] {
         Config::AssertNotFrozenScope assertScope;
         activeThreads.construct(ThreadGroup::create());
     });
-    return (*activeThreads.get());
+    return activeThreads.get();
 }
 
 void registerThreadForMachExceptionHandling(Thread& thread)

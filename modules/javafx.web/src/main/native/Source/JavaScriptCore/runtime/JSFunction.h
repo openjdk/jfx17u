@@ -106,7 +106,6 @@ public:
 
     // To call any of these methods include JSFunctionInlines.h
     bool isHostFunction() const;
-    bool isNonBoundHostFunction() const;
     FunctionExecutable* jsExecutable() const;
     Intrinsic intrinsic() const;
 
@@ -114,7 +113,11 @@ public:
 
     DECLARE_EXPORT_INFO;
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        ASSERT(globalObject);
+        return Structure::create(vm, globalObject, prototype, TypeInfo(JSFunctionType, StructureFlags), info());
+    }
 
     TaggedNativeFunction nativeFunction();
     TaggedNativeFunction nativeConstructor();
@@ -135,7 +138,7 @@ public:
         return bitwise_cast<FunctionRareData*>(executableOrRareData & ~rareDataTag);
     }
 
-    FunctionRareData* ensureRareDataAndObjectAllocationProfile(JSGlobalObject*, unsigned inlineCapacity);
+    FunctionRareData* ensureRareDataAndAllocationProfile(JSGlobalObject*, unsigned inlineCapacity);
 
     FunctionRareData* rareData() const
     {
@@ -156,15 +159,14 @@ public:
     // Returns the __proto__ for the |this| value if this JSFunction were to be constructed.
     JSObject* prototypeForConstruction(VM&, JSGlobalObject*);
 
-    bool canUseAllocationProfiles();
+    bool canUseAllocationProfile();
+    bool canUseAllocationProfileNonInline();
 
     enum class PropertyStatus {
         Eager,
         Lazy,
         Reified,
     };
-    enum class SetHasModifiedLengthOrName : uint8_t { Yes, No };
-    template <SetHasModifiedLengthOrName set = SetHasModifiedLengthOrName::Yes>
     PropertyStatus reifyLazyPropertyIfNeeded(VM&, JSGlobalObject*, PropertyName);
 
     bool canAssumeNameAndLengthAreOriginal(VM&);
@@ -241,7 +243,11 @@ public:
 
     static constexpr unsigned StructureFlags = Base::StructureFlags;
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        ASSERT(globalObject);
+        return Structure::create(vm, globalObject, prototype, TypeInfo(JSFunctionType, StructureFlags), info());
+    }
 };
 static_assert(sizeof(JSStrictFunction) == sizeof(JSFunction), "Allocated in JSFunction IsoSubspace");
 
@@ -253,7 +259,11 @@ public:
 
     static constexpr unsigned StructureFlags = Base::StructureFlags;
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        ASSERT(globalObject);
+        return Structure::create(vm, globalObject, prototype, TypeInfo(JSFunctionType, StructureFlags), info());
+    }
 };
 static_assert(sizeof(JSSloppyFunction) == sizeof(JSFunction), "Allocated in JSFunction IsoSubspace");
 
@@ -265,7 +275,11 @@ public:
 
     static constexpr unsigned StructureFlags = Base::StructureFlags;
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        ASSERT(globalObject);
+        return Structure::create(vm, globalObject, prototype, TypeInfo(JSFunctionType, StructureFlags), info());
+    }
 };
 static_assert(sizeof(JSArrowFunction) == sizeof(JSFunction), "Allocated in JSFunction IsoSubspace");
 

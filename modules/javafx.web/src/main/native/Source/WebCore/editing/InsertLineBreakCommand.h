@@ -31,13 +31,13 @@ namespace WebCore {
 
 class InsertLineBreakCommand : public CompositeEditCommand {
 public:
-    static Ref<InsertLineBreakCommand> create(Ref<Document>&& document)
+    static Ref<InsertLineBreakCommand> create(Document& document)
     {
-        return adoptRef(*new InsertLineBreakCommand(WTFMove(document)));
+        return adoptRef(*new InsertLineBreakCommand(document));
     }
 
 private:
-    explicit InsertLineBreakCommand(Ref<Document>&&);
+    explicit InsertLineBreakCommand(Document&);
 
     void doApply() override;
 

@@ -37,7 +37,6 @@
 #include "PositionOptions.h"
 #include "ScriptWrappable.h"
 #include "Timer.h"
-#include <wtf/CheckedRef.h>
 #include <wtf/HashMap.h>
 #include <wtf/HashSet.h>
 
@@ -52,7 +51,7 @@ class ScriptExecutionContext;
 class SecurityOrigin;
 struct PositionOptions;
 
-class Geolocation final : public ScriptWrappable, public RefCounted<Geolocation>, public CanMakeWeakPtr<Geolocation>, public ActiveDOMObject {
+class Geolocation final : public ScriptWrappable, public RefCounted<Geolocation>, public ActiveDOMObject {
     WTF_MAKE_ISO_ALLOCATED_EXPORT(Geolocation, WEBCORE_EXPORT);
     friend class GeoNotifier;
 public:

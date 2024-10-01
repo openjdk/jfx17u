@@ -69,10 +69,11 @@ auto HashMapStylePropertyMapReadOnly::entries(ScriptExecutionContext* context) c
     if (!document)
         return { };
 
-    return WTF::map(m_map, [&](auto& entry) -> StylePropertyMapEntry {
-        auto& [propertyName, cssValue] = entry;
-        return makeKeyValuePair(propertyName,  Vector<RefPtr<CSSStyleValue>> { reifyValue(cssValue.get(), cssPropertyID(propertyName), *document) });
-    });
+    Vector<StylePropertyMapEntry> result;
+    result.reserveInitialCapacity(m_map.size());
+    for (auto& [propertyName, cssValue] : m_map)
+        result.uncheckedAppend(makeKeyValuePair(propertyName,  Vector<RefPtr<CSSStyleValue>> { reifyValue(cssValue.get(), cssPropertyID(propertyName), *document) }));
+    return result;
 }
 
 } // namespace WebCore

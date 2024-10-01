@@ -186,14 +186,14 @@ JSValue RegExpObject::matchGlobal(JSGlobalObject* globalObject, JSString* string
         unsigned stringLength = s.length();
         RELEASE_AND_RETURN(scope, collectMatches(
             vm, globalObject, string, s, regExp,
-            [&](size_t end) ALWAYS_INLINE_LAMBDA {
+            [&] (size_t end) -> size_t {
                 return advanceStringUnicode(s, stringLength, end);
             }));
     }
 
     RELEASE_AND_RETURN(scope, collectMatches(
         vm, globalObject, string, s, regExp,
-        [](size_t end) ALWAYS_INLINE_LAMBDA {
+        [&] (size_t end) -> size_t {
             return end + 1;
         }));
 }

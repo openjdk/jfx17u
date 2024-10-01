@@ -47,7 +47,7 @@ std::pair<bool, std::reference_wrapper<JSC::JSObject>> getBackingSet(JSC::JSGlob
     if (!backingSet) {
         auto& vm = lexicalGlobalObject.vm();
         backingSet = JSC::JSSet::create(vm, lexicalGlobalObject.setStructure());
-        setLike.putDirect(vm, builtinNames(vm).backingSetPrivateName(), backingSet, enumToUnderlyingType(JSC::PropertyAttribute::DontEnum));
+        setLike.putDirect(vm, builtinNames(vm).backingSetPrivateName(), backingSet, static_cast<unsigned>(JSC::PropertyAttribute::DontEnum));
         return { true, *JSC::asObject(backingSet) };
     }
     return { false, *JSC::asObject(backingSet) };
@@ -93,7 +93,6 @@ JSC::JSValue forwardFunctionCallToBackingSet(JSC::JSGlobalObject& lexicalGlobalO
     auto callData = JSC::getCallData(function);
     ASSERT(callData.type != JSC::CallData::Type::None);
     JSC::MarkedArgumentBuffer arguments;
-    arguments.ensureCapacity(callFrame.argumentCount());
     for (size_t cptr = 0; cptr < callFrame.argumentCount(); ++cptr)
         arguments.append(callFrame.uncheckedArgument(cptr));
     ASSERT(!arguments.hasOverflowed());
@@ -112,7 +111,6 @@ JSC::JSValue forwardForEachCallToBackingSet(JSDOMGlobalObject& globalObject, JSC
     ASSERT(callData.type != JSC::CallData::Type::None);
 
     JSC::MarkedArgumentBuffer arguments;
-    arguments.ensureCapacity(callFrame.argumentCount() + 1);
     arguments.append(&result.second.get());
     for (size_t cptr = 0; cptr < callFrame.argumentCount(); ++cptr)
         arguments.append(callFrame.uncheckedArgument(cptr));

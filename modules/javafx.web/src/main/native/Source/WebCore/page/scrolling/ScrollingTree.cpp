@@ -318,7 +318,7 @@ bool ScrollingTree::commitTreeState(std::unique_ptr<ScrollingStateTree>&& scroll
 
     LOG(ScrollingTree, "\nScrollingTree %p commitTreeState", this);
 
-    auto rootNode = scrollingStateTree->rootStateNode();
+    auto* rootNode = scrollingStateTree->rootStateNode();
     if (rootNode
         && (rootStateNodeChanged
             || rootNode->hasChangedProperty(ScrollingStateNode::Property::EventTrackingRegion)
@@ -360,7 +360,7 @@ bool ScrollingTree::commitTreeState(std::unique_ptr<ScrollingStateTree>&& scroll
     for (auto nodeID : m_nodeMap.keys())
         commitState.unvisitedNodes.add(nodeID);
 
-    bool succeeded = updateTreeFromStateNodeRecursive(rootNode.get(), commitState);
+    bool succeeded = updateTreeFromStateNodeRecursive(rootNode, commitState);
     if (!succeeded)
         return false;
 
@@ -441,11 +441,12 @@ bool ScrollingTree::updateTreeFromStateNodeRecursive(const ScrollingStateNode* s
     node->removeAllChildren();
 
     // Now update the children if we have any.
-    for (auto& child : stateNode->children()) {
-        ASSERT(child->parent().get() == stateNode);
-        if (!updateTreeFromStateNodeRecursive(child.ptr(), state))
+    if (auto children = stateNode->children()) {
+        for (auto& child : *children) {
+            if (!updateTreeFromStateNodeRecursive(child.get(), state))
                 return false;
         }
+    }
 
     if (!node->commitStateAfterChildren(*stateNode))
         return false;
@@ -783,17 +784,17 @@ void ScrollingTree::setMainFramePinnedState(RectEdges<bool> edgePinningState)
     m_swipeState.mainFramePinnedState = edgePinningState;
 }
 
-void ScrollingTree::setClientAllowedMainFrameRubberBandableEdges(RectEdges<bool> clientAllowedRubberBandableEdges)
+void ScrollingTree::setMainFrameCanRubberBand(RectEdges<bool> canRubberBand)
 {
     Locker locker { m_swipeStateLock };
 
-    m_swipeState.clientAllowedRubberBandableEdges = clientAllowedRubberBandableEdges;
+    m_swipeState.canRubberBand = canRubberBand;
 }
 
-bool ScrollingTree::clientAllowsMainFrameRubberBandingOnSide(BoxSide side)
+bool ScrollingTree::mainFrameCanRubberBandOnSide(BoxSide side)
 {
     Locker locker { m_swipeStateLock };
-    return m_swipeState.clientAllowedRubberBandableEdges.at(side);
+    return m_swipeState.canRubberBand.at(side);
 }
 
 void ScrollingTree::addPendingScrollUpdate(ScrollUpdate&& update)
@@ -843,13 +844,13 @@ bool ScrollingTree::willWheelEventStartSwipeGesture(const PlatformWheelEvent& wh
 
     Locker locker { m_swipeStateLock };
 
-    if (wheelEvent.deltaX() > 0 && m_swipeState.mainFramePinnedState.left() && !m_swipeState.clientAllowedRubberBandableEdges.left())
+    if (wheelEvent.deltaX() > 0 && m_swipeState.mainFramePinnedState.left() && !m_swipeState.canRubberBand.left())
         return true;
-    if (wheelEvent.deltaX() < 0 && m_swipeState.mainFramePinnedState.right() && !m_swipeState.clientAllowedRubberBandableEdges.right())
+    if (wheelEvent.deltaX() < 0 && m_swipeState.mainFramePinnedState.right() && !m_swipeState.canRubberBand.right())
         return true;
-    if (wheelEvent.deltaY() > 0 && m_swipeState.mainFramePinnedState.top() && !m_swipeState.clientAllowedRubberBandableEdges.top())
+    if (wheelEvent.deltaY() > 0 && m_swipeState.mainFramePinnedState.top() && !m_swipeState.canRubberBand.top())
         return true;
-    if (wheelEvent.deltaY() < 0 && m_swipeState.mainFramePinnedState.bottom() && !m_swipeState.clientAllowedRubberBandableEdges.bottom())
+    if (wheelEvent.deltaY() < 0 && m_swipeState.mainFramePinnedState.bottom() && !m_swipeState.canRubberBand.bottom())
         return true;
 
     return false;

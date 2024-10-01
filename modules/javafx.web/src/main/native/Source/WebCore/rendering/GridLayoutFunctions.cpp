@@ -26,12 +26,10 @@
 #include "config.h"
 #include "GridLayoutFunctions.h"
 
-#include "AncestorSubgridIterator.h"
 #include "LengthFunctions.h"
 #include "RenderBoxInlines.h"
 #include "RenderBoxModelObjectInlines.h"
 #include "RenderGrid.h"
-#include "RenderStyleConstants.h"
 #include "RenderStyleInlines.h"
 
 namespace WebCore {
@@ -40,18 +38,18 @@ namespace GridLayoutFunctions {
 
 static inline bool marginStartIsAuto(const RenderBox& child, GridTrackSizingDirection direction)
 {
-    return direction == GridTrackSizingDirection::ForColumns ? child.style().marginStart().isAuto() : child.style().marginBefore().isAuto();
+    return direction == ForColumns ? child.style().marginStart().isAuto() : child.style().marginBefore().isAuto();
 }
 
 static inline bool marginEndIsAuto(const RenderBox& child, GridTrackSizingDirection direction)
 {
-    return direction == GridTrackSizingDirection::ForColumns ? child.style().marginEnd().isAuto() : child.style().marginAfter().isAuto();
+    return direction == ForColumns ? child.style().marginEnd().isAuto() : child.style().marginAfter().isAuto();
 }
 
 static bool childHasMargin(const RenderBox& child, GridTrackSizingDirection direction)
 {
     // Length::IsZero returns true for 'auto' margins, which is aligned with the purpose of this function.
-    if (direction == GridTrackSizingDirection::ForColumns)
+    if (direction == ForColumns)
         return !child.style().marginStart().isZero() || !child.style().marginEnd().isZero();
     return !child.style().marginBefore().isZero() || !child.style().marginAfter().isZero();
 }
@@ -64,53 +62,66 @@ LayoutUnit computeMarginLogicalSizeForChild(const RenderGrid& grid, GridTrackSiz
 
     LayoutUnit marginStart;
     LayoutUnit marginEnd;
-    if (direction == GridTrackSizingDirection::ForColumns)
+    if (direction == ForColumns)
         child.computeInlineDirectionMargins(grid, child.containingBlockLogicalWidthForContentInFragment(nullptr), { }, child.logicalWidth(), marginStart, marginEnd);
     else
         child.computeBlockDirectionMargins(grid, marginStart, marginEnd);
     return marginStartIsAuto(child, flowAwareDirection) ? marginEnd : marginEndIsAuto(child, flowAwareDirection) ? marginStart : marginStart + marginEnd;
 }
 
-bool hasRelativeOrIntrinsicSizeForChild(const RenderBox& child, GridTrackSizingDirection direction)
+static bool hasRelativeOrIntrinsicSizeForChild(const RenderBox& child, GridTrackSizingDirection direction)
 {
-    if (direction == GridTrackSizingDirection::ForColumns)
+    if (direction == ForColumns)
         return child.hasRelativeLogicalWidth() || child.style().logicalWidth().isIntrinsicOrAuto();
     return child.hasRelativeLogicalHeight() || child.style().logicalHeight().isIntrinsicOrAuto();
 }
 
-static ExtraMarginsFromSubgrids extraMarginForSubgrid(const RenderGrid& parent, unsigned startLine, unsigned endLine, GridTrackSizingDirection direction)
+static LayoutUnit extraMarginForSubgrid(const RenderGrid& parent, unsigned startLine, unsigned endLine, GridTrackSizingDirection direction)
 {
     unsigned numTracks = parent.numTracks(direction);
     if (!numTracks || !parent.isSubgrid(direction))
-        return { };
+        return 0_lu;
 
     std::optional<LayoutUnit> availableSpace;
     if (!hasRelativeOrIntrinsicSizeForChild(parent, direction))
         availableSpace = parent.availableSpaceForGutters(direction);
 
     RenderGrid& grandParent = downcast<RenderGrid>(*parent.parent());
-    ExtraMarginsFromSubgrids extraMargins;
+    LayoutUnit mbp;
     if (!startLine)
-        extraMargins.addTrackStartMargin((direction == GridTrackSizingDirection::ForColumns) ? parent.marginAndBorderAndPaddingStart() : parent.marginAndBorderAndPaddingBefore());
+        mbp += (direction == ForColumns) ? parent.marginAndBorderAndPaddingStart() : parent.marginAndBorderAndPaddingBefore();
     else
-        extraMargins.addTrackStartMargin((parent.gridGap(direction, availableSpace) - grandParent.gridGap(direction)) / 2);
+        mbp += (parent.gridGap(direction, availableSpace) - grandParent.gridGap(direction)) / 2;
 
     if (endLine == numTracks)
-        extraMargins.addTrackEndMargin((direction == GridTrackSizingDirection::ForColumns) ? parent.marginAndBorderAndPaddingEnd() : parent.marginAndBorderAndPaddingAfter());
+        mbp += (direction == ForColumns) ? parent.marginAndBorderAndPaddingEnd() : parent.marginAndBorderAndPaddingAfter();
     else
-        extraMargins.addTrackEndMargin((parent.gridGap(direction, availableSpace) - grandParent.gridGap(direction)) / 2);
+        mbp += (parent.gridGap(direction, availableSpace) - grandParent.gridGap(direction)) / 2;
 
-    return extraMargins;
+    return mbp;
 }
 
-ExtraMarginsFromSubgrids extraMarginForSubgridAncestors(GridTrackSizingDirection direction, const RenderBox& child)
+LayoutUnit extraMarginForSubgridAncestors(GridTrackSizingDirection direction, const RenderBox& child)
 {
-    ExtraMarginsFromSubgrids extraMargins;
-    for (auto& currentAncestorSubgrid : ancestorSubgridsOfGridItem(child, direction)) {
-        GridSpan span = currentAncestorSubgrid.gridSpanForChild(child, direction);
-        extraMargins += extraMarginForSubgrid(currentAncestorSubgrid, span.startLine(), span.endLine(), direction);
+    const RenderGrid* grid = downcast<RenderGrid>(child.parent());
+    LayoutUnit mbp;
+
+    while (grid->isSubgrid(direction)) {
+        GridSpan span = grid->gridSpanForChild(child, direction);
+
+        mbp += extraMarginForSubgrid(*grid, span.startLine(), span.endLine(), direction);
+
+        const RenderElement* parent = grid->parent();
+        if (!parent || !is<RenderGrid>(parent))
+            break;
+
+        const RenderGrid* parentGrid = downcast<RenderGrid>(parent);
+        direction = flowAwareDirectionForParent(*grid, *parentGrid, direction);
+
+        grid = parentGrid;
     }
-    return extraMargins;
+
+    return mbp;
 }
 
 LayoutUnit marginLogicalSizeForChild(const RenderGrid& grid, GridTrackSizingDirection direction, const RenderBox& child)
@@ -120,7 +131,7 @@ LayoutUnit marginLogicalSizeForChild(const RenderGrid& grid, GridTrackSizingDire
         margin = computeMarginLogicalSizeForChild(grid, direction, child);
     else {
         GridTrackSizingDirection flowAwareDirection = flowAwareDirectionForChild(grid, child, direction);
-        bool isRowAxis = flowAwareDirection == GridTrackSizingDirection::ForColumns;
+        bool isRowAxis = flowAwareDirection == ForColumns;
         LayoutUnit marginStart = marginStartIsAuto(child, flowAwareDirection) ? 0_lu : isRowAxis ? child.marginStart() : child.marginBefore();
         LayoutUnit marginEnd = marginEndIsAuto(child, flowAwareDirection) ? 0_lu : isRowAxis ? child.marginEnd() : child.marginAfter();
         margin = marginStart + marginEnd;
@@ -128,7 +139,7 @@ LayoutUnit marginLogicalSizeForChild(const RenderGrid& grid, GridTrackSizingDire
 
     if (&grid != child.parent()) {
         GridTrackSizingDirection subgridDirection = flowAwareDirectionForChild(grid, *downcast<RenderGrid>(child.parent()), direction);
-        margin += extraMarginForSubgridAncestors(subgridDirection, child).extraTotalMargin();
+        margin += extraMarginForSubgridAncestors(subgridDirection, child);
     }
 
     return margin;
@@ -151,27 +162,27 @@ bool isAspectRatioBlockSizeDependentChild(const RenderBox& child)
 
 GridTrackSizingDirection flowAwareDirectionForChild(const RenderGrid& grid, const RenderBox& child, GridTrackSizingDirection direction)
 {
-    return !isOrthogonalChild(grid, child) ? direction : (direction == GridTrackSizingDirection::ForColumns ? GridTrackSizingDirection::ForRows : GridTrackSizingDirection::ForColumns);
+    return !isOrthogonalChild(grid, child) ? direction : (direction == ForColumns ? ForRows : ForColumns);
 }
 
 GridTrackSizingDirection flowAwareDirectionForParent(const RenderGrid& grid, const RenderElement& parent, GridTrackSizingDirection direction)
 {
-    return isOrthogonalParent(grid, parent) ? (direction == GridTrackSizingDirection::ForColumns ? GridTrackSizingDirection::ForRows : GridTrackSizingDirection::ForColumns) : direction;
+    return isOrthogonalParent(grid, parent) ? (direction == ForColumns ? ForRows : ForColumns) : direction;
 }
 
 bool hasOverridingContainingBlockContentSizeForChild(const RenderBox& child, GridTrackSizingDirection direction)
 {
-    return direction == GridTrackSizingDirection::ForColumns ? child.hasOverridingContainingBlockContentLogicalWidth() : child.hasOverridingContainingBlockContentLogicalHeight();
+    return direction == ForColumns ? child.hasOverridingContainingBlockContentLogicalWidth() : child.hasOverridingContainingBlockContentLogicalHeight();
 }
 
 std::optional<LayoutUnit> overridingContainingBlockContentSizeForChild(const RenderBox& child, GridTrackSizingDirection direction)
 {
-    return direction == GridTrackSizingDirection::ForColumns ? child.overridingContainingBlockContentLogicalWidth() : child.overridingContainingBlockContentLogicalHeight();
+    return direction == ForColumns ? child.overridingContainingBlockContentLogicalWidth() : child.overridingContainingBlockContentLogicalHeight();
 }
 
 bool isFlippedDirection(const RenderGrid& grid, GridTrackSizingDirection direction)
 {
-    if (direction == GridTrackSizingDirection::ForColumns)
+    if (direction == ForColumns)
         return !grid.style().isLeftToRightDirection();
     return grid.style().isFlippedBlocksWritingMode();
 }
@@ -181,14 +192,6 @@ bool isSubgridReversedDirection(const RenderGrid& grid, GridTrackSizingDirection
     GridTrackSizingDirection childDirection = flowAwareDirectionForChild(grid, subgrid, outerDirection);
     ASSERT(subgrid.isSubgrid(childDirection));
     return isFlippedDirection(grid, outerDirection) != isFlippedDirection(subgrid, childDirection);
-}
-
-unsigned alignmentContextForBaselineAlignment(const GridSpan& span, const ItemPosition& alignment)
-{
-    ASSERT(alignment == ItemPosition::Baseline || alignment == ItemPosition::LastBaseline);
-    if (alignment == ItemPosition::Baseline)
-        return span.startLine();
-    return span.endLine() - 1;
 }
 
 } // namespace GridLayoutFunctions

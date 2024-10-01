@@ -37,11 +37,9 @@ enum class GraphicsContextGLPowerPreference : uint8_t {
     HighPerformance
 };
 
-enum class GraphicsContextGLSimulatedCreationFailure : uint8_t {
-    None,
-    IPCBufferOOM,
-    CreationTimeout,
-    FailPlatformContextCreation
+enum class GraphicsContextGLWebGLVersion : uint8_t {
+    WebGL1,
+    WebGL2
 };
 
 #if PLATFORM(MAC) || PLATFORM(MACCATALYST)
@@ -49,14 +47,25 @@ using PlatformGPUID = uint64_t;
 #endif
 
 struct GraphicsContextGLAttributes {
+    // WebGLContextAttributes
     bool alpha { true };
     bool depth { true };
     bool stencil { false };
     bool antialias { true };
     bool premultipliedAlpha { true };
     bool preserveDrawingBuffer { false };
-    GraphicsContextGLPowerPreference powerPreference { GraphicsContextGLPowerPreference::Default };
-    bool isWebGL2 { false };
+    bool failIfMajorPerformanceCaveat { false };
+    using PowerPreference = GraphicsContextGLPowerPreference;
+    PowerPreference powerPreference { PowerPreference::Default };
+
+    // Additional attributes.
+    bool shareResources { true };
+    bool noExtensions { false };
+    float devicePixelRatio { 1 };
+    PowerPreference initialPowerPreference { PowerPreference::Default };
+    using WebGLVersion = GraphicsContextGLWebGLVersion;
+    WebGLVersion webGLVersion { WebGLVersion::WebGL1 };
+    bool forceRequestForHighPerformanceGPU { false };
 #if PLATFORM(MAC) || PLATFORM(MACCATALYST)
     PlatformGPUID windowGPUID { 0 };
 #endif
@@ -66,9 +75,17 @@ struct GraphicsContextGLAttributes {
 #if ENABLE(WEBXR)
     bool xrCompatible { false };
 #endif
-    using SimulatedCreationFailure = GraphicsContextGLSimulatedCreationFailure;
-    SimulatedCreationFailure failContextCreationForTesting { SimulatedCreationFailure::None };
+    bool failPlatformContextCreationForTesting { false };
+    unsigned remoteIPCBufferSizeLog2ForTesting { 0 }; // Not serialized.
+
+    PowerPreference effectivePowerPreference() const
+    {
+        if (forceRequestForHighPerformanceGPU)
+            return PowerPreference::HighPerformance;
+        return powerPreference;
+    }
 };
+
 }
 
 #endif // ENABLE(WEBGL)

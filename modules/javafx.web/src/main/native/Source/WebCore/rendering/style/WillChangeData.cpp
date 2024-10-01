@@ -60,13 +60,13 @@ bool WillChangeData::containsProperty(CSSPropertyID property) const
     return false;
 }
 
-bool WillChangeData::createsContainingBlockForAbsolutelyPositioned(bool isRootElement) const
+bool WillChangeData::createsContainingBlockForAbsolutelyPositioned() const
 {
-    return createsContainingBlockForOutOfFlowPositioned(isRootElement)
+    return createsContainingBlockForOutOfFlowPositioned()
         || containsProperty(CSSPropertyPosition);
 }
 
-bool WillChangeData::createsContainingBlockForOutOfFlowPositioned(bool isRootElement) const
+bool WillChangeData::createsContainingBlockForOutOfFlowPositioned() const
 {
     return containsProperty(CSSPropertyPerspective)
         // CSS transforms
@@ -78,20 +78,10 @@ bool WillChangeData::createsContainingBlockForOutOfFlowPositioned(bool isRootEle
         || containsProperty(CSSPropertyContain)
         // CSS filter & backdrop-filter
         // FIXME: exclude root element for those properties (bug 225034)
-        || (containsProperty(CSSPropertyBackdropFilter) && !isRootElement)
-        || (containsProperty(CSSPropertyWebkitBackdropFilter) && !isRootElement)
-        || containsProperty(CSSPropertyFilter);
-}
-
-bool WillChangeData::canBeBackdropRoot() const
-{
-    return containsProperty(CSSPropertyOpacity)
-        || containsProperty(CSSPropertyBackdropFilter)
+#if ENABLE(FILTERS_LEVEL_2)
         || containsProperty(CSSPropertyWebkitBackdropFilter)
-        || containsProperty(CSSPropertyClipPath)
-        || containsProperty(CSSPropertyFilter)
-        || containsProperty(CSSPropertyMixBlendMode)
-        || containsProperty(CSSPropertyMask);
+#endif
+        || containsProperty(CSSPropertyFilter);
 }
 
 // "If any non-initial value of a property would create a stacking context on the element,
@@ -113,13 +103,15 @@ bool WillChangeData::propertyCreatesStackingContext(CSSPropertyID property)
     case CSSPropertyPosition:
     case CSSPropertyZIndex:
     case CSSPropertyWebkitBoxReflect:
+#if ENABLE(CSS_COMPOSITING)
     case CSSPropertyMixBlendMode:
     case CSSPropertyIsolation:
+#endif
     case CSSPropertyFilter:
-    case CSSPropertyBackdropFilter:
+#if ENABLE(FILTERS_LEVEL_2)
     case CSSPropertyWebkitBackdropFilter:
+#endif
     case CSSPropertyMaskImage:
-    case CSSPropertyMaskBorder:
     case CSSPropertyWebkitMaskBoxImage:
 #if ENABLE(OVERFLOW_SCROLLING_TOUCH)
     case CSSPropertyWebkitOverflowScrolling:
@@ -136,8 +128,9 @@ static bool propertyTriggersCompositing(CSSPropertyID property)
     switch (property) {
     case CSSPropertyOpacity:
     case CSSPropertyFilter:
-    case CSSPropertyBackdropFilter:
+#if ENABLE(FILTERS_LEVEL_2)
     case CSSPropertyWebkitBackdropFilter:
+#endif
         return true;
     default:
         return false;

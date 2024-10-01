@@ -38,8 +38,8 @@ class MathMLOperatorElement;
 class RenderMathMLOperator : public RenderMathMLToken {
     WTF_MAKE_ISO_ALLOCATED(RenderMathMLOperator);
 public:
-    RenderMathMLOperator(Type, MathMLOperatorElement&, RenderStyle&&);
-    RenderMathMLOperator(Type, Document&, RenderStyle&&);
+    RenderMathMLOperator(MathMLOperatorElement&, RenderStyle&&);
+    RenderMathMLOperator(Document&, RenderStyle&&);
     MathMLOperatorElement& element() const;
 
     void stretchTo(LayoutUnit heightAboveBaseline, LayoutUnit depthBelowBaseline);
@@ -57,7 +57,7 @@ public:
 
     void updateTokenContent() final;
     void updateFromElement() final;
-    virtual char32_t textContent() const;
+    virtual UChar32 textContent() const;
     bool isStretchy() const { return textContent() && hasOperatorFlag(MathMLOperatorDictionary::Stretchy); }
 
 protected:

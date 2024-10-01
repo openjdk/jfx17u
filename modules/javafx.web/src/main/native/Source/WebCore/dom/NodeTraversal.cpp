@@ -41,8 +41,7 @@ Node* previousIncludingPseudo(const Node& current, const Node* stayWithin)
             previous = previous->pseudoAwareLastChild();
         return previous;
     }
-    auto* pseudoElement = dynamicDowncast<PseudoElement>(current);
-    return pseudoElement ? pseudoElement->hostElement() : current.parentNode();
+    return is<PseudoElement>(current) ? downcast<PseudoElement>(current).hostElement() : current.parentNode();
 }
 
 Node* nextIncludingPseudo(const Node& current, const Node* stayWithin)
@@ -54,8 +53,7 @@ Node* nextIncludingPseudo(const Node& current, const Node* stayWithin)
         return nullptr;
     if ((next = current.pseudoAwareNextSibling()))
         return next;
-    auto* pseudoElement = dynamicDowncast<PseudoElement>(current);
-    const Node* ancestor = pseudoElement ? pseudoElement->hostElement() : current.parentNode();
+    const Node* ancestor = is<PseudoElement>(current) ? downcast<PseudoElement>(current).hostElement() : current.parentNode();
     for (; ancestor; ancestor = ancestor->parentNode()) {
         if (ancestor == stayWithin)
             return nullptr;
@@ -72,8 +70,7 @@ Node* nextIncludingPseudoSkippingChildren(const Node& current, const Node* stayW
         return nullptr;
     if ((next = current.pseudoAwareNextSibling()))
         return next;
-    auto* pseudoElement = dynamicDowncast<PseudoElement>(current);
-    const Node* ancestor = pseudoElement ? pseudoElement->hostElement() : current.parentNode();
+    const Node* ancestor = is<PseudoElement>(current) ? downcast<PseudoElement>(current).hostElement() : current.parentNode();
     for (; ancestor; ancestor = ancestor->parentNode()) {
         if (ancestor == stayWithin)
             return nullptr;

@@ -35,7 +35,6 @@
 #include "CSSSegmentedFontFace.h"
 #include "CSSValueList.h"
 #include "CSSValuePool.h"
-#include "DocumentInlines.h"
 #include "FontCache.h"
 #include "FontSelectionValueInlines.h"
 #include "StyleBuilderConverter.h"
@@ -362,14 +361,14 @@ static FontSelectionRequest computeFontSelectionRequest(CSSPropertyParserHelpers
     return { weightSelectionValue, *stretchSelectionValue, styleSelectionValue };
 }
 
-using CodePointsMap = HashSet<uint32_t, DefaultHash<uint32_t>, WTF::UnsignedWithZeroKeyHashTraits<uint32_t>>;
+using CodePointsMap = HashSet<UChar32, DefaultHash<UChar32>, WTF::UnsignedWithZeroKeyHashTraits<UChar32>>;
 static CodePointsMap codePointsFromString(StringView stringView)
 {
     CodePointsMap result;
     auto graphemeClusters = stringView.graphemeClusters();
     for (auto cluster : graphemeClusters) {
         ASSERT(cluster.length() > 0);
-        char32_t character = 0;
+        UChar32 character = 0;
         if (cluster.is8Bit())
             character = cluster[0];
         else
@@ -383,7 +382,7 @@ ExceptionOr<Vector<std::reference_wrapper<CSSFontFace>>> CSSFontFaceSet::matchin
 {
     auto font = CSSPropertyParserWorkerSafe::parseFont(fontShorthand, HTMLStandardMode);
     if (!font)
-        return Exception { ExceptionCode::SyntaxError };
+        return Exception { SyntaxError };
 
     HashSet<AtomString> uniqueFamilies;
     Vector<AtomString> familyOrder;

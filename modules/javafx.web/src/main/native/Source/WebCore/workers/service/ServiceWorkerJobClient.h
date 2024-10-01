@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "FetchOptions.h"
 #include "ServiceWorkerTypes.h"
 
@@ -56,3 +58,5 @@ public:
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

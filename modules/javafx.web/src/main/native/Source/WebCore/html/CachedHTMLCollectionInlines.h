@@ -29,7 +29,6 @@
 #include "CollectionIndexCacheInlines.h"
 #include "CollectionTraversalInlines.h"
 #include "HTMLCollectionInlines.h"
-#include "TreeScopeInlines.h"
 
 namespace WebCore {
 
@@ -92,8 +91,7 @@ static inline bool nameShouldBeVisibleInDocumentAll(HTMLElement& element)
 
 static inline bool nameShouldBeVisibleInDocumentAll(Element& element)
 {
-    auto* htmlElement = dynamicDowncast<HTMLElement>(element);
-    return htmlElement && nameShouldBeVisibleInDocumentAll(*htmlElement);
+    return is<HTMLElement>(element) && nameShouldBeVisibleInDocumentAll(downcast<HTMLElement>(element));
 }
 
 template <typename HTMLCollectionClass, CollectionTraversalType traversalType>
@@ -110,13 +108,13 @@ Element* CachedHTMLCollection<HTMLCollectionClass, traversalType>::namedItem(con
 
     ContainerNode& root = rootNode();
     if (traversalType != CollectionTraversalType::CustomForwardOnly && root.isInTreeScope()) {
-        RefPtr<Element> candidate;
+        Element* candidate = nullptr;
 
         TreeScope& treeScope = root.treeScope();
-        if (treeScope.hasElementWithId(name)) {
+        if (treeScope.hasElementWithId(*name.impl())) {
             if (!treeScope.containsMultipleElementsWithId(name))
                 candidate = treeScope.getElementById(name);
-        } else if (treeScope.hasElementWithName(name)) {
+        } else if (treeScope.hasElementWithName(*name.impl())) {
             if (!treeScope.containsMultipleElementsWithName(name)) {
                 if ((candidate = treeScope.getElementByName(name))) {
                     if (!is<HTMLElement>(*candidate))
@@ -130,7 +128,7 @@ Element* CachedHTMLCollection<HTMLCollectionClass, traversalType>::namedItem(con
 
         if (candidate && collection().elementMatches(*candidate)) {
             if (traversalType == CollectionTraversalType::ChildrenOnly ? candidate->parentNode() == &root : candidate->isDescendantOf(root))
-                return candidate.get();
+                return candidate;
         }
     }
 

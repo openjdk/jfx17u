@@ -45,8 +45,7 @@ private:
 
     AccessibilityObject* parentObject() const override;
     bool isAccessibilitySVGRoot() const override { return true; }
-
-    AccessibilityRole determineAccessibilityRole() final;
+    AccessibilityRole roleValue() const override;
 
     WeakPtr<AccessibilityRenderObject> m_parent;
 };

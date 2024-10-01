@@ -39,7 +39,6 @@ public:
     void invalidateShadowTree();
     void updateUserAgentShadowTree() final;
 
-    RefPtr<SVGElement> clipChild() const;
     RenderElement* rendererClipChild() const;
 
     const SVGLengthValue& x() const { return m_x->currentValue(); }

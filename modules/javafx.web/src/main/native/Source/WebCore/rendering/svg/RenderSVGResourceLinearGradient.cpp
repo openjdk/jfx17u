@@ -1,7 +1,6 @@
 /*
  * Copyright (C) 2006 Nikolas Zimmermann <zimmermann@kde.org>
  * Copyright (C) Research In Motion Limited 2010. All rights reserved.
- * Copyright (C) 2021, 2022, 2023 Igalia S.L.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -22,8 +21,6 @@
 #include "config.h"
 #include "RenderSVGResourceLinearGradient.h"
 
-#if ENABLE(LAYER_BASED_SVG_ENGINE)
-#include "RenderSVGModelObjectInlines.h"
 #include "RenderSVGResourceLinearGradientInlines.h"
 #include <wtf/IsoMallocInlines.h>
 
@@ -32,41 +29,37 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderSVGResourceLinearGradient);
 
 RenderSVGResourceLinearGradient::RenderSVGResourceLinearGradient(SVGLinearGradientElement& element, RenderStyle&& style)
-    : RenderSVGResourceGradient(Type::SVGResourceLinearGradient, element, WTFMove(style))
+    : RenderSVGResourceGradient(element, WTFMove(style))
 {
 }
 
 RenderSVGResourceLinearGradient::~RenderSVGResourceLinearGradient() = default;
 
-void RenderSVGResourceLinearGradient::collectGradientAttributesIfNeeded()
+bool RenderSVGResourceLinearGradient::collectGradientAttributes()
 {
-    if (m_attributes.has_value())
-        return;
-
-    linearGradientElement().synchronizeAllAttributes();
-
-    auto attributes = LinearGradientAttributes { };
-    if (linearGradientElement().collectGradientAttributes(attributes))
-        m_attributes = WTFMove(attributes);
+    m_attributes = LinearGradientAttributes();
+    return linearGradientElement().collectGradientAttributes(m_attributes);
 }
 
-RefPtr<Gradient> RenderSVGResourceLinearGradient::createGradient(const RenderStyle& style)
+FloatPoint RenderSVGResourceLinearGradient::startPoint(const LinearGradientAttributes& attributes) const
 {
-    if (!m_attributes)
-        return nullptr;
+    return SVGLengthContext::resolvePoint(&linearGradientElement(), attributes.gradientUnits(), attributes.x1(), attributes.y1());
+}
 
-    auto startPoint = SVGLengthContext::resolvePoint(&linearGradientElement(), m_attributes->gradientUnits(), m_attributes->x1(), m_attributes->y1());
-    auto endPoint = SVGLengthContext::resolvePoint(&linearGradientElement(), m_attributes->gradientUnits(), m_attributes->x2(), m_attributes->y2());
+FloatPoint RenderSVGResourceLinearGradient::endPoint(const LinearGradientAttributes& attributes) const
+{
+    return SVGLengthContext::resolvePoint(&linearGradientElement(), attributes.gradientUnits(), attributes.x2(), attributes.y2());
+}
 
+Ref<Gradient> RenderSVGResourceLinearGradient::buildGradient(const RenderStyle& style) const
+{
     return Gradient::create(
-        Gradient::LinearData { startPoint, endPoint },
+        Gradient::LinearData { startPoint(m_attributes), endPoint(m_attributes) },
         { ColorInterpolationMethod::SRGB { }, AlphaPremultiplication::Unpremultiplied },
-        platformSpreadMethodFromSVGType(m_attributes->spreadMethod()),
-        stopsByApplyingColorFilter(m_attributes->stops(), style),
+        platformSpreadMethodFromSVGType(m_attributes.spreadMethod()),
+        stopsByApplyingColorFilter(m_attributes.stops(), style),
         RenderingResourceIdentifier::generate()
     );
 }
 
 }
-
-#endif // ENABLE(LAYER_BASED_SVG_ENGINE)

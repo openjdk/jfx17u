@@ -165,14 +165,14 @@ Element* HTMLCollection::namedItemSlow(const AtomString& name) const
     updateNamedElementCache();
     ASSERT(m_namedElementCache);
 
-    if (auto* idResults = m_namedElementCache->findElementsWithId(name)) {
+    if (const Vector<Element*>* idResults = m_namedElementCache->findElementsWithId(name)) {
         if (idResults->size())
-            return idResults->at(0).ptr();
+            return idResults->at(0);
     }
 
-    if (auto* nameResults = m_namedElementCache->findElementsWithName(name)) {
+    if (const Vector<Element*>* nameResults = m_namedElementCache->findElementsWithName(name)) {
         if (nameResults->size())
-            return nameResults->at(0).ptr();
+            return nameResults->at(0);
     }
 
     return nullptr;
@@ -213,11 +213,10 @@ void HTMLCollection::updateNamedElementCache() const
         const AtomString& id = element.getIdAttribute();
         if (!id.isEmpty())
             cache->appendToIdCache(id, element);
-        auto* htmlElement = dynamicDowncast<HTMLElement>(element);
-        if (!htmlElement)
+        if (!is<HTMLElement>(element))
             continue;
         const AtomString& name = element.getNameAttribute();
-        if (!name.isEmpty() && id != name && (type() != CollectionType::DocAll || nameShouldBeVisibleInDocumentAll(*htmlElement)))
+        if (!name.isEmpty() && id != name && (type() != CollectionType::DocAll || nameShouldBeVisibleInDocumentAll(downcast<HTMLElement>(element))))
             cache->appendToNameCache(name, element);
     }
 
@@ -243,14 +242,12 @@ Vector<Ref<Element>> HTMLCollection::namedItems(const AtomString& name) const
     elements.reserveInitialCapacity((elementsWithId ? elementsWithId->size() : 0) + (elementsWithName ? elementsWithName->size() : 0));
 
     if (elementsWithId) {
-        elements.appendContainerWithMapping(*elementsWithId, [](auto& element) {
-            return Ref { element.get() };
-        });
+        for (auto& element : *elementsWithId)
+            elements.uncheckedAppend(*element);
     }
     if (elementsWithName) {
-        elements.appendContainerWithMapping(*elementsWithName, [](auto& element) {
-            return Ref { element.get() };
-        });
+        for (auto& element : *elementsWithName)
+            elements.uncheckedAppend(*element);
     }
 
     return elements;

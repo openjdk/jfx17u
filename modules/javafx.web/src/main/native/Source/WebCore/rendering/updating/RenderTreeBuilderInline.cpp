@@ -49,8 +49,8 @@ static bool canUseAsParentForContinuation(const RenderObject* renderer)
 
 static RenderBoxModelObject* nextContinuation(RenderObject* renderer)
 {
-    if (auto* renderInline = dynamicDowncast<RenderInline>(*renderer); renderInline && !renderInline->isReplacedOrInlineBlock())
-        return renderInline->continuation();
+    if (is<RenderInline>(*renderer) && !renderer->isReplacedOrInlineBlock())
+        return downcast<RenderInline>(*renderer).continuation();
     return downcast<RenderBlock>(*renderer).inlineContinuation();
 }
 
@@ -81,9 +81,7 @@ static RenderBoxModelObject* continuationBefore(RenderInline& parent, RenderObje
 
 static RenderPtr<RenderInline> cloneAsContinuation(RenderInline& renderer)
 {
-    auto continuationStyle = RenderStyle::clone(renderer.style());
-    continuationStyle.setDisplay(DisplayType::Inline);
-    RenderPtr<RenderInline> cloneInline = createRenderer<RenderInline>(RenderObject::Type::Inline, *renderer.element(), WTFMove(continuationStyle));
+    RenderPtr<RenderInline> cloneInline = createRenderer<RenderInline>(*renderer.element(), RenderStyle::clone(renderer.style()));
     cloneInline->initializeStyle();
     cloneInline->setFragmentedFlowState(renderer.fragmentedFlowState());
     cloneInline->setHasOutlineAutoAncestor(renderer.hasOutlineAutoAncestor());
@@ -180,7 +178,7 @@ void RenderTreeBuilder::Inline::attachIgnoringContinuation(RenderInline& parent,
         if (auto positionedAncestor = inFlowPositionedInlineAncestor(parent))
             newStyle.setPosition(positionedAncestor->style().position());
 
-        auto newBox = createRenderer<RenderBlockFlow>(RenderObject::Type::BlockFlow, parent.document(), WTFMove(newStyle));
+        auto newBox = createRenderer<RenderBlockFlow>(parent.document(), WTFMove(newStyle));
         newBox->initializeStyle();
         newBox->setIsContinuation();
         RenderBoxModelObject* oldContinuation = parent.continuation();
@@ -215,8 +213,8 @@ void RenderTreeBuilder::Inline::splitFlow(RenderInline& parent, RenderObject* be
         // FIXME-BLOCKFLOW: The enclosing method should likely be switched over
         // to only work on RenderBlockFlow, in which case this conversion can be
         // removed.
-        if (auto* blockFlow = dynamicDowncast<RenderBlockFlow>(*pre))
-            blockFlow->removeFloatingObjects();
+        if (is<RenderBlockFlow>(*pre))
+            downcast<RenderBlockFlow>(*pre).removeFloatingObjects();
         block = block->containingBlock();
     } else {
         // No anonymous block available for use. Make one.
@@ -305,8 +303,8 @@ void RenderTreeBuilder::Inline::splitInlines(RenderInline& parent, RenderBlock* 
         auto childToMove = m_builder.detachFromRenderElement(*rendererToMove->parent(), *rendererToMove, WillBeDestroyed::No);
         m_builder.attachIgnoringContinuation(*cloneInline, WTFMove(childToMove));
         auto* newParent = rendererToMove->parent();
-        if (CheckedPtr newParentBox = dynamicDowncast<RenderBox>(newParent))
-            markBoxForRelayoutAfterSplit(*newParentBox);
+        if (is<RenderBox>(newParent))
+            markBoxForRelayoutAfterSplit(downcast<RenderBox>(*newParent));
         rendererToMove->setNeedsLayoutAndPrefWidthsRecalc();
         rendererToMove = nextSibling;
     }
@@ -328,7 +326,7 @@ void RenderTreeBuilder::Inline::splitInlines(RenderInline& parent, RenderBlock* 
     unsigned splitDepth = 1;
     const unsigned cMaxSplitDepth = 200;
     while (current && current != fromBlock) {
-        if (splitDepth < cMaxSplitDepth && !current->isAnonymous()) {
+        if (splitDepth < cMaxSplitDepth) {
             // Create a new clone.
             RenderPtr<RenderInline> cloneChild = WTFMove(cloneInline);
             cloneInline = cloneAsContinuation(downcast<RenderInline>(*current));

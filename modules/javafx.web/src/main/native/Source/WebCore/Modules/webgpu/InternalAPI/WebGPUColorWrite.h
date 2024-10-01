@@ -29,6 +29,7 @@
 #include "WebGPUBlendOperation.h"
 #include "WebGPUIntegralTypes.h"
 #include <cstdint>
+#include <wtf/EnumTraits.h>
 #include <wtf/OptionSet.h>
 
 namespace WebCore::WebGPU {
@@ -38,9 +39,22 @@ enum class ColorWrite : uint8_t {
     Green = 1 << 1,
     Blue  = 1 << 2,
     Alpha = 1 << 3,
-    All = Red | Green | Blue | Alpha
+    All   = Red | Green | Blue | Alpha,
 };
-using ColorWriteFlags = uint32_t;
-static constexpr ColorWriteFlags ColorWriteFlags_All = static_cast<ColorWriteFlags>(ColorWrite::All);
+using ColorWriteFlags = OptionSet<ColorWrite>;
 
 } // namespace WebCore::WebGPU
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::WebGPU::ColorWrite> {
+    using values = EnumValues<
+        WebCore::WebGPU::ColorWrite,
+        WebCore::WebGPU::ColorWrite::Red,
+        WebCore::WebGPU::ColorWrite::Green,
+        WebCore::WebGPU::ColorWrite::Blue,
+        WebCore::WebGPU::ColorWrite::Alpha
+    >;
+};
+
+} // namespace WTF

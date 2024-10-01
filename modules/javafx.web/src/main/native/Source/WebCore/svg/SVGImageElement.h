@@ -42,9 +42,6 @@ public:
     const SVGLengthValue& height() const { return m_height->currentValue(); }
     const SVGPreserveAspectRatioValue& preserveAspectRatio() const { return m_preserveAspectRatio->currentValue(); }
 
-    void setCrossOrigin(const AtomString&);
-    String crossOrigin() const;
-
     SVGAnimatedLength& xAnimated() { return m_x; }
     SVGAnimatedLength& yAnimated() { return m_y; }
     SVGAnimatedLength& widthAnimated() { return m_width; }

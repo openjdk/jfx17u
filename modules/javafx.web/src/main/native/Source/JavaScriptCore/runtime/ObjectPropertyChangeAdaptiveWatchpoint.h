@@ -26,13 +26,11 @@
 #pragma once
 
 #include "AdaptiveInferredPropertyValueWatchpointBase.h"
-#include <wtf/TZoneMalloc.h>
 
 namespace JSC {
 
 template<typename WatchpointSet>
 class ObjectPropertyChangeAdaptiveWatchpoint final : public AdaptiveInferredPropertyValueWatchpointBase {
-    WTF_MAKE_TZONE_ALLOCATED(ObjectPropertyChangeAdaptiveWatchpoint);
 public:
     using Base = AdaptiveInferredPropertyValueWatchpointBase;
     ObjectPropertyChangeAdaptiveWatchpoint(JSCell* owner, const ObjectPropertyCondition& condition, WatchpointSet& watchpointSet)

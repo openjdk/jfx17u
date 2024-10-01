@@ -66,7 +66,10 @@ public:
 
     JSString* internalValue() const { return asString(JSWrapperObject::internalValue()); }
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        return Structure::create(vm, globalObject, prototype, TypeInfo(StringObjectType, StructureFlags), info());
+    }
 
 protected:
     JS_EXPORT_PRIVATE void finishCreation(VM&, JSString*);

@@ -40,7 +40,10 @@ public:
     ALWAYS_INLINE Structure* get() const { return m_structure; }
     Structure* operator->() const { return get(); }
 
-    friend bool operator==(const RegisteredStructure&, const RegisteredStructure&) = default;
+    bool operator==(const RegisteredStructure& other) const
+    {
+        return get() == other.get();
+    }
 
     explicit operator bool() const
     {

@@ -29,5 +29,5 @@
     EnabledBySetting=WebGPUEnabled
 ]
 dictionary GPUPipelineDescriptorBase : GPUObjectDescriptorBase {
-    required (GPUPipelineLayout or GPUAutoLayoutMode) layout;
+    (GPUPipelineLayout or GPUAutoLayoutMode) layout;
 };

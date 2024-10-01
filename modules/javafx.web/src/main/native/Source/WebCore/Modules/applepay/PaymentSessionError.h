@@ -41,7 +41,7 @@ public:
     PaymentSessionError(RetainPtr<NSError>&&);
 
     ApplePaySessionError sessionError() const;
-    RetainPtr<NSError> platformError() const;
+    NSError *platformError() const;
 
 private:
     ApplePaySessionError unknownError() const;

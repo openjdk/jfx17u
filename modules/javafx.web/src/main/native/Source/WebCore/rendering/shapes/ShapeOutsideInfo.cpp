@@ -149,8 +149,7 @@ Ref<const Shape> makeShapeForShapeOutside(const RenderBox& renderer)
         styleImage->setContainerContextForRenderer(renderer, imageSize, style.effectiveZoom());
 
         auto marginRect = getShapeImageMarginRect(renderer, boxSize);
-        auto* renderImage = dynamicDowncast<RenderImage>(renderer);
-        auto imageRect = renderImage ? renderImage->replacedContentRect() : LayoutRect { { }, imageSize };
+        auto imageRect = is<RenderImage>(renderer) ? downcast<RenderImage>(renderer).replacedContentRect() : LayoutRect { { }, imageSize };
 
         ASSERT(!styleImage->isPending());
         RefPtr<Image> image = styleImage->image(const_cast<RenderBox*>(&renderer), imageSize);
@@ -194,12 +193,11 @@ const Shape& ShapeOutsideInfo::computedShape() const
 
 static inline LayoutUnit borderBeforeInWritingMode(const RenderBox& renderer, WritingMode writingMode)
 {
-    auto blockFlowDirection = writingModeToBlockFlowDirection(writingMode);
-    switch (blockFlowDirection) {
-    case BlockFlowDirection::TopToBottom: return renderer.borderTop();
-    case BlockFlowDirection::BottomToTop: return renderer.borderBottom();
-    case BlockFlowDirection::LeftToRight: return renderer.borderLeft();
-    case BlockFlowDirection::RightToLeft: return renderer.borderRight();
+    switch (writingMode) {
+    case WritingMode::TopToBottom: return renderer.borderTop();
+    case WritingMode::BottomToTop: return renderer.borderBottom();
+    case WritingMode::LeftToRight: return renderer.borderLeft();
+    case WritingMode::RightToLeft: return renderer.borderRight();
     }
 
     ASSERT_NOT_REACHED();
@@ -208,12 +206,11 @@ static inline LayoutUnit borderBeforeInWritingMode(const RenderBox& renderer, Wr
 
 static inline LayoutUnit borderAndPaddingBeforeInWritingMode(const RenderBox& renderer, WritingMode writingMode)
 {
-    auto blockFlowDirection = writingModeToBlockFlowDirection(writingMode);
-    switch (blockFlowDirection) {
-    case BlockFlowDirection::TopToBottom: return renderer.borderTop() + renderer.paddingTop();
-    case BlockFlowDirection::BottomToTop: return renderer.borderBottom() + renderer.paddingBottom();
-    case BlockFlowDirection::LeftToRight: return renderer.borderLeft() + renderer.paddingLeft();
-    case BlockFlowDirection::RightToLeft: return renderer.borderRight() + renderer.paddingRight();
+    switch (writingMode) {
+    case WritingMode::TopToBottom: return renderer.borderTop() + renderer.paddingTop();
+    case WritingMode::BottomToTop: return renderer.borderBottom() + renderer.paddingBottom();
+    case WritingMode::LeftToRight: return renderer.borderLeft() + renderer.paddingLeft();
+    case WritingMode::RightToLeft: return renderer.borderRight() + renderer.paddingRight();
     }
 
     ASSERT_NOT_REACHED();

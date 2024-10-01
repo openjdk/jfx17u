@@ -50,8 +50,8 @@ public:
 
 private:
     AtomString m_mediaType;
-    WeakPtr<const Document, WeakPtrImplWithEventTargetData> m_document;
-    const RenderStyle* m_rootElementStyle { nullptr }; // FIXME: Switch to a smart pointer.
+    const Document* m_document { nullptr };
+    const RenderStyle* m_rootElementStyle { nullptr };
     EvaluationResult m_staticMediaConditionResult { EvaluationResult::Unknown };
 };
 

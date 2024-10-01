@@ -33,7 +33,7 @@
 namespace WebCore {
 
 template<typename ColorType> ColorType makeColorTypeByNormalizingComponents(const ColorComponents<float, 4>&);
-template<typename ColorType> Color makeCanonicalColor(ColorType, OptionSet<Color::Flags> flags = { });
+template<typename ColorType> Color makeCanonicalColor(ColorType);
 
 
 // MARK: - Normalization
@@ -102,19 +102,19 @@ template<> inline HWBA<float> makeColorTypeByNormalizingComponents<HWBA<float>>(
 
 // MARK: - Canonicalization
 
-template<typename ColorType> inline Color makeCanonicalColor(ColorType color, OptionSet<Color::Flags> flags)
+template<typename ColorType> inline Color makeCanonicalColor(ColorType color)
 {
-    return { color, flags };
+    return color;
 }
 
-template<> inline Color makeCanonicalColor<HWBA<float>>(HWBA<float> color, OptionSet<Color::Flags> flags)
+template<> inline Color makeCanonicalColor<HWBA<float>>(HWBA<float> color)
 {
-    return { convertColor<SRGBA<uint8_t>>(color), flags };
+    return convertColor<SRGBA<uint8_t>>(color);
 }
 
-template<> inline Color makeCanonicalColor<HSLA<float>>(HSLA<float> color, OptionSet<Color::Flags> flags)
+template<> inline Color makeCanonicalColor<HSLA<float>>(HSLA<float> color)
 {
-    return { convertColor<SRGBA<uint8_t>>(color), flags };
+    return convertColor<SRGBA<uint8_t>>(color);
 }
 
 }

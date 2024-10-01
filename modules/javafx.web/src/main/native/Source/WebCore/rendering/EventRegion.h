@@ -26,7 +26,6 @@
 #pragma once
 
 #include "AffineTransform.h"
-#include "FloatRoundedRect.h"
 #include "IntRectHash.h"
 #include "InteractionRegion.h"
 #include "Node.h"
@@ -48,18 +47,17 @@ class RenderStyle;
 
 class EventRegionContext : public RegionContext {
 public:
-    WEBCORE_EXPORT explicit EventRegionContext(EventRegion&);
-    WEBCORE_EXPORT virtual ~EventRegionContext();
+    explicit EventRegionContext(EventRegion&);
+    virtual ~EventRegionContext();
 
     bool isEventRegionContext() const final { return true; }
 
-    WEBCORE_EXPORT void unite(const FloatRoundedRect&, RenderObject&, const RenderStyle&, bool overrideUserModifyIsEditable = false);
+    void unite(const Region&, RenderObject&, const RenderStyle&, bool overrideUserModifyIsEditable = false);
     bool contains(const IntRect&) const;
 
 #if ENABLE(INTERACTION_REGIONS_IN_EVENT_REGION)
-    void uniteInteractionRegions(RenderObject&, const FloatRect&);
-    bool shouldConsolidateInteractionRegion(RenderObject&, const IntRect&);
-    void removeSuperfluousInteractionRegions();
+    void uniteInteractionRegions(const Region&, RenderObject&);
+    bool shouldConsolidateInteractionRegion(IntRect, RenderObject&);
     void shrinkWrapInteractionRegions();
     void copyInteractionRegionsToEventRegion();
 #endif
@@ -73,7 +71,7 @@ private:
     HashSet<IntRect> m_occlusionRects;
     HashSet<ElementIdentifier> m_containerRemovalCandidates;
     HashSet<ElementIdentifier> m_containersToRemove;
-    HashMap<ElementIdentifier, Vector<FloatRect>> m_discoveredRectsByElement;
+    HashMap<ElementIdentifier, Region> m_discoveredRegionsByElement;
 #endif
 };
 
@@ -100,7 +98,7 @@ public:
 
     bool isEmpty() const { return m_region.isEmpty(); }
 
-    friend bool operator==(const EventRegion&, const EventRegion&) = default;
+    WEBCORE_EXPORT bool operator==(const EventRegion&) const;
 
     void unite(const Region&, const RenderStyle&, bool overrideUserModifyIsEditable = false);
     void translate(const IntSize&);

@@ -28,7 +28,6 @@ typedef (
     WebGLRenderingContext or
     WebGL2RenderingContext or
 #endif
-    GPUCanvasContext or
     ImageBitmapRenderingContext or
     OffscreenCanvasRenderingContext2D) OffscreenRenderingContext;
 
@@ -43,8 +42,7 @@ enum OffscreenRenderingContextType
    "2d",
    "webgl",
    "webgl2",
-   "bitmaprenderer",
-   "webgpu"
+   "bitmaprenderer"
 };
 
 [

@@ -27,7 +27,7 @@
 #include "ResourceTimingInformation.h"
 
 #include "CachedResource.h"
-#include "DocumentInlines.h"
+#include "Document.h"
 #include "FrameDestructionObserverInlines.h"
 #include "FrameLoader.h"
 #include "HTMLFrameOwnerElement.h"
@@ -35,7 +35,6 @@
 #include "LocalFrame.h"
 #include "Performance.h"
 #include "ResourceTiming.h"
-#include "SecurityOrigin.h"
 
 namespace WebCore {
 
@@ -59,22 +58,22 @@ void ResourceTimingInformation::addResourceTiming(CachedResource& resource, Docu
     if (info.added == Added)
         return;
 
-    RefPtr initiatorDocument = &document;
+    Document* initiatorDocument = &document;
     if (resource.type() == CachedResource::Type::MainResource && document.frame() && document.frame()->loader().shouldReportResourceTimingToParentFrame()) {
         initiatorDocument = document.parentDocument();
         if (initiatorDocument)
-            resourceTiming.updateExposure(initiatorDocument->protectedSecurityOrigin());
+            resourceTiming.updateExposure(initiatorDocument->securityOrigin());
     }
     if (!initiatorDocument)
         return;
 
-    RefPtr initiatorWindow = initiatorDocument->domWindow();
+    auto* initiatorWindow = initiatorDocument->domWindow();
     if (!initiatorWindow)
         return;
 
     resourceTiming.overrideInitiatorType(info.type);
 
-    initiatorWindow->protectedPerformance()->addResourceTiming(WTFMove(resourceTiming));
+    initiatorWindow->performance().addResourceTiming(WTFMove(resourceTiming));
 
     info.added = Added;
 }

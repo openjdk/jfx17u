@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2006-2024 Apple Inc. All rights reserved.
- * Copyright (C) 2014 Google Inc. All rights reserved.
+ * Copyright (C) 2006, 2008, 2011-2020 Apple Inc. All rights reserved.
  * Copyright (C) 2012 Nokia Corporation and/or its subsidiary(-ies)
  *
  * This library is free software; you can redistribute it and/or
@@ -153,14 +152,16 @@ void HitTestResult::setToNonUserAgentShadowAncestor()
 
 void HitTestResult::setInnerNode(Node* node)
 {
-    auto* pseudoElement = dynamicDowncast<PseudoElement>(node);
-    m_innerNode = pseudoElement ? pseudoElement->hostElement() : node;
+    if (is<PseudoElement>(node))
+        node = downcast<PseudoElement>(*node).hostElement();
+    m_innerNode = node;
 }
 
 void HitTestResult::setInnerNonSharedNode(Node* node)
 {
-    auto* pseudoElement = dynamicDowncast<PseudoElement>(node);
-    m_innerNonSharedNode = pseudoElement ? pseudoElement->hostElement() : node;
+    if (is<PseudoElement>(node))
+        node = downcast<PseudoElement>(*node).hostElement();
+    m_innerNonSharedNode = node;
 }
 
 void HitTestResult::setURLElement(Element* n)
@@ -168,9 +169,9 @@ void HitTestResult::setURLElement(Element* n)
     m_innerURLElement = n;
 }
 
-void HitTestResult::setScrollbar(RefPtr<Scrollbar>&& scrollbar)
+void HitTestResult::setScrollbar(Scrollbar* s)
 {
-    m_scrollbar = WTFMove(scrollbar);
+    m_scrollbar = s;
 }
 
 LocalFrame* HitTestResult::innerNodeFrame() const
@@ -180,14 +181,6 @@ LocalFrame* HitTestResult::innerNodeFrame() const
     if (m_innerNode)
         return m_innerNode->document().frame();
     return 0;
-}
-
-LocalFrame* HitTestResult::frame() const
-{
-    if (m_innerNonSharedNode)
-        return m_innerNonSharedNode->document().frame();
-
-    return nullptr;
 }
 
 LocalFrame* HitTestResult::targetFrame() const
@@ -246,14 +239,11 @@ String HitTestResult::spellingToolTip(TextDirection& dir) const
     if (!m_innerNonSharedNode)
         return String();
 
-    CheckedPtr markers = m_innerNonSharedNode->document().markersIfExists();
-    if (!markers)
-        return String();
-    WeakPtr marker = markers->markerContainingPoint(m_hitTestLocation.point(), DocumentMarker::Type::Grammar);
+    DocumentMarker* marker = m_innerNonSharedNode->document().markers().markerContainingPoint(m_hitTestLocation.point(), DocumentMarker::Grammar);
     if (!marker)
         return String();
 
-    if (CheckedPtr renderer = m_innerNonSharedNode->renderer())
+    if (auto renderer = m_innerNonSharedNode->renderer())
         dir = renderer->style().direction();
     return marker->description();
 }
@@ -265,10 +255,7 @@ String HitTestResult::replacedString() const
     if (!m_innerNonSharedNode)
         return String();
 
-    CheckedPtr markers = m_innerNonSharedNode->document().markersIfExists();
-    if (!markers)
-        return String();
-    WeakPtr marker = markers->markerContainingPoint(m_hitTestLocation.point(), DocumentMarker::Type::Replacement);
+    DocumentMarker* marker = m_innerNonSharedNode->document().markers().markerContainingPoint(m_hitTestLocation.point(), DocumentMarker::Replacement);
     if (!marker)
         return String();
 
@@ -281,10 +268,11 @@ String HitTestResult::title(TextDirection& dir) const
     // Find the title in the nearest enclosing DOM node.
     // For <area> tags in image maps, walk the tree for the <area>, not the <img> using it.
     for (Node* titleNode = m_innerNode.get(); titleNode; titleNode = titleNode->parentInComposedTree()) {
-        if (RefPtr titleElement = dynamicDowncast<Element>(*titleNode)) {
-            auto title = titleElement->title();
-            if (!title.isNull()) {
-                if (auto renderer = titleElement->renderer())
+        if (is<Element>(*titleNode)) {
+            Element& titleElement = downcast<Element>(*titleNode);
+            String title = titleElement.title();
+            if (!title.isEmpty()) {
+                if (auto renderer = titleElement.renderer())
                     dir = renderer->style().direction();
                 return title;
             }
@@ -296,16 +284,16 @@ String HitTestResult::title(TextDirection& dir) const
 String HitTestResult::innerTextIfTruncated(TextDirection& dir) const
 {
     for (auto* truncatedNode = m_innerNode.get(); truncatedNode; truncatedNode = truncatedNode->parentInComposedTree()) {
-        auto* element = dynamicDowncast<Element>(*truncatedNode);
-        if (!element)
+        if (!is<Element>(*truncatedNode))
             continue;
 
-        if (auto* block = dynamicDowncast<RenderBlockFlow>(element->renderer())) {
-            if (block->style().textOverflow() == TextOverflow::Ellipsis) {
-                for (auto lineBox = InlineIterator::firstLineBoxFor(*block); lineBox; lineBox.traverseNext()) {
+        if (auto* renderer = downcast<Element>(*truncatedNode).renderer(); renderer && is<RenderBlockFlow>(*renderer)) {
+            auto& block = downcast<RenderBlockFlow>(*renderer);
+                if (block.style().textOverflow() == TextOverflow::Ellipsis) {
+                for (auto lineBox = InlineIterator::firstLineBoxFor(block); lineBox; lineBox.traverseNext()) {
                     if (lineBox->hasEllipsis()) {
-                        dir = block->style().direction();
-                        return element->innerText();
+                            dir = block.style().direction();
+                            return downcast<Element>(*truncatedNode).innerText();
                         }
                     }
                 }
@@ -329,11 +317,15 @@ String HitTestResult::altDisplayString() const
     if (!m_innerNonSharedNode)
         return String();
 
-    if (RefPtr image = dynamicDowncast<HTMLImageElement>(*m_innerNonSharedNode))
-        return displayString(image->attributeWithoutSynchronization(altAttr), m_innerNonSharedNode.get());
+    if (is<HTMLImageElement>(*m_innerNonSharedNode)) {
+        HTMLImageElement& image = downcast<HTMLImageElement>(*m_innerNonSharedNode);
+        return displayString(image.attributeWithoutSynchronization(altAttr), m_innerNonSharedNode.get());
+    }
 
-    if (RefPtr input = dynamicDowncast<HTMLInputElement>(*m_innerNonSharedNode))
-        return displayString(input->alt(), m_innerNonSharedNode.get());
+    if (is<HTMLInputElement>(*m_innerNonSharedNode)) {
+        HTMLInputElement& input = downcast<HTMLInputElement>(*m_innerNonSharedNode);
+        return displayString(input.alt(), m_innerNonSharedNode.get());
+    }
 
     return String();
 }
@@ -360,9 +352,10 @@ Image* HitTestResult::image() const
     if (!imageNode)
         return nullptr;
 
-    if (auto* image = dynamicDowncast<RenderImage>(imageNode->renderer())) {
-        if (image->cachedImage() && !image->cachedImage()->errorOccurred())
-            return image->cachedImage()->imageForRenderer(image);
+    if (auto renderer = imageNode->renderer(); is<RenderImage>(renderer)) {
+        auto& image = downcast<RenderImage>(*renderer);
+        if (image.cachedImage() && !image.cachedImage()->errorOccurred())
+            return image.cachedImage()->imageForRenderer(&image);
     }
 
     return nullptr;
@@ -406,13 +399,12 @@ URL HitTestResult::absoluteImageURL() const
     if (!renderer || !renderer->isImage())
         return { };
 
-    if (RefPtr element = dynamicDowncast<Element>(*imageNode); element
-        && (is<HTMLEmbedElement>(*element)
-        || is<HTMLImageElement>(*element)
-        || is<HTMLInputElement>(*element)
-        || is<HTMLObjectElement>(*element)
-        || is<SVGImageElement>(*element))) {
-        auto imageURL = imageNode->document().completeURL(element->imageSourceURL());
+    if (is<HTMLEmbedElement>(*imageNode)
+        || is<HTMLImageElement>(*imageNode)
+        || is<HTMLInputElement>(*imageNode)
+        || is<HTMLObjectElement>(*imageNode)
+        || is<SVGImageElement>(*imageNode)) {
+        auto imageURL = imageNode->document().completeURL(downcast<Element>(*imageNode).imageSourceURL());
         if (auto* page = imageNode->document().page())
             return page->applyLinkDecorationFiltering(imageURL, LinkDecorationFilteringTrigger::Unspecified);
         return imageURL;
@@ -426,15 +418,15 @@ URL HitTestResult::absolutePDFURL() const
     if (!m_innerNonSharedNode)
         return URL();
 
-    RefPtr element = dynamicDowncast<HTMLPlugInImageElement>(*m_innerNonSharedNode);
-    if (!element)
+    if (!is<HTMLEmbedElement>(*m_innerNonSharedNode) && !is<HTMLObjectElement>(*m_innerNonSharedNode))
         return URL();
 
-    auto url = m_innerNonSharedNode->document().completeURL(element->url());
+    HTMLPlugInImageElement& element = downcast<HTMLPlugInImageElement>(*m_innerNonSharedNode);
+    URL url = m_innerNonSharedNode->document().completeURL(element.url());
     if (!url.isValid())
         return URL();
 
-    if (element->serviceType() == "application/pdf"_s || (element->serviceType().isEmpty() && url.path().endsWithIgnoringASCIICase(".pdf"_s)))
+    if (element.serviceType() == "application/pdf"_s || (element.serviceType().isEmpty() && url.path().endsWithIgnoringASCIICase(".pdf"_s)))
         return url;
     return URL();
 }
@@ -468,21 +460,14 @@ HTMLMediaElement* HitTestResult::mediaElement() const
     if (!m_innerNonSharedNode)
         return nullptr;
 
-    if (!(m_innerNonSharedNode->renderer() && m_innerNonSharedNode->renderer()->isRenderMedia()))
+    if (!(m_innerNonSharedNode->renderer() && m_innerNonSharedNode->renderer()->isMedia()))
         return nullptr;
 
-    return dynamicDowncast<HTMLMediaElement>(*m_innerNonSharedNode);
+    if (is<HTMLMediaElement>(*m_innerNonSharedNode))
+        return downcast<HTMLMediaElement>(m_innerNonSharedNode.get());
+    return nullptr;
 }
 #endif
-
-bool HitTestResult::hasMediaElement() const
-{
-#if ENABLE(VIDEO)
-    return !!mediaElement();
-#else
-    return false;
-#endif
-}
 
 void HitTestResult::toggleMediaControlsDisplay() const
 {
@@ -522,7 +507,7 @@ void HitTestResult::toggleMediaFullscreenState() const
 #if ENABLE(VIDEO)
     if (HTMLMediaElement* mediaElement = this->mediaElement()) {
         if (mediaElement->isVideo() && mediaElement->supportsFullscreen(HTMLMediaElementEnums::VideoFullscreenModeStandard)) {
-            UserGestureIndicator indicator(IsProcessingUserGesture::Yes, &mediaElement->document());
+            UserGestureIndicator indicator(ProcessingUserGesture, &mediaElement->document());
             mediaElement->toggleStandardFullscreenState();
         }
     }
@@ -532,11 +517,12 @@ void HitTestResult::toggleMediaFullscreenState() const
 void HitTestResult::enterFullscreenForVideo() const
 {
 #if ENABLE(VIDEO)
-    RefPtr mediaElement(this->mediaElement());
-    if (RefPtr videoElement = dynamicDowncast<HTMLVideoElement>(mediaElement)) {
-        if (!videoElement->isFullscreen() && mediaElement->supportsFullscreen(HTMLMediaElementEnums::VideoFullscreenModeStandard)) {
-            UserGestureIndicator indicator(IsProcessingUserGesture::Yes, &mediaElement->document());
-            videoElement->webkitEnterFullscreen();
+    HTMLMediaElement* mediaElement(this->mediaElement());
+    if (is<HTMLVideoElement>(mediaElement)) {
+        HTMLVideoElement& videoElement = downcast<HTMLVideoElement>(*mediaElement);
+        if (!videoElement.isFullscreen() && mediaElement->supportsFullscreen(HTMLMediaElementEnums::VideoFullscreenModeStandard)) {
+            UserGestureIndicator indicator(ProcessingUserGesture, &mediaElement->document());
+            videoElement.webkitEnterFullscreen();
         }
     }
 #endif
@@ -633,19 +619,22 @@ bool HitTestResult::isDownloadableMedia() const
 
 bool HitTestResult::isOverTextInsideFormControlElement() const
 {
-    RefPtr element = dynamicDowncast<Element>(innerNode());
-    if (!element || !element->isTextField())
+    Node* node = innerNode();
+    if (!node)
         return false;
 
-    auto* frame = element->document().frame();
+    if (!is<Element>(*node) || !downcast<Element>(*node).isTextField())
+        return false;
+
+    auto* frame = node->document().frame();
     if (!frame)
         return false;
 
-    auto framePoint = roundedPointInInnerNodeFrame();
+    IntPoint framePoint = roundedPointInInnerNodeFrame();
     if (!frame->rangeForPoint(framePoint))
         return false;
 
-    auto position = frame->visiblePositionForPoint(framePoint);
+    VisiblePosition position = frame->visiblePositionForPoint(framePoint);
     if (position.isNull())
         return false;
 
@@ -663,18 +652,6 @@ URL HitTestResult::absoluteLinkURL() const
         return page->applyLinkDecorationFiltering(url, LinkDecorationFilteringTrigger::Unspecified);
 
     return url;
-}
-
-bool HitTestResult::hasLocalDataForLinkURL() const
-{
-    auto linkURL = absoluteLinkURL();
-    if (linkURL.isEmpty())
-        return false;
-
-    if (RefPtr page = m_innerURLElement->document().page())
-        return page->hasLocalDataForURL(linkURL);
-
-    return false;
 }
 
 bool HitTestResult::isOverLink() const
@@ -709,8 +686,8 @@ bool HitTestResult::isContentEditable() const
     if (is<HTMLTextAreaElement>(*m_innerNonSharedNode))
         return true;
 
-    if (RefPtr input = dynamicDowncast<HTMLInputElement>(*m_innerNonSharedNode))
-        return input->isTextField();
+    if (is<HTMLInputElement>(*m_innerNonSharedNode))
+        return downcast<HTMLInputElement>(*m_innerNonSharedNode).isTextField();
 
     return m_innerNonSharedNode->hasEditableStyle();
 }
@@ -788,37 +765,48 @@ Vector<String> HitTestResult::dictationAlternatives() const
     if (!m_innerNonSharedNode)
         return Vector<String>();
 
-    CheckedPtr markers = m_innerNonSharedNode->document().markersIfExists();
-    if (!markers)
-        return Vector<String>();
-
-    WeakPtr marker = markers->markerContainingPoint(pointInInnerNodeFrame(), DocumentMarker::Type::DictationAlternatives);
+    auto* marker = m_innerNonSharedNode->document().markers().markerContainingPoint(pointInInnerNodeFrame(), DocumentMarker::DictationAlternatives);
     if (!marker)
         return Vector<String>();
 
-    RefPtr frame = innerNonSharedNode()->document().frame();
+    auto* frame = innerNonSharedNode()->document().frame();
     if (!frame)
         return Vector<String>();
 
     return frame->editor().dictationAlternativesForMarker(*marker);
 }
 
+Node* HitTestResult::targetNode() const
+{
+    Node* node = innerNode();
+    if (!node)
+        return nullptr;
+    if (node->isConnected())
+        return node;
+
+    Element* element = node->parentElement();
+    if (element && element->isConnected())
+        return element;
+
+    return node;
+}
+
 Element* HitTestResult::targetElement() const
 {
     for (Node* node = m_innerNode.get(); node; node = node->parentInComposedTree()) {
-        if (auto* element = dynamicDowncast<Element>(*node))
-            return element;
+        if (is<Element>(*node))
+            return downcast<Element>(node);
     }
     return nullptr;
 }
 
 Element* HitTestResult::innerNonSharedElement() const
 {
-    auto* node = m_innerNonSharedNode.get();
+    Node* node = m_innerNonSharedNode.get();
     if (!node)
         return nullptr;
-    if (auto* element = dynamicDowncast<Element>(*node))
-        return element;
+    if (is<Element>(*node))
+        return downcast<Element>(node);
     return node->parentElement();
 }
 
@@ -853,16 +841,16 @@ bool HitTestResult::mediaIsInEnhancedFullscreen() const
 void HitTestResult::toggleEnhancedFullscreenForVideo() const
 {
 #if PLATFORM(MAC) && ENABLE(VIDEO) && ENABLE(VIDEO_PRESENTATION_MODE)
-    auto* mediaElement(this->mediaElement());
-    auto* videoElement = dynamicDowncast<HTMLVideoElement>(*mediaElement);
-    if (!videoElement || !mediaElement->supportsFullscreen(HTMLMediaElementEnums::VideoFullscreenModePictureInPicture))
+    HTMLMediaElement* mediaElement(this->mediaElement());
+    if (!is<HTMLVideoElement>(mediaElement) || !mediaElement->supportsFullscreen(HTMLMediaElementEnums::VideoFullscreenModePictureInPicture))
         return;
 
-    UserGestureIndicator indicator(IsProcessingUserGesture::Yes, &mediaElement->document());
-    if (videoElement->webkitPresentationMode() == HTMLVideoElement::VideoPresentationMode::PictureInPicture)
-        videoElement->webkitSetPresentationMode(HTMLVideoElement::VideoPresentationMode::Inline);
+    HTMLVideoElement& videoElement = downcast<HTMLVideoElement>(*mediaElement);
+    UserGestureIndicator indicator(ProcessingUserGesture, &mediaElement->document());
+    if (videoElement.webkitPresentationMode() == HTMLVideoElement::VideoPresentationMode::PictureInPicture)
+        videoElement.webkitSetPresentationMode(HTMLVideoElement::VideoPresentationMode::Inline);
     else
-        videoElement->webkitSetPresentationMode(HTMLVideoElement::VideoPresentationMode::PictureInPicture);
+        videoElement.webkitSetPresentationMode(HTMLVideoElement::VideoPresentationMode::PictureInPicture);
 #endif
 }
 

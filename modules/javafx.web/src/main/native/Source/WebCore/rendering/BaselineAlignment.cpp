@@ -22,17 +22,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 #include "config.h"
 #include "BaselineAlignment.h"
 
 #include "BaselineAlignmentInlines.h"
 #include "RenderBox.h"
-#include "RenderStyleInlines.h"
 
 namespace WebCore {
 
-BaselineGroup::BaselineGroup(BlockFlowDirection blockFlow, ItemPosition childPreference)
+BaselineGroup::BaselineGroup(WritingMode blockFlow, ItemPosition childPreference)
     : m_maxAscent(0), m_items()
 {
     m_blockFlow = blockFlow;
@@ -45,36 +43,36 @@ void BaselineGroup::update(const RenderBox& child, LayoutUnit ascent)
         m_maxAscent = std::max(m_maxAscent, ascent);
 }
 
-bool BaselineGroup::isOppositeBlockFlow(BlockFlowDirection blockFlow) const
+bool BaselineGroup::isOppositeBlockFlow(WritingMode blockFlow) const
 {
     switch (blockFlow) {
-    case BlockFlowDirection::TopToBottom:
+    case WritingMode::TopToBottom:
         return false;
-    case BlockFlowDirection::LeftToRight:
-        return m_blockFlow == BlockFlowDirection::RightToLeft;
-    case BlockFlowDirection::RightToLeft:
-        return m_blockFlow == BlockFlowDirection::LeftToRight;
+    case WritingMode::LeftToRight:
+        return m_blockFlow == WritingMode::RightToLeft;
+    case WritingMode::RightToLeft:
+        return m_blockFlow == WritingMode::LeftToRight;
     default:
         ASSERT_NOT_REACHED();
         return false;
     }
 }
 
-bool BaselineGroup::isOrthogonalBlockFlow(BlockFlowDirection blockFlow) const
+bool BaselineGroup::isOrthogonalBlockFlow(WritingMode blockFlow) const
 {
     switch (blockFlow) {
-    case BlockFlowDirection::TopToBottom:
-        return m_blockFlow != BlockFlowDirection::TopToBottom;
-    case BlockFlowDirection::LeftToRight:
-    case BlockFlowDirection::RightToLeft:
-        return m_blockFlow == BlockFlowDirection::TopToBottom;
+    case WritingMode::TopToBottom:
+        return m_blockFlow != WritingMode::TopToBottom;
+    case WritingMode::LeftToRight:
+    case WritingMode::RightToLeft:
+        return m_blockFlow == WritingMode::TopToBottom;
     default:
         ASSERT_NOT_REACHED();
         return false;
     }
 }
 
-bool BaselineGroup::isCompatible(BlockFlowDirection childBlockFlow, ItemPosition childPreference) const
+bool BaselineGroup::isCompatible(WritingMode childBlockFlow, ItemPosition childPreference) const
 {
     ASSERT(isBaselinePosition(childPreference));
     ASSERT(computeSize() > 0);
@@ -109,12 +107,12 @@ void BaselineAlignmentState::updateSharedGroup(const RenderBox& child, ItemPosit
 // See https://github.com/w3c/csswg-drafts/issues/721
 BaselineGroup& BaselineAlignmentState::findCompatibleSharedGroup(const RenderBox& child, ItemPosition preference)
 {
-    auto blockFlowDirection = child.style().blockFlowDirection();
+    WritingMode blockDirection = child.style().writingMode();
     for (auto& group : m_sharedGroups) {
-        if (group.isCompatible(blockFlowDirection, preference))
+        if (group.isCompatible(blockDirection, preference))
             return group;
     }
-    m_sharedGroups.insert(0, BaselineGroup(blockFlowDirection, preference));
+    m_sharedGroups.insert(0, BaselineGroup(blockDirection, preference));
     return m_sharedGroups[0];
 }
 

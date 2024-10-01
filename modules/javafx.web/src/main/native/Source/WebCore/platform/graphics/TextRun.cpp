@@ -28,7 +28,7 @@
 
 namespace WebCore {
 
-struct ExpectedTextRunSize : public CanMakeCheckedPtr {
+struct ExpectedTextRunSize {
     String text;
     TabSize tabSize;
     float float1;

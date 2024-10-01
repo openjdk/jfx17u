@@ -30,14 +30,12 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// https://w3c.github.io/webrtc-pc/#rtcicecandidate-interface
-
 [
     Conditional=WEB_RTC,
     EnabledBySetting=PeerConnectionEnabled,
     Exposed=Window
 ] interface RTCIceCandidate {
-    constructor(optional RTCIceCandidateInit candidateInitDict = {});
+    constructor(RTCIceCandidateInit candidateInitDict);
 
     readonly attribute DOMString candidate;
     readonly attribute DOMString? sdpMid;

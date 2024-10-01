@@ -99,122 +99,122 @@ void Cursor::ensurePlatformCursor() const
         return;
 
     switch (m_type) {
-    case PlatformCursorType::Pointer:
-    case PlatformCursorType::Cell:
-    case PlatformCursorType::ContextMenu:
-    case PlatformCursorType::Alias:
-    case PlatformCursorType::Copy:
-    case PlatformCursorType::None:
-    case PlatformCursorType::Grab:
-    case PlatformCursorType::Grabbing:
+    case Cursor::Pointer:
+    case Cursor::Cell:
+    case Cursor::ContextMenu:
+    case Cursor::Alias:
+    case Cursor::Copy:
+    case Cursor::None:
+    case Cursor::Grab:
+    case Cursor::Grabbing:
         setPlatformCursor(pointerCursor());
         break;
-    case PlatformCursorType::Cross:
+    case Cursor::Cross:
         setPlatformCursor(crossCursor());
         break;
-    case PlatformCursorType::Hand:
+    case Cursor::Hand:
         setPlatformCursor(handCursor());
         break;
-    case PlatformCursorType::IBeam:
+    case Cursor::IBeam:
         setPlatformCursor(iBeamCursor());
         break;
-    case PlatformCursorType::Wait:
+    case Cursor::Wait:
         setPlatformCursor(waitCursor());
         break;
-    case PlatformCursorType::Help:
+    case Cursor::Help:
         setPlatformCursor(helpCursor());
         break;
-    case PlatformCursorType::Move:
+    case Cursor::Move:
         setPlatformCursor(moveCursor());
         break;
-    case PlatformCursorType::MiddlePanning:
+    case Cursor::MiddlePanning:
         setPlatformCursor(middlePanningCursor());
         break;
-    case PlatformCursorType::EastResize:
+    case Cursor::EastResize:
         setPlatformCursor(eastResizeCursor());
         break;
-    case PlatformCursorType::EastPanning:
+    case Cursor::EastPanning:
         setPlatformCursor(eastPanningCursor());
         break;
-    case PlatformCursorType::NorthResize:
+    case Cursor::NorthResize:
         setPlatformCursor(northResizeCursor());
         break;
-    case PlatformCursorType::NorthPanning:
+    case Cursor::NorthPanning:
         setPlatformCursor(northPanningCursor());
         break;
-    case PlatformCursorType::NorthEastResize:
+    case Cursor::NorthEastResize:
         setPlatformCursor(northEastResizeCursor());
         break;
-    case PlatformCursorType::NorthEastPanning:
+    case Cursor::NorthEastPanning:
         setPlatformCursor(northEastPanningCursor());
         break;
-    case PlatformCursorType::NorthWestResize:
+    case Cursor::NorthWestResize:
         setPlatformCursor(northWestResizeCursor());
         break;
-    case PlatformCursorType::NorthWestPanning:
+    case Cursor::NorthWestPanning:
         setPlatformCursor(northWestPanningCursor());
         break;
-    case PlatformCursorType::SouthResize:
+    case Cursor::SouthResize:
         setPlatformCursor(southResizeCursor());
         break;
-    case PlatformCursorType::SouthPanning:
+    case Cursor::SouthPanning:
       setPlatformCursor(southPanningCursor());
         break;
-    case PlatformCursorType::SouthEastResize:
+    case Cursor::SouthEastResize:
       setPlatformCursor(southEastResizeCursor());
         break;
-    case PlatformCursorType::SouthEastPanning:
+    case Cursor::SouthEastPanning:
       setPlatformCursor(southEastPanningCursor());
         break;
-    case PlatformCursorType::SouthWestResize:
+    case Cursor::SouthWestResize:
       setPlatformCursor(southWestResizeCursor());
         break;
-    case PlatformCursorType::SouthWestPanning:
+    case Cursor::SouthWestPanning:
       setPlatformCursor(southWestPanningCursor());
         break;
-    case PlatformCursorType::WestResize:
+    case Cursor::WestResize:
       setPlatformCursor(westResizeCursor());
         break;
-    case PlatformCursorType::NorthSouthResize:
+    case Cursor::NorthSouthResize:
       setPlatformCursor(northSouthResizeCursor());
         break;
-    case PlatformCursorType::EastWestResize:
+    case Cursor::EastWestResize:
       setPlatformCursor(eastWestResizeCursor());
         break;
-    case PlatformCursorType::WestPanning:
+    case Cursor::WestPanning:
       setPlatformCursor(westPanningCursor());
         break;
-    case PlatformCursorType::NorthEastSouthWestResize:
+    case Cursor::NorthEastSouthWestResize:
       setPlatformCursor(northEastSouthWestResizeCursor());
         break;
-    case PlatformCursorType::NorthWestSouthEastResize:
+    case Cursor::NorthWestSouthEastResize:
       setPlatformCursor(northWestSouthEastResizeCursor());
         break;
-    case PlatformCursorType::ColumnResize:
+    case Cursor::ColumnResize:
       setPlatformCursor(columnResizeCursor());
         break;
-    case PlatformCursorType::RowResize:
+    case Cursor::RowResize:
       setPlatformCursor(rowResizeCursor());
         break;
-    case PlatformCursorType::VerticalText:
+    case Cursor::VerticalText:
       setPlatformCursor(verticalTextCursor());
         break;
-    case PlatformCursorType::Progress:
+    case Cursor::Progress:
       setPlatformCursor(progressCursor());
         break;
-    case PlatformCursorType::NoDrop:
+    case Cursor::NoDrop:
       setPlatformCursor(noDropCursor());
         break;
-    case PlatformCursorType::NotAllowed:
+    case Cursor::NotAllowed:
       setPlatformCursor(notAllowedCursor());
         break;
-    case PlatformCursorType::ZoomIn:
+    case Cursor::ZoomIn:
       setPlatformCursor(zoomInCursor());
         break;
-    case PlatformCursorType::ZoomOut:
+    case Cursor::ZoomOut:
       setPlatformCursor(zoomOutCursor());
         break;
-    case PlatformCursorType::Custom:
+    case Cursor::Custom:
       setPlatformCursor(Cursor(m_image.get(), m_hotSpot));
         break;
     default:

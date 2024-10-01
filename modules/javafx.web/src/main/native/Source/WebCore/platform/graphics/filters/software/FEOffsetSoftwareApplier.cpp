@@ -36,8 +36,8 @@ bool FEOffsetSoftwareApplier::apply(const Filter& filter, const FilterImageVecto
 {
     auto& input = inputs[0].get();
 
-    RefPtr resultImage = result.imageBuffer();
-    RefPtr inputImage = input.imageBuffer();
+    auto resultImage = result.imageBuffer();
+    auto inputImage = input.imageBuffer();
     if (!resultImage || !inputImage)
         return false;
 

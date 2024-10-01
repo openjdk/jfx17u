@@ -39,16 +39,12 @@
 #include "CSSPrimitiveValueMappings.h"
 #include "CSSPropertyParser.h"
 #include "CSSQuadValue.h"
-#include "CSSScrollValue.h"
 #include "CSSTimingFunctionValue.h"
 #include "CSSValueKeywords.h"
-#include "CSSViewValue.h"
 #include "CompositeOperation.h"
 #include "FillLayer.h"
-#include "ScrollTimeline.h"
 #include "StyleBuilderConverter.h"
 #include "StyleResolver.h"
-#include "ViewTimeline.h"
 
 namespace WebCore {
 
@@ -173,12 +169,12 @@ void CSSToStyleMap::mapFillRepeat(CSSPropertyID propertyID, FillLayer& layer, co
         return;
     }
 
-    auto* backgroundRepeatValue = dynamicDowncast<CSSBackgroundRepeatValue>(value);
-    if (!backgroundRepeatValue)
+    if (!is<CSSBackgroundRepeatValue>(value))
         return;
 
-    auto repeatX = fromCSSValueID<FillRepeat>(backgroundRepeatValue->xValue());
-    auto repeatY = fromCSSValueID<FillRepeat>(backgroundRepeatValue->yValue());
+    auto& backgroundRepeatValue = downcast<CSSBackgroundRepeatValue>(value);
+    auto repeatX = fromCSSValueID<FillRepeat>(backgroundRepeatValue.xValue());
+    auto repeatY = fromCSSValueID<FillRepeat>(backgroundRepeatValue.yValue());
     layer.setRepeat(FillRepeatXY { repeatX, repeatY });
 }
 
@@ -293,11 +289,10 @@ void CSSToStyleMap::mapAnimationDelay(Animation& animation, const CSSValue& valu
         return;
     }
 
-    auto* primitiveValue = dynamicDowncast<CSSPrimitiveValue>(value);
-    if (!primitiveValue)
+    if (!is<CSSPrimitiveValue>(value))
         return;
 
-    animation.setDelay(primitiveValue->computeTime<double, CSSPrimitiveValue::Seconds>());
+    animation.setDelay(downcast<CSSPrimitiveValue>(value).computeTime<double, CSSPrimitiveValue::Seconds>());
 }
 
 void CSSToStyleMap::mapAnimationDirection(Animation& layer, const CSSValue& value)
@@ -335,11 +330,10 @@ void CSSToStyleMap::mapAnimationDuration(Animation& animation, const CSSValue& v
         return;
     }
 
-    auto* primitiveValue = dynamicDowncast<CSSPrimitiveValue>(value);
-    if (!primitiveValue)
+    if (!is<CSSPrimitiveValue>(value))
         return;
 
-    auto duration = std::max<double>(primitiveValue->computeTime<double, CSSPrimitiveValue::Seconds>(), 0);
+    auto duration = std::max<double>(downcast<CSSPrimitiveValue>(value).computeTime<double, CSSPrimitiveValue::Seconds>(), 0);
     animation.setDuration(duration);
 }
 
@@ -378,14 +372,14 @@ void CSSToStyleMap::mapAnimationIterationCount(Animation& animation, const CSSVa
         return;
     }
 
-    auto* primitiveValue = dynamicDowncast<CSSPrimitiveValue>(value);
-    if (!primitiveValue)
+    if (!is<CSSPrimitiveValue>(value))
         return;
 
-    if (primitiveValue->valueID() == CSSValueInfinite)
+    auto& primitiveValue = downcast<CSSPrimitiveValue>(value);
+    if (primitiveValue.valueID() == CSSValueInfinite)
         animation.setIterationCount(Animation::IterationCountInfinite);
     else
-        animation.setIterationCount(primitiveValue->floatValue());
+        animation.setIterationCount(primitiveValue.floatValue());
 }
 
 void CSSToStyleMap::mapAnimationName(Animation& layer, const CSSValue& value)
@@ -395,14 +389,14 @@ void CSSToStyleMap::mapAnimationName(Animation& layer, const CSSValue& value)
         return;
     }
 
-    auto* primitiveValue = dynamicDowncast<CSSPrimitiveValue>(value);
-    if (!primitiveValue)
+    if (!is<CSSPrimitiveValue>(value))
         return;
 
-    if (primitiveValue->valueID() == CSSValueNone)
+    auto& primitiveValue = downcast<CSSPrimitiveValue>(value);
+    if (primitiveValue.valueID() == CSSValueNone)
         layer.setIsNoneAnimation(true);
     else
-        layer.setName({ AtomString { primitiveValue->stringValue() }, m_builderState.styleScopeOrdinal(), primitiveValue->isCustomIdent() });
+        layer.setName({ primitiveValue.stringValue(), primitiveValue.isCustomIdent() }, m_builderState.styleScopeOrdinal());
 }
 
 void CSSToStyleMap::mapAnimationPlayState(Animation& layer, const CSSValue& value)
@@ -426,51 +420,26 @@ void CSSToStyleMap::mapAnimationProperty(Animation& animation, const CSSValue& v
         return;
     }
 
-    auto* primitiveValue = dynamicDowncast<CSSPrimitiveValue>(value);
-    if (!primitiveValue)
+    if (!is<CSSPrimitiveValue>(value))
         return;
 
-    if (primitiveValue->valueID() == CSSValueAll) {
+    auto& primitiveValue = downcast<CSSPrimitiveValue>(value);
+    if (primitiveValue.valueID() == CSSValueAll) {
         animation.setProperty({ Animation::TransitionMode::All, CSSPropertyInvalid });
         return;
     }
-    if (primitiveValue->valueID() == CSSValueNone) {
+    if (primitiveValue.valueID() == CSSValueNone) {
         animation.setProperty({ Animation::TransitionMode::None, CSSPropertyInvalid });
         return;
     }
-    if (primitiveValue->propertyID() == CSSPropertyInvalid) {
-        auto stringValue = primitiveValue->stringValue();
+    if (primitiveValue.propertyID() == CSSPropertyInvalid) {
+        auto stringValue = primitiveValue.stringValue();
         auto transitionMode = isCustomPropertyName(stringValue) ? Animation::TransitionMode::SingleProperty : Animation::TransitionMode::UnknownProperty;
         animation.setProperty({ transitionMode, AtomString { stringValue } });
         return;
     }
 
-    animation.setProperty({ Animation::TransitionMode::SingleProperty, primitiveValue->propertyID() });
-}
-
-void CSSToStyleMap::mapAnimationTimeline(Animation& animation, const CSSValue& value)
-{
-    if (treatAsInitialValue(value, CSSPropertyAnimationTimeline))
-        animation.setTimeline(Animation::initialTimeline());
-    else if (auto* viewValue = dynamicDowncast<CSSViewValue>(value))
-        animation.setTimeline(ViewTimeline::createFromCSSValue(*viewValue));
-    else if (auto* scrollValue = dynamicDowncast<CSSScrollValue>(value))
-        animation.setTimeline(ScrollTimeline::createFromCSSValue(*scrollValue));
-    else if (value.isCustomIdent())
-        animation.setTimeline(AtomString(value.customIdent()));
-    else {
-        switch (value.valueID()) {
-        case CSSValueNone:
-            animation.setTimeline(Animation::TimelineKeyword::None);
-            break;
-        case CSSValueAuto:
-            animation.setTimeline(Animation::TimelineKeyword::Auto);
-            break;
-        default:
-            ASSERT_NOT_REACHED();
-            break;
-        }
-    }
+    animation.setProperty({ Animation::TransitionMode::SingleProperty, primitiveValue.propertyID() });
 }
 
 void CSSToStyleMap::mapAnimationTimingFunction(Animation& animation, const CSSValue& value)
@@ -489,23 +458,16 @@ void CSSToStyleMap::mapAnimationCompositeOperation(Animation& animation, const C
         animation.setCompositeOperation(*compositeOperation);
 }
 
-void CSSToStyleMap::mapAnimationAllowsDiscreteTransitions(Animation& layer, const CSSValue& value)
-{
-    if (treatAsInitialValue(value, CSSPropertyTransitionBehavior))
-        layer.setAllowsDiscreteTransitions(Animation::initialAllowsDiscreteTransitions());
-    else if (is<CSSPrimitiveValue>(value))
-        layer.setAllowsDiscreteTransitions(value.valueID() == CSSValueAllowDiscrete);
-}
-
 void CSSToStyleMap::mapNinePieceImage(const CSSValue* value, NinePieceImage& image)
 {
     // If we're not a value list, then we are "none" and don't need to alter the empty image at all.
-    auto* borderImage = dynamicDowncast<CSSValueList>(value);
-    if (!borderImage)
+    if (!is<CSSValueList>(value))
         return;
 
     // Retrieve the border image value.
-    for (auto& current : *borderImage) {
+    auto& borderImage = downcast<CSSValueList>(*value);
+
+    for (auto& current : borderImage) {
         if (current.isImage())
             image.setImage(styleImage(current));
         else if (auto* imageSlice = dynamicDowncast<CSSBorderImageSliceValue>(current))
@@ -531,8 +493,10 @@ void CSSToStyleMap::mapNinePieceImage(const CSSValue* value, NinePieceImage& ima
 
 void CSSToStyleMap::mapNinePieceImageSlice(const CSSValue& value, NinePieceImage& image)
 {
-    if (auto* sliceValue = dynamicDowncast<CSSBorderImageSliceValue>(value))
-        mapNinePieceImageSlice(*sliceValue, image);
+    if (!is<CSSBorderImageSliceValue>(value))
+        return;
+
+    mapNinePieceImageSlice(downcast<CSSBorderImageSliceValue>(value), image);
 }
 
 void CSSToStyleMap::mapNinePieceImageSlice(const CSSBorderImageSliceValue& value, NinePieceImage& image)
@@ -552,8 +516,10 @@ void CSSToStyleMap::mapNinePieceImageSlice(const CSSBorderImageSliceValue& value
 
 void CSSToStyleMap::mapNinePieceImageWidth(const CSSValue& value, NinePieceImage& image)
 {
-    if (auto* widthValue = dynamicDowncast<CSSBorderImageWidthValue>(value))
-        mapNinePieceImageWidth(*widthValue, image);
+    if (!is<CSSBorderImageWidthValue>(value))
+        return;
+
+    return mapNinePieceImageWidth(downcast<CSSBorderImageWidthValue>(value), image);
 }
 
 void CSSToStyleMap::mapNinePieceImageWidth(const CSSBorderImageWidthValue& value, NinePieceImage& image)
@@ -571,10 +537,9 @@ LengthBox CSSToStyleMap::mapNinePieceImageQuad(const CSSValue& value)
         return mapNinePieceImageQuad(value.quad());
 
     // Values coming from CSS Typed OM may not have been converted to a Quad yet.
-    auto* primitive = dynamicDowncast<CSSPrimitiveValue>(value);
-    if (!primitive)
+    if (!is<CSSPrimitiveValue>(value))
         return LengthBox();
-    if (!primitive->isNumber() && !primitive->isLength())
+    if (auto& primitive = downcast<CSSPrimitiveValue>(value); !primitive.isNumber() && !primitive.isLength())
         return LengthBox();
     auto side = mapNinePieceImageSide(value);
     return { Length { side }, Length { side }, Length { side }, Length { side } };

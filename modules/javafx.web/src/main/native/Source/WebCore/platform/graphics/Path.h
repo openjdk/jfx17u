@@ -32,9 +32,9 @@
 #include "PathSegment.h"
 #include "PlatformPath.h"
 #include "WindRule.h"
-#include <wtf/DataRef.h>
 #include <wtf/FastMalloc.h>
 
+#include <wtf/UniqueRef.h>
 
 
 namespace WebCore {
@@ -48,12 +48,17 @@ public:
     WEBCORE_EXPORT Path(PathSegment&&);
     WEBCORE_EXPORT Path(Vector<PathSegment>&&);
     explicit Path(const Vector<FloatPoint>& points);
-    Path(Ref<PathImpl>&&);
+    Path(UniqueRef<PathImpl>&&);
 
     WEBCORE_EXPORT Path(const Path&);
     Path(Path&&) = default;
-    Path& operator=(const Path&) = default;
+    WEBCORE_EXPORT Path& operator=(const Path&);
     Path& operator=(Path&&) = default;
+
+    WEBCORE_EXPORT bool operator==(const Path&) const;
+
+    // FIXME: Remove this method when the call of it from WebKitAdditions in is removed.
+    static Path polygonPathFromPoints(const Vector<FloatPoint>&);
     WEBCORE_EXPORT void moveTo(const FloatPoint&);
     WEBCORE_EXPORT void addLineTo(const FloatPoint&);
     WEBCORE_EXPORT void addQuadCurveTo(const FloatPoint& controlPoint, const FloatPoint& endPoint);
@@ -86,11 +91,9 @@ public:
     WEBCORE_EXPORT std::optional<PathSegment> singleSegment() const;
     std::optional<PathDataLine> singleDataLine() const;
     std::optional<PathArc> singleArc() const;
-    std::optional<PathClosedArc> singleClosedArc() const;
     std::optional<PathDataQuadCurve> singleQuadCurve() const;
     std::optional<PathDataBezierCurve> singleBezierCurve() const;
     WEBCORE_EXPORT bool isEmpty() const;
-    bool definitelySingleLine() const;
     WEBCORE_EXPORT PlatformPathPtr platformPath() const;
 
     const PathSegment* singleSegmentIfExists() const { return asSingle(); }
@@ -99,7 +102,6 @@ public:
 
     float length() const;
     bool isClosed() const;
-    bool hasSubpaths() const;
     FloatPoint currentPoint() const;
     PathTraversalState traversalStateAtLength(float length) const;
     FloatPoint pointAtLength(float length) const;
@@ -113,7 +115,7 @@ public:
 
 private:
     PlatformPathImpl& ensurePlatformPathImpl();
-    PathImpl& setImpl(Ref<PathImpl>&&);
+    PathImpl& setImpl(UniqueRef<PathImpl>);
     PathImpl& ensureImpl();
     PathSegment* asSingle() { return std::get_if<PathSegment>(&m_data); }
     const PathSegment* asSingle() const { return std::get_if<PathSegment>(&m_data); }
@@ -123,9 +125,9 @@ private:
     const PathImpl* asImpl() const;
 
     const PathMoveTo* asSingleMoveTo() const;
-    const PathArc* asSingleArc() const;
 
-    std::variant<std::monostate, PathSegment, DataRef<PathImpl>> m_data;
+
+    std::variant<std::monostate, PathSegment, UniqueRef<PathImpl>> m_data;
 };
 
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const Path&);

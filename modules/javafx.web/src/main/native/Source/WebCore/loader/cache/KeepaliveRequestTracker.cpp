@@ -55,7 +55,7 @@ bool KeepaliveRequestTracker::tryRegisterRequest(CachedResource& resource)
 void KeepaliveRequestTracker::registerRequest(CachedResource& resource)
 {
     ASSERT(resource.options().keepAlive);
-    RefPtr body = resource.resourceRequest().httpBody();
+    auto body = resource.resourceRequest().httpBody();
     if (!body)
         return;
     ASSERT(!m_inflightKeepaliveRequests.contains(&resource));

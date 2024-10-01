@@ -25,19 +25,21 @@
 
 #pragma once
 
+#include "FormattingContext.h"
+#include "FormattingState.h"
 #include "InlineDisplayContent.h"
 #include "InlineFormattingConstraints.h"
-#include "InlineFormattingUtils.h"
-#include "InlineLayoutState.h"
-#include "InlineQuirks.h"
-#include "IntrinsicWidthHandler.h"
+#include "InlineFormattingGeometry.h"
+#include "InlineFormattingQuirks.h"
+#include "InlineLineBuilder.h"
 #include <wtf/IsoMalloc.h>
 
 namespace WebCore {
 namespace Layout {
 
+class InlineLayoutState;
 class InlineDamage;
-class InlineContentCache;
+class InlineFormattingState;
 class LineBox;
 
 struct InlineLayoutResult {
@@ -50,58 +52,42 @@ struct InlineLayoutResult {
     Range range { Range::Full };
 };
 
-// This class implements the layout logic for inline formatting context.
+// This class implements the layout logic for inline formatting contexts.
 // https://www.w3.org/TR/CSS22/visuren.html#inline-formatting
-class InlineFormattingContext {
+class InlineFormattingContext final : public FormattingContext {
     WTF_MAKE_ISO_ALLOCATED(InlineFormattingContext);
 public:
-    InlineFormattingContext(const ElementBox& formattingContextRoot, LayoutState&, BlockLayoutState& parentBlockLayoutState);
+    InlineFormattingContext(const ElementBox& formattingContextRoot, InlineFormattingState&, const InlineDamage* = nullptr);
 
-    InlineLayoutResult layout(const ConstraintsForInlineContent&, const InlineDamage* = nullptr);
+    InlineLayoutResult layoutInFlowAndFloatContent(const ConstraintsForInlineContent&, InlineLayoutState&);
+    void layoutOutOfFlowContent(const ConstraintsForInlineContent&, InlineLayoutState&, const InlineDisplay::Content&);
+    IntrinsicWidthConstraints computedIntrinsicWidthConstraints() override;
+    LayoutUnit maximumContentSize();
 
-    std::pair<LayoutUnit, LayoutUnit> minimumMaximumContentSize(const InlineDamage* = nullptr);
-    LayoutUnit minimumContentSize(const InlineDamage* = nullptr);
-    LayoutUnit maximumContentSize(const InlineDamage* = nullptr);
-
-    const ElementBox& root() const { return m_rootBlockContainer; }
-    const InlineFormattingUtils& formattingUtils() const { return m_inlineFormattingUtils; }
-    const InlineQuirks& quirks() const { return m_inlineQuirks; }
-    const FloatingContext& floatingContext() const { return m_floatingContext; }
-
-    InlineLayoutState& layoutState() { return m_inlineLayoutState; }
-    const InlineLayoutState& layoutState() const { return m_inlineLayoutState; }
-
-    enum class EscapeReason {
-        InkOverflowNeedsInitialContiningBlockForStrokeWidth
-    };
-    const BoxGeometry& geometryForBox(const Box&, std::optional<EscapeReason> = std::nullopt) const;
-    BoxGeometry& geometryForBox(const Box&, std::optional<EscapeReason> = std::nullopt);
+    const InlineFormattingGeometry& formattingGeometry() const final { return m_inlineFormattingGeometry; }
+    const InlineFormattingQuirks& formattingQuirks() const final { return m_inlineFormattingQuirks; }
+    const InlineFormattingState& formattingState() const { return downcast<InlineFormattingState>(FormattingContext::formattingState()); }
 
 private:
-    InlineLayoutResult lineLayout(AbstractLineBuilder&, const InlineItemList&, InlineItemRange, std::optional<PreviousLine>, const ConstraintsForInlineContent&, const InlineDamage* = nullptr);
-    void layoutFloatContentOnly(const ConstraintsForInlineContent&);
+    InlineLayoutResult lineLayout(const InlineItems&, InlineItemRange, std::optional<PreviousLine>, const ConstraintsForInlineContent&, InlineLayoutState&);
+    void layoutFloatContentOnly(const ConstraintsForInlineContent&, FloatingState&);
+    void computeStaticPositionForOutOfFlowContent(const FormattingState::OutOfFlowBoxList&, const ConstraintsForInFlowContent&, const InlineDisplay::Content&, const FloatingState&);
+
+    InlineLayoutUnit computedIntrinsicWidthForConstraint(IntrinsicWidthMode) const;
 
     void collectContentIfNeeded();
-    InlineRect createDisplayContentForInlineContent(const LineBox&, const LineLayoutResult&, const ConstraintsForInlineContent&, InlineDisplay::Content&, size_t numberOfPreviousLinesWithInlineContent = 0);
-    void updateInlineLayoutStateWithLineLayoutResult(const LineLayoutResult&, const InlineRect& lineLogicalRect, const FloatingContext&);
-    void updateBoxGeometryForPlacedFloats(const LineLayoutResult::PlacedFloatList&);
-    void resetGeometryForClampedContent(const InlineItemRange& needsDisplayContentRange, const LineLayoutResult::SuspendedFloatList& suspendedFloats, LayoutPoint topleft);
-    bool createDisplayContentForLineFromCachedContent(const ConstraintsForInlineContent&, InlineLayoutResult&);
-    void createDisplayContentForEmptyInlineContent(const ConstraintsForInlineContent&, InlineLayoutResult&);
-    void initializeInlineLayoutState(const LayoutState&);
-    bool rebuildInlineItemListIfNeeded(const InlineDamage*);
+    InlineRect createDisplayContentForLine(size_t lineIndex, const LineBuilder::LayoutResult&, const ConstraintsForInlineContent&, const InlineLayoutState&, InlineDisplay::Content&);
+    void resetGeometryForClampedContent(const InlineItemRange& needsDisplayContentRange, const LineBuilder::SuspendedFloatList& suspendedFloats, LayoutPoint topleft);
 
-    InlineContentCache& inlineContentCache() { return m_inlineContentCache; }
+    InlineFormattingState& formattingState() { return downcast<InlineFormattingState>(FormattingContext::formattingState()); }
 
-private:
-    const ElementBox& m_rootBlockContainer;
-    LayoutState& m_layoutState;
-    const FloatingContext m_floatingContext;
-    const InlineFormattingUtils m_inlineFormattingUtils;
-    const InlineQuirks m_inlineQuirks;
-    InlineContentCache& m_inlineContentCache;
-    InlineLayoutState m_inlineLayoutState;
+    const InlineDamage* m_lineDamage { nullptr };
+    const InlineFormattingGeometry m_inlineFormattingGeometry;
+    const InlineFormattingQuirks m_inlineFormattingQuirks;
 };
 
 }
 }
+
+SPECIALIZE_TYPE_TRAITS_LAYOUT_FORMATTING_CONTEXT(InlineFormattingContext, isInlineFormattingContext())
+

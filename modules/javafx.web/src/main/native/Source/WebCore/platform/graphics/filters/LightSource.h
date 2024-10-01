@@ -34,7 +34,7 @@ class TextStream;
 
 namespace WebCore {
 
-enum class LightType : uint8_t {
+enum LightType {
     LS_DISTANT,
     LS_POINT,
     LS_SPOT
@@ -106,6 +106,20 @@ private:
 };
 
 } // namespace WebCore
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::LightType> {
+    using values = EnumValues<
+        WebCore::LightType,
+
+        WebCore::LS_DISTANT,
+        WebCore::LS_POINT,
+        WebCore::LS_SPOT
+    >;
+};
+
+} // namespace WTF
 
 #define SPECIALIZE_TYPE_TRAITS_LIGHTSOURCE(ClassName, Type) \
 SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::ClassName) \

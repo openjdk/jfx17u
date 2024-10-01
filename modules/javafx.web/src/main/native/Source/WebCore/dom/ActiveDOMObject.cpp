@@ -37,9 +37,7 @@ namespace WebCore {
 static inline ScriptExecutionContext* suitableScriptExecutionContext(ScriptExecutionContext* scriptExecutionContext)
 {
     // For detached documents, make sure we observe their context document instead.
-    if (auto* document = dynamicDowncast<Document>(scriptExecutionContext))
-        return &document->contextDocument();
-    return scriptExecutionContext;
+    return is<Document>(scriptExecutionContext) ? &downcast<Document>(*scriptExecutionContext).contextDocument() : scriptExecutionContext;
 }
 
 inline ActiveDOMObject::ActiveDOMObject(ScriptExecutionContext* context, CheckedScriptExecutionContextType)
@@ -78,8 +76,7 @@ ActiveDOMObject::~ActiveDOMObject()
     // ContextDestructionObserver::contextDestroyed() (which we implement /
     // inherit). Hence, we should ensure that this is not 0 before use it
     // here.
-
-    RefPtrAllowingPartiallyDestroyed<ScriptExecutionContext> context = scriptExecutionContext();
+    auto* context = scriptExecutionContext();
     if (!context)
         return;
 
@@ -94,7 +91,7 @@ void ActiveDOMObject::suspendIfNeeded()
     ASSERT(!m_suspendIfNeededWasCalled);
     m_suspendIfNeededWasCalled = true;
 #endif
-    if (RefPtrAllowingPartiallyDestroyed<ScriptExecutionContext> context = scriptExecutionContext())
+    if (auto* context = scriptExecutionContext())
         context->suspendActiveDOMObjectIfNeeded(*this);
 }
 
@@ -108,15 +105,6 @@ void ActiveDOMObject::assertSuspendIfNeededWasCalled() const
 }
 
 #endif // ASSERT_ENABLED
-
-void ActiveDOMObject::didMoveToNewDocument(Document& newDocument)
-{
-    if (RefPtr context = scriptExecutionContext())
-        context->willDestroyActiveDOMObject(*this);
-    Ref newScriptExecutionContext = newDocument.contextDocument();
-    observeContext(newScriptExecutionContext.ptr());
-    newScriptExecutionContext->didCreateActiveDOMObject(*this);
-}
 
 void ActiveDOMObject::suspend(ReasonForSuspension)
 {
@@ -180,7 +168,7 @@ private:
 void ActiveDOMObject::queueTaskToDispatchEventInternal(EventTarget& target, TaskSource source, Ref<Event>&& event)
 {
     ASSERT(!event->target() || &target == event->target());
-    RefPtr context = scriptExecutionContext();
+    auto* context = scriptExecutionContext();
     if (!context)
         return;
     auto& eventLoopTaskGroup = context->eventLoop();
@@ -193,7 +181,7 @@ void ActiveDOMObject::queueTaskToDispatchEventInternal(EventTarget& target, Task
 void ActiveDOMObject::queueCancellableTaskToDispatchEventInternal(EventTarget& target, TaskSource source, TaskCancellationGroup& cancellationGroup, Ref<Event>&& event)
 {
     ASSERT(!event->target() || &target == event->target());
-    RefPtr context = scriptExecutionContext();
+    auto* context = scriptExecutionContext();
     if (!context)
         return;
     auto& eventLoopTaskGroup = context->eventLoop();

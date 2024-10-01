@@ -27,6 +27,7 @@
 #include "ServiceWorkerDebuggable.h"
 
 #if ENABLE(REMOTE_INSPECTOR)
+#if ENABLE(SERVICE_WORKER)
 
 #include "ServiceWorkerInspectorProxy.h"
 #include "ServiceWorkerThreadProxy.h"
@@ -58,4 +59,5 @@ void ServiceWorkerDebuggable::dispatchMessageFromRemote(String&& message)
 
 } // namespace WebCore
 
+#endif // ENABLE(SERVICE_WORKER)
 #endif // ENABLE(REMOTE_INSPECTOR)

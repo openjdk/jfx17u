@@ -62,7 +62,7 @@ private:
     FloatPoint m_subPathPoint;
     PathCoordinateMode m_mode { AbsoluteCoordinates };
     const PathParsingMode m_pathParsingMode { NormalizedParsing };
-    SVGPathSegType m_lastCommand { SVGPathSegType::Unknown };
+    SVGPathSegType m_lastCommand { PathSegUnknown };
     bool m_closePath { true };
 };
 

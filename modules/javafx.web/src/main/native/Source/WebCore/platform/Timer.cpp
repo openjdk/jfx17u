@@ -33,7 +33,6 @@
 #include "ThreadTimers.h"
 #include <limits>
 #include <math.h>
-#include <wtf/IsoMallocInlines.h>
 #include <wtf/MainThread.h>
 #include <wtf/Vector.h>
 
@@ -56,8 +55,6 @@ static ThreadTimerHeap& threadGlobalTimerHeap()
     return threadGlobalData().threadTimers().timerHeap();
 }
 #endif
-
-WTF_MAKE_ISO_ALLOCATED_IMPL(ThreadTimerHeapItem);
 
 inline ThreadTimerHeapItem::ThreadTimerHeapItem(TimerBase& timer, MonotonicTime time, unsigned insertionOrder)
     : time(time)
@@ -186,7 +183,7 @@ private:
         ASSERT_UNUSED(offset, m_pointer + offset <= threadGlobalTimerHeap().data() + threadGlobalTimerHeap().size());
     }
 
-    friend bool operator==(TimerHeapIterator, TimerHeapIterator) = default;
+    friend bool operator==(TimerHeapIterator, TimerHeapIterator);
     friend bool operator<(TimerHeapIterator, TimerHeapIterator);
     friend bool operator>(TimerHeapIterator, TimerHeapIterator);
     friend bool operator<=(TimerHeapIterator, TimerHeapIterator);
@@ -201,6 +198,7 @@ private:
     RefPtr<ThreadTimerHeapItem>* m_pointer;
 };
 
+inline bool operator==(TimerHeapIterator a, TimerHeapIterator b) { return a.m_pointer == b.m_pointer; }
 inline bool operator<(TimerHeapIterator a, TimerHeapIterator b) { return a.m_pointer < b.m_pointer; }
 inline bool operator>(TimerHeapIterator a, TimerHeapIterator b) { return a.m_pointer > b.m_pointer; }
 inline bool operator<=(TimerHeapIterator a, TimerHeapIterator b) { return a.m_pointer <= b.m_pointer; }
@@ -218,12 +216,12 @@ class TimerHeapLessThanFunction {
 public:
     static bool compare(const TimerBase& a, const RefPtr<ThreadTimerHeapItem>& b)
     {
-        return compare(a.m_heapItemWithBitfields.pointer()->time, a.m_heapItemWithBitfields.pointer()->insertionOrder, b->time, b->insertionOrder);
+        return compare(a.m_heapItem->time, a.m_heapItem->insertionOrder, b->time, b->insertionOrder);
     }
 
     static bool compare(const RefPtr<ThreadTimerHeapItem>& a, const TimerBase& b)
     {
-        return compare(a->time, a->insertionOrder, b.m_heapItemWithBitfields.pointer()->time, b.m_heapItemWithBitfields.pointer()->insertionOrder);
+        return compare(a->time, a->insertionOrder, b.m_heapItem->time, b.m_heapItem->insertionOrder);
     }
 
     bool operator()(const RefPtr<ThreadTimerHeapItem>& a, const RefPtr<ThreadTimerHeapItem>& b) const
@@ -258,28 +256,6 @@ static bool shouldSuppressThreadSafetyCheck()
 #endif
 }
 
-struct SameSizeAsTimer {
-    virtual ~SameSizeAsTimer() { }
-
-    WeakPtr<TimerAlignment> timerAlignment;
-    double times[2];
-    void* pointers[2];
-#if CPU(ADDRESS32)
-    uint8_t bitfields;
-#endif
-    void* pointer;
-};
-#if !PLATFORM(JAVA)
-static_assert(sizeof(Timer) == sizeof(SameSizeAsTimer), "Timer should stay small");
-#endif
-
-struct SameSizeAsDeferrableOneShotTimer : public SameSizeAsTimer {
-    double delay;
-};
-#if !PLATFORM(JAVA)
-static_assert(sizeof(DeferrableOneShotTimer) == sizeof(SameSizeAsDeferrableOneShotTimer), "DeferrableOneShotTimer should stay small");
-#endif
-
 TimerBase::TimerBase()
 {
 }
@@ -290,8 +266,8 @@ TimerBase::~TimerBase()
     RELEASE_ASSERT(canCurrentThreadAccessThreadLocalData(m_thread) || shouldSuppressThreadSafetyCheck());
     stop();
     ASSERT(!inHeap());
-    if (auto* item = m_heapItemWithBitfields.pointer())
-        item->clearTimer();
+    if (m_heapItem)
+        m_heapItem->clearTimer();
     m_unalignedNextFireTime = MonotonicTime::nan();
 }
 
@@ -303,7 +279,7 @@ void TimerBase::start(Seconds nextFireInterval, Seconds repeatInterval)
     setNextFireTime(MonotonicTime::now() + nextFireInterval);
 }
 
-void TimerBase::stopSlowCase()
+void TimerBase::stop()
 {
     ASSERT(canCurrentThreadAccessThreadLocalData(m_thread));
 
@@ -318,7 +294,7 @@ void TimerBase::stopSlowCase()
 Seconds TimerBase::nextFireInterval() const
 {
     ASSERT(isActive());
-    ASSERT(m_heapItemWithBitfields.pointer());
+    ASSERT(m_heapItem);
     MonotonicTime current = MonotonicTime::now();
     auto fireTime = nextFireTime();
     if (fireTime < current)
@@ -329,14 +305,13 @@ Seconds TimerBase::nextFireInterval() const
 inline void TimerBase::checkHeapIndex() const
 {
 #if ASSERT_ENABLED
-    RefPtr item = m_heapItemWithBitfields.pointer();
-    ASSERT(item);
-    auto& heap = item->timerHeap();
+    ASSERT(m_heapItem);
+    auto& heap = m_heapItem->timerHeap();
     ASSERT(&heap == &threadGlobalTimerHeap());
     ASSERT(!heap.isEmpty());
-    ASSERT(item->isInHeap());
-    ASSERT(item->heapIndex() < heap.size());
-    ASSERT(heap[item->heapIndex()] == item);
+    ASSERT(m_heapItem->isInHeap());
+    ASSERT(m_heapItem->heapIndex() < m_heapItem->timerHeap().size());
+    ASSERT(heap[m_heapItem->heapIndex()] == m_heapItem);
     for (unsigned i = 0, size = heap.size(); i < size; i++)
         ASSERT(heap[i]->heapIndex() == i);
 #endif
@@ -353,11 +328,10 @@ inline void TimerBase::checkConsistency() const
 void TimerBase::heapDecreaseKey()
 {
     ASSERT(static_cast<bool>(nextFireTime()));
-    RefPtr item = m_heapItemWithBitfields.pointer();
-    ASSERT(item);
+    ASSERT(m_heapItem);
     checkHeapIndex();
-    auto* heapData = item->timerHeap().data();
-    std::push_heap(TimerHeapIterator(heapData), TimerHeapIterator(heapData + item->heapIndex() + 1), TimerHeapLessThanFunction());
+    auto* heapData = m_heapItem->timerHeap().data();
+    std::push_heap(TimerHeapIterator(heapData), TimerHeapIterator(heapData + m_heapItem->heapIndex() + 1), TimerHeapLessThanFunction());
     checkHeapIndex();
 }
 
@@ -365,20 +339,16 @@ inline void TimerBase::heapDelete()
 {
     ASSERT(!static_cast<bool>(nextFireTime()));
     heapPop();
-    RefPtr item = m_heapItemWithBitfields.pointer();
-    ASSERT(item);
-    item->timerHeap().removeLast();
-    item->setNotInHeap();
+    m_heapItem->timerHeap().removeLast();
+    m_heapItem->setNotInHeap();
 }
 
 void TimerBase::heapDeleteMin()
 {
     ASSERT(!static_cast<bool>(nextFireTime()));
     heapPopMin();
-    RefPtr item = m_heapItemWithBitfields.pointer();
-    ASSERT(item);
-    item->timerHeap().removeLast();
-    item->setNotInHeap();
+    m_heapItem->timerHeap().removeLast();
+    m_heapItem->setNotInHeap();
 }
 
 inline void TimerBase::heapIncreaseKey()
@@ -391,37 +361,33 @@ inline void TimerBase::heapIncreaseKey()
 inline void TimerBase::heapInsert()
 {
     ASSERT(!inHeap());
-    RefPtr item = m_heapItemWithBitfields.pointer();
-    ASSERT(item);
-    auto& heap = item->timerHeap();
-    heap.append(item);
-    item->setHeapIndex(heap.size() - 1);
+    ASSERT(m_heapItem);
+    auto& heap = m_heapItem->timerHeap();
+    heap.append(m_heapItem.copyRef());
+    m_heapItem->setHeapIndex(heap.size() - 1);
     heapDecreaseKey();
 }
 
 inline void TimerBase::heapPop()
 {
-    RefPtr item = m_heapItemWithBitfields.pointer();
-    ASSERT(item);
+    ASSERT(m_heapItem);
     // Temporarily force this timer to have the minimum key so we can pop it.
-    MonotonicTime fireTime = item->time;
-    item->time = -MonotonicTime::infinity();
+    MonotonicTime fireTime = m_heapItem->time;
+    m_heapItem->time = -MonotonicTime::infinity();
     heapDecreaseKey();
     heapPopMin();
-    item->time = fireTime;
+    m_heapItem->time = fireTime;
 }
 
 void TimerBase::heapPopMin()
 {
-    RefPtr item = m_heapItemWithBitfields.pointer();
-    ASSERT(item);
-    ASSERT(item == item->timerHeap().first());
+    ASSERT(m_heapItem == m_heapItem->timerHeap().first());
     checkHeapIndex();
-    auto& heap = item->timerHeap();
+    auto& heap = m_heapItem->timerHeap();
     auto* heapData = heap.data();
     std::pop_heap(TimerHeapIterator(heapData), TimerHeapIterator(heapData + heap.size()), TimerHeapLessThanFunction());
     checkHeapIndex();
-    ASSERT(item == item->timerHeap().last());
+    ASSERT(m_heapItem == m_heapItem->timerHeap().last());
 }
 
 void TimerBase::heapDeleteNullMin(ThreadTimerHeap& heap)
@@ -451,15 +417,14 @@ static inline bool childHeapPropertyHolds(const TimerBase* current, const Thread
 bool TimerBase::hasValidHeapPosition() const
 {
     ASSERT(nextFireTime());
-    RefPtr item = m_heapItemWithBitfields.pointer();
-    ASSERT(item);
+    ASSERT(m_heapItem);
     if (!inHeap())
         return false;
     // Check if the heap property still holds with the new fire time. If it does we don't need to do anything.
     // This assumes that the STL heap is a standard binary heap. In an unlikely event it is not, the assertions
     // in updateHeapIfNeeded() will get hit.
-    const auto& heap = item->timerHeap();
-    unsigned heapIndex = item->heapIndex();
+    const auto& heap = m_heapItem->timerHeap();
+    unsigned heapIndex = m_heapItem->heapIndex();
     if (!parentHeapPropertyHolds(this, heap, heapIndex))
         return false;
     unsigned childIndex1 = 2 * heapIndex + 1;
@@ -475,9 +440,8 @@ void TimerBase::updateHeapIfNeeded(MonotonicTime oldTime)
 
 #if ASSERT_ENABLED
     std::optional<unsigned> oldHeapIndex;
-    auto* item = m_heapItemWithBitfields.pointer();
-    if (item->isInHeap())
-        oldHeapIndex = item->heapIndex();
+    if (m_heapItem->isInHeap())
+        oldHeapIndex = m_heapItem->heapIndex();
 #endif
 
     if (!oldTime)
@@ -491,8 +455,8 @@ void TimerBase::updateHeapIfNeeded(MonotonicTime oldTime)
 
 #if ASSERT_ENABLED
     std::optional<unsigned> newHeapIndex;
-    if (item->isInHeap())
-        newHeapIndex = item->heapIndex();
+    if (m_heapItem->isInHeap())
+        newHeapIndex = m_heapItem->heapIndex();
     ASSERT(newHeapIndex != oldHeapIndex);
 #endif
 
@@ -503,38 +467,35 @@ void TimerBase::setNextFireTime(MonotonicTime newTime)
 {
     ASSERT(canCurrentThreadAccessThreadLocalData(m_thread));
     RELEASE_ASSERT(canCurrentThreadAccessThreadLocalData(m_thread) || shouldSuppressThreadSafetyCheck());
-    bool timerHasBeenDeleted = m_unalignedNextFireTime.isNaN();
+    bool timerHasBeenDeleted = std::isnan(m_unalignedNextFireTime);
     RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(!timerHasBeenDeleted);
 
     if (m_unalignedNextFireTime != newTime) {
-        RELEASE_ASSERT(!newTime.isNaN());
+        RELEASE_ASSERT(!std::isnan(newTime));
         m_unalignedNextFireTime = newTime;
     }
 
     // Keep heap valid while changing the next-fire time.
     MonotonicTime oldTime = nextFireTime();
     // Don't realign zero-delay timers.
-    if (auto* alignment = m_alignment.get(); newTime && alignment) {
-        if (auto newAlignedTime = alignment->alignedFireTime(hasReachedMaxNestingLevel(), newTime))
+    if (newTime) {
+        if (auto newAlignedTime = alignedFireTime(newTime))
             newTime = newAlignedTime.value();
     }
 
     if (oldTime != newTime) {
         auto newOrder = threadGlobalData().threadTimers().nextHeapInsertionCount();
 
-        RefPtr item = m_heapItemWithBitfields.pointer();
-        if (!item) {
-            m_heapItemWithBitfields.setPointer(ThreadTimerHeapItem::create(*this, newTime, 0));
-            item = m_heapItemWithBitfields.pointer();
-        }
-        item->time = newTime;
-        item->insertionOrder = newOrder;
+        if (!m_heapItem)
+            m_heapItem = ThreadTimerHeapItem::create(*this, newTime, 0);
+        m_heapItem->time = newTime;
+        m_heapItem->insertionOrder = newOrder;
 
-        bool wasFirstTimerInHeap = item->isFirstInHeap();
+        bool wasFirstTimerInHeap = m_heapItem->isFirstInHeap();
 
         updateHeapIfNeeded(oldTime);
 
-        bool isFirstTimerInHeap = item->isFirstInHeap();
+        bool isFirstTimerInHeap = m_heapItem->isFirstInHeap();
 
         if (wasFirstTimerInHeap || isFirstTimerInHeap)
             threadGlobalData().threadTimers().updateSharedTimer();
@@ -558,7 +519,7 @@ Seconds TimerBase::nextUnalignedFireInterval() const
 {
     ASSERT(isActive());
     auto result = std::max(m_unalignedNextFireTime - MonotonicTime::now(), 0_s);
-    RELEASE_ASSERT(result.isFinite());
+    RELEASE_ASSERT(std::isfinite(result));
     return result;
 }
 

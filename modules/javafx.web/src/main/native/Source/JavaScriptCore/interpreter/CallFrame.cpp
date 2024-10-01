@@ -31,9 +31,7 @@
 #include "InlineCallFrame.h"
 #include "JSCInlines.h"
 #include "JSWebAssemblyInstance.h"
-#include "JSWebAssemblyModule.h"
 #include "LLIntPCRanges.h"
-#include "NativeCallee.h"
 #include "VMEntryRecord.h"
 #include "VMEntryScopeInlines.h"
 #include "WasmContext.h"
@@ -122,7 +120,7 @@ unsigned CallFrame::callSiteBitsAsBytecodeOffset() const
 
 BytecodeIndex CallFrame::bytecodeIndex() const
 {
-    if (callee().isNativeCallee())
+    if (callee().isWasm())
         return callSiteIndex().bytecodeIndex();
     if (!codeBlock())
         return BytecodeIndex(0);
@@ -231,8 +229,7 @@ JSGlobalObject* CallFrame::globalObjectOfClosestCodeBlock(VM& vm, CallFrame* cal
     // rdar://83691438
     JSGlobalObject* globalObject = nullptr;
     StackVisitor::visit(callFrame, vm, [&](StackVisitor& visitor) {
-        // Note that this is OK for InlineCache Callee.
-        if (visitor->isNativeCalleeFrame()) {
+        if (visitor->isWasmFrame()) {
             globalObject = visitor->callFrame()->lexicalGlobalObject(vm);
             return IterationStatus::Done;
         }
@@ -254,7 +251,7 @@ JSGlobalObject* CallFrame::globalObjectOfClosestCodeBlock(VM& vm, CallFrame* cal
 
 String CallFrame::friendlyFunctionName()
 {
-    if (this->isNativeCalleeFrame())
+    if (this->isWasmFrame())
         return emptyString();
 
     CodeBlock* codeBlock = this->codeBlock();
@@ -280,23 +277,14 @@ String CallFrame::friendlyFunctionName()
 
 void CallFrame::dump(PrintStream& out) const
 {
-    if (this->isNativeCalleeFrame()) {
-        auto* nativeCallee = callee().asNativeCallee();
-        switch (nativeCallee->category()) {
-        case NativeCallee::Category::Wasm: {
+    if (this->isWasmFrame()) {
 #if ENABLE(WEBASSEMBLY)
-            auto* wasmCallee = static_cast<Wasm::Callee*>(nativeCallee);
+        Wasm::Callee* wasmCallee = callee().asWasmCallee();
         out.print(Wasm::makeString(wasmCallee->indexOrName()), " [", Wasm::makeString(wasmCallee->compilationMode()), "]");
         out.print("(Wasm::Instance: ", RawPointer(wasmInstance()), ")");
 #else
         out.print(RawPointer(returnPCForInspection()));
 #endif
-            break;
-        }
-        case NativeCallee::Category::InlineCache:
-            out.print(RawPointer(returnPCForInspection()));
-            break;
-        }
         return;
     }
 
@@ -348,54 +336,22 @@ void CallFrame::convertToStackOverflowFrame(VM& vm, CodeBlock* codeBlockToKeepAl
     CallFrame* throwOriginFrame = this;
     do {
         throwOriginFrame = throwOriginFrame->callerFrame(entryFrame);
-    } while (throwOriginFrame && throwOriginFrame->callee().isNativeCallee());
+    } while (throwOriginFrame && throwOriginFrame->callee().isWasm());
 
-    JSGlobalObject* globalObject = nullptr;
-    if (throwOriginFrame)
-        globalObject = throwOriginFrame->jsCallee()->globalObject();
-    else
-        globalObject = vm.entryScope->globalObject();
-    JSObject* partiallyInitializedFrameCallee = globalObject->partiallyInitializedFrameCallee();
+    JSObject* originCallee = throwOriginFrame ? throwOriginFrame->jsCallee() : vmEntryRecord(vm.topEntryFrame)->callee();
+    JSObject* stackOverflowCallee = originCallee->globalObject()->stackOverflowFrameCallee();
 
     setCodeBlock(codeBlockToKeepAliveUntilFrameIsUnwound);
-    setCallee(partiallyInitializedFrameCallee);
+    setCallee(stackOverflowCallee);
     setArgumentCountIncludingThis(0);
 }
 
-JSGlobalObject* CallFrame::lexicalGlobalObjectFromNativeCallee(VM& vm) const
-{
-    auto* nativeCallee = callee().asNativeCallee();
-    switch (nativeCallee->category()) {
-    case NativeCallee::Category::Wasm: {
 #if ENABLE(WEBASSEMBLY)
+JSGlobalObject* CallFrame::lexicalGlobalObjectFromWasmCallee(VM&) const
+{
     return wasmInstance()->globalObject();
-#else
-        return nullptr;
-#endif
-    }
-    case NativeCallee::Category::InlineCache: {
-        return callerFrame()->lexicalGlobalObject(vm);
-    }
-    }
-    return nullptr;
 }
-
-JSCell* CallFrame::codeOwnerCellSlow() const
-{
-    auto* nativeCallee = callee().asNativeCallee();
-    switch (nativeCallee->category()) {
-    case NativeCallee::Category::Wasm: {
-#if ENABLE(WEBASSEMBLY)
-        return jsCast<JSWebAssemblyInstance*>(wasmInstance()->owner())->module();
-#else
-        return nullptr;
 #endif
-    }
-    case NativeCallee::Category::InlineCache:
-        return callerFrame()->codeOwnerCell();
-    }
-    return nullptr;
-}
 
 bool isFromJSCode(void* returnAddress)
 {

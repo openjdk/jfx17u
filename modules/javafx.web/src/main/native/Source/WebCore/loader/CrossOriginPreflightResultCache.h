@@ -26,7 +26,6 @@
 
 #pragma once
 
-#include "LoaderMalloc.h"
 #include "StoredCredentialsPolicy.h"
 #include <pal/SessionID.h>
 #include <wtf/Expected.h>
@@ -42,7 +41,7 @@ class HTTPHeaderMap;
 class ResourceResponse;
 
 class CrossOriginPreflightResultCacheItem {
-    WTF_MAKE_NONCOPYABLE(CrossOriginPreflightResultCacheItem); WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Loader);
+    WTF_MAKE_NONCOPYABLE(CrossOriginPreflightResultCacheItem); WTF_MAKE_FAST_ALLOCATED;
 public:
     static Expected<UniqueRef<CrossOriginPreflightResultCacheItem>, String> create(StoredCredentialsPolicy, const ResourceResponse&);
 
@@ -65,7 +64,7 @@ private:
 };
 
 class CrossOriginPreflightResultCache {
-    WTF_MAKE_NONCOPYABLE(CrossOriginPreflightResultCache); WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Loader);
+    WTF_MAKE_NONCOPYABLE(CrossOriginPreflightResultCache); WTF_MAKE_FAST_ALLOCATED;
 public:
     WEBCORE_EXPORT static CrossOriginPreflightResultCache& singleton();
     WEBCORE_EXPORT void appendEntry(PAL::SessionID, const String& origin, const URL&, std::unique_ptr<CrossOriginPreflightResultCacheItem>);

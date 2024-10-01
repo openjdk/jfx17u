@@ -26,6 +26,7 @@
 #include "config.h"
 #include "BackgroundPainter.h"
 
+#include "BitmapImage.h"
 #include "BorderPainter.h"
 #include "CachedImage.h"
 #include "ColorBlending.h"
@@ -338,11 +339,7 @@ void BackgroundPainter::paintFillLayer(const Color& color, const FillLayer& bgLa
 
     auto isOpaqueRoot = false;
     if (isRoot) {
-        bool shouldPaintBaseBackground = view().rootElementShouldPaintBaseBackground();
-        isOpaqueRoot = bgLayer.next() || bgColor.isOpaque() || shouldPaintBaseBackground;
-        if (!shouldPaintBaseBackground)
-            baseBgColorUsage = BaseBackgroundColorSkip;
-
+        isOpaqueRoot = bgLayer.next() || bgColor.isOpaque() || view().shouldPaintBaseBackground();
         view().frameView().setContentIsOpaque(isOpaqueRoot);
     }
 
@@ -400,18 +397,18 @@ void BackgroundPainter::paintFillLayer(const Color& color, const FillLayer& bgLa
 
         geometry.clip(LayoutRect(pixelSnappedRect));
         RefPtr<Image> image;
-        bool isFirstLine = box && box->lineBox()->isFirst();
-        if (!geometry.destinationRect.isEmpty() && (image = bgImage->image(backgroundObject ? backgroundObject : &m_renderer, geometry.tileSize, isFirstLine))) {
+        if (!geometry.destinationRect.isEmpty() && (image = bgImage->image(backgroundObject ? backgroundObject : &m_renderer, geometry.tileSize))) {
             context.setDrawLuminanceMask(bgLayer.maskMode() == MaskMode::Luminance);
+
+            if (is<BitmapImage>(image))
+                downcast<BitmapImage>(*image).updateFromSettings(document().settings());
 
             ImagePaintingOptions options = {
                 op == CompositeOperator::SourceOver ? bgLayer.compositeForPainting() : op,
                 bgLayer.blendMode(),
                 m_renderer.decodingModeForImageDraw(*image, m_paintInfo),
                 ImageOrientation::Orientation::FromImage,
-                m_renderer.chooseInterpolationQuality(context, *image, &bgLayer, geometry.tileSize),
-                document().settings().imageSubsamplingEnabled() ? AllowImageSubsampling::Yes : AllowImageSubsampling::No,
-                document().settings().showDebugBorders() ? ShowDebugBackground::Yes : ShowDebugBackground::No
+                m_renderer.chooseInterpolationQuality(context, *image, &bgLayer, geometry.tileSize)
             };
 
             auto drawResult = context.drawTiledImage(*image, geometry.destinationRect, toLayoutPoint(geometry.relativePhase()), geometry.tileSize, geometry.spaceSize, options);
@@ -426,7 +423,7 @@ void BackgroundPainter::paintFillLayer(const Color& color, const FillLayer& bgLa
     }
 
     if (maskImage && bgLayer.clip() == FillBox::Text) {
-        context.drawConsumingImageBuffer(WTFMove(maskImage), maskRect, { CompositeOperator::DestinationIn });
+        context.drawConsumingImageBuffer(WTFMove(maskImage), maskRect, CompositeOperator::DestinationIn);
         context.endTransparencyLayer();
     }
 }

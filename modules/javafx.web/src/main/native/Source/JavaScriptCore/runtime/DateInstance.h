@@ -73,7 +73,10 @@ public:
         return calculateGregorianDateTimeUTC(cache);
     }
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        return Structure::create(vm, globalObject, prototype, TypeInfo(JSDateType, StructureFlags), info());
+    }
 
     static ptrdiff_t offsetOfInternalNumber() { return OBJECT_OFFSETOF(DateInstance, m_internalNumber); }
     static ptrdiff_t offsetOfData() { return OBJECT_OFFSETOF(DateInstance, m_data); }

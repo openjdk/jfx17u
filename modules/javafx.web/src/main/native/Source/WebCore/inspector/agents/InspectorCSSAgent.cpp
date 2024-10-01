@@ -379,7 +379,7 @@ void InspectorCSSAgent::setActiveStyleSheetsForDocument(Document& document, Vect
     }
 }
 
-bool InspectorCSSAgent::forcePseudoState(const Element& element, CSSSelector::PseudoClass pseudoClass)
+bool InspectorCSSAgent::forcePseudoState(const Element& element, CSSSelector::PseudoClassType pseudoClassType)
 {
     if (m_nodeIdToForcedPseudoState.isEmpty())
         return false;
@@ -392,7 +392,7 @@ bool InspectorCSSAgent::forcePseudoState(const Element& element, CSSSelector::Ps
     if (!nodeId)
         return false;
 
-    return m_nodeIdToForcedPseudoState.get(nodeId).contains(pseudoClass);
+    return m_nodeIdToForcedPseudoState.get(nodeId).contains(pseudoClassType);
 }
 
 std::optional<Protocol::CSS::PseudoId> InspectorCSSAgent::protocolValueForPseudoId(PseudoId pseudoId)
@@ -402,8 +402,6 @@ std::optional<Protocol::CSS::PseudoId> InspectorCSSAgent::protocolValueForPseudo
         return Protocol::CSS::PseudoId::FirstLine;
     case PseudoId::FirstLetter:
         return Protocol::CSS::PseudoId::FirstLetter;
-    case PseudoId::GrammarError:
-        return Protocol::CSS::PseudoId::GrammarError;
     case PseudoId::Marker:
         return Protocol::CSS::PseudoId::Marker;
     case PseudoId::Backdrop:
@@ -416,32 +414,20 @@ std::optional<Protocol::CSS::PseudoId> InspectorCSSAgent::protocolValueForPseudo
         return Protocol::CSS::PseudoId::Selection;
     case PseudoId::Highlight:
         return Protocol::CSS::PseudoId::Highlight;
-    case PseudoId::SpellingError:
-        return Protocol::CSS::PseudoId::SpellingError;
-    case PseudoId::ViewTransition:
-        return Protocol::CSS::PseudoId::ViewTransition;
-    case PseudoId::ViewTransitionGroup:
-        return Protocol::CSS::PseudoId::ViewTransitionGroup;
-    case PseudoId::ViewTransitionImagePair:
-        return Protocol::CSS::PseudoId::ViewTransitionImagePair;
-    case PseudoId::ViewTransitionOld:
-        return Protocol::CSS::PseudoId::ViewTransitionOld;
-    case PseudoId::ViewTransitionNew:
-        return Protocol::CSS::PseudoId::ViewTransitionNew;
-    case PseudoId::WebKitResizer:
-        return Protocol::CSS::PseudoId::WebKitResizer;
-    case PseudoId::WebKitScrollbar:
-        return Protocol::CSS::PseudoId::WebKitScrollbar;
-    case PseudoId::WebKitScrollbarThumb:
-        return Protocol::CSS::PseudoId::WebKitScrollbarThumb;
-    case PseudoId::WebKitScrollbarButton:
-        return Protocol::CSS::PseudoId::WebKitScrollbarButton;
-    case PseudoId::WebKitScrollbarTrack:
-        return Protocol::CSS::PseudoId::WebKitScrollbarTrack;
-    case PseudoId::WebKitScrollbarTrackPiece:
-        return Protocol::CSS::PseudoId::WebKitScrollbarTrackPiece;
-    case PseudoId::WebKitScrollbarCorner:
-        return Protocol::CSS::PseudoId::WebKitScrollbarCorner;
+    case PseudoId::Scrollbar:
+        return Protocol::CSS::PseudoId::Scrollbar;
+    case PseudoId::ScrollbarThumb:
+        return Protocol::CSS::PseudoId::ScrollbarThumb;
+    case PseudoId::ScrollbarButton:
+        return Protocol::CSS::PseudoId::ScrollbarButton;
+    case PseudoId::ScrollbarTrack:
+        return Protocol::CSS::PseudoId::ScrollbarTrack;
+    case PseudoId::ScrollbarTrackPiece:
+        return Protocol::CSS::PseudoId::ScrollbarTrackPiece;
+    case PseudoId::ScrollbarCorner:
+        return Protocol::CSS::PseudoId::ScrollbarCorner;
+    case PseudoId::Resizer:
+        return Protocol::CSS::PseudoId::Resizer;
 
     default:
         ASSERT_NOT_REACHED();
@@ -507,8 +493,8 @@ Protocol::ErrorStringOr<std::tuple<RefPtr<JSON::ArrayOf<Protocol::CSS::RuleMatch
                 auto entry = Protocol::CSS::InheritedStyleEntry::create()
                     .setMatchedCSSRules(buildArrayForMatchedRuleList(parentMatchedRules, styleResolver, ancestor, PseudoId::None))
                     .release();
-                if (RefPtr styledElement = dynamicDowncast<StyledElement>(ancestor); styledElement && styledElement->cssomStyle().length()) {
-                    auto& styleSheet = asInspectorStyleSheet(*styledElement);
+                if (is<StyledElement>(ancestor) && downcast<StyledElement>(ancestor).cssomStyle().length()) {
+                    auto& styleSheet = asInspectorStyleSheet(downcast<StyledElement>(ancestor));
                     entry->setInlineStyle(styleSheet.buildObjectForStyle(styleSheet.styleForId(InspectorCSSId(styleSheet.id(), 0))));
                 }
                 inherited->addItem(WTFMove(entry));
@@ -527,12 +513,12 @@ Protocol::ErrorStringOr<std::tuple<RefPtr<Protocol::CSS::CSSStyle> /* inlineStyl
     if (!element)
         return makeUnexpected(errorString);
 
-    RefPtr styledElement = dynamicDowncast<StyledElement>(*element);
-    if (!styledElement)
+    if (!is<StyledElement>(element))
         return { { nullptr, nullptr } };
 
-    auto& styleSheet = asInspectorStyleSheet(*styledElement);
-    return { { styleSheet.buildObjectForStyle(&styledElement->cssomStyle()), buildObjectForAttributesStyle(*styledElement) } };
+    auto& styledElement = downcast<StyledElement>(*element);
+    auto& styleSheet = asInspectorStyleSheet(styledElement);
+    return { { styleSheet.buildObjectForStyle(&styledElement.cssomStyle()), buildObjectForAttributesStyle(styledElement) } };
 }
 
 Protocol::ErrorStringOr<Ref<JSON::ArrayOf<Protocol::CSS::CSSComputedStyleProperty>>> InspectorCSSAgent::getComputedStyleForNode(Protocol::DOM::NodeId nodeId)
@@ -546,7 +532,7 @@ Protocol::ErrorStringOr<Ref<JSON::ArrayOf<Protocol::CSS::CSSComputedStylePropert
     if (!element->isConnected())
         return makeUnexpected("Element for given nodeId was not connected to DOM tree."_s);
 
-    auto computedStyleInfo = CSSComputedStyleDeclaration::create(*element, CSSComputedStyleDeclaration::AllowVisited::Yes);
+    auto computedStyleInfo = CSSComputedStyleDeclaration::create(*element, true);
     auto inspectorStyle = InspectorStyle::create(InspectorCSSId(), WTFMove(computedStyleInfo), nullptr);
     return inspectorStyle->buildArrayForComputedStyle();
 }
@@ -938,31 +924,31 @@ Protocol::ErrorStringOr<void> InspectorCSSAgent::forcePseudoState(Protocol::DOM:
 
         switch (*pseudoClass) {
         case Protocol::CSS::ForceablePseudoClass::Active:
-            forcedPseudoClassesToSet.add(CSSSelector::PseudoClass::Active);
+            forcedPseudoClassesToSet.add(CSSSelector::PseudoClassType::Active);
             break;
 
         case Protocol::CSS::ForceablePseudoClass::Hover:
-            forcedPseudoClassesToSet.add(CSSSelector::PseudoClass::Hover);
+            forcedPseudoClassesToSet.add(CSSSelector::PseudoClassType::Hover);
             break;
 
         case Protocol::CSS::ForceablePseudoClass::Focus:
-            forcedPseudoClassesToSet.add(CSSSelector::PseudoClass::Focus);
+            forcedPseudoClassesToSet.add(CSSSelector::PseudoClassType::Focus);
             break;
 
         case Protocol::CSS::ForceablePseudoClass::FocusVisible:
-            forcedPseudoClassesToSet.add(CSSSelector::PseudoClass::FocusVisible);
+            forcedPseudoClassesToSet.add(CSSSelector::PseudoClassType::FocusVisible);
             break;
 
         case Protocol::CSS::ForceablePseudoClass::FocusWithin:
-            forcedPseudoClassesToSet.add(CSSSelector::PseudoClass::FocusWithin);
+            forcedPseudoClassesToSet.add(CSSSelector::PseudoClassType::FocusWithin);
             break;
 
         case Protocol::CSS::ForceablePseudoClass::Target:
-            forcedPseudoClassesToSet.add(CSSSelector::PseudoClass::Target);
+            forcedPseudoClassesToSet.add(CSSSelector::PseudoClassType::Target);
             break;
 
         case Protocol::CSS::ForceablePseudoClass::Visited:
-            forcedPseudoClassesToSet.add(CSSSelector::PseudoClass::Visited);
+            forcedPseudoClassesToSet.add(CSSSelector::PseudoClassType::Visited);
             break;
         }
     }
@@ -1036,7 +1022,7 @@ OptionSet<InspectorCSSAgent::LayoutFlag> InspectorCSSAgent::layoutFlagsForNode(N
                 if (frameView->isScrollable())
                     layoutFlags.add(InspectorCSSAgent::LayoutFlag::Scrollable);
             }
-        } else if (CheckedPtr renderBox = dynamicDowncast<RenderBox>(*renderer); renderBox && renderBox->canBeScrolledAndHasScrollableArea())
+        } else if (is<RenderBox>(*renderer) && downcast<RenderBox>(*renderer).canBeScrolledAndHasScrollableArea())
             layoutFlags.add(InspectorCSSAgent::LayoutFlag::Scrollable);
     }
 
@@ -1254,8 +1240,7 @@ RefPtr<Protocol::CSS::CSSRule> InspectorCSSAgent::buildObjectForRule(const Style
 
     // StyleRules returned by Style::Resolver::styleRulesForElement lack parent pointers since that infomation is not cheaply available.
     // Since the inspector wants to walk the parent chain, we construct the full wrappers here.
-    if (auto* extensionStyleSheets = styleResolver.document().extensionStyleSheetsIfExists())
-        styleResolver.inspectorCSSOMWrappers().collectDocumentWrappers(*extensionStyleSheets);
+    styleResolver.inspectorCSSOMWrappers().collectDocumentWrappers(styleResolver.document().extensionStyleSheets());
     styleResolver.inspectorCSSOMWrappers().collectScopeWrappers(Style::Scope::forNode(element));
 
     // Possiblity of :host styles if this element has a shadow root.
@@ -1311,13 +1296,12 @@ Ref<JSON::ArrayOf<Protocol::CSS::RuleMatch>> InspectorCSSAgent::buildArrayForMat
 
 RefPtr<Protocol::CSS::CSSStyle> InspectorCSSAgent::buildObjectForAttributesStyle(StyledElement& element)
 {
-    auto* presentationalHintStyle = element.presentationalHintStyle();
-    if (!presentationalHintStyle)
+    // FIXME: Ugliness below.
+    auto* attributeStyle = const_cast<MutableStyleProperties*>(element.presentationalHintStyle());
+    if (!attributeStyle)
         return nullptr;
 
-    auto mutableStyle = presentationalHintStyle->mutableCopy();
-
-    auto inspectorStyle = InspectorStyle::create(InspectorCSSId(), mutableStyle->ensureCSSStyleDeclaration(), nullptr);
+    auto inspectorStyle = InspectorStyle::create(InspectorCSSId(), attributeStyle->ensureCSSStyleDeclaration(), nullptr);
     return inspectorStyle->buildObjectForStyle();
 }
 

@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "ServiceWorkerData.h"
 #include "ServiceWorkerIdentifier.h"
 #include "ServiceWorkerRegistrationKey.h"
@@ -54,3 +56,5 @@ struct ServiceWorkerRegistrationData {
 };
 
 } // namespace WTF
+
+#endif // ENABLE(SERVICE_WORKER)

@@ -23,7 +23,6 @@
 #include "CSSPropertyNames.h"
 #include "ExceptionOr.h"
 #include "ScriptWrappable.h"
-#include <wtf/CheckedRef.h>
 
 namespace WebCore {
 
@@ -36,7 +35,7 @@ class MutableStyleProperties;
 class StyleProperties;
 class StyledElement;
 
-class CSSStyleDeclaration : public ScriptWrappable, public CanMakeSingleThreadWeakPtr<CSSStyleDeclaration> {
+class CSSStyleDeclaration : public ScriptWrappable {
     WTF_MAKE_NONCOPYABLE(CSSStyleDeclaration);
     WTF_MAKE_ISO_ALLOCATED(CSSStyleDeclaration);
 public:

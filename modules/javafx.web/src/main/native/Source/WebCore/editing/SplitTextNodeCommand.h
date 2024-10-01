@@ -50,9 +50,6 @@ private:
     void getNodesInCommand(HashSet<Ref<Node>>&) override;
 #endif
 
-    RefPtr<Text> protectedText1() const { return m_text1; }
-    Ref<Text> protectedText2() const { return m_text2; }
-
     RefPtr<Text> m_text1;
     Ref<Text> m_text2;
     unsigned m_offset;

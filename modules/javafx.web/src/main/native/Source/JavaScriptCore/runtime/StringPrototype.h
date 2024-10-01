@@ -38,7 +38,10 @@ public:
 
     static StringPrototype* create(VM&, JSGlobalObject*, Structure*);
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        return Structure::create(vm, globalObject, prototype, TypeInfo(DerivedStringObjectType, StructureFlags), info());
+    }
 
     using JSObject::getOwnPropertySlotByIndex;
 

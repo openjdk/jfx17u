@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include "AXCoreObject.h"
+#include "AccessibilityObjectInterface.h"
 #include "ActivityState.h"
 #include <variant>
 #include <wtf/HashMap.h>

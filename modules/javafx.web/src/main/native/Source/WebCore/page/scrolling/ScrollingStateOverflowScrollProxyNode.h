@@ -33,7 +33,7 @@ namespace WebCore {
 
 class ScrollingStateOverflowScrollProxyNode : public ScrollingStateNode {
 public:
-    template<typename... Args> static Ref<ScrollingStateOverflowScrollProxyNode> create(Args&&... args) { return adoptRef(*new ScrollingStateOverflowScrollProxyNode(std::forward<Args>(args)...)); }
+    static Ref<ScrollingStateOverflowScrollProxyNode> create(ScrollingStateTree&, ScrollingNodeID);
 
     Ref<ScrollingStateNode> clone(ScrollingStateTree&) override;
 
@@ -44,7 +44,6 @@ public:
     WEBCORE_EXPORT void setOverflowScrollingNode(ScrollingNodeID);
 
 private:
-    WEBCORE_EXPORT ScrollingStateOverflowScrollProxyNode(ScrollingNodeID, Vector<Ref<ScrollingStateNode>>&&, OptionSet<ScrollingStateNodeProperty>, std::optional<PlatformLayerIdentifier>, ScrollingNodeID overflowScrollingNode);
     ScrollingStateOverflowScrollProxyNode(ScrollingStateTree&, ScrollingNodeID);
     ScrollingStateOverflowScrollProxyNode(const ScrollingStateOverflowScrollProxyNode&, ScrollingStateTree&);
 

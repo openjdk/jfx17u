@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "BackgroundFetchRegistration.h"
 #include "JSDOMPromiseDeferred.h"
 #include "ServiceWorkerTypes.h"
@@ -62,3 +64,5 @@ private:
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

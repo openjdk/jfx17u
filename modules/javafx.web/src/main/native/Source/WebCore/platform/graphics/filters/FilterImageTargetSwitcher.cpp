@@ -56,7 +56,7 @@ GraphicsContext* FilterImageTargetSwitcher::drawingContext(GraphicsContext& cont
     return m_sourceImage ? &m_sourceImage->context() : &context;
 }
 
-void FilterImageTargetSwitcher::beginClipAndDrawSourceImage(GraphicsContext& destinationContext, const FloatRect& repaintRect, const FloatRect&)
+void FilterImageTargetSwitcher::beginClipAndDrawSourceImage(GraphicsContext& destinationContext, const FloatRect& repaintRect)
 {
     if (auto* context = drawingContext(destinationContext)) {
         context->save();
@@ -65,30 +65,21 @@ void FilterImageTargetSwitcher::beginClipAndDrawSourceImage(GraphicsContext& des
     }
 }
 
-void FilterImageTargetSwitcher::endClipAndDrawSourceImage(GraphicsContext& destinationContext, const DestinationColorSpace& colorSpace)
+void FilterImageTargetSwitcher::endClipAndDrawSourceImage(GraphicsContext& destinationContext)
 {
     if (auto* context = drawingContext(destinationContext))
         context->restore();
 
-    endDrawSourceImage(destinationContext, colorSpace);
+    endDrawSourceImage(destinationContext);
 }
 
-void FilterImageTargetSwitcher::endDrawSourceImage(GraphicsContext& destinationContext, const DestinationColorSpace& colorSpace)
+void FilterImageTargetSwitcher::endDrawSourceImage(GraphicsContext& destinationContext)
 {
     if (!m_filter)
         return;
 
     FilterResults results;
-#if USE(CAIRO)
-    // Cairo operates in SRGB which is why the SourceImage initially is in SRGB color space,
-    // but before applying all filters it has to be transformed to LinearRGB to comply with
-    // specification (https://www.w3.org/TR/filter-effects-1/#attr-valuedef-in-sourcegraphic).
-    if (m_sourceImage)
-        m_sourceImage->transformToColorSpace(colorSpace);
-#else
-    UNUSED_PARAM(colorSpace);
-#endif
-    destinationContext.drawFilteredImageBuffer(m_sourceImage.get(), m_sourceImageRect, Ref { *m_filter }, m_results ? *m_results : results);
+    destinationContext.drawFilteredImageBuffer(m_sourceImage.get(), m_sourceImageRect, *m_filter, m_results ? *m_results : results);
 }
 
 } // namespace WebCore

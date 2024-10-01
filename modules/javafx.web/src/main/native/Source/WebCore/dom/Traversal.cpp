@@ -43,7 +43,7 @@ NodeIteratorBase::NodeIteratorBase(Node& rootNode, unsigned whatToShow, RefPtr<N
 ExceptionOr<unsigned short> NodeIteratorBase::acceptNode(Node& node)
 {
     if (m_isActive)
-        return Exception { ExceptionCode::InvalidStateError, "Recursive filters are not allowed"_s };
+        return Exception { InvalidStateError, "Recursive filters are not allowed"_s };
 
     // The bit twiddling here is done to map DOM node types, which are given as integers from
     // 1 through 14, to whatToShow bit masks.
@@ -56,7 +56,7 @@ ExceptionOr<unsigned short> NodeIteratorBase::acceptNode(Node& node)
     SetForScope isActive(m_isActive, true);
     auto callbackResult = m_filter->acceptNode(node);
     if (callbackResult.type() == CallbackResultType::ExceptionThrown)
-        return Exception { ExceptionCode::ExistingExceptionError };
+        return Exception { ExistingExceptionError };
     return callbackResult.releaseReturnValue();
 }
 

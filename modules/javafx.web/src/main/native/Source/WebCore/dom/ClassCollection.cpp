@@ -46,7 +46,7 @@ Ref<ClassCollection> ClassCollection::create(ContainerNode& rootNode, Collection
 
 ClassCollection::~ClassCollection()
 {
-    protectedOwnerNode()->nodeLists()->removeCachedCollection(this, m_originalClassNames);
+    ownerNode().nodeLists()->removeCachedCollection(this, m_originalClassNames);
 }
 
 } // namespace WebCore

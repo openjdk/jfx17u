@@ -126,7 +126,7 @@ void ApplicationCacheGroup::selectCache(LocalFrame& frame, const URL& passedMani
     ASSERT(frame.page());
     ASSERT(frame.loader().documentLoader());
 
-    if (frame.loader().documentLoader() && !frame.loader().documentLoader()->applicationCacheHost().isApplicationCacheEnabled())
+    if (!frame.settings().offlineWebApplicationCacheEnabled())
         return;
 
     auto& documentLoader = *frame.loader().documentLoader();
@@ -202,7 +202,7 @@ void ApplicationCacheGroup::selectCache(LocalFrame& frame, const URL& passedMani
 
 void ApplicationCacheGroup::selectCacheWithoutManifestURL(LocalFrame& frame)
 {
-    if (frame.loader().documentLoader() && !frame.loader().documentLoader()->applicationCacheHost().isApplicationCacheEnabled())
+    if (!frame.settings().offlineWebApplicationCacheEnabled())
         return;
 
     ASSERT(frame.document());
@@ -973,7 +973,7 @@ void ApplicationCacheGroup::associateDocumentLoaderWithCache(DocumentLoader* loa
 }
 
 class ChromeClientCallbackTimer final : public TimerBase {
-    WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Loader);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     ChromeClientCallbackTimer(ApplicationCacheGroup& group)
         : m_group(group)

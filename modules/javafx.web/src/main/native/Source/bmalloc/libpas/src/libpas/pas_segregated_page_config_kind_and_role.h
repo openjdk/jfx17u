@@ -41,18 +41,17 @@ enum pas_segregated_page_config_kind_and_role {
 
 typedef enum pas_segregated_page_config_kind_and_role pas_segregated_page_config_kind_and_role;
 
-#define PAS_SEGREGATED_PAGE_CONFIG_KIND_AND_ROLE_NUM_BITS 6ull
-#define PAS_SEGREGATED_PAGE_CONFIG_KIND_AND_ROLE_SHIFT 48ull
+#define PAS_SEGREGATED_PAGE_CONFIG_KIND_AND_ROLE_NUM_BITS 6u
 #define PAS_SEGREGATED_PAGE_CONFIG_KIND_AND_ROLE_MASK \
-    (((1u << PAS_SEGREGATED_PAGE_CONFIG_KIND_AND_ROLE_NUM_BITS) - 1ull) << PAS_SEGREGATED_PAGE_CONFIG_KIND_AND_ROLE_SHIFT)
+    ((1u << PAS_SEGREGATED_PAGE_CONFIG_KIND_AND_ROLE_NUM_BITS) - 1u)
 
 #if PAS_COMPILER(CLANG)
 #define PAS_DEFINE_SEGREGATED_PAGE_CONFIG_KIND(name, value) \
     _Static_assert(pas_segregated_page_config_kind_ ## name ## _and_shared_role \
-                   < (1u << PAS_SEGREGATED_PAGE_CONFIG_KIND_AND_ROLE_NUM_BITS), \
+                   <= PAS_SEGREGATED_PAGE_CONFIG_KIND_AND_ROLE_MASK, \
                    "Kind-and-role doesn't fit in kind-and-role bits"); \
     _Static_assert(pas_segregated_page_config_kind_ ## name ## _and_exclusive_role \
-                   < (1u << PAS_SEGREGATED_PAGE_CONFIG_KIND_AND_ROLE_NUM_BITS), \
+                   <= PAS_SEGREGATED_PAGE_CONFIG_KIND_AND_ROLE_MASK, \
                    "Kind-and-role doesn't fit in kind-and-role bits");
 #include "pas_segregated_page_config_kind.def"
 #undef PAS_DEFINE_SEGREGATED_PAGE_CONFIG_KIND

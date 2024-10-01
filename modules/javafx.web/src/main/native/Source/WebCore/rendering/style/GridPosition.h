@@ -35,14 +35,14 @@
 
 namespace WebCore {
 
-enum class GridPositionType : uint8_t {
+enum GridPositionType {
     AutoPosition,
     ExplicitPosition, // [ <integer> || <string> ]
     SpanPosition, // span && [ <integer> || <string> ]
     NamedGridAreaPosition // <ident>
 };
 
-enum class GridPositionSide : uint8_t {
+enum GridPositionSide {
     ColumnStartSide,
     ColumnEndSide,
     RowStartSide,
@@ -51,12 +51,18 @@ enum class GridPositionSide : uint8_t {
 
 class GridPosition {
 public:
+    GridPosition()
+        : m_type(AutoPosition)
+        , m_integerPosition(0)
+    {
+    }
+
     bool isPositive() const { return integerPosition() > 0; }
 
     GridPositionType type() const { return m_type; }
-    bool isAuto() const { return m_type == GridPositionType::AutoPosition; }
-    bool isSpan() const { return m_type == GridPositionType::SpanPosition; }
-    bool isNamedGridArea() const { return m_type == GridPositionType::NamedGridAreaPosition; }
+    bool isAuto() const { return m_type == AutoPosition; }
+    bool isSpan() const { return m_type == SpanPosition; }
+    bool isNamedGridArea() const { return m_type == NamedGridAreaPosition; }
 
     WEBCORE_EXPORT void setExplicitPosition(int position, const String& namedGridLine);
     void setAutoPosition();
@@ -67,7 +73,7 @@ public:
     String namedGridLine() const;
     WEBCORE_EXPORT int spanPosition() const;
 
-    friend bool operator==(const GridPosition&, const GridPosition&) = default;
+    bool operator==(const GridPosition& other) const;
 
     bool shouldBeResolvedAgainstOppositePosition() const { return isAuto() || isSpan(); }
 
@@ -83,8 +89,8 @@ private:
 
     void setIntegerPosition(int integerPosition) { m_integerPosition = clampTo(integerPosition, min(), max()); }
 
-    GridPositionType m_type { GridPositionType::AutoPosition };
-    int m_integerPosition { 0 };
+    GridPositionType m_type;
+    int m_integerPosition;
     String m_namedGridLine;
 };
 

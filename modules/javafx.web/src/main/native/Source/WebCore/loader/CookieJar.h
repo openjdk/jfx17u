@@ -30,7 +30,6 @@
 #include "SameSiteInfo.h"
 #include <optional>
 #include <wtf/Forward.h>
-#include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
@@ -47,7 +46,7 @@ class NetworkStorageSession;
 class StorageSessionProvider;
 struct SameSiteInfo;
 
-class WEBCORE_EXPORT CookieJar : public RefCounted<CookieJar>, public CanMakeWeakPtr<CookieJar> {
+class WEBCORE_EXPORT CookieJar : public RefCounted<CookieJar> {
 public:
     static Ref<CookieJar> create(Ref<StorageSessionProvider>&&);
 
@@ -59,8 +58,7 @@ public:
     virtual String cookies(Document&, const URL&) const;
     virtual void setCookies(Document&, const URL&, const String& cookieString);
 
-    virtual bool cookiesEnabled(Document&);
-    virtual void remoteCookiesEnabled(const Document&, CompletionHandler<void(bool)>&&) const;
+    virtual bool cookiesEnabled(const Document&) const;
     virtual std::pair<String, SecureCookiesAccessed> cookieRequestHeaderFieldValue(const URL& firstParty, const SameSiteInfo&, const URL&, std::optional<FrameIdentifier>, std::optional<PageIdentifier>, IncludeSecureCookies) const;
     virtual bool getRawCookies(const Document&, const URL&, Vector<Cookie>&) const;
     virtual void setRawCookie(const Document&, const Cookie&);

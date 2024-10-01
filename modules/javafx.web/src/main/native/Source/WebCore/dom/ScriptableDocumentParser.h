@@ -26,7 +26,7 @@
 #pragma once
 
 #include "DecodedDataDocumentParser.h"
-#include "ParserContentPolicy.h"
+#include "FragmentScriptingPermission.h"
 #include "Timer.h"
 #include <wtf/text/TextPosition.h>
 

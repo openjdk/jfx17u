@@ -57,13 +57,13 @@ OpenXRLayerProjection::OpenXRLayerProjection(UniqueRef<OpenXRSwapchain>&& swapch
 {
 }
 
-std::optional<FrameData::LayerData> OpenXRLayerProjection::startFrame()
+std::optional<Device::FrameData::LayerData> OpenXRLayerProjection::startFrame()
 {
     auto texture = m_swapchain->acquireImage();
     if (!texture)
         return std::nullopt;
 
-    return FrameData::LayerData { *texture };
+    return Device::FrameData::LayerData { *texture };
 }
 
 XrCompositionLayerBaseHeader* OpenXRLayerProjection::endFrame(const Device::Layer& layer, XrSpace space, const Vector<XrView>& frameViews)

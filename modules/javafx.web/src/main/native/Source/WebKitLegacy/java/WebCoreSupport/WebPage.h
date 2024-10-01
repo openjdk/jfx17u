@@ -31,7 +31,6 @@
 #include <WebCore/IntRect.h>
 #include <WebCore/PrintContext.h>
 #include <WebCore/ScrollTypes.h>
-#include <WebCore/HandleUserInputEventResult.h>
 
 #include "MediaPlayerPrivateJava.h"
 

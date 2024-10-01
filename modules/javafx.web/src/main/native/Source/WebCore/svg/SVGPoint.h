@@ -62,7 +62,7 @@ public:
     ExceptionOr<void> setX(float x)
     {
         if (isReadOnly())
-            return Exception { ExceptionCode::NoModificationAllowedError };
+            return Exception { NoModificationAllowedError };
 
         m_value.setX(x);
         commitChange();
@@ -75,7 +75,7 @@ public:
     ExceptionOr<void> setY(float y)
     {
         if (isReadOnly())
-            return Exception { ExceptionCode::NoModificationAllowedError };
+            return Exception { NoModificationAllowedError };
 
         m_value.setY(y);
         commitChange();

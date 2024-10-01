@@ -28,7 +28,7 @@
 #include "LayoutIntegrationBoxTree.h"
 #include "LayoutPoint.h"
 #include "LayoutRect.h"
-#include <wtf/WeakListHashSet.h>
+#include <wtf/ListHashSet.h>
 
 namespace WebCore {
 
@@ -68,7 +68,7 @@ private:
     const RenderInline* m_layerRenderer { nullptr };
     const InlineContent& m_inlineContent;
     const BoxTree& m_boxTree;
-    SingleThreadWeakListHashSet<RenderInline> m_outlineObjects;
+    ListHashSet<RenderInline*> m_outlineObjects;
 };
 
 class LayerPaintScope {

@@ -27,7 +27,7 @@
 
 #if ENABLE(WEBGL)
 
-#include "WebGLObject.h"
+#include "WebGLContextObject.h"
 
 namespace WTF {
 class AbstractLocker;
@@ -35,9 +35,9 @@ class AbstractLocker;
 
 namespace WebCore {
 
-class WebGLTimerQueryEXT final : public WebGLObject {
+class WebGLTimerQueryEXT final : public WebGLContextObject {
 public:
-    static RefPtr<WebGLTimerQueryEXT> create(WebGLRenderingContextBase&);
+    static Ref<WebGLTimerQueryEXT> create(WebGLRenderingContextBase&);
     virtual ~WebGLTimerQueryEXT();
 
     bool isResultAvailable() const { return m_isResultAvailable; }
@@ -45,12 +45,9 @@ public:
 
     void setTarget(GCGLenum target) { m_target = target; }
     GCGLenum target() const { return m_target; }
-    void didBind(GCGLenum target) { setTarget(target); }
-    bool isUsable() const { return object() && !isDeleted(); }
-    bool isInitialized() const { return true; }
 
 private:
-    WebGLTimerQueryEXT(WebGLRenderingContextBase&, PlatformGLObject);
+    explicit WebGLTimerQueryEXT(WebGLRenderingContextBase&);
     void deleteObjectImpl(const AbstractLocker&, GraphicsContextGL*, PlatformGLObject) override;
 
     bool m_isResultAvailable { false };

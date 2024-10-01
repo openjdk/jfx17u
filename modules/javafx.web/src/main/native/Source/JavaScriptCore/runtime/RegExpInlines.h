@@ -68,11 +68,6 @@ private:
 };
 #endif // REGEXP_FUNC_TEST_DATA_GEN
 
-inline Structure* RegExp::createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
-{
-    return Structure::create(vm, globalObject, prototype, TypeInfo(CellType, StructureFlags), info());
-}
-
 ALWAYS_INLINE bool RegExp::hasCodeFor(Yarr::CharSize charSize)
 {
     if (hasCode()) {

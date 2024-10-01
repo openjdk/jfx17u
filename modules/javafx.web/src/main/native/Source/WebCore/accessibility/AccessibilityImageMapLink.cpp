@@ -52,15 +52,6 @@ Ref<AccessibilityImageMapLink> AccessibilityImageMapLink::create()
     return adoptRef(*new AccessibilityImageMapLink());
 }
 
-void AccessibilityImageMapLink::setHTMLAreaElement(HTMLAreaElement* element)
-{
-    if (element == m_areaElement)
-        return;
-    m_areaElement = element;
-    // AccessibilityImageMapLink::determineAccessibilityRole() depends on m_areaElement, so re-compute it now.
-    updateRole();
-}
-
 AccessibilityObject* AccessibilityImageMapLink::parentObject() const
 {
     if (m_parent)
@@ -72,7 +63,7 @@ AccessibilityObject* AccessibilityImageMapLink::parentObject() const
     return m_mapElement->document().axObjectCache()->getOrCreate(m_mapElement->renderer());
 }
 
-AccessibilityRole AccessibilityImageMapLink::determineAccessibilityRole()
+AccessibilityRole AccessibilityImageMapLink::roleValue() const
 {
     if (!m_areaElement)
         return AccessibilityRole::WebCoreLink;

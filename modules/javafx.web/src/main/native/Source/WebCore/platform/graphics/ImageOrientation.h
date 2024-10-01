@@ -28,7 +28,6 @@
 
 #include "AffineTransform.h"
 #include "FloatSize.h"
-#include <stdint.h>
 #include <wtf/EnumTraits.h>
 
 // X11 headers define a bunch of macros with common terms, interfering with WebCore and WTF enum values.
@@ -40,7 +39,7 @@
 namespace WebCore {
 
 struct ImageOrientation {
-    enum class Orientation : uint8_t {
+    enum class Orientation : int {
         FromImage         = 0, // Orientation from the image should be respected.
 
         // This range intentionally matches the orientation values from the EXIF spec.
@@ -76,7 +75,8 @@ struct ImageOrientation {
     }
 
     constexpr operator int() const { return static_cast<int>(m_orientation); }
-    friend constexpr bool operator==(const ImageOrientation&, const ImageOrientation&) = default;
+    friend constexpr bool operator==(const ImageOrientation& lhs, const ImageOrientation& rhs) { return lhs.m_orientation == rhs.m_orientation; }
+    friend constexpr bool operator==(const ImageOrientation& lhs, const Orientation& rhs) { return lhs.m_orientation == rhs; }
 
     constexpr Orientation orientation() const { return m_orientation; }
 
@@ -174,7 +174,5 @@ private:
 
     Orientation m_orientation { Orientation::None };
 };
-
-TextStream& operator<<(TextStream&, ImageOrientation::Orientation);
 
 } // namespace WebCore

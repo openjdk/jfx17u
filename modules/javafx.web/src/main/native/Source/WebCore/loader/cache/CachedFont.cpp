@@ -81,10 +81,8 @@ bool CachedFont::shouldAllowCustomFont(const Ref<SharedBuffer>& data)
 void CachedFont::finishLoading(const FragmentedSharedBuffer* data, const NetworkLoadMetrics& metrics)
 {
     if (data) {
-        Ref dataContiguous = data->makeContiguous();
+        auto dataContiguous = data->makeContiguous();
         if (!shouldAllowCustomFont(dataContiguous)) {
-            // fonts are blocked, we set a flag to signal it in CachedFontLoadRequest.h
-            m_didRefuseToLoadCustomFont = true;
             setErrorAndDeleteData();
             return;
         }
@@ -105,8 +103,8 @@ void CachedFont::setErrorAndDeleteData()
     error(Status::DecodeError);
     if (inCache())
         MemoryCache::singleton().remove(*this);
-    if (RefPtr loader = m_loader)
-        loader->cancel();
+    if (m_loader)
+        m_loader->cancel();
 }
 
 void CachedFont::beginLoadIfNeeded(CachedResourceLoader& loader)
@@ -121,9 +119,9 @@ bool CachedFont::ensureCustomFontData()
 {
     if (!m_data)
         return ensureCustomFontData(nullptr);
-    if (RefPtr data = m_data; !data->isContiguous())
-        m_data = data->makeContiguous();
-    return ensureCustomFontData(downcast<SharedBuffer>(m_data).get());
+    if (!m_data->isContiguous())
+        m_data = m_data->makeContiguous();
+    return ensureCustomFontData(downcast<SharedBuffer>(m_data.get()));
 }
 
 String CachedFont::calculateItemInCollection() const
@@ -162,9 +160,8 @@ RefPtr<Font> CachedFont::createFont(const FontDescription& fontDescription, bool
 
 FontPlatformData CachedFont::platformDataFromCustomData(const FontDescription& fontDescription, bool bold, bool italic, const FontCreationContext& fontCreationContext)
 {
-    RefPtr fontCustomPlatformData = m_fontCustomPlatformData;
-    ASSERT(fontCustomPlatformData);
-    return platformDataFromCustomData(*fontCustomPlatformData, fontDescription, bold, italic, fontCreationContext);
+    ASSERT(m_fontCustomPlatformData);
+    return platformDataFromCustomData(*m_fontCustomPlatformData, fontDescription, bold, italic, fontCreationContext);
 }
 
 FontPlatformData CachedFont::platformDataFromCustomData(FontCustomPlatformData& fontCustomPlatformData, const FontDescription& fontDescription, bool bold, bool italic, const FontCreationContext& fontCreationContext)

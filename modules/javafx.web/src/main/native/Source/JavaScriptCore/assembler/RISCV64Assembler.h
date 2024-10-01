@@ -28,7 +28,6 @@
 #if ENABLE(ASSEMBLER) && CPU(RISCV64)
 
 #include "AssemblerBuffer.h"
-#include "AssemblerCommon.h"
 #include "RISCV64Registers.h"
 #include <tuple>
 
@@ -1674,12 +1673,6 @@ public:
         cacheFlush(from, sizeof(uint32_t) * 2);
     }
 
-    static void replaceWithNops(void* from, size_t memoryToFillWithNopsInBytes)
-    {
-        fillNops<MachineCodeCopyMode::Memcpy>(from, memoryToFillWithNopsInBytes);
-        cacheFlush(from, memoryToFillWithNopsInBytes);
-    }
-
     static void revertJumpReplacementToPatch(void* from, void* valuePtr)
     {
         uint32_t* location = reinterpret_cast<uint32_t*>(from);
@@ -1701,7 +1694,8 @@ public:
         __builtin___clear_cache(reinterpret_cast<char*>(code), reinterpret_cast<char*>(end));
     }
 
-    template<MachineCodeCopyMode copy>
+    using CopyFunction = void*(&)(void*, const void*, size_t);
+    template <CopyFunction copy>
     static void fillNops(void* base, size_t size)
     {
         uint32_t* ptr = reinterpret_cast<uint32_t*>(base);
@@ -1710,7 +1704,7 @@ public:
 
         uint32_t nop = RISCV64Instructions::ADDI::construct(RISCV64Registers::zero, RISCV64Registers::zero, IImmediate::v<IImmediate, 0>());
         for (size_t i = 0, n = size / sizeof(uint32_t); i < n; ++i)
-            machineCodeCopy<copy>(&ptr[i], &nop, sizeof(uint32_t));
+            copy(&ptr[i], &nop, sizeof(uint32_t));
     }
 
     typedef enum {

@@ -61,7 +61,7 @@ public:
     virtual void unconfigure();
 
     virtual void present();
-    virtual Texture* getCurrentTexture();
+    virtual Texture* getCurrentTexture(); // FIXME: This should return a Texture&.
     virtual TextureView* getCurrentTextureView(); // FIXME: This should return a TextureView&.
 
     virtual bool isPresentationContextIOSurface() const { return false; }

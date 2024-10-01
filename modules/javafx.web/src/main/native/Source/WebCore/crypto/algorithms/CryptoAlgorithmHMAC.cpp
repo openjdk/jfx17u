@@ -27,6 +27,7 @@
 #include "CryptoAlgorithmHMAC.h"
 
 #if ENABLE(WEB_CRYPTO)
+
 #include "CryptoAlgorithmHmacKeyParams.h"
 #include "CryptoKeyHMAC.h"
 #include <variant>
@@ -77,18 +78,18 @@ void CryptoAlgorithmHMAC::generateKey(const CryptoAlgorithmParameters& parameter
     const auto& hmacParameters = downcast<CryptoAlgorithmHmacKeyParams>(parameters);
 
     if (usagesAreInvalidForCryptoAlgorithmHMAC(usages)) {
-        exceptionCallback(ExceptionCode::SyntaxError);
+        exceptionCallback(SyntaxError);
         return;
     }
 
     if (hmacParameters.length && !hmacParameters.length.value()) {
-        exceptionCallback(ExceptionCode::OperationError);
+        exceptionCallback(OperationError);
         return;
     }
 
     auto result = CryptoKeyHMAC::generate(hmacParameters.length.value_or(0), hmacParameters.hashIdentifier, extractable, usages);
     if (!result) {
-        exceptionCallback(ExceptionCode::OperationError);
+        exceptionCallback(OperationError);
         return;
     }
 
@@ -102,7 +103,7 @@ void CryptoAlgorithmHMAC::importKey(CryptoKeyFormat format, KeyData&& data, cons
     const auto& hmacParameters = downcast<CryptoAlgorithmHmacKeyParams>(parameters);
 
     if (usagesAreInvalidForCryptoAlgorithmHMAC(usages)) {
-        exceptionCallback(ExceptionCode::SyntaxError);
+        exceptionCallback(SyntaxError);
         return;
     }
 
@@ -133,11 +134,11 @@ void CryptoAlgorithmHMAC::importKey(CryptoKeyFormat format, KeyData&& data, cons
         break;
     }
     default:
-        exceptionCallback(ExceptionCode::NotSupportedError);
+        exceptionCallback(NotSupportedError);
         return;
     }
     if (!result) {
-        exceptionCallback(ExceptionCode::DataError);
+        exceptionCallback(DataError);
         return;
     }
 
@@ -150,7 +151,7 @@ void CryptoAlgorithmHMAC::exportKey(CryptoKeyFormat format, Ref<CryptoKey>&& key
     const auto& hmacKey = downcast<CryptoKeyHMAC>(key.get());
 
     if (hmacKey.key().isEmpty()) {
-        exceptionCallback(ExceptionCode::OperationError);
+        exceptionCallback(OperationError);
         return;
     }
 
@@ -184,7 +185,7 @@ void CryptoAlgorithmHMAC::exportKey(CryptoKeyFormat format, Ref<CryptoKey>&& key
         break;
     }
     default:
-        exceptionCallback(ExceptionCode::NotSupportedError);
+        exceptionCallback(NotSupportedError);
         return;
     }
 
@@ -196,5 +197,6 @@ ExceptionOr<size_t> CryptoAlgorithmHMAC::getKeyLength(const CryptoAlgorithmParam
     return CryptoKeyHMAC::getKeyLength(parameters);
 }
 
-} // namespace WebCore
+}
+
 #endif // ENABLE(WEB_CRYPTO)

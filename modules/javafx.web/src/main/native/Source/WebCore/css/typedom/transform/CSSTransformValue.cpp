@@ -91,7 +91,7 @@ static ExceptionOr<Ref<CSSTransformComponent>> createTransformComponent(CSSFunct
     case CSSValueMatrix3d:
         return makeTransformComponent(CSSMatrixComponent::create(functionValue));
     default:
-        return Exception { ExceptionCode::TypeError, "Unexpected function value type"_s };
+        return Exception { TypeError, "Unexpected function value type"_s };
     }
 }
 
@@ -99,10 +99,9 @@ ExceptionOr<Ref<CSSTransformValue>> CSSTransformValue::create(const CSSTransform
 {
     Vector<RefPtr<CSSTransformComponent>> components;
     for (auto& value : list) {
-        auto* functionValue = dynamicDowncast<CSSFunctionValue>(value);
-        if (!functionValue)
-            return Exception { ExceptionCode::TypeError, "Expected only function values in a transform list."_s };
-        auto component = createTransformComponent(const_cast<CSSFunctionValue&>(*functionValue));
+        if (!is<CSSFunctionValue>(value))
+            return Exception { TypeError, "Expected only function values in a transform list."_s };
+        auto component = createTransformComponent(downcast<CSSFunctionValue>(const_cast<CSSValue&>(value)));
         if (component.hasException())
             return component.releaseException();
         components.append(component.releaseReturnValue());
@@ -114,7 +113,7 @@ ExceptionOr<Ref<CSSTransformValue>> CSSTransformValue::create(Vector<RefPtr<CSST
 {
     // https://drafts.css-houdini.org/css-typed-om/#dom-csstransformvalue-csstransformvalue
     if (transforms.isEmpty())
-        return Exception { ExceptionCode::TypeError };
+        return Exception { TypeError };
     return adoptRef(*new CSSTransformValue(WTFMove(transforms)));
 }
 
@@ -126,7 +125,7 @@ RefPtr<CSSTransformComponent> CSSTransformValue::item(size_t index)
 ExceptionOr<RefPtr<CSSTransformComponent>> CSSTransformValue::setItem(size_t index, Ref<CSSTransformComponent>&& value)
 {
     if (index > m_components.size())
-        return Exception { ExceptionCode::RangeError, makeString("Index ", index, " exceeds the range of CSSTransformValue.") };
+        return Exception { RangeError, makeString("Index ", index, " exceeds the range of CSSTransformValue.") };
 
     if (index == m_components.size())
         m_components.append(WTFMove(value));

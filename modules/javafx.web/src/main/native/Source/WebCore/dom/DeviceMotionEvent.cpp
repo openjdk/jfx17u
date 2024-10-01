@@ -88,20 +88,17 @@ static RefPtr<DeviceMotionData::RotationRate> convert(std::optional<DeviceMotion
 
 std::optional<DeviceMotionEvent::Acceleration> DeviceMotionEvent::acceleration() const
 {
-    RefPtr acceleration = m_deviceMotionData->acceleration();
-    return convert(acceleration.get());
+    return convert(m_deviceMotionData->acceleration());
 }
 
 std::optional<DeviceMotionEvent::Acceleration> DeviceMotionEvent::accelerationIncludingGravity() const
 {
-    RefPtr accelerationIncludingGravity = m_deviceMotionData->accelerationIncludingGravity();
-    return convert(accelerationIncludingGravity.get());
+    return convert(m_deviceMotionData->accelerationIncludingGravity());
 }
 
 std::optional<DeviceMotionEvent::RotationRate> DeviceMotionEvent::rotationRate() const
 {
-    RefPtr rotationRate = m_deviceMotionData->rotationRate();
-    return convert(rotationRate.get());
+    return convert(m_deviceMotionData->rotationRate());
 }
 
 std::optional<double> DeviceMotionEvent::interval() const
@@ -133,9 +130,10 @@ EventInterface DeviceMotionEvent::eventInterface() const
 #if ENABLE(DEVICE_ORIENTATION)
 void DeviceMotionEvent::requestPermission(Document& document, PermissionPromise&& promise)
 {
-    RefPtr window = document.domWindow();
-    if (!window || !document.page())
-        return promise.reject(Exception { ExceptionCode::InvalidStateError, "No browsing context"_s });
+    auto* window = document.domWindow();
+    auto* page = document.page();
+    if (!window || !page)
+        return promise.reject(Exception { InvalidStateError, "No browsing context"_s });
 
     String errorMessage;
     if (!window->isAllowedToUseDeviceMotion(errorMessage)) {
@@ -145,7 +143,7 @@ void DeviceMotionEvent::requestPermission(Document& document, PermissionPromise&
 
     document.deviceOrientationAndMotionAccessController().shouldAllowAccess(document, [promise = WTFMove(promise)](auto permissionState) mutable {
         if (permissionState == PermissionState::Prompt)
-            return promise.reject(Exception { ExceptionCode::NotAllowedError, "Requesting device motion access requires a user gesture to prompt"_s });
+            return promise.reject(Exception { NotAllowedError, "Requesting device motion access requires a user gesture to prompt"_s });
         promise.resolve(permissionState);
     });
 }

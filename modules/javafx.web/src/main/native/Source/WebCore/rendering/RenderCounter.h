@@ -48,19 +48,20 @@ private:
     static void rendererStyleChangedSlowCase(RenderElement&, const RenderStyle* oldStyle, const RenderStyle& newStyle);
 
     ASCIILiteral renderName() const override;
+    bool isCounter() const override;
     String originalText() const override;
 
     RefPtr<CSSCounterStyle> counterStyle() const;
 
     CounterContent m_counter;
-    SingleThreadWeakPtr<CounterNode> m_counterNode;
+    CheckedPtr<CounterNode> m_counterNode;
     RenderCounter* m_nextForSameCounter { nullptr };
     friend class CounterNode;
 };
 
 } // namespace WebCore
 
-SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderCounter, isRenderCounter())
+SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderCounter, isCounter())
 
 #if ENABLE(TREE_DEBUGGING)
 // Outside the WebCore namespace for ease of invocation from the debugger.

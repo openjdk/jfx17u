@@ -71,7 +71,7 @@ public:
     SVGAnimatedTransformList& transformAnimated() { return m_transform; }
 
 protected:
-    SVGGraphicsElement(const QualifiedName&, Document&, UniqueRef<SVGPropertyRegistry>&&, OptionSet<TypeFlag> = { });
+    SVGGraphicsElement(const QualifiedName&, Document&, UniqueRef<SVGPropertyRegistry>&&);
 
     void attributeChanged(const QualifiedName&, const AtomString& oldValue, const AtomString& newValue, AttributeModificationReason) override;
     void svgAttributeChanged(const QualifiedName&) override;
@@ -93,9 +93,5 @@ private:
 
 SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::SVGGraphicsElement)
     static bool isType(const WebCore::SVGElement& element) { return element.isSVGGraphicsElement(); }
-    static bool isType(const WebCore::Node& node)
-    {
-        auto* svgElement = dynamicDowncast<WebCore::SVGElement>(node);
-        return svgElement && isType(*svgElement);
-    }
+    static bool isType(const WebCore::Node& node) { return is<WebCore::SVGElement>(node) && isType(downcast<WebCore::SVGElement>(node)); }
 SPECIALIZE_TYPE_TRAITS_END()

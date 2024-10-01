@@ -40,8 +40,6 @@ namespace WebCore {
 class GPUCompositorIntegration;
 class GPUPresentationContext;
 struct GPUPresentationContextDescriptor;
-class GraphicsContext;
-class NativeImage;
 
 class GPU : public RefCounted<GPU> {
 public:
@@ -59,8 +57,6 @@ public:
     Ref<GPUPresentationContext> createPresentationContext(const GPUPresentationContextDescriptor&);
 
     Ref<GPUCompositorIntegration> createCompositorIntegration();
-
-    void paintToCanvas(NativeImage&, const IntSize&, GraphicsContext&);
 
 private:
     GPU(Ref<WebGPU::GPU>&&);

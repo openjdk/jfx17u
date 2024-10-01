@@ -35,9 +35,4 @@ inline LocalFrame* FrameDestructionObserver::frame() const
     return m_frame.get();
 }
 
-inline RefPtr<LocalFrame> FrameDestructionObserver::protectedFrame() const
-{
-    return m_frame.get();
-}
-
 }

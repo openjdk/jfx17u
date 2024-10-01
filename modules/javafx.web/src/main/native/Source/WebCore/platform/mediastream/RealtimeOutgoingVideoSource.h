@@ -74,7 +74,6 @@ public:
     }
 
     void applyRotation();
-    void disableVideoScaling() { m_enableVideoFrameScaling = false; }
 
 protected:
     explicit RealtimeOutgoingVideoSource(Ref<MediaStreamTrackPrivate>&&);
@@ -95,13 +94,11 @@ protected:
     WTFLogChannel& logChannel() const final;
 #endif
 
-    double videoFrameScaling() const { return m_enableVideoFrameScaling ? (double)m_videoFrameScaling : 1; }
-
 private:
     void sendBlackFramesIfNeeded();
     void sendOneBlackFrame();
     void initializeFromSource();
-    void updateFramesSending();
+    void updateBlackFramesSending();
 
     void observeSource();
     void unobserveSource();
@@ -157,9 +154,6 @@ private:
     uint32_t m_width { 0 };
     uint32_t m_height { 0 };
     std::optional<double> m_maxFrameRate;
-    std::optional<double> m_maxPixelCount;
-    std::atomic<double> m_videoFrameScaling { 1.0 };
-    bool m_enableVideoFrameScaling { true };
     bool m_isObservingVideoFrames { false };
 
 #if !RELEASE_LOG_DISABLED

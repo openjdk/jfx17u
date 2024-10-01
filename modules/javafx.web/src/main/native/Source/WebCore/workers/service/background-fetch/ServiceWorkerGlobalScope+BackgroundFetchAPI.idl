@@ -24,6 +24,7 @@
  */
 
 [
+    Conditional=SERVICE_WORKER,
     EnabledBySetting=ServiceWorkersEnabled&BackgroundFetchAPIEnabled
 ] partial interface ServiceWorkerGlobalScope {
     attribute EventHandler onbackgroundfetchsuccess;

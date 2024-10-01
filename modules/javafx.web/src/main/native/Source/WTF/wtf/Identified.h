@@ -27,7 +27,6 @@
 
 #include <atomic>
 #include <wtf/NeverDestroyed.h>
-#include <wtf/ThreadAssertions.h>
 #include <wtf/UUID.h>
 
 namespace WTF {
@@ -73,9 +72,6 @@ protected:
 private:
     static uint64_t generateIdentifier()
     {
-        static NeverDestroyed<ThreadLikeAssertion> initializationThread;
-        assertIsCurrent(initializationThread); // You should be using ThreadSafeIdentified if you hit this assertion.
-
         static uint64_t currentIdentifier;
         return ++currentIdentifier;
     }

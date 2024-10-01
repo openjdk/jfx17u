@@ -35,37 +35,37 @@ class VM;
 
 // This is a convenient combo of AuxiliaryBarrier and CagedPtr.
 
-template<Gigacage::Kind passedKind, typename T>
+template<Gigacage::Kind passedKind, typename T, bool shouldTag = false>
 class CagedBarrierPtr {
 public:
     static constexpr Gigacage::Kind kind = passedKind;
     using Type = T;
-    using CagedType = CagedPtr<kind, Type>;
+    using CagedType = CagedPtr<kind, Type, shouldTag>;
 
     CagedBarrierPtr() = default;
 
     template<typename U>
-    CagedBarrierPtr(VM& vm, JSCell* cell, U&& value)
+    CagedBarrierPtr(VM& vm, JSCell* cell, U&& value, size_t size)
     {
-        m_barrier.set(vm, cell, CagedType(std::forward<U>(value)));
+        m_barrier.set(vm, cell, CagedType(std::forward<U>(value), size));
     }
 
     void clear() { m_barrier.clear(); }
 
     template<typename U>
-    void set(VM& vm, JSCell* cell, U&& value)
+    void set(VM& vm, JSCell* cell, U&& value, size_t size)
     {
-        m_barrier.set(vm, cell, CagedType(std::forward<U>(value)));
+        m_barrier.set(vm, cell, CagedType(std::forward<U>(value), size));
     }
 
-    T* get() const { return m_barrier.get().get(); }
-    T* getMayBeNull() const { return m_barrier.get().getMayBeNull(); }
+    T* get(size_t size) const { return m_barrier.get().get(size); }
+    T* getMayBeNull(size_t size) const { return m_barrier.get().getMayBeNull(size); }
     T* getUnsafe() const { return m_barrier.get().getUnsafe(); }
 
     // We need the template here so that the type of U is deduced at usage time rather than class time. U should always be T.
     template<typename U = T>
     typename std::enable_if<!std::is_same<void, U>::value, T>::type&
-    /* T& */ at(size_t index) const { return get()[index]; }
+    /* T& */ at(size_t index, size_t size) const { return get(size)[index]; }
 
     bool operator==(const CagedBarrierPtr& other) const
     {
@@ -78,7 +78,7 @@ public:
     }
 
     template<typename U>
-    void setWithoutBarrier(U&& value) { m_barrier.setWithoutBarrier(CagedType(std::forward<U>(value))); }
+    void setWithoutBarrier(U&& value, size_t size) { m_barrier.setWithoutBarrier(CagedType(std::forward<U>(value), size)); }
 
     T* rawBits() const
     {

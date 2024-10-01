@@ -40,7 +40,7 @@ enum DeviceType {
 };
 
 [
-    Conditional=VIDEO,
+    Conditional=MEDIA_CONTROLS_SCRIPT,
     LegacyNoInterfaceObject,
 ] interface MediaControlsHost {
     readonly attribute DOMString layoutTraitsClassName;

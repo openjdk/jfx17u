@@ -64,7 +64,7 @@ ImageSource::ImageSource(Ref<NativeImage>&& nativeImage)
 ImageSource::~ImageSource()
 {
     ASSERT(!hasAsyncDecodingQueue());
-    assertIsCurrent(m_runLoop);
+    ASSERT(&m_runLoop == &RunLoop::current());
 }
 
 bool ImageSource::ensureDecoderAvailable(FragmentedSharedBuffer* data)
@@ -77,8 +77,8 @@ bool ImageSource::ensureDecoderAvailable(FragmentedSharedBuffer* data)
         return false;
 
     m_decoder->setEncodedDataStatusChangeCallback([weakThis = ThreadSafeWeakPtr { *this }] (auto status) {
-        if (RefPtr protectedThis = weakThis.get())
-            protectedThis->encodedDataStatusChanged(status);
+        if (RefPtr strongThis = weakThis.get())
+            strongThis->encodedDataStatusChanged(status);
     });
 
     if (auto expectedContentSize = expectedContentLength())

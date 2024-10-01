@@ -147,7 +147,15 @@ public:
             + static_cast<unsigned>(bitwise_cast<uintptr_t>(m_extraState));
     }
 
-    friend bool operator==(const HeapLocation&, const HeapLocation&) = default;
+    bool operator==(const HeapLocation& other) const
+    {
+        return m_kind == other.m_kind
+            && m_heap == other.m_heap
+            && m_base == other.m_base
+            && m_index == other.m_index
+            && m_descriptor == other.m_descriptor
+            && m_extraState == other.m_extraState;
+    }
 
     bool isHashTableDeletedValue() const
     {

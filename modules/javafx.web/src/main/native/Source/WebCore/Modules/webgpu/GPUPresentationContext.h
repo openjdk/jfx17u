@@ -38,7 +38,6 @@
 namespace WebCore {
 
 struct GPUCanvasConfiguration;
-class GPUDevice;
 class GPUTexture;
 
 class GPUPresentationContext : public RefCounted<GPUPresentationContext> {
@@ -65,7 +64,6 @@ private:
 
     Ref<WebGPU::PresentationContext> m_backing;
     RefPtr<GPUTexture> m_currentTexture;
-    RefPtr<const GPUDevice> m_device;
 };
 
 }

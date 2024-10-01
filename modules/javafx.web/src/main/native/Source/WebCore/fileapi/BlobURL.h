@@ -52,9 +52,6 @@ public:
 
     static URL getOriginURL(const URL&);
     static bool isSecureBlobURL(const URL&);
-#if ASSERT_ENABLED
-    static bool isInternalURL(const URL&);
-#endif
 
 private:
     static URL createBlobURL(StringView originString);

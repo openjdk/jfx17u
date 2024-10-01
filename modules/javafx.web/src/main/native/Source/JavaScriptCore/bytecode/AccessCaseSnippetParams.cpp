@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2016-2018 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -53,11 +53,21 @@ public:
         // We spill (1) the used registers by IC and (2) the used registers by Snippet.
         InlineCacheCompiler::SpillState spillState = compiler.preserveLiveRegistersToStackForCall(usedRegistersBySnippet.buildAndValidate());
 
+        jit.store32(
+            CCallHelpers::TrustedImm32(compiler.callSiteIndexForExceptionHandlingOrOriginal().bits()),
+            CCallHelpers::tagFor(CallFrameSlot::argumentCountIncludingThis));
+
         jit.makeSpaceOnStackForCCall();
 
         jit.setupArguments<FunctionType>(std::get<ArgumentsIndex>(m_arguments)...);
         jit.prepareCallOperation(compiler.vm());
-        jit.callOperation<OperationPtrTag>(m_function);
+
+        CCallHelpers::Call operationCall = jit.call(OperationPtrTag);
+        auto function = m_function;
+        jit.addLinkTask([=] (LinkBuffer& linkBuffer) {
+            linkBuffer.link<OperationPtrTag>(operationCall, function);
+        });
+
         jit.setupResults(m_result);
         jit.reclaimSpaceOnStackForCCall();
 

@@ -42,8 +42,7 @@ public:
     bool hasProgress(float* progress = nullptr) const;
 
 private:
-    AccessibilityRole determineAccessibilityRole() final { return AccessibilityRole::Button; }
-
+    AccessibilityRole roleValue() const override { return AccessibilityRole::Button; }
     bool isAttachmentElement() const override { return true; }
 
     String roleDescription() const override;

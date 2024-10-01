@@ -41,8 +41,8 @@ namespace WebCore {
 
 using namespace HTMLNames;
 
-RemoveFormatCommand::RemoveFormatCommand(Ref<Document>&& document)
-    : CompositeEditCommand(WTFMove(document))
+RemoveFormatCommand::RemoveFormatCommand(Document& document)
+    : CompositeEditCommand(document)
 {
 }
 
@@ -89,13 +89,14 @@ void RemoveFormatCommand::doApply()
 
     // Get the default style for this editable root, it's the style that we'll give the
     // content that we're operating on.
-    auto defaultStyle = EditingStyle::create(endingSelection().rootEditableElement());
+    Node* root = endingSelection().rootEditableElement();
+    auto defaultStyle = EditingStyle::create(root);
 
     // We want to remove everything but transparent background.
     // FIXME: We shouldn't access style().
     defaultStyle->style()->setProperty(CSSPropertyBackgroundColor, CSSValueTransparent);
 
-    applyCommandToComposite(ApplyStyleCommand::create(protectedDocument(), defaultStyle.ptr(), isElementForRemoveFormatCommand, editingAction()));
+    applyCommandToComposite(ApplyStyleCommand::create(document(), defaultStyle.ptr(), isElementForRemoveFormatCommand, editingAction()));
 }
 
 }

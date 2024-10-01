@@ -41,11 +41,10 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderScrollbarPart);
 
 RenderScrollbarPart::RenderScrollbarPart(Document& document, RenderStyle&& style, RenderScrollbar* scrollbar, ScrollbarPart part)
-    : RenderBlock(Type::ScrollbarPart, document, WTFMove(style), { })
+    : RenderBlock(document, WTFMove(style), 0)
     , m_scrollbar(scrollbar)
     , m_part(part)
 {
-    ASSERT(isRenderScrollbarPart());
 }
 
 RenderScrollbarPart::~RenderScrollbarPart() = default;

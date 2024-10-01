@@ -35,7 +35,6 @@
 #include "CSSHelper.h"
 #include "CSSPropertyParserHelpers.h"
 #include "Document.h"
-#include "DocumentInlines.h"
 #include "FontCascade.h"
 #include "FontCascadeDescription.h"
 #include "RenderStyle.h"
@@ -67,32 +66,28 @@ std::optional<FontCascade> resolveForFontRaw(const FontRaw& fontRaw, FontCascade
     // Before mapping in a new font-family property, we should reset the generic family.
     bool oldFamilyUsedFixedDefaultSize = useFixedDefaultSize(fontDescription);
 
-    bool isFirstFont = true;
-    auto families = WTF::compactMap(fontRaw.family, [&](auto& item) -> std::optional<AtomString> {
+    Vector<AtomString> families;
+    families.reserveInitialCapacity(fontRaw.family.size());
+
+    for (auto& item : fontRaw.family) {
         AtomString family;
         bool isGenericFamily = false;
         switchOn(item, [&] (CSSValueID ident) {
             isGenericFamily = ident != CSSValueWebkitBody;
-            if (isGenericFamily) {
-                // FIXME: Treat system-ui like other generic font families
-                if (ident == CSSValueSystemUi)
-                    family = nameString(CSSValueSystemUi);
+            if (isGenericFamily)
+                family = familyNamesData->at(CSSPropertyParserHelpers::genericFontFamilyIndex(ident));
             else
-                    family = familyNamesData->at(CSSPropertyParserHelpers::genericFontFamilyIndex(ident));
-            } else
                 family = AtomString(context.settingsValues().fontGenericFamilies.standardFontFamily());
         }, [&] (const AtomString& familyString) {
             family = familyString;
         });
 
         if (family.isEmpty())
-            return std::nullopt;
-        if (isFirstFont) {
+            continue;
+        if (families.isEmpty())
             fontDescription.setIsSpecifiedFont(!isGenericFamily);
-            isFirstFont = false;
+        families.uncheckedAppend(family);
     }
-        return family;
-    });
 
     if (families.isEmpty())
         return std::nullopt;
@@ -212,9 +207,7 @@ std::optional<FontCascade> resolveForFontRaw(const FontRaw& fontRaw, FontCascade
             //        It's unclear in the specification if they're expected to work on OffscreenCanvas, given
             //        that it's off-screen and therefore doesn't strictly have an associated viewport.
             //        This needs clarification and possibly fixing.
-            // FIXME: How should root font units work in OffscreenCanvas?
-            auto* document = dynamicDowncast<Document>(context);
-            return static_cast<float>(CSSPrimitiveValue::computeUnzoomedNonCalcLengthDouble(length.type, length.value, CSSPropertyFontSize, &fontCascade, document ? document->renderView() : nullptr));
+            return static_cast<float>(CSSPrimitiveValue::computeUnzoomedNonCalcLengthDouble(length.type, length.value, CSSPropertyFontSize, &fontCascade.metricsOfPrimaryFont(), &fontCascade.fontDescription(), &fontCascade.fontDescription(), is<Document>(context) ? downcast<Document>(context).renderView() : nullptr));
         }, [&] (const CSSPropertyParserHelpers::PercentRaw& percentage) {
             return static_cast<float>((parentSize * percentage.value) / 100.0);
         });

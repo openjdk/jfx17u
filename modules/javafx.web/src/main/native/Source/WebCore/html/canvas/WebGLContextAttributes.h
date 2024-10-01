@@ -33,31 +33,8 @@
 
 namespace WebCore {
 
-enum class WebGLVersion : uint8_t {
-    WebGL1,
-    WebGL2
-};
-
 using WebGLPowerPreference = GraphicsContextGLPowerPreference;
-
-using WebGLContextSimulatedCreationFailure = GraphicsContextGLSimulatedCreationFailure;
-
-struct WebGLContextAttributes {
-    bool alpha { true };
-    bool depth { true };
-    bool stencil { false };
-    bool antialias { true };
-    bool premultipliedAlpha { true };
-    bool preserveDrawingBuffer { false };
-    using PowerPreference = WebGLPowerPreference;
-    PowerPreference powerPreference { PowerPreference::Default };
-    bool failIfMajorPerformanceCaveat { false };
-#if ENABLE(WEBXR)
-    bool xrCompatible { false };
-#endif
-    using SimulatedCreationFailure = WebGLContextSimulatedCreationFailure;
-    SimulatedCreationFailure failContextCreationForTesting { SimulatedCreationFailure::None };
-};
+using WebGLContextAttributes = GraphicsContextGLAttributes;
 
 } // namespace WebCore
 

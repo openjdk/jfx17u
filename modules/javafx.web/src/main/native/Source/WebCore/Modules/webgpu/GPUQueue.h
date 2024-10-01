@@ -73,8 +73,7 @@ public:
         const GPUImageDataLayout&,
         const GPUExtent3D& size);
 
-    ExceptionOr<void> copyExternalImageToTexture(
-        ScriptExecutionContext&,
+    void copyExternalImageToTexture(
         const GPUImageCopyExternalImage& source,
         const GPUImageCopyTextureTagged& destination,
         const GPUExtent3D& copySize);

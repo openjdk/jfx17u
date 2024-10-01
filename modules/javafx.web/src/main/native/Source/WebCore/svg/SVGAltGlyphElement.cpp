@@ -51,7 +51,7 @@ Ref<SVGAltGlyphElement> SVGAltGlyphElement::create(const QualifiedName& tagName,
 
 ExceptionOr<void> SVGAltGlyphElement::setGlyphRef(const AtomString&)
 {
-    return Exception { ExceptionCode::NoModificationAllowedError };
+    return Exception { NoModificationAllowedError };
 }
 
 const AtomString& SVGAltGlyphElement::glyphRef() const
@@ -61,7 +61,7 @@ const AtomString& SVGAltGlyphElement::glyphRef() const
 
 ExceptionOr<void> SVGAltGlyphElement::setFormat(const AtomString&)
 {
-    return Exception { ExceptionCode::NoModificationAllowedError };
+    return Exception { NoModificationAllowedError };
 }
 
 const AtomString& SVGAltGlyphElement::format() const
@@ -89,8 +89,10 @@ bool SVGAltGlyphElement::hasValidGlyphElements(Vector<String>& glyphNames) const
         return true;
     }
 
-    auto* altGlyphDefElement = downcast<SVGAltGlyphDefElement>(target.element.get());
-    return altGlyphDefElement && altGlyphDefElement->hasValidGlyphElements(glyphNames);
+    if (!is<SVGAltGlyphDefElement>(target.element))
+        return false;
+
+    return downcast<SVGAltGlyphDefElement>(*target.element).hasValidGlyphElements(glyphNames);
 }
 
 }

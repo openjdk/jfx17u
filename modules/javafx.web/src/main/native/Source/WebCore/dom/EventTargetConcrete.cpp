@@ -26,8 +26,6 @@
 #include "config.h"
 #include "EventTargetConcrete.h"
 
-#include "ContextDestructionObserverInlines.h"
-
 namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(EventTargetConcrete);

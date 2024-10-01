@@ -23,8 +23,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-enum BinaryType { "blob", "arraybuffer" };
-
 [
     ActiveDOMObject,
     Conditional=WEB_RTC,
@@ -45,7 +43,7 @@ enum BinaryType { "blob", "arraybuffer" };
     readonly attribute RTCPriorityType priority;
     attribute unsigned long bufferedAmountLowThreshold;
 
-    attribute BinaryType binaryType;
+    attribute [AtomString] DOMString binaryType;
 
     undefined send(ArrayBuffer data);
     undefined send(ArrayBufferView data);

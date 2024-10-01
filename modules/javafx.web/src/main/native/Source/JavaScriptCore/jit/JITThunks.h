@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2012-2021 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,10 +38,9 @@
 #include <tuple>
 #include <wtf/HashMap.h>
 #include <wtf/HashSet.h>
-#include <wtf/Hasher.h>
 #include <wtf/PackedRefPtr.h>
 #include <wtf/RecursiveLockAdapter.h>
-#include <wtf/TZoneMalloc.h>
+#include <wtf/Hasher.h>
 
 namespace JSC {
 namespace DOMJIT {
@@ -51,42 +50,8 @@ class Signature;
 class VM;
 class NativeExecutable;
 
-// List up super common stubs so that we initialize them eagerly.
-#define JSC_FOR_EACH_COMMON_THUNK(macro) \
-    macro(HandleException, handleExceptionGenerator) \
-    macro(HandleExceptionWithCallFrameRollback, handleExceptionWithCallFrameRollbackGenerator) \
-    macro(CheckException, checkExceptionGenerator) \
-    macro(NativeCall, nativeCallGenerator) \
-    macro(NativeConstruct, nativeConstructGenerator) \
-    macro(NativeTailCall, nativeTailCallGenerator) \
-    macro(NativeTailCallWithoutSavedTags, nativeTailCallWithoutSavedTagsGenerator) \
-    macro(InternalFunctionCall, internalFunctionCallGenerator) \
-    macro(InternalFunctionConstruct, internalFunctionConstructGenerator) \
-    macro(ThrowExceptionFromCall, throwExceptionFromCallGenerator) \
-    macro(ThrowExceptionFromCallSlowPath, throwExceptionFromCallSlowPathGenerator) \
-    macro(PolymorphicRepatchThunk, polymorphicRepatchThunk) \
-    macro(VirtualThunkForRegularCall, virtualThunkForRegularCall) \
-    macro(VirtualThunkForTailCall, virtualThunkForTailCall) \
-    macro(VirtualThunkForConstruct, virtualThunkForConstruct) \
-    macro(PolymorphicThunkForRegularCall, polymorphicThunkForRegularCall) \
-    macro(PolymorphicThunkForTailCall, polymorphicThunkForTailCall) \
-    macro(PolymorphicThunkForRegularCallForClosure, polymorphicThunkForRegularCallForClosure) \
-    macro(PolymorphicThunkForTailCallForClosure, polymorphicThunkForTailCallForClosure) \
-    macro(ReturnFromBaseline, returnFromBaselineGenerator) \
-    macro(ArityFixup, arityFixupGenerator) \
-
-enum class CommonJITThunkID : uint8_t {
-#define JSC_DEFINE_COMMON_JIT_THUNK_ID(name, func) name,
-JSC_FOR_EACH_COMMON_THUNK(JSC_DEFINE_COMMON_JIT_THUNK_ID)
-#undef JSC_DEFINE_COMMON_JIT_THUNK_ID
-};
-
-#define JSC_COUNT_COMMON_JIT_THUNK_ID(name, func) + 1
-static constexpr unsigned numberOfCommonThunkIDs = 0 JSC_FOR_EACH_COMMON_THUNK(JSC_COUNT_COMMON_JIT_THUNK_ID);
-#undef JSC_COUNT_COMMON_JIT_THUNK_ID
-
 class JITThunks final : private WeakHandleOwner {
-    WTF_MAKE_TZONE_ALLOCATED(JITThunks);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     JITThunks();
     ~JITThunks() final;
@@ -100,15 +65,12 @@ public:
     CodePtr<JITThunkPtrTag> ctiInternalFunctionCall(VM&);
     CodePtr<JITThunkPtrTag> ctiInternalFunctionConstruct(VM&);
 
-    MacroAssemblerCodeRef<JITThunkPtrTag> ctiStub(CommonJITThunkID);
     MacroAssemblerCodeRef<JITThunkPtrTag> ctiStub(VM&, ThunkGenerator);
     MacroAssemblerCodeRef<JITThunkPtrTag> ctiSlowPathFunctionStub(VM&, SlowPathFunction);
 
     NativeExecutable* hostFunctionStub(VM&, TaggedNativeFunction, TaggedNativeFunction constructor, ImplementationVisibility, const String& name);
     NativeExecutable* hostFunctionStub(VM&, TaggedNativeFunction, TaggedNativeFunction constructor, ThunkGenerator, ImplementationVisibility, Intrinsic, const DOMJIT::Signature*, const String& name);
     NativeExecutable* hostFunctionStub(VM&, TaggedNativeFunction, ThunkGenerator, ImplementationVisibility, Intrinsic, const String& name);
-
-    void initialize(VM&);
 
 private:
     template <typename GenerateThunk>
@@ -121,12 +83,13 @@ private:
         bool needsCrossModifyingCodeFence;
     };
     using CTIStubMap = HashMap<ThunkGenerator, Entry>;
+    CTIStubMap m_ctiStubMap;
 
     using HostFunctionKey = std::tuple<TaggedNativeFunction, TaggedNativeFunction, ImplementationVisibility, String>;
 
     struct WeakNativeExecutableHash {
         static inline unsigned hash(const Weak<NativeExecutable>&);
-        static inline unsigned hash(const NativeExecutable*);
+        static inline unsigned hash(NativeExecutable*);
         static unsigned hash(const HostFunctionKey& key)
         {
             return hash(std::get<0>(key), std::get<1>(key), std::get<2>(key), std::get<3>(key));
@@ -134,8 +97,8 @@ private:
 
         static inline bool equal(const Weak<NativeExecutable>&, const Weak<NativeExecutable>&);
         static inline bool equal(const Weak<NativeExecutable>&, const HostFunctionKey&);
-        static inline bool equal(const Weak<NativeExecutable>&, const NativeExecutable*);
-        static inline bool equal(const NativeExecutable&, const NativeExecutable&);
+        static inline bool equal(const Weak<NativeExecutable>&, NativeExecutable*);
+        static inline bool equal(NativeExecutable&, NativeExecutable&);
         static constexpr bool safeToCompareToEmptyOrDeleted = false;
 
     private:
@@ -154,10 +117,8 @@ private:
     struct NativeExecutableTranslator;
 
     using WeakNativeExecutableSet = HashSet<Weak<NativeExecutable>, WeakNativeExecutableHash>;
-
-    MacroAssemblerCodeRef<JITThunkPtrTag> m_commonThunks[numberOfCommonThunkIDs] { };
-    CTIStubMap m_ctiStubMap;
     WeakNativeExecutableSet m_nativeExecutableSet;
+
     WTF::RecursiveLock m_lock;
 };
 

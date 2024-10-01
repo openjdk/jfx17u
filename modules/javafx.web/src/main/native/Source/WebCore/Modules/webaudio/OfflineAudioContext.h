@@ -56,9 +56,6 @@ public:
 private:
     OfflineAudioContext(Document&, const OfflineAudioContextOptions&);
 
-    void lazyInitialize() final;
-    void increaseNoiseMultiplierIfNeeded();
-
     AudioBuffer* renderTarget() const { return destination().renderTarget(); }
 
     // ActiveDOMObject

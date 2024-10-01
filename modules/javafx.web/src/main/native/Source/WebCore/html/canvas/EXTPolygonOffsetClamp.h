@@ -26,18 +26,16 @@
 #pragma once
 
 #include "WebGLExtension.h"
-#include "WebGLRenderingContextBase.h"
-#include <wtf/IsoMalloc.h>
-#include <wtf/Noncopyable.h>
 
 namespace WebCore {
 
-class EXTPolygonOffsetClamp final : public WebGLExtension<WebGLRenderingContextBase> {
+class EXTPolygonOffsetClamp final : public WebGLExtension {
     WTF_MAKE_ISO_ALLOCATED(EXTPolygonOffsetClamp);
-    WTF_MAKE_NONCOPYABLE(EXTPolygonOffsetClamp);
 public:
     explicit EXTPolygonOffsetClamp(WebGLRenderingContextBase&);
-    ~EXTPolygonOffsetClamp();
+    virtual ~EXTPolygonOffsetClamp();
+
+    ExtensionName getName() const override;
 
     static bool supported(GraphicsContextGL&);
 

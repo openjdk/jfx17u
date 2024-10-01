@@ -54,7 +54,6 @@
 #include <JavaScriptCore/Exception.h>
 #include <JavaScriptCore/ExceptionHelpers.h>
 #include <JavaScriptCore/GCActivityCallback.h>
-#include <JavaScriptCore/JSGlobalProxyInlines.h>
 #include <JavaScriptCore/JSInternalPromise.h>
 #include <JavaScriptCore/JSLock.h>
 #include <JavaScriptCore/JSNativeStdFunction.h>
@@ -430,7 +429,7 @@ void WorkerOrWorkletScriptController::linkAndEvaluateModule(WorkerScriptFetcher&
 void WorkerOrWorkletScriptController::loadAndEvaluateModule(const URL& moduleURL, FetchOptions::Credentials credentials, CompletionHandler<void(std::optional<Exception>&&)>&& completionHandler)
 {
     if (isExecutionForbidden()) {
-        completionHandler(Exception { ExceptionCode::NotAllowedError });
+        completionHandler(Exception { NotAllowedError });
         return;
     }
 
@@ -501,11 +500,11 @@ void WorkerOrWorkletScriptController::loadAndEvaluateModule(const URL& moduleURL
                     switch (static_cast<ModuleFetchFailureKind>(failureKindValue.asInt32())) {
                     case ModuleFetchFailureKind::WasFetchError:
                     case ModuleFetchFailureKind::WasResolveError:
-                        task->run(Exception { ExceptionCode::TypeError, message });
+                        task->run(Exception { TypeError, message });
                         break;
                     case ModuleFetchFailureKind::WasPropagatedError:
                     case ModuleFetchFailureKind::WasCanceled:
-                        task->run(Exception { ExceptionCode::AbortError, message });
+                        task->run(Exception { AbortError, message });
                         break;
                     }
                     return JSValue::encode(jsUndefined());
@@ -516,13 +515,13 @@ void WorkerOrWorkletScriptController::loadAndEvaluateModule(const URL& moduleURL
                     case ErrorType::TypeError: {
                         auto catchScope = DECLARE_CATCH_SCOPE(vm);
                         String message = retrieveErrorMessageWithoutName(*globalObject, vm, error, catchScope);
-                        task->run(Exception { ExceptionCode::TypeError, message });
+                        task->run(Exception { TypeError, message });
                         return JSValue::encode(jsUndefined());
                     }
                     case ErrorType::SyntaxError: {
                         auto catchScope = DECLARE_CATCH_SCOPE(vm);
                         String message = retrieveErrorMessageWithoutName(*globalObject, vm, error, catchScope);
-                        task->run(Exception { ExceptionCode::JSSyntaxError, message });
+                        task->run(Exception { JSSyntaxError, message });
                         return JSValue::encode(jsUndefined());
                     }
                     default:
@@ -533,7 +532,7 @@ void WorkerOrWorkletScriptController::loadAndEvaluateModule(const URL& moduleURL
 
             auto catchScope = DECLARE_CATCH_SCOPE(vm);
             String message = retrieveErrorMessageWithoutName(*globalObject, vm, errorValue, catchScope);
-            task->run(Exception { ExceptionCode::AbortError, message });
+            task->run(Exception { AbortError, message });
             return JSValue::encode(jsUndefined());
         });
 
@@ -592,10 +591,12 @@ void WorkerOrWorkletScriptController::initScript()
         return;
     }
 
+#if ENABLE(SERVICE_WORKER)
     if (is<ServiceWorkerGlobalScope>(m_globalScope)) {
         initScriptWithSubclass<JSServiceWorkerGlobalScopePrototype, JSServiceWorkerGlobalScope, ServiceWorkerGlobalScope>();
         return;
     }
+#endif
 
 #if ENABLE(CSS_PAINTING_API)
     if (is<PaintWorkletGlobalScope>(m_globalScope)) {

@@ -88,14 +88,13 @@ protected:
     bool paintMediaSliderTrack(const RenderObject&, const PaintInfo&, const IntRect&) override;
     bool paintMediaSliderThumb(const RenderObject&, const PaintInfo&, const IntRect&) override;
 #endif
-    void adjustSwitchStyle(RenderStyle& style, const Element*) const override;
 
     Seconds animationRepeatIntervalForProgressBar(const RenderProgress&) const override;
-    Seconds animationDurationForProgressBar() const override;
+    Seconds animationDurationForProgressBar(const RenderProgress&) const override;
     void adjustProgressBarStyle(RenderStyle&, const Element*) const override;
     bool paintProgressBar(const RenderObject&, const PaintInfo&, const IntRect&) override;
 
-    bool supportsMeter(StyleAppearance) const override;
+    bool supportsMeter(StyleAppearance, const HTMLMeterElement&) const override;
     bool paintMeter(const RenderObject&, const PaintInfo&, const IntRect&) override;
 
 #if ENABLE(DATALIST_ELEMENT)

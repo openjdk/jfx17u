@@ -60,7 +60,7 @@ public:
         ASSERT(!m_emptyChildNodeList);
         if (m_childNodeList)
             return *m_childNodeList;
-        Ref list = ChildNodeList::create(node);
+        auto list = ChildNodeList::create(node);
         m_childNodeList = list.ptr();
         return list;
     }
@@ -68,8 +68,7 @@ public:
     void removeChildNodeList(ChildNodeList* list)
     {
         ASSERT(m_childNodeList == list);
-        Ref ownerNode = list->ownerNode();
-        if (deleteThisAndUpdateNodeRareDataIfAboutToRemoveLastList(ownerNode))
+        if (deleteThisAndUpdateNodeRareDataIfAboutToRemoveLastList(list->ownerNode()))
             return;
         m_childNodeList = nullptr;
     }
@@ -79,7 +78,7 @@ public:
         ASSERT(!m_childNodeList);
         if (m_emptyChildNodeList)
             return *m_emptyChildNodeList;
-        Ref list = EmptyNodeList::create(node);
+        auto list = EmptyNodeList::create(node);
         m_emptyChildNodeList = list.ptr();
         return list;
     }
@@ -87,8 +86,7 @@ public:
     void removeEmptyChildNodeList(EmptyNodeList* list)
     {
         ASSERT(m_emptyChildNodeList == list);
-        Ref ownerNode = list->ownerNode();
-        if (deleteThisAndUpdateNodeRareDataIfAboutToRemoveLastList(ownerNode))
+        if (deleteThisAndUpdateNodeRareDataIfAboutToRemoveLastList(list->ownerNode()))
             return;
         m_emptyChildNodeList = nullptr;
     }
@@ -113,8 +111,8 @@ public:
         if (!result.isNewEntry)
             return static_cast<T&>(*result.iterator->value);
 
-        Ref list = T::create(container, name);
-        result.iterator->value = list.ptr();
+        auto list = T::create(container, name);
+        result.iterator->value = &list.get();
         return list;
     }
 
@@ -124,7 +122,7 @@ public:
         if (!result.isNewEntry)
             return *result.iterator->value;
 
-        Ref list = TagCollectionNS::create(node, namespaceURI, localName);
+        auto list = TagCollectionNS::create(node, namespaceURI, localName);
         result.iterator->value = list.ptr();
         return list;
     }
@@ -136,8 +134,8 @@ public:
         if (!result.isNewEntry)
             return static_cast<T&>(*result.iterator->value);
 
-        Ref list = T::create(container, collectionType, name);
-        result.iterator->value = list.ptr();
+        auto list = T::create(container, collectionType, name);
+        result.iterator->value = &list.get();
         return list;
     }
 
@@ -148,8 +146,8 @@ public:
         if (!result.isNewEntry)
             return static_cast<T&>(*result.iterator->value);
 
-        Ref list = T::create(container, collectionType);
-        result.iterator->value = list.ptr();
+        auto list = T::create(container, collectionType);
+        result.iterator->value = &list.get();
         return list;
     }
 
@@ -163,7 +161,7 @@ public:
     void removeCacheWithAtomName(NodeListType& list, const AtomString& name)
     {
         ASSERT(&list == m_atomNameCaches.get(namedNodeListKey<NodeListType>(name)));
-        if (deleteThisAndUpdateNodeRareDataIfAboutToRemoveLastList(list.protectedOwnerNode()))
+        if (deleteThisAndUpdateNodeRareDataIfAboutToRemoveLastList(list.ownerNode()))
             return;
         m_atomNameCaches.remove(namedNodeListKey<NodeListType>(name));
     }
@@ -172,7 +170,7 @@ public:
     {
         QualifiedName name(nullAtom(), localName, namespaceURI);
         ASSERT(&collection == m_tagCollectionNSCache.get(name));
-        if (deleteThisAndUpdateNodeRareDataIfAboutToRemoveLastList(collection.protectedOwnerNode()))
+        if (deleteThisAndUpdateNodeRareDataIfAboutToRemoveLastList(collection.ownerNode()))
             return;
         m_tagCollectionNSCache.remove(name);
     }
@@ -204,8 +202,8 @@ private:
     bool deleteThisAndUpdateNodeRareDataIfAboutToRemoveLastList(Node&);
 
     // These two are currently mutually exclusive and could be unioned. Not very important as this class is large anyway.
-    SingleThreadWeakPtr<ChildNodeList> m_childNodeList;
-    SingleThreadWeakPtr<EmptyNodeList> m_emptyChildNodeList;
+    ChildNodeList* m_childNodeList { nullptr };
+    EmptyNodeList* m_emptyChildNodeList { nullptr };
 
     NodeListCacheMap m_atomNameCaches;
     TagCollectionNSCache m_tagCollectionNSCache;
@@ -221,10 +219,10 @@ public:
     NodeMutationObserverData() { }
 };
 
-DECLARE_COMPACT_ALLOCATOR_WITH_HEAP_IDENTIFIER(NodeRareData);
+DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(NodeRareData);
 class NodeRareData {
     WTF_MAKE_NONCOPYABLE(NodeRareData);
-    WTF_MAKE_STRUCT_FAST_COMPACT_ALLOCATED_WITH_HEAP_IDENTIFIER(NodeRareData);
+    WTF_MAKE_STRUCT_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(NodeRareData);
 public:
 #if defined(DUMP_NODE_STATISTICS) && DUMP_NODE_STATISTICS
     enum class UseType : uint32_t {
@@ -254,8 +252,7 @@ public:
         Nonce = 1 << 23,
         ExplicitlySetAttrElementsMap = 1 << 24,
         Popover = 1 << 25,
-        DisplayContentsOrNoneStyle = 1 << 26,
-        CustomStateSet = 1 << 27,
+        DisplayContentsStyle = 1 << 26,
     };
 #endif
 
@@ -296,6 +293,8 @@ public:
     OptionSet<UseType> useTypes() const
     {
         OptionSet<UseType> result;
+        if (m_unusualTabIndex)
+            result.add(UseType::TabIndex);
         if (m_nodeLists)
             result.add(UseType::NodeList);
         if (m_mutationObserverData)

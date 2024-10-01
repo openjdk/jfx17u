@@ -48,7 +48,7 @@ class WorkerScriptLoader;
 
 struct WorkletParameters;
 
-enum class WorkletGlobalScopeIdentifierType { };
+enum WorkletGlobalScopeIdentifierType { };
 using WorkletGlobalScopeIdentifier = ObjectIdentifier<WorkletGlobalScopeIdentifierType>;
 
 class WorkletGlobalScope : public WorkerOrWorkletGlobalScope {

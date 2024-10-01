@@ -27,6 +27,7 @@
 #include "CryptoAlgorithmPBKDF2.h"
 
 #if ENABLE(WEB_CRYPTO)
+
 #include "CryptoAlgorithmPbkdf2Params.h"
 #include "CryptoKeyRaw.h"
 #include <JavaScriptCore/JSCJSValueInlines.h>
@@ -47,7 +48,7 @@ CryptoAlgorithmIdentifier CryptoAlgorithmPBKDF2::identifier() const
 void CryptoAlgorithmPBKDF2::deriveBits(const CryptoAlgorithmParameters& parameters, Ref<CryptoKey>&& baseKey, size_t length, VectorCallback&& callback, ExceptionCallback&& exceptionCallback, ScriptExecutionContext& context, WorkQueue& workQueue)
 {
     if (!length || length % 8) {
-        exceptionCallback(ExceptionCode::OperationError);
+        exceptionCallback(OperationError);
         return;
     }
 
@@ -60,15 +61,15 @@ void CryptoAlgorithmPBKDF2::deriveBits(const CryptoAlgorithmParameters& paramete
 void CryptoAlgorithmPBKDF2::importKey(CryptoKeyFormat format, KeyData&& data, const CryptoAlgorithmParameters& parameters, bool extractable, CryptoKeyUsageBitmap usages, KeyCallback&& callback, ExceptionCallback&& exceptionCallback)
 {
     if (format != CryptoKeyFormat::Raw) {
-        exceptionCallback(ExceptionCode::NotSupportedError);
+        exceptionCallback(NotSupportedError);
         return;
     }
     if (usages & (CryptoKeyUsageEncrypt | CryptoKeyUsageDecrypt | CryptoKeyUsageSign | CryptoKeyUsageVerify | CryptoKeyUsageWrapKey | CryptoKeyUsageUnwrapKey)) {
-        exceptionCallback(ExceptionCode::SyntaxError);
+        exceptionCallback(SyntaxError);
         return;
     }
     if (extractable) {
-        exceptionCallback(ExceptionCode::SyntaxError);
+        exceptionCallback(SyntaxError);
         return;
     }
 
@@ -81,4 +82,5 @@ ExceptionOr<size_t> CryptoAlgorithmPBKDF2::getKeyLength(const CryptoAlgorithmPar
 }
 
 } // namespace WebCore
+
 #endif // ENABLE(WEB_CRYPTO)

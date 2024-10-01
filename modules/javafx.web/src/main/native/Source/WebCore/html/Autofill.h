@@ -96,10 +96,7 @@ enum class AutofillFieldName : uint8_t {
     TelExtension,
     Email,
     Impp,
-    WebAuthn,
-    OneTimeCode,
-    DeviceEID,
-    DeviceIMEI,
+    WebAuthn
 };
 
 WEBCORE_EXPORT AutofillFieldName toAutofillFieldName(const AtomString&);

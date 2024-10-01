@@ -35,7 +35,7 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(BlockFormattingState);
 
 BlockFormattingState::BlockFormattingState(LayoutState& layoutState, const ElementBox& blockFormattingContextRoot)
     : FormattingState(Type::Block, layoutState)
-    , m_placedFloats(blockFormattingContextRoot)
+    , m_floatingState(blockFormattingContextRoot)
 {
 }
 
@@ -45,7 +45,7 @@ BlockFormattingState::~BlockFormattingState()
 
 void BlockFormattingState::shrinkToFit()
 {
-    m_placedFloats.shrinkToFit();
+    m_floatingState.shrinkToFit();
 }
 
 }

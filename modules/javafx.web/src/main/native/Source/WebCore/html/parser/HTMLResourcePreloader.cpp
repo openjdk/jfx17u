@@ -29,7 +29,7 @@
 #include "CachedResourceLoader.h"
 #include "CrossOriginAccessControl.h"
 #include "DefaultResourceLoadPriority.h"
-#include "DocumentInlines.h"
+#include "Document.h"
 #include "MediaQueryEvaluator.h"
 #include "MediaQueryParser.h"
 #include "NodeRenderStyle.h"
@@ -49,9 +49,9 @@ CachedResourceRequest PreloadRequest::resourceRequest(Document& document)
 
     bool skipContentSecurityPolicyCheck = false;
     if (m_resourceType == CachedResource::Type::Script)
-        skipContentSecurityPolicyCheck = document.checkedContentSecurityPolicy()->allowScriptWithNonce(m_nonceAttribute);
+        skipContentSecurityPolicyCheck = document.contentSecurityPolicy()->allowScriptWithNonce(m_nonceAttribute);
     else if (m_resourceType == CachedResource::Type::CSSStyleSheet)
-        skipContentSecurityPolicyCheck = document.checkedContentSecurityPolicy()->allowStyleWithNonce(m_nonceAttribute);
+        skipContentSecurityPolicyCheck = document.contentSecurityPolicy()->allowStyleWithNonce(m_nonceAttribute);
 
     ResourceLoaderOptions options = CachedResourceLoader::defaultCachedResourceOptions();
     if (skipContentSecurityPolicyCheck)
@@ -82,15 +82,14 @@ void HTMLResourcePreloader::preload(PreloadRequestStream requests)
 
 void HTMLResourcePreloader::preload(std::unique_ptr<PreloadRequest> preload)
 {
-    Ref document = protectedDocument();
-    ASSERT(document->frame());
-    ASSERT(document->renderView());
+    ASSERT(m_document.frame());
+    ASSERT(m_document.renderView());
 
-    auto queries = MQ::MediaQueryParser::parse(preload->media(), { document.get() });
-    if (!MQ::MediaQueryEvaluator { screenAtom(), document, document->renderStyle() }.evaluate(queries))
+    auto queries = MQ::MediaQueryParser::parse(preload->media(), { m_document });
+    if (!MQ::MediaQueryEvaluator { screenAtom(), m_document, m_document.renderStyle() }.evaluate(queries))
         return;
 
-    document->cachedResourceLoader().preload(preload->resourceType(), preload->resourceRequest(document));
+    m_document.cachedResourceLoader().preload(preload->resourceType(), preload->resourceRequest(m_document));
 }
 
 }

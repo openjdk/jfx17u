@@ -37,7 +37,6 @@
 namespace WebCore {
 
 class PlatformMediaSession;
-struct MediaConfiguration;
 
 class PlatformMediaSessionManager
 #if !RELEASE_LOG_DISABLED
@@ -73,11 +72,6 @@ public:
     WEBCORE_EXPORT static bool shouldEnableVP8Decoder();
     WEBCORE_EXPORT static void setShouldEnableVP9SWDecoder(bool);
     WEBCORE_EXPORT static bool shouldEnableVP9SWDecoder();
-#endif
-
-#if ENABLE(EXTENSION_CAPABILITIES)
-    WEBCORE_EXPORT static bool mediaCapabilityGrantsEnabled();
-    WEBCORE_EXPORT static void setMediaCapabilityGrantsEnabled(bool);
 #endif
 
     virtual ~PlatformMediaSessionManager() = default;
@@ -158,9 +152,6 @@ public:
     WEBCORE_EXPORT void setIsPlayingToAutomotiveHeadUnit(bool);
     bool isPlayingToAutomotiveHeadUnit() const { return m_isPlayingToAutomotiveHeadUnit; }
 
-    WEBCORE_EXPORT void setSupportsSpatialAudioPlayback(bool);
-    virtual std::optional<bool> supportsSpatialAudioPlaybackForConfiguration(const MediaConfiguration&);
-
     void forEachMatchingSession(const Function<bool(const PlatformMediaSession&)>& predicate, const Function<void(PlatformMediaSession&)>& matchingCallback);
 
     bool processIsSuspended() const { return m_processIsSuspended; }
@@ -212,8 +203,6 @@ protected:
 
     bool computeSupportsSeeking() const;
 
-    std::optional<bool> supportsSpatialAudioPlayback() { return m_supportsSpatialAudioPlayback; }
-
 private:
     friend class Internals;
 
@@ -230,7 +219,6 @@ private:
     bool m_willIgnoreSystemInterruptions { false };
     bool m_processIsSuspended { false };
     bool m_isPlayingToAutomotiveHeadUnit { false };
-    std::optional<bool> m_supportsSpatialAudioPlayback;
 
     bool m_alreadyScheduledSessionStatedUpdate { false };
 #if USE(AUDIO_SESSION)
@@ -260,10 +248,6 @@ private:
     static bool m_vp9DecoderEnabled;
     static bool m_vp8DecoderEnabled;
     static bool m_vp9SWDecoderEnabled;
-#endif
-
-#if ENABLE(EXTENSION_CAPABILITIES)
-    static bool s_mediaCapabilityGrantsEnabled;
 #endif
 
 #if !RELEASE_LOG_DISABLED

@@ -41,7 +41,6 @@ public:
     uint32_t maxTextureDimension3D() const;
     uint32_t maxTextureArrayLayers() const;
     uint32_t maxBindGroups() const;
-    uint32_t maxBindGroupsPlusVertexBuffers() const;
     uint32_t maxBindingsPerBindGroup() const;
     uint32_t maxDynamicUniformBuffersPerPipelineLayout() const;
     uint32_t maxDynamicStorageBuffersPerPipelineLayout() const;

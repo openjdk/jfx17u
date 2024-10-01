@@ -42,11 +42,10 @@ public:
     std::optional<struct ApplicationManifest> process(const URL& manifestURL, const URL& documentURL, Document* = nullptr);
 
 private:
-    void finishLoading(const FragmentedSharedBuffer*, const NetworkLoadMetrics&) final;
-    const TextResourceDecoder* textResourceDecoder() const final { return m_decoder.ptr(); }
-    Ref<TextResourceDecoder> protectedDecoder() const;
-    void setEncoding(const String&) final;
-    String encoding() const final;
+    void finishLoading(const FragmentedSharedBuffer*, const NetworkLoadMetrics&) override;
+    const TextResourceDecoder* textResourceDecoder() const override { return m_decoder.ptr(); }
+    void setEncoding(const String&) override;
+    String encoding() const override;
 
     Ref<TextResourceDecoder> m_decoder;
     std::optional<String> m_text;

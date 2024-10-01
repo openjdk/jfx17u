@@ -48,10 +48,10 @@
 #include "RenderSlider.h"
 #include "ScopedEventQueue.h"
 #include "ScriptDisallowedScope.h"
+#include "ShadowPseudoIds.h"
 #include "ShadowRoot.h"
 #include "SliderThumbElement.h"
 #include "StepRange.h"
-#include "UserAgentParts.h"
 #include <limits>
 #include <wtf/MathExtras.h>
 
@@ -126,7 +126,6 @@ StepRange RangeInputType::createStepRange(AnyStepHandling anyStepHandling) const
     return StepRange(minimum, RangeLimitations::Valid, minimum, maximum, step, rangeStepDescription);
 }
 
-// FIXME: Should this work for untrusted input?
 void RangeInputType::handleMouseDownEvent(MouseEvent& event)
 {
     ASSERT(element());
@@ -137,15 +136,14 @@ void RangeInputType::handleMouseDownEvent(MouseEvent& event)
     if (element()->isDisabledFormControl())
         return;
 
-    auto* targetNode = dynamicDowncast<Node>(event.target());
-    if (!targetNode)
+    if (event.button() != LeftButton || !is<Node>(event.target()))
         return;
-
     ASSERT(element()->shadowRoot());
-    if (targetNode != element() && !targetNode->isDescendantOf(element()->userAgentShadowRoot().get()))
+    auto& targetNode = downcast<Node>(*event.target());
+    if (&targetNode != element() && !targetNode.isDescendantOf(element()->userAgentShadowRoot().get()))
         return;
     auto& thumb = typedSliderThumbElement();
-    if (targetNode == &thumb)
+    if (&targetNode == &thumb)
         return;
     thumb.dragFrom(event.absoluteLocation());
 }
@@ -158,7 +156,7 @@ void RangeInputType::handleTouchEvent(TouchEvent& event)
     if (!hasCreatedShadowSubtree())
         return;
 
-#if ENABLE(IOS_TOUCH_EVENTS)
+#if PLATFORM(IOS_FAMILY)
     typedSliderThumbElement().handleTouchEvent(event);
 #else
 
@@ -175,8 +173,15 @@ void RangeInputType::handleTouchEvent(TouchEvent& event)
         typedSliderThumbElement().setPositionFromPoint(touches->item(0)->absoluteLocation());
         event.setDefaultHandled();
     }
-#endif // ENABLE(IOS_TOUCH_EVENTS)
+#endif
 }
+
+#if !PLATFORM(IOS_FAMILY)
+bool RangeInputType::hasTouchEventHandler() const
+{
+    return true;
+}
+#endif
 #endif // ENABLE(TOUCH_EVENTS)
 
 void RangeInputType::disabledStateChanged()
@@ -255,7 +260,7 @@ void RangeInputType::createShadowSubtree()
     element()->userAgentShadowRoot()->appendChild(ContainerNode::ChildChange::Source::Parser, container);
     container->appendChild(ContainerNode::ChildChange::Source::Parser, track);
 
-    track->setUserAgentPart(UserAgentParts::webkitSliderRunnableTrack());
+    track->setPseudo(ShadowPseudoIds::webkitSliderRunnableTrack());
     track->appendChild(ContainerNode::ChildChange::Source::Parser, SliderThumbElement::create(document));
 }
 

@@ -70,7 +70,7 @@ private:
     };
 
     Context* m_context;
-    Vector<std::unique_ptr<Context>> m_contexts;
+    Vector<Context> m_contexts;
     ContextScope m_globalScope;
 };
 

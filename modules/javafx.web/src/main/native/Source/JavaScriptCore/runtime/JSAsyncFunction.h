@@ -50,7 +50,11 @@ public:
         return sizeof(JSAsyncFunction);
     }
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        ASSERT(globalObject);
+        return Structure::create(vm, globalObject, prototype, TypeInfo(JSFunctionType, StructureFlags), info());
+    }
 
 private:
     JSAsyncFunction(VM&, FunctionExecutable*, JSScope*, Structure*);

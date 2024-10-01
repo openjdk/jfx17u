@@ -34,7 +34,7 @@ class SVGTextMetricsBuilder {
     WTF_MAKE_NONCOPYABLE(SVGTextMetricsBuilder);
 public:
     SVGTextMetricsBuilder();
-    void measureTextRenderer(RenderSVGText&, RenderSVGInlineText* stopAtLeaf);
+    void measureTextRenderer(RenderSVGInlineText&);
     void buildMetricsAndLayoutAttributes(RenderSVGText&, RenderSVGInlineText* stopAtLeaf, SVGCharacterDataMap& allCharactersMap);
 
 private:

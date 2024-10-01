@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 namespace WebCore {
 
 enum class PushEncryptionKeyName : bool {
@@ -33,3 +35,5 @@ enum class PushEncryptionKeyName : bool {
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

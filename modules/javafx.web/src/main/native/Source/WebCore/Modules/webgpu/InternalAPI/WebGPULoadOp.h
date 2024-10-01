@@ -26,6 +26,7 @@
 #pragma once
 
 #include <cstdint>
+#include <wtf/EnumTraits.h>
 
 namespace WebCore::WebGPU {
 
@@ -35,3 +36,15 @@ enum class LoadOp : uint8_t {
 };
 
 } // namespace WebCore::WebGPU
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::WebGPU::LoadOp> {
+    using values = EnumValues<
+        WebCore::WebGPU::LoadOp,
+        WebCore::WebGPU::LoadOp::Load,
+        WebCore::WebGPU::LoadOp::Clear
+    >;
+};
+
+} // namespace WTF

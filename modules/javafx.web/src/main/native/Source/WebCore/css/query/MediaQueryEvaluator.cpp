@@ -38,7 +38,7 @@ namespace MQ {
 MediaQueryEvaluator::MediaQueryEvaluator(const AtomString& mediaType, const Document& document, const RenderStyle* rootElementStyle)
     : GenericMediaQueryEvaluator()
     , m_mediaType(mediaType)
-    , m_document(document)
+    , m_document(&document)
     , m_rootElementStyle(rootElementStyle)
 {
 }
@@ -73,22 +73,21 @@ bool MediaQueryEvaluator::evaluate(const MediaQuery& query) const
         if (!query.condition)
             return EvaluationResult::True;
 
-        RefPtr document = m_document.get();
-        if (!document || !m_rootElementStyle)
+        if (!m_document || !m_rootElementStyle)
             return m_staticMediaConditionResult;
 
-        if (!document->view() || !document->documentElement())
+        if (!m_document->view() || !m_document->documentElement())
             return EvaluationResult::Unknown;
 
         auto defaultStyle = RenderStyle::create();
         auto fontDescription = defaultStyle.fontDescription();
-        auto size = Style::fontSizeForKeyword(CSSValueMedium, false, *document);
+        auto size = Style::fontSizeForKeyword(CSSValueMedium, false, *m_document);
         fontDescription.setComputedSize(size);
         fontDescription.setSpecifiedSize(size);
         defaultStyle.setFontDescription(WTFMove(fontDescription));
         defaultStyle.fontCascade().update();
 
-        FeatureEvaluationContext context { *document, { *m_rootElementStyle, &defaultStyle, nullptr, document->renderView() }, nullptr };
+        FeatureEvaluationContext context { *m_document, { *m_rootElementStyle, &defaultStyle, nullptr, m_document->renderView() }, nullptr };
         return evaluateCondition(*query.condition, context);
     }();
 

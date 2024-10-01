@@ -40,8 +40,7 @@ namespace WebCore {
 
 Ref<CSSCustomPropertyValue> CSSCustomPropertyValue::createEmpty(const AtomString& name)
 {
-    static NeverDestroyed<Ref<CSSVariableData>> empty { CSSVariableData::create({ }) };
-    return createSyntaxAll(name, Ref { empty.get() });
+    return adoptRef(*new CSSCustomPropertyValue(name, std::monostate { }));
 }
 
 Ref<CSSCustomPropertyValue> CSSCustomPropertyValue::createWithID(const AtomString& name, CSSValueID id)
@@ -54,14 +53,14 @@ bool CSSCustomPropertyValue::equals(const CSSCustomPropertyValue& other) const
 {
     if (m_name != other.m_name || m_value.index() != other.m_value.index())
         return false;
-    return WTF::switchOn(m_value, [&](const Ref<CSSVariableReferenceValue>& value) {
-        auto& otherValue = std::get<Ref<CSSVariableReferenceValue>>(other.m_value);
-        return value.ptr() == otherValue.ptr() || value.get() == otherValue.get();
+    return WTF::switchOn(m_value, [&](const std::monostate&) {
+        return true;
+    }, [&](const Ref<CSSVariableReferenceValue>& value) {
+        return value.get() == std::get<Ref<CSSVariableReferenceValue>>(other.m_value).get();
     }, [&](const CSSValueID& value) {
         return value == std::get<CSSValueID>(other.m_value);
     }, [&](const Ref<CSSVariableData>& value) {
-        auto& otherValue = std::get<Ref<CSSVariableData>>(other.m_value);
-        return value.ptr() == otherValue.ptr() || value.get() == otherValue.get();
+        return value.get() == std::get<Ref<CSSVariableData>>(other.m_value).get();
     }, [&](const SyntaxValue& value) {
         return value == std::get<SyntaxValue>(other.m_value);
     }, [&](const SyntaxValueList& value) {
@@ -102,7 +101,9 @@ String CSSCustomPropertyValue::customCSSText() const
     };
 
     auto serialize = [&] {
-        return WTF::switchOn(m_value, [&](const Ref<CSSVariableReferenceValue>& value) {
+        return WTF::switchOn(m_value, [&](const std::monostate&) {
+            return emptyString();
+        }, [&](const Ref<CSSVariableReferenceValue>& value) {
             return value->cssText();
         }, [&](const CSSValueID& value) {
             return nameString(value).string();
@@ -132,7 +133,10 @@ const Vector<CSSParserToken>& CSSCustomPropertyValue::tokens() const
 {
     static NeverDestroyed<Vector<CSSParserToken>> emptyTokens;
 
-    return WTF::switchOn(m_value, [&](const Ref<CSSVariableReferenceValue>&) -> const Vector<CSSParserToken>& {
+    return WTF::switchOn(m_value, [&](const std::monostate&) -> const Vector<CSSParserToken>& {
+        // Do nothing.
+        return emptyTokens;
+    }, [&](const Ref<CSSVariableReferenceValue>&) -> const Vector<CSSParserToken>& {
         ASSERT_NOT_REACHED();
         return emptyTokens;
     }, [&](const CSSValueID&) -> const Vector<CSSParserToken>& {
@@ -167,29 +171,10 @@ Ref<const CSSVariableData> CSSCustomPropertyValue::asVariableData() const
 
 bool CSSCustomPropertyValue::isCurrentColor() const
 {
-    // FIXME: Registered properties?
-    auto tokenRange = switchOn(m_value, [&](const Ref<CSSVariableReferenceValue>& variableReferenceValue) {
-        return variableReferenceValue->data().tokenRange();
-    }, [&](const Ref<CSSVariableData>& data) {
-        return data->tokenRange();
-    }, [&](auto&) {
-        return CSSParserTokenRange { };
-    });
-
-    if (tokenRange.atEnd())
-        return false;
-
-    auto token = tokenRange.consumeIncludingWhitespace();
-    if (!tokenRange.atEnd())
-        return false;
-
-    // FIXME: This should probably check all tokens.
-    return token.id() == CSSValueCurrentcolor;
-}
-
-bool CSSCustomPropertyValue::isAnimatable() const
-{
-    return std::holds_alternative<SyntaxValue>(m_value) || std::holds_alternative<SyntaxValueList>(m_value);
+    // FIXME: it's surprising that setting a custom property to "currentcolor"
+    // results in m_value being a CSSVariableReferenceValue rather than a
+    // CSSValueID set to CSSValueCurrentcolor or a StyleValue.
+    return std::holds_alternative<Ref<CSSVariableReferenceValue>>(m_value) && std::get<Ref<CSSVariableReferenceValue>>(m_value)->customCSSText() == "currentcolor"_s;
 }
 
 }

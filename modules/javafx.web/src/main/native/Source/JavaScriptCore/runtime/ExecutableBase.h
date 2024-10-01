@@ -101,24 +101,24 @@ public:
         return type() == NativeExecutableType;
     }
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue proto) { return Structure::create(vm, globalObject, proto, TypeInfo(CellType, StructureFlags), info()); }
 
     DECLARE_EXPORT_INFO;
 
 public:
-    Ref<JSC::JITCode> generatedJITCodeForCall() const
+    Ref<JITCode> generatedJITCodeForCall() const
     {
         ASSERT(m_jitCodeForCall);
         return *m_jitCodeForCall;
     }
 
-    Ref<JSC::JITCode> generatedJITCodeForConstruct() const
+    Ref<JITCode> generatedJITCodeForConstruct() const
     {
         ASSERT(m_jitCodeForConstruct);
         return *m_jitCodeForConstruct;
     }
 
-    Ref<JSC::JITCode> generatedJITCodeFor(CodeSpecializationKind kind) const
+    Ref<JITCode> generatedJITCodeFor(CodeSpecializationKind kind) const
     {
         if (kind == CodeForCall)
             return generatedJITCodeForCall();
@@ -201,12 +201,16 @@ public:
     }
 
     // Intrinsics are only for calls, currently.
-    inline Intrinsic intrinsic() const;
+    Intrinsic intrinsic() const;
 
-    inline Intrinsic intrinsicFor(CodeSpecializationKind) const;
+    Intrinsic intrinsicFor(CodeSpecializationKind kind) const
+    {
+        if (isCall(kind))
+            return intrinsic();
+        return NoIntrinsic;
+    }
 
     ImplementationVisibility implementationVisibility() const;
-    InlineAttribute inlineAttribute() const;
 
     CodePtr<JSEntryPtrTag> swapGeneratedJITCodeWithArityCheckForDebugger(CodeSpecializationKind kind, CodePtr<JSEntryPtrTag> jitCodeWithArityCheck)
     {
@@ -233,8 +237,8 @@ public:
     void dump(PrintStream&) const;
 
 protected:
-    RefPtr<JSC::JITCode> m_jitCodeForCall;
-    RefPtr<JSC::JITCode> m_jitCodeForConstruct;
+    RefPtr<JITCode> m_jitCodeForCall;
+    RefPtr<JITCode> m_jitCodeForConstruct;
     CodePtr<JSEntryPtrTag> m_jitCodeForCallWithArityCheck;
     CodePtr<JSEntryPtrTag> m_jitCodeForConstructWithArityCheck;
 };

@@ -28,6 +28,7 @@
 
 #if ENABLE(WEBGL)
 
+#include "WebGLContextGroup.h"
 #include "WebGLRenderingContextBase.h"
 #include <JavaScriptCore/ArrayBuffer.h>
 #include <wtf/Lock.h>
@@ -35,22 +36,20 @@
 
 namespace WebCore {
 
-RefPtr<WebGLBuffer> WebGLBuffer::create(WebGLRenderingContextBase& context)
+Ref<WebGLBuffer> WebGLBuffer::create(WebGLRenderingContextBase& ctx)
 {
-    auto object = context.protectedGraphicsContextGL()->createBuffer();
-    if (!object)
-        return nullptr;
-    return adoptRef(*new WebGLBuffer { context, object });
+    return adoptRef(*new WebGLBuffer(ctx));
 }
 
-WebGLBuffer::WebGLBuffer(WebGLRenderingContextBase& context, PlatformGLObject object)
-    : WebGLObject(context, object)
+WebGLBuffer::WebGLBuffer(WebGLRenderingContextBase& ctx)
+    : WebGLSharedObject(ctx)
 {
+    setObject(ctx.graphicsContextGL()->createBuffer());
 }
 
 WebGLBuffer::~WebGLBuffer()
 {
-    if (!m_context)
+    if (!hasGroupOrContext())
         return;
 
     runDestructor();

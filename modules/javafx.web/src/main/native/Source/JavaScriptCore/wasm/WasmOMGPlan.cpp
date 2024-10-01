@@ -26,13 +26,13 @@
 #include "config.h"
 #include "WasmOMGPlan.h"
 
-#if ENABLE(WEBASSEMBLY_OMGJIT)
+#if ENABLE(WEBASSEMBLY_B3JIT)
 
 #include "JITCompilation.h"
 #include "LinkBuffer.h"
-#include "NativeCalleeRegistry.h"
 #include "WasmB3IRGenerator.h"
 #include "WasmCallee.h"
+#include "WasmCalleeRegistry.h"
 #include "WasmIRGeneratorHelpers.h"
 #include "WasmNameSection.h"
 #include "WasmTypeDefinitionInlines.h"
@@ -150,7 +150,7 @@ void OMGPlan::work(CompilationEffort)
         entrypoint = callee->entrypoint();
 
         if (context.pcToCodeOriginMap)
-            NativeCalleeRegistry::singleton().addPCToCodeOriginMap(callee.ptr(), WTFMove(context.pcToCodeOriginMap));
+            CalleeRegistry::singleton().addPCToCodeOriginMap(callee.ptr(), WTFMove(context.pcToCodeOriginMap));
 
         // We want to make sure we publish our callee at the same time as we link our callsites. This enables us to ensure we
         // always call the fastest code. Any function linked after us will see our new code and the new callsites, which they
@@ -162,16 +162,12 @@ void OMGPlan::work(CompilationEffort)
 
         for (auto& call : callee->wasmToWasmCallsites()) {
             CodePtr<WasmEntryPtrTag> entrypoint;
-            Wasm::Callee* calleeCallee = nullptr;
             if (call.functionIndexSpace < m_module->moduleInformation().importFunctionCount())
                 entrypoint = m_calleeGroup->m_wasmToWasmExitStubs[call.functionIndexSpace].code();
-            else {
-                calleeCallee = &m_calleeGroup->wasmEntrypointCalleeFromFunctionIndexSpace(locker, call.functionIndexSpace);
+            else
                 entrypoint = m_calleeGroup->wasmEntrypointCalleeFromFunctionIndexSpace(locker, call.functionIndexSpace).entrypoint().retagged<WasmEntryPtrTag>();
-            }
 
             MacroAssembler::repatchNearCall(call.callLocation, CodeLocationLabel<WasmEntryPtrTag>(entrypoint));
-            MacroAssembler::repatchPointer(call.calleeLocation, CalleeBits::boxNativeCalleeIfExists(calleeCallee));
         }
 
         m_calleeGroup->callsiteCollection().addCallsites(locker, m_calleeGroup.get(), callee->wasmToWasmCallsites());
@@ -183,13 +179,7 @@ void OMGPlan::work(CompilationEffort)
                 bbqCallee->setReplacement(callee.copyRef());
                 bbqCallee->tierUpCount()->m_compilationStatusForOMG = TierUpCount::CompilationStatus::Compiled;
             }
-            if (Options::useWasmIPInt() && m_calleeGroup->m_ipintCallees) {
-                IPIntCallee& ipintCallee = m_calleeGroup->m_ipintCallees->at(m_functionIndex).get();
-                Locker locker { ipintCallee.tierUpCounter().m_lock };
-                ipintCallee.setReplacement(callee.copyRef(), mode());
-                ipintCallee.tierUpCounter().m_compilationStatus = IPIntTierUpCounter::CompilationStatus::Compiled;
-            }
-            if (!Options::useWasmIPInt() && m_calleeGroup->m_llintCallees) {
+            if (m_calleeGroup->m_llintCallees) {
                 LLIntCallee& llintCallee = m_calleeGroup->m_llintCallees->at(m_functionIndex).get();
                 Locker locker { llintCallee.tierUpCounter().m_lock };
                 llintCallee.setReplacement(callee.copyRef(), mode());
@@ -205,4 +195,4 @@ void OMGPlan::work(CompilationEffort)
 
 } } // namespace JSC::Wasm
 
-#endif // ENABLE(WEBASSEMBLY_OMGJIT)
+#endif // ENABLE(WEBASSEMBLY_B3JIT)

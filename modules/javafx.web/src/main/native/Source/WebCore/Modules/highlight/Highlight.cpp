@@ -36,13 +36,14 @@
 
 namespace WebCore {
 
-void Highlight::repaintRange(const AbstractRange& range)
+static void repaintRange(const AbstractRange& range)
 {
-    auto sortedRange = makeSimpleRange(range);
+    // FIXME: Unclear precisely why we need to handle out of order cases here, but not unordered cases.
+    SimpleRange sortedRange = makeSimpleRange(range);
     if (is_gt(treeOrder<ComposedTree>(sortedRange.start, sortedRange.end)))
         std::swap(sortedRange.start, sortedRange.end);
-    for (Ref node : intersectingNodes(sortedRange)) {
-        if (auto renderer = node->renderer())
+    for (auto& node : intersectingNodes(sortedRange)) {
+        if (auto renderer = node.renderer())
             renderer->repaint();
     }
 }
@@ -54,21 +55,22 @@ Ref<Highlight> Highlight::create(FixedVector<std::reference_wrapper<WebCore::Abs
 
 Highlight::Highlight(FixedVector<std::reference_wrapper<WebCore::AbstractRange>>&& initialRanges)
 {
-    m_highlightRanges = WTF::map(initialRanges, [&](auto&& range) {
+    m_rangesData.reserveInitialCapacity(initialRanges.size());
+    for (auto& range : initialRanges) {
         repaintRange(range.get());
-        return HighlightRange::create(range.get());
-    });
+        m_rangesData.uncheckedAppend(HighlightRangeData::create(Ref { range.get() }));
+    }
 }
 
 void Highlight::initializeSetLike(DOMSetAdapter& set)
 {
-    for (auto& highlightRange : m_highlightRanges)
-        set.add<IDLInterface<AbstractRange>>(highlightRange->range());
+    for (auto& rangeData : m_rangesData)
+        set.add<IDLInterface<AbstractRange>>(rangeData->range());
 }
 
 bool Highlight::removeFromSetLike(const AbstractRange& range)
 {
-    return m_highlightRanges.removeFirstMatching([&range](const Ref<HighlightRange>& current) {
+    return m_rangesData.removeFirstMatching([&range](const Ref<HighlightRangeData>& current) {
         repaintRange(range);
         return &current->range() == &range;
     });
@@ -76,31 +78,29 @@ bool Highlight::removeFromSetLike(const AbstractRange& range)
 
 void Highlight::clearFromSetLike()
 {
-    for (auto& highlightRange : m_highlightRanges)
-        repaintRange(highlightRange->range());
-    m_highlightRanges.clear();
+    for (auto& data : m_rangesData)
+        repaintRange(data->range());
+    m_rangesData.clear();
 }
 
 bool Highlight::addToSetLike(AbstractRange& range)
 {
-    auto index = m_highlightRanges.findIf([&range](const Ref<HighlightRange>& current) {
-        return &current->range() == &range;
-    });
+    auto index = m_rangesData.findIf([&range](const Ref<HighlightRangeData>& current) { return &current->range() == &range; });
     if (index == notFound) {
     repaintRange(range);
-        m_highlightRanges.append(HighlightRange::create(range));
+    m_rangesData.append(HighlightRangeData::create(range));
     return true;
     }
     // Move to last since SetLike is an ordered set.
-    m_highlightRanges.append(WTFMove(m_highlightRanges[index]));
-    m_highlightRanges.remove(index);
+    m_rangesData.append(WTFMove(m_rangesData[index]));
+    m_rangesData.remove(index);
     return false;
 }
 
 void Highlight::repaint()
 {
-    for (auto& highlightRange : m_highlightRanges)
-        repaintRange(highlightRange->range());
+    for (auto& data : m_rangesData)
+        repaintRange(data->range());
 }
 
 void Highlight::setPriority(int priority)

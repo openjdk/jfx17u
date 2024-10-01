@@ -32,7 +32,6 @@
 #include "FTLJITCode.h"
 #include "LinkBuffer.h"
 #include "MacroAssembler.h"
-#include <wtf/TZoneMalloc.h>
 
 namespace JSC { namespace FTL {
 
@@ -49,7 +48,6 @@ public:
 };
 
 class JITFinalizer final : public DFG::Finalizer {
-    WTF_MAKE_TZONE_ALLOCATED(JITFinalizer);
 public:
     JITFinalizer(DFG::Plan&);
     ~JITFinalizer() final;
@@ -65,7 +63,7 @@ public:
 
     Vector<CCallHelpers::Jump> lazySlowPathGeneratorJumps;
     GeneratedFunction function;
-    RefPtr<FTL::JITCode> jitCode;
+    RefPtr<JITCode> jitCode;
 };
 
 } } // namespace JSC::FTL

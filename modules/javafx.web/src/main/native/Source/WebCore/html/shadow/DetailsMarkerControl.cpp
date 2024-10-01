@@ -35,7 +35,7 @@
 #include "HTMLNames.h"
 #include "HTMLSummaryElement.h"
 #include "RenderDetailsMarker.h"
-#include "UserAgentParts.h"
+#include "ShadowPseudoIds.h"
 #include <wtf/IsoMallocInlines.h>
 
 namespace WebCore {
@@ -45,7 +45,7 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(DetailsMarkerControl);
 Ref<DetailsMarkerControl> DetailsMarkerControl::create(Document& document)
 {
     auto control = adoptRef(*new DetailsMarkerControl(document));
-    control->setUserAgentPart(UserAgentParts::webkitDetailsMarker());
+    control->setPseudo(ShadowPseudoIds::webkitDetailsMarker());
     return control;
 }
 

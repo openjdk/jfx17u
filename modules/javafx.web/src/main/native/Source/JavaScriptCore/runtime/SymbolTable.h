@@ -469,7 +469,10 @@ public:
     static constexpr bool needsDestruction = true;
     static void destroy(JSCell*);
 
-    inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        return Structure::create(vm, globalObject, prototype, TypeInfo(CellType, StructureFlags), info());
+    }
 
     // You must hold the lock until after you're done with the iterator.
     Map::iterator find(const ConcurrentJSLocker&, UniquedStringImpl* key)
@@ -757,10 +760,6 @@ public:
     DECLARE_VISIT_CHILDREN;
 
     DECLARE_EXPORT_INFO;
-
-#if ASSERT_ENABLED
-    bool hasScopedWatchpointSet(WatchpointSet*);
-#endif
 
     void finalizeUnconditionally(VM&, CollectionScope);
     void dump(PrintStream&) const;

@@ -29,13 +29,11 @@
 #include "MessagePortChannelProvider.h"
 #include "MessagePortIdentifier.h"
 #include "ProcessIdentifier.h"
-#include <wtf/CheckedRef.h>
-#include <wtf/Forward.h>
 #include <wtf/HashMap.h>
 
 namespace WebCore {
 
-class MessagePortChannelRegistry : public CanMakeWeakPtr<MessagePortChannelRegistry>, public CanMakeCheckedPtr {
+class MessagePortChannelRegistry {
 public:
     WEBCORE_EXPORT MessagePortChannelRegistry();
 
@@ -54,7 +52,7 @@ public:
     WEBCORE_EXPORT void messagePortChannelDestroyed(MessagePortChannel&);
 
 private:
-    HashMap<MessagePortIdentifier, WeakRef<MessagePortChannel>> m_openChannels;
+    HashMap<MessagePortIdentifier, MessagePortChannel*> m_openChannels;
 };
 
 } // namespace WebCore

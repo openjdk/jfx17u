@@ -97,8 +97,6 @@ protected:
     void attributeChanged(const QualifiedName&, const AtomString& oldValue, const AtomString& newValue, AttributeModificationReason) override;
     void svgAttributeChanged(const QualifiedName&) override;
 
-    void invalidateGradientResource();
-
 private:
     bool needsPendingResourceHandling() const override { return false; }
     void childrenChanged(const ChildChange&) override;
@@ -117,7 +115,6 @@ static bool isType(const WebCore::SVGElement& element)
 }
 static bool isType(const WebCore::Node& node)
 {
-    auto* svgElement = dynamicDowncast<WebCore::SVGElement>(node);
-    return svgElement && isType(*svgElement);
+    return is<WebCore::SVGElement>(node) && isType(downcast<WebCore::SVGElement>(node));
 }
 SPECIALIZE_TYPE_TRAITS_END()

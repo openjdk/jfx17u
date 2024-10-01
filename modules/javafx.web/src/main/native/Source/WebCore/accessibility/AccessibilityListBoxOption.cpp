@@ -71,11 +71,10 @@ bool AccessibilityListBoxOption::isEnabled() const
 
 bool AccessibilityListBoxOption::isSelected() const
 {
-    if (!m_optionElement)
+    if (!is<HTMLOptionElement>(m_optionElement))
         return false;
 
-    RefPtr option = dynamicDowncast<HTMLOptionElement>(*m_optionElement);
-    return option && option->selected();
+    return downcast<HTMLOptionElement>(*m_optionElement).selected();
 }
 
 bool AccessibilityListBoxOption::isSelectedOptionActive() const
@@ -141,15 +140,15 @@ String AccessibilityListBoxOption::stringValue() const
     if (!m_optionElement)
         return String();
 
-    const auto& ariaLabel = getAttribute(aria_labelAttr);
+    const AtomString& ariaLabel = getAttribute(aria_labelAttr);
     if (!ariaLabel.isNull())
         return ariaLabel;
 
-    if (RefPtr option = dynamicDowncast<HTMLOptionElement>(*m_optionElement))
-        return option->label();
+    if (is<HTMLOptionElement>(*m_optionElement))
+        return downcast<HTMLOptionElement>(*m_optionElement).label();
 
-    if (RefPtr optgroup = dynamicDowncast<HTMLOptGroupElement>(*m_optionElement))
-        return optgroup->groupLabelText();
+    if (is<HTMLOptGroupElement>(*m_optionElement))
+        return downcast<HTMLOptGroupElement>(*m_optionElement).groupLabelText();
 
     return String();
 }
@@ -196,11 +195,11 @@ HTMLSelectElement* AccessibilityListBoxOption::listBoxOptionParentNode() const
     if (!m_optionElement)
         return nullptr;
 
-    if (RefPtr option = dynamicDowncast<HTMLOptionElement>(*m_optionElement))
-        return option->ownerSelectElement();
+    if (is<HTMLOptionElement>(*m_optionElement))
+        return downcast<HTMLOptionElement>(*m_optionElement).ownerSelectElement();
 
-    if (RefPtr optgroup = dynamicDowncast<HTMLOptGroupElement>(*m_optionElement))
-        return optgroup->ownerSelectElement();
+    if (is<HTMLOptGroupElement>(*m_optionElement))
+        return downcast<HTMLOptGroupElement>(*m_optionElement).ownerSelectElement();
 
     return nullptr;
 }

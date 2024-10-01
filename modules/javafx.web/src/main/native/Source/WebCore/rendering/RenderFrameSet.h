@@ -87,6 +87,7 @@ private:
     };
 
     ASCIILiteral renderName() const override { return "RenderFrameSet"_s; }
+    bool isFrameSet() const override { return true; }
 
     void layout() override;
     void paint(PaintInfo&, const LayoutPoint&) override;
@@ -118,4 +119,4 @@ private:
 
 } // namespace WebCore
 
-SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderFrameSet, isRenderFrameSet())
+SPECIALIZE_TYPE_TRAITS_RENDER_OBJECT(RenderFrameSet, isFrameSet())

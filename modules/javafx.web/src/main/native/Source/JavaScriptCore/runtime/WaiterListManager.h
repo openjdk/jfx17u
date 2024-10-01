@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2022 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,7 +30,6 @@
 #include <wtf/HashMap.h>
 #include <wtf/Lock.h>
 #include <wtf/SentinelLinkedList.h>
-#include <wtf/TZoneMalloc.h>
 
 namespace JSC {
 
@@ -38,7 +37,7 @@ enum class AtomicsWaitType : uint8_t { Sync, Async };
 enum class AtomicsWaitValidation : uint8_t { Pass, Fail };
 
 class Waiter final : public WTF::BasicRawSentinelNode<Waiter>, public ThreadSafeRefCounted<Waiter> {
-    WTF_MAKE_TZONE_ALLOCATED(Waiter);
+    WTF_MAKE_FAST_ALLOCATED;
 
 public:
     Waiter(VM* vm)
@@ -122,7 +121,7 @@ private:
 };
 
 class WaiterList : public ThreadSafeRefCounted<WaiterList> {
-    WTF_MAKE_TZONE_ALLOCATED(WaiterList);
+    WTF_MAKE_FAST_ALLOCATED;
 
 public:
     ~WaiterList()
@@ -204,7 +203,7 @@ private:
 };
 
 class WaiterListManager {
-    WTF_MAKE_TZONE_ALLOCATED(WaiterListManager);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     static WaiterListManager& singleton();
 

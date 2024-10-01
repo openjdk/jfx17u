@@ -36,7 +36,6 @@
 #include <wtf/text/TextStream.h>
 
 namespace WebCore {
-DEFINE_ALLOCATOR_WITH_HEAP_IDENTIFIER(CSSCalcPrimitiveValueNode);
 
 Ref<CSSCalcPrimitiveValueNode> CSSCalcPrimitiveValueNode::create(Ref<CSSPrimitiveValue>&& value)
 {
@@ -52,12 +51,12 @@ RefPtr<CSSCalcPrimitiveValueNode> CSSCalcPrimitiveValueNode::create(double value
 
 String CSSCalcPrimitiveValueNode::customCSSText() const
 {
-    return protectedValue()->cssText();
+    return m_value->cssText();
 }
 
 CSSUnitType CSSCalcPrimitiveValueNode::primitiveType() const
 {
-    return protectedValue()->primitiveType();
+    return m_value->primitiveType();
 }
 
 CSSCalcPrimitiveValueNode::CSSCalcPrimitiveValueNode(Ref<CSSPrimitiveValue>&& value)
@@ -75,27 +74,24 @@ bool CSSCalcPrimitiveValueNode::isNumericValue() const
 
 bool CSSCalcPrimitiveValueNode::isNegative() const
 {
-    return isNumericValue() && protectedValue()->doubleValue() < 0.0;
+    return isNumericValue() && m_value->doubleValue() < 0.0;
 }
 
 void CSSCalcPrimitiveValueNode::negate()
 {
     ASSERT(isNumericValue());
-    Ref value = m_value;
-    m_value = CSSPrimitiveValue::create(0.0 - value->doubleValue(), value->primitiveType());
+    m_value = CSSPrimitiveValue::create(0.0 - m_value->doubleValue(), m_value->primitiveType());
 }
 
 void CSSCalcPrimitiveValueNode::invert()
 {
     ASSERT(isNumericValue());
-    Ref value = m_value;
-    m_value = CSSPrimitiveValue::create(1.0 / value->doubleValue(), value->primitiveType());
+    m_value = CSSPrimitiveValue::create(1.0 / m_value->doubleValue(), m_value->primitiveType());
 }
 
 void CSSCalcPrimitiveValueNode::add(const CSSCalcPrimitiveValueNode& node, UnitConversion unitConversion)
 {
-    Ref value = m_value;
-    auto valueType = value->primitiveType();
+    auto valueType = m_value->primitiveType();
 
     switch (unitConversion) {
     case UnitConversion::Invalid:
@@ -103,12 +99,12 @@ void CSSCalcPrimitiveValueNode::add(const CSSCalcPrimitiveValueNode& node, UnitC
         break;
     case UnitConversion::Preserve:
         ASSERT(node.primitiveType() == valueType);
-        m_value = CSSPrimitiveValue::create(value->doubleValue() + node.doubleValue(valueType), valueType);
+        m_value = CSSPrimitiveValue::create(m_value->doubleValue() + node.doubleValue(valueType), valueType);
         break;
     case UnitConversion::Canonicalize: {
         auto canonicalType = canonicalUnitTypeForUnitType(valueType);
         ASSERT(canonicalType != CSSUnitType::CSS_UNKNOWN);
-        double leftValue = value->doubleValue(canonicalType);
+        double leftValue = m_value->doubleValue(canonicalType);
         double rightValue = node.doubleValue(canonicalType);
         m_value = CSSPrimitiveValue::create(leftValue + rightValue, canonicalType);
         break;
@@ -118,32 +114,29 @@ void CSSCalcPrimitiveValueNode::add(const CSSCalcPrimitiveValueNode& node, UnitC
 
 void CSSCalcPrimitiveValueNode::multiply(double multiplier)
 {
-    Ref value = m_value;
-    auto valueType = value->primitiveType();
+    auto valueType = m_value->primitiveType();
     ASSERT(hasDoubleValue(valueType));
-    m_value = CSSPrimitiveValue::create(value->doubleValue(valueType) * multiplier, valueType);
+    m_value = CSSPrimitiveValue::create(m_value->doubleValue(valueType) * multiplier, valueType);
 }
 
 void CSSCalcPrimitiveValueNode::convertToUnitType(CSSUnitType unitType)
 {
-    Ref value = m_value;
-    ASSERT(unitCategory(unitType) == unitCategory(value->primitiveType()));
-    double newValue = value->doubleValue(unitType);
+    ASSERT(unitCategory(unitType) == unitCategory(m_value->primitiveType()));
+    double newValue = m_value->doubleValue(unitType);
     m_value = CSSPrimitiveValue::create(newValue, unitType);
 }
 
 void CSSCalcPrimitiveValueNode::canonicalizeUnit()
 {
-    Ref value = m_value;
-    auto category = calculationCategoryForCombination(value->primitiveType());
+    auto category = calculationCategoryForCombination(m_value->primitiveType());
     if (category == CalculationCategory::Other)
         return;
 
     auto canonicalType = canonicalUnitTypeForCalculationCategory(category);
-    if (canonicalType == value->primitiveType())
+    if (canonicalType == m_value->primitiveType())
         return;
 
-    double newValue = value->doubleValue(canonicalType);
+    double newValue = m_value->doubleValue(canonicalType);
     m_value = CSSPrimitiveValue::create(newValue, canonicalType);
 }
 
@@ -151,12 +144,12 @@ std::unique_ptr<CalcExpressionNode> CSSCalcPrimitiveValueNode::createCalcExpress
 {
     switch (category()) {
     case CalculationCategory::Number:
-        return makeUnique<CalcExpressionNumber>(protectedValue()->floatValue());
+        return makeUnique<CalcExpressionNumber>(m_value->floatValue());
     case CalculationCategory::Length:
-        return makeUnique<CalcExpressionLength>(Length(protectedValue()->computeLength<float>(conversionData), LengthType::Fixed));
+        return makeUnique<CalcExpressionLength>(Length(m_value->computeLength<float>(conversionData), LengthType::Fixed));
     case CalculationCategory::Percent:
     case CalculationCategory::PercentLength: {
-        return makeUnique<CalcExpressionLength>(protectedValue()->convertToLength<FixedFloatConversion | PercentConversion>(conversionData));
+        return makeUnique<CalcExpressionLength>(m_value->convertToLength<FixedFloatConversion | PercentConversion>(conversionData));
     }
     // Only types that could be part of a Length expression can be converted
     // to a CalcExpressionNode. CalculationCategory::PercentNumber makes no sense as a Length.
@@ -175,14 +168,13 @@ std::unique_ptr<CalcExpressionNode> CSSCalcPrimitiveValueNode::createCalcExpress
 double CSSCalcPrimitiveValueNode::doubleValue(CSSUnitType unitType) const
 {
     if (hasDoubleValue(unitType)) {
-        Ref value = m_value;
         // FIXME: This should ASSERT(unitCategory(m_value->primitiveType()) == unitCategory(unitType)), but only when all callers are fixed (e.g. webkit.org/b/204826).
-        if (unitCategory(value->primitiveType()) != unitCategory(unitType)) {
+        if (unitCategory(m_value->primitiveType()) != unitCategory(unitType)) {
             LOG_WITH_STREAM(Calc, stream << "Calling doubleValue() with unit " << unitType << " on a node of unit type " << m_value->primitiveType() << " which is incompatible");
             return 0;
         }
 
-        return value->doubleValue(unitType);
+        return m_value->doubleValue(unitType);
     }
     ASSERT_NOT_REACHED();
     return 0;
@@ -192,10 +184,10 @@ double CSSCalcPrimitiveValueNode::computeLengthPx(const CSSToLengthConversionDat
 {
     switch (category()) {
     case CalculationCategory::Length:
-        return protectedValue()->computeLength<double>(conversionData);
+        return m_value->computeLength<double>(conversionData);
     case CalculationCategory::Percent:
     case CalculationCategory::Number:
-        return protectedValue()->doubleValue();
+        return m_value->doubleValue();
     case CalculationCategory::PercentLength:
     case CalculationCategory::PercentNumber:
     case CalculationCategory::Angle:
@@ -212,12 +204,17 @@ double CSSCalcPrimitiveValueNode::computeLengthPx(const CSSToLengthConversionDat
 
 void CSSCalcPrimitiveValueNode::collectComputedStyleDependencies(ComputedStyleDependencies& dependencies) const
 {
-    protectedValue()->collectComputedStyleDependencies(dependencies);
+    m_value->collectComputedStyleDependencies(dependencies);
+}
+
+bool CSSCalcPrimitiveValueNode::convertingToLengthRequiresNonNullStyle(int lengthConversion) const
+{
+    return m_value->convertingToLengthRequiresNonNullStyle(lengthConversion);
 }
 
 bool CSSCalcPrimitiveValueNode::isZero() const
 {
-    return !protectedValue()->doubleValue();
+    return !m_value->doubleValue();
 }
 
 bool CSSCalcPrimitiveValueNode::equals(const CSSCalcExpressionNode& other) const
@@ -230,7 +227,7 @@ bool CSSCalcPrimitiveValueNode::equals(const CSSCalcExpressionNode& other) const
 
 void CSSCalcPrimitiveValueNode::dump(TextStream& ts) const
 {
-    ts << "value " << protectedValue()->customCSSText() << " (category: " << category() << ", type: " << primitiveType() << ")";
+    ts << "value " << m_value->customCSSText() << " (category: " << category() << ", type: " << primitiveType() << ")";
 }
 
 }

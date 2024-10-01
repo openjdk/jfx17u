@@ -30,55 +30,48 @@
 
 namespace WebCore {
 
-IdTargetObserverRegistry::IdTargetObserverRegistry() = default;
-
-IdTargetObserverRegistry::~IdTargetObserverRegistry() = default;
-
-void IdTargetObserverRegistry::addObserver(const AtomString& id, IdTargetObserver& observer)
+void IdTargetObserverRegistry::addObserver(const AtomString& id, IdTargetObserver* observer)
 {
     if (id.isEmpty())
         return;
 
-    IdToObserverSetMap::AddResult result = m_registry.ensure(id, [] {
-        return makeUnique<ObserverSet>();
-    });
+    IdToObserverSetMap::AddResult result = m_registry.add(id.impl(), nullptr);
+    if (result.isNewEntry)
+        result.iterator->value = makeUnique<ObserverSet>();
 
-    result.iterator->value->observers.add(observer);
+    result.iterator->value->add(observer);
 }
 
-void IdTargetObserverRegistry::removeObserver(const AtomString& id, IdTargetObserver& observer)
+void IdTargetObserverRegistry::removeObserver(const AtomString& id, IdTargetObserver* observer)
 {
     if (id.isEmpty() || m_registry.isEmpty())
         return;
 
-    IdToObserverSetMap::iterator iter = m_registry.find(id);
+    IdToObserverSetMap::iterator iter = m_registry.find(id.impl());
 
-    CheckedPtr set = iter->value.get();
-    set->observers.remove(observer);
-    if (set->observers.isEmpty() && set != m_notifyingObserversInSet) {
-        set = nullptr;
+    ObserverSet* set = iter->value.get();
+    set->remove(observer);
+    if (set->isEmpty() && set != m_notifyingObserversInSet)
         m_registry.remove(iter);
-    }
 }
 
-void IdTargetObserverRegistry::notifyObserversInternal(const AtomString& id)
+void IdTargetObserverRegistry::notifyObserversInternal(const AtomStringImpl& id)
 {
     ASSERT(!m_registry.isEmpty());
 
-    m_notifyingObserversInSet = m_registry.get(id);
+    m_notifyingObserversInSet = m_registry.get(&id);
     if (!m_notifyingObserversInSet)
         return;
 
-    for (auto& observer : copyToVector(m_notifyingObserversInSet->observers)) {
-        if (m_notifyingObserversInSet->observers.contains(observer))
+    for (auto& observer : copyToVector(*m_notifyingObserversInSet)) {
+        if (m_notifyingObserversInSet->contains(observer))
             observer->idTargetChanged();
     }
 
-    bool hasRemainingObservers = !m_notifyingObserversInSet->observers.isEmpty();
-    m_notifyingObserversInSet = nullptr;
+    if (m_notifyingObserversInSet->isEmpty())
+        m_registry.remove(&id);
 
-    if (!hasRemainingObservers)
-        m_registry.remove(id);
+    m_notifyingObserversInSet = nullptr;
 }
 
 } // namespace WebCore

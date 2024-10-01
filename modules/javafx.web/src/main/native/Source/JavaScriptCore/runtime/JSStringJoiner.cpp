@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2024 Apple Inc. All rights reserved.
+ * Copyright (C) 2012-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,13 +41,6 @@ static inline void appendStringToData(CharacterType*& data, StringView string)
     } else
     string.getCharacters(data);
     data += string.length();
-}
-
-template<typename OutputCharacterType, typename SeparatorCharacterType>
-static inline void appendStringToData(OutputCharacterType*& data, std::span<const SeparatorCharacterType> separator)
-{
-    StringImpl::copyCharacters(data, separator.data(), separator.size());
-    data += separator.size();
 }
 
 template<typename CharacterType>
@@ -98,19 +91,19 @@ static inline void appendStringToDataWithOneCharacterSeparatorRepeatedly(Charact
     }
 }
 
-template<typename OutputCharacterType, typename SeparatorCharacterType>
-static inline String joinStrings(const JSStringJoiner::Entries& strings, std::span<const SeparatorCharacterType> separator, unsigned joinedLength)
+template<typename CharacterType>
+static inline String joinStrings(const JSStringJoiner::Entries& strings, StringView separator, unsigned joinedLength)
 {
     ASSERT(joinedLength);
 
-    OutputCharacterType* data;
+    CharacterType* data;
     String result = StringImpl::tryCreateUninitialized(joinedLength, data);
     if (UNLIKELY(result.isNull()))
         return result;
 
     unsigned size = strings.size();
 
-    switch (separator.size()) {
+    switch (separator.length()) {
     case 0: {
         for (unsigned i = 0; i < size; ++i) {
             const auto& entry = strings[i];
@@ -122,7 +115,7 @@ static inline String joinStrings(const JSStringJoiner::Entries& strings, std::sp
         break;
     }
     case 1: {
-        OutputCharacterType separatorCharacter = separator.data()[0];
+        CharacterType separatorCharacter = separator[0];
         {
             const auto& entry = strings[0];
             unsigned count = entry.m_additional;
@@ -157,7 +150,7 @@ static inline String joinStrings(const JSStringJoiner::Entries& strings, std::sp
         break;
         }
     }
-    ASSERT(data == result.characters<OutputCharacterType>() + joinedLength);
+    ASSERT(data == result.characters<CharacterType>() + joinedLength);
 
     return result;
 }
@@ -185,34 +178,24 @@ JSValue JSStringJoiner::joinSlow(JSGlobalObject* globalObject)
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
 
-    if (UNLIKELY(m_hasOverflowed)) {
-        throwOutOfMemoryError(globalObject, scope);
-        return { };
-    }
     ASSERT(m_strings.size() <= m_strings.capacity());
 
     unsigned length = joinedLength(globalObject);
-    RETURN_IF_EXCEPTION(scope, { });
+    RETURN_IF_EXCEPTION(scope, JSValue());
 
     if (!length)
         return jsEmptyString(vm);
 
     String result;
     if (m_isAll8Bit)
-        result = joinStrings<LChar>(m_strings, m_separator.span8(), length);
-    else {
-        if (m_separator.is8Bit())
-            result = joinStrings<UChar>(m_strings, m_separator.span8(), length);
+        result = joinStrings<LChar>(m_strings, m_separator, length);
     else
-            result = joinStrings<UChar>(m_strings, m_separator.span16(), length);
-    }
+        result = joinStrings<UChar>(m_strings, m_separator, length);
 
-    if (UNLIKELY(result.isNull())) {
-        throwOutOfMemoryError(globalObject, scope);
-        return { };
-    }
+    if (result.isNull())
+        return throwOutOfMemoryError(globalObject, scope);
 
     return jsString(vm, WTFMove(result));
 }
 
-} // namespace JSC
+}

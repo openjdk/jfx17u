@@ -59,7 +59,7 @@ std::optional<SVGPathSegType> SVGPathSegListSource::parseSVGSegmentType()
 std::optional<SVGPathSource::MoveToSegment> SVGPathSegListSource::parseMoveToSegment()
 {
     ASSERT(m_segment);
-    ASSERT(m_segment->pathSegType() == SVGPathSegType::MoveToAbs || m_segment->pathSegType() == SVGPathSegType::MoveToRel);
+    ASSERT(m_segment->pathSegType() == PathSegMoveToAbs || m_segment->pathSegType() == PathSegMoveToRel);
     SVGPathSegSingleCoordinate* moveTo = static_cast<SVGPathSegSingleCoordinate*>(m_segment.get());
 
     MoveToSegment segment;
@@ -70,7 +70,7 @@ std::optional<SVGPathSource::MoveToSegment> SVGPathSegListSource::parseMoveToSeg
 std::optional<SVGPathSource::LineToSegment> SVGPathSegListSource::parseLineToSegment()
 {
     ASSERT(m_segment);
-    ASSERT(m_segment->pathSegType() == SVGPathSegType::LineToAbs || m_segment->pathSegType() == SVGPathSegType::LineToRel);
+    ASSERT(m_segment->pathSegType() == PathSegLineToAbs || m_segment->pathSegType() == PathSegLineToRel);
     SVGPathSegSingleCoordinate* lineTo = static_cast<SVGPathSegSingleCoordinate*>(m_segment.get());
 
     LineToSegment segment;
@@ -81,7 +81,7 @@ std::optional<SVGPathSource::LineToSegment> SVGPathSegListSource::parseLineToSeg
 std::optional<SVGPathSource::LineToHorizontalSegment> SVGPathSegListSource::parseLineToHorizontalSegment()
 {
     ASSERT(m_segment);
-    ASSERT(m_segment->pathSegType() == SVGPathSegType::LineToHorizontalAbs || m_segment->pathSegType() == SVGPathSegType::LineToHorizontalRel);
+    ASSERT(m_segment->pathSegType() == PathSegLineToHorizontalAbs || m_segment->pathSegType() == PathSegLineToHorizontalRel);
     SVGPathSegLinetoHorizontal* horizontal = static_cast<SVGPathSegLinetoHorizontal*>(m_segment.get());
 
     LineToHorizontalSegment segment;
@@ -92,7 +92,7 @@ std::optional<SVGPathSource::LineToHorizontalSegment> SVGPathSegListSource::pars
 std::optional<SVGPathSource::LineToVerticalSegment> SVGPathSegListSource::parseLineToVerticalSegment()
 {
     ASSERT(m_segment);
-    ASSERT(m_segment->pathSegType() == SVGPathSegType::LineToVerticalAbs || m_segment->pathSegType() == SVGPathSegType::LineToVerticalRel);
+    ASSERT(m_segment->pathSegType() == PathSegLineToVerticalAbs || m_segment->pathSegType() == PathSegLineToVerticalRel);
     SVGPathSegLinetoVertical* vertical = static_cast<SVGPathSegLinetoVertical*>(m_segment.get());
 
     LineToVerticalSegment segment;
@@ -103,7 +103,7 @@ std::optional<SVGPathSource::LineToVerticalSegment> SVGPathSegListSource::parseL
 std::optional<SVGPathSource::CurveToCubicSegment> SVGPathSegListSource::parseCurveToCubicSegment()
 {
     ASSERT(m_segment);
-    ASSERT(m_segment->pathSegType() == SVGPathSegType::CurveToCubicAbs || m_segment->pathSegType() == SVGPathSegType::CurveToCubicRel);
+    ASSERT(m_segment->pathSegType() == PathSegCurveToCubicAbs || m_segment->pathSegType() == PathSegCurveToCubicRel);
     SVGPathSegCurvetoCubic* cubic = static_cast<SVGPathSegCurvetoCubic*>(m_segment.get());
 
     CurveToCubicSegment segment;
@@ -116,7 +116,7 @@ std::optional<SVGPathSource::CurveToCubicSegment> SVGPathSegListSource::parseCur
 std::optional<SVGPathSource::CurveToCubicSmoothSegment> SVGPathSegListSource::parseCurveToCubicSmoothSegment()
 {
     ASSERT(m_segment);
-    ASSERT(m_segment->pathSegType() == SVGPathSegType::CurveToCubicSmoothAbs || m_segment->pathSegType() == SVGPathSegType::CurveToCubicSmoothRel);
+    ASSERT(m_segment->pathSegType() == PathSegCurveToCubicSmoothAbs || m_segment->pathSegType() == PathSegCurveToCubicSmoothRel);
     SVGPathSegCurvetoCubicSmooth* cubicSmooth = static_cast<SVGPathSegCurvetoCubicSmooth*>(m_segment.get());
 
     CurveToCubicSmoothSegment segment;
@@ -128,7 +128,7 @@ std::optional<SVGPathSource::CurveToCubicSmoothSegment> SVGPathSegListSource::pa
 std::optional<SVGPathSource::CurveToQuadraticSegment> SVGPathSegListSource::parseCurveToQuadraticSegment()
 {
     ASSERT(m_segment);
-    ASSERT(m_segment->pathSegType() == SVGPathSegType::CurveToQuadraticAbs || m_segment->pathSegType() == SVGPathSegType::CurveToQuadraticRel);
+    ASSERT(m_segment->pathSegType() == PathSegCurveToQuadraticAbs || m_segment->pathSegType() == PathSegCurveToQuadraticRel);
     SVGPathSegCurvetoQuadratic* quadratic = static_cast<SVGPathSegCurvetoQuadratic*>(m_segment.get());
 
     CurveToQuadraticSegment segment;
@@ -140,7 +140,7 @@ std::optional<SVGPathSource::CurveToQuadraticSegment> SVGPathSegListSource::pars
 std::optional<SVGPathSource::CurveToQuadraticSmoothSegment> SVGPathSegListSource::parseCurveToQuadraticSmoothSegment()
 {
     ASSERT(m_segment);
-    ASSERT(m_segment->pathSegType() == SVGPathSegType::CurveToQuadraticSmoothAbs || m_segment->pathSegType() == SVGPathSegType::CurveToQuadraticSmoothRel);
+    ASSERT(m_segment->pathSegType() == PathSegCurveToQuadraticSmoothAbs || m_segment->pathSegType() == PathSegCurveToQuadraticSmoothRel);
     SVGPathSegSingleCoordinate* quadraticSmooth = static_cast<SVGPathSegSingleCoordinate*>(m_segment.get());
 
     CurveToQuadraticSmoothSegment segment;
@@ -151,7 +151,7 @@ std::optional<SVGPathSource::CurveToQuadraticSmoothSegment> SVGPathSegListSource
 std::optional<SVGPathSource::ArcToSegment> SVGPathSegListSource::parseArcToSegment()
 {
     ASSERT(m_segment);
-    ASSERT(m_segment->pathSegType() == SVGPathSegType::ArcAbs || m_segment->pathSegType() == SVGPathSegType::ArcRel);
+    ASSERT(m_segment->pathSegType() == PathSegArcAbs || m_segment->pathSegType() == PathSegArcRel);
     SVGPathSegArc* arcTo = static_cast<SVGPathSegArc*>(m_segment.get());
 
     ArcToSegment segment;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2024 Apple Inc. All rights reserved.
+ * Copyright (C) 2014-2022 Apple Inc. All rights reserved.
  * Copyright (c) 2010 Google Inc. All rights reserved.
  * Copyright (C) 2012 Research In Motion Limited. All rights reserved.
  *
@@ -68,8 +68,10 @@ public:
             return IterationStatus::Continue;
 
         if (m_remainingCapacityForFrameCapture) {
-            auto lineColumn = visitor->computeLineAndColumn();
-            m_frames.append(ScriptCallFrame(visitor->functionName(), visitor->sourceURL(), visitor->preRedirectURL(), visitor->sourceID(), lineColumn));
+            unsigned line;
+            unsigned column;
+            visitor->computeLineAndColumn(line, column);
+            m_frames.append(ScriptCallFrame(visitor->functionName(), visitor->sourceURL(), visitor->preRedirectURL(), visitor->sourceID(), line, column));
 
             m_remainingCapacityForFrameCapture--;
             return IterationStatus::Continue;
@@ -141,7 +143,7 @@ Ref<ScriptCallStack> createScriptCallStackForConsole(JSC::JSGlobalObject* global
     return stack;
 }
 
-static bool extractSourceInformationFromException(JSC::JSGlobalObject* globalObject, JSObject* exceptionObject, LineColumn* lineColumn, String* sourceURL)
+static bool extractSourceInformationFromException(JSC::JSGlobalObject* globalObject, JSObject* exceptionObject, int* lineNumber, int* columnNumber, String* sourceURL)
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_CATCH_SCOPE(vm);
@@ -154,12 +156,17 @@ static bool extractSourceInformationFromException(JSC::JSGlobalObject* globalObj
     bool result = false;
     if (lineValue && lineValue.isNumber()
         && sourceURLValue && sourceURLValue.isString()) {
-        lineColumn->line = int(lineValue.toNumber(globalObject));
-        lineColumn->column = columnValue && columnValue.isNumber() ? int(columnValue.toNumber(globalObject)) : 0;
+        *lineNumber = int(lineValue.toNumber(globalObject));
+        *columnNumber = columnValue && columnValue.isNumber() ? int(columnValue.toNumber(globalObject)) : 0;
         *sourceURL = sourceURLValue.toWTFString(globalObject);
         result = true;
-    } else if (ErrorInstance* error = jsDynamicCast<ErrorInstance*>(exceptionObject))
-        result = getLineColumnAndSource(vm, error->stackTrace(), *lineColumn, *sourceURL);
+    } else if (ErrorInstance* error = jsDynamicCast<ErrorInstance*>(exceptionObject)) {
+        unsigned unsignedLine;
+        unsigned unsignedColumn;
+        result = getLineColumnAndSource(vm, error->stackTrace(), unsignedLine, unsignedColumn, *sourceURL);
+        *lineNumber = static_cast<int>(unsignedLine);
+        *columnNumber = static_cast<int>(unsignedColumn);
+    }
 
     if (sourceURL->isEmpty())
         *sourceURL = "undefined"_s;
@@ -174,20 +181,23 @@ Ref<ScriptCallStack> createScriptCallStackFromException(JSC::JSGlobalObject* glo
     auto& stackTrace = exception->stack();
     VM& vm = globalObject->vm();
     for (size_t i = 0; i < stackTrace.size() && i < maxStackSize; i++) {
-        auto lineColumn = stackTrace[i].computeLineAndColumn();
+        unsigned line;
+        unsigned column;
+        stackTrace[i].computeLineAndColumn(line, column);
         String functionName = stackTrace[i].functionName(vm);
-        frames.append(ScriptCallFrame(functionName, stackTrace[i].sourceURL(vm), stackTrace[i].sourceID(), lineColumn));
+        frames.append(ScriptCallFrame(functionName, stackTrace[i].sourceURL(vm), stackTrace[i].sourceID(), line, column));
     }
 
     // Fallback to getting at least the line and sourceURL from the exception object if it has values and the exceptionStack doesn't.
     if (exception->value().isObject()) {
         JSObject* exceptionObject = exception->value().toObject(globalObject);
         ASSERT(exceptionObject);
-        LineColumn lineColumn;
+        int lineNumber;
+        int columnNumber;
         String exceptionSourceURL;
         if (!frames.size()) {
-            if (extractSourceInformationFromException(globalObject, exceptionObject, &lineColumn, &exceptionSourceURL))
-                frames.append(ScriptCallFrame(String(), exceptionSourceURL, noSourceID, lineColumn));
+            if (extractSourceInformationFromException(globalObject, exceptionObject, &lineNumber, &columnNumber, &exceptionSourceURL))
+                frames.append(ScriptCallFrame(String(), exceptionSourceURL, noSourceID, lineNumber, columnNumber));
         } else {
             // FIXME: The typical stack trace will have a native frame at the top, and consumers of
             // this code already know this (see JSDOMExceptionHandling.cpp's reportException, for
@@ -196,8 +206,8 @@ Ref<ScriptCallStack> createScriptCallStackFromException(JSC::JSGlobalObject* glo
             // https://bugs.webkit.org/show_bug.cgi?id=176663
             if (!stackTrace[0].hasLineAndColumnInfo() || stackTrace[0].sourceURL(vm).isEmpty()) {
                 const ScriptCallFrame& firstCallFrame = frames.first();
-                if (extractSourceInformationFromException(globalObject, exceptionObject, &lineColumn, &exceptionSourceURL))
-                    frames[0] = ScriptCallFrame(firstCallFrame.functionName(), exceptionSourceURL, stackTrace[0].sourceID(), lineColumn);
+                if (extractSourceInformationFromException(globalObject, exceptionObject, &lineNumber, &columnNumber, &exceptionSourceURL))
+                    frames[0] = ScriptCallFrame(firstCallFrame.functionName(), exceptionSourceURL, stackTrace[0].sourceID(), lineNumber, columnNumber);
             }
         }
     }

@@ -170,7 +170,6 @@ public:
     Inspector::Protocol::ErrorStringOr<void> focus(Inspector::Protocol::DOM::NodeId);
     Inspector::Protocol::ErrorStringOr<void> setInspectedNode(Inspector::Protocol::DOM::NodeId);
     Inspector::Protocol::ErrorStringOr<void> setAllowEditingUserAgentShadowTrees(bool);
-    Inspector::Protocol::ErrorStringOr<Ref<Inspector::Protocol::DOM::MediaStats>> getMediaStats(Inspector::Protocol::DOM::NodeId);
 
     // InspectorInstrumentation
     Inspector::Protocol::DOM::NodeId identifierForNode(Node&);
@@ -290,7 +289,7 @@ private:
     std::optional<InspectorOverlay::Flex::Config> m_inspectModeFlexOverlayConfig;
     std::unique_ptr<InspectorHistory> m_history;
     std::unique_ptr<DOMEditor> m_domEditor;
-    SingleThreadWeakHashMap<RenderObject, Vector<size_t>> m_flexibleBoxRendererCachedItemsAtStartOfLine;
+    WeakHashMap<RenderObject, Vector<size_t>> m_flexibleBoxRendererCachedItemsAtStartOfLine;
 
     Vector<Inspector::Protocol::DOM::NodeId> m_destroyedDetachedNodeIdentifiers;
     Vector<std::pair<Inspector::Protocol::DOM::NodeId, Inspector::Protocol::DOM::NodeId>> m_destroyedAttachedNodeIdentifiers;

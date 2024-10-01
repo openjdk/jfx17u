@@ -31,13 +31,13 @@ namespace WebCore {
 
 class RemoveFormatCommand : public CompositeEditCommand {
 public:
-    static Ref<RemoveFormatCommand> create(Ref<Document>&& document)
+    static Ref<RemoveFormatCommand> create(Document& document)
     {
-        return adoptRef(*new RemoveFormatCommand(WTFMove(document)));
+        return adoptRef(*new RemoveFormatCommand(document));
     }
 
 private:
-    explicit RemoveFormatCommand(Ref<Document>&&);
+    explicit RemoveFormatCommand(Document&);
 
     void doApply() override;
     EditAction editingAction() const override { return EditAction::Unspecified; }

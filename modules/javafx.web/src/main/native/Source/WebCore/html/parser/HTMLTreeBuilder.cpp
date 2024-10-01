@@ -279,8 +279,7 @@ HTMLTreeBuilder::HTMLTreeBuilder(HTMLDocumentParser& parser, DocumentFragment& f
 
     resetInsertionModeAppropriately();
 
-    auto* formElement = dynamicDowncast<HTMLFormElement>(contextElement);
-    m_tree.setForm(formElement ? formElement : HTMLFormElement::findClosestFormAncestor(contextElement));
+    m_tree.setForm(is<HTMLFormElement>(contextElement) ? &downcast<HTMLFormElement>(contextElement) : HTMLFormElement::findClosestFormAncestor(contextElement));
 
 #if ASSERT_ENABLED
     m_destructionProhibited = false;
@@ -785,6 +784,9 @@ void HTMLTreeBuilder::processStartTagForInBody(AtomHTMLToken&& token)
     case TagName::applet:
     case TagName::embed:
     case TagName::object:
+        if (!pluginContentIsAllowed(m_tree.parserContentPolicy()))
+            return;
+        FALLTHROUGH;
     case TagName::marquee:
         m_tree.reconstructTheActiveFormattingElements();
         if (token.tagName() == TagName::embed) {
@@ -970,7 +972,8 @@ bool HTMLTreeBuilder::processTemplateEndTag(AtomHTMLToken&& token)
     if (m_tree.currentStackItem().elementName() != HTML::template_)
         parseError(token);
     m_tree.openElements().popUntil(HTML::template_);
-    Ref templateElement = checkedDowncast<HTMLTemplateElement>(m_tree.openElements().top());
+    RELEASE_ASSERT(is<HTMLTemplateElement>(m_tree.openElements().top()));
+    Ref templateElement = downcast<HTMLTemplateElement>(m_tree.openElements().top());
     m_tree.openElements().pop();
 
     auto& item = adjustedCurrentStackItem();
@@ -1640,7 +1643,7 @@ void HTMLTreeBuilder::callTheAdoptionAgency(AtomHTMLToken& token)
             // 4.13.5.
             auto* nodeEntry = m_tree.activeFormattingElements().find(node->element());
             if (!nodeEntry) {
-                m_tree.openElements().remove(node->protectedElement());
+                m_tree.openElements().remove(node->element());
                 node = nullptr;
                 continue;
             }
@@ -2491,17 +2494,13 @@ void HTMLTreeBuilder::linkifyPhoneNumbers(const String& string)
 // Looks at the ancestors of the element to determine whether we're inside an element which disallows parsing phone numbers.
 static inline bool disallowTelephoneNumberParsing(const ContainerNode& node)
 {
-    if (is<HTMLFormControlElement>(node))
+    if (node.isLink() || is<HTMLFormControlElement>(node))
         return true;
 
-    auto* element = dynamicDowncast<Element>(node);
-    if (!element)
+    if (!is<Element>(node))
         return false;
 
-    if (element->isLink())
-        return true;
-
-    switch (element->elementName()) {
+    switch (downcast<Element>(node).elementName()) {
     case HTML::a:
     case HTML::script:
     case HTML::style:
@@ -3030,7 +3029,7 @@ void HTMLTreeBuilder::processTokenInForeignContent(AtomHTMLToken&& token)
         default:
             break;
         }
-        auto& currentNamespace = adjustedCurrentNode.namespaceURI();
+        const AtomString& currentNamespace = adjustedCurrentNode.namespaceURI();
         if (currentNamespace == MathMLNames::mathmlNamespaceURI)
             adjustMathMLAttributes(token);
         if (currentNamespace == SVGNames::svgNamespaceURI) {
@@ -3038,15 +3037,6 @@ void HTMLTreeBuilder::processTokenInForeignContent(AtomHTMLToken&& token)
             adjustSVGAttributes(token);
         }
         adjustForeignAttributes(token);
-
-        if (token.tagName() == TagName::script && token.selfClosing() && currentNamespace == SVGNames::svgNamespaceURI) {
-            token.setSelfClosingToFalse();
-            m_tree.insertForeignElement(WTFMove(token), currentNamespace);
-            AtomHTMLToken fakeToken(HTMLToken::Type::EndTag, TagName::script);
-            processTokenInForeignContent(WTFMove(fakeToken));
-            return;
-        }
-
         m_tree.insertForeignElement(WTFMove(token), currentNamespace);
         break;
     }

@@ -140,7 +140,7 @@ struct ModuleInformation : public ThreadSafeRefCounted<ModuleInformation> {
         if (Options::forceAllFunctionsToUseSIMD())
             return true;
         // The LLInt discovers this value.
-        ASSERT(Options::useWasmLLInt() || Options::useWasmIPInt());
+        ASSERT(Options::useWasmLLInt());
 
         return functions[index].usesSIMD;
     }
@@ -193,7 +193,6 @@ struct ModuleInformation : public ThreadSafeRefCounted<ModuleInformation> {
     BranchHints branchHints;
     std::optional<uint32_t> numberOfDataSegments;
     Vector<RefPtr<const RTT>> rtts;
-    Vector<Vector<uint8_t>> constantExpressions;
 
     BitVector m_declaredFunctions;
     BitVector m_declaredExceptions;

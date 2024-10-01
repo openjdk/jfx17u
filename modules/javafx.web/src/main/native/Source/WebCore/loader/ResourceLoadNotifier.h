@@ -32,7 +32,6 @@
 #include "ResourceLoaderIdentifier.h"
 #include <optional>
 #include <wtf/Noncopyable.h>
-#include <wtf/WeakRef.h>
 
 namespace WebCore {
 
@@ -76,9 +75,7 @@ public:
     }
 
 private:
-    Ref<LocalFrame> protectedFrame() const;
-
-    WeakRef<LocalFrame> m_frame;
+    LocalFrame& m_frame;
     std::optional<ResourceLoaderIdentifier> m_initialRequestIdentifier;
 };
 

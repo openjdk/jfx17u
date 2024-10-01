@@ -62,7 +62,7 @@ static String formatByteNumber(size_t number)
 
 static String gcTimerString(MonotonicTime timerFireDate, MonotonicTime now)
 {
-    if (timerFireDate.isNaN())
+    if (std::isnan(timerFireDate))
         return "[not scheduled]"_s;
     return String::numberToStringFixedPrecision((timerFireDate - now).seconds());
 }
@@ -81,7 +81,7 @@ public:
         fontDescription.setOneFamily(systemFontDatabase.systemFontShorthandFamily(messageBox));
         fontDescription.setWeight(systemFontDatabase.systemFontShorthandWeight(messageBox));
         fontDescription.setComputedSize(gFontSize);
-        m_textFont = FontCascade(WTFMove(fontDescription));
+        m_textFont = FontCascade(WTFMove(fontDescription), 0, 0);
         m_textFont.update(nullptr);
     }
 

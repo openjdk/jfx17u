@@ -26,7 +26,6 @@
 #include "TabSize.h"
 #include "TextFlags.h"
 #include "WritingMode.h"
-#include <wtf/CheckedRef.h>
 #include <wtf/text/StringView.h>
 
 namespace WebCore {
@@ -40,7 +39,7 @@ class Font;
 
 struct GlyphData;
 
-class TextRun : public CanMakeCheckedPtr {
+class TextRun {
     WTF_MAKE_FAST_ALLOCATED;
     friend void add(Hasher&, const TextRun&);
 public:
@@ -115,7 +114,7 @@ public:
         return result;
     }
 
-    UChar operator[](unsigned i) const { RELEASE_ASSERT(i < m_text.length()); return m_text[i]; }
+    UChar operator[](unsigned i) const { ASSERT_WITH_SECURITY_IMPLICATION(i < m_text.length()); return m_text[i]; }
     const LChar* data8(unsigned i) const { ASSERT_WITH_SECURITY_IMPLICATION(i < m_text.length()); ASSERT(is8Bit()); return &m_text.characters8()[i]; }
     const UChar* data16(unsigned i) const { ASSERT_WITH_SECURITY_IMPLICATION(i < m_text.length()); ASSERT(!is8Bit()); return &m_text.characters16()[i]; }
 

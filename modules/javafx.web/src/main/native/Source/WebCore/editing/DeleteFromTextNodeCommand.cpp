@@ -45,36 +45,29 @@ DeleteFromTextNodeCommand::DeleteFromTextNodeCommand(Ref<Text>&& node, unsigned 
 
 void DeleteFromTextNodeCommand::doApply()
 {
-    auto node = protectedNode();
-    if (!isEditableNode(node))
+    if (!isEditableNode(m_node))
         return;
 
-    auto result = node->substringData(m_offset, m_count);
+    auto result = m_node->substringData(m_offset, m_count);
     if (result.hasException())
         return;
     m_text = result.releaseReturnValue();
-    node->deleteData(m_offset, m_count);
+    m_node->deleteData(m_offset, m_count);
 }
 
 void DeleteFromTextNodeCommand::doUnapply()
 {
-    auto node = protectedNode();
-    if (!node->hasEditableStyle())
+    if (!m_node->hasEditableStyle())
         return;
 
-    node->insertData(m_offset, m_text);
+    m_node->insertData(m_offset, m_text);
 }
 
 #ifndef NDEBUG
 void DeleteFromTextNodeCommand::getNodesInCommand(HashSet<Ref<Node>>& nodes)
 {
-    addNodeAndDescendants(protectedNode().ptr(), nodes);
+    addNodeAndDescendants(m_node.ptr(), nodes);
 }
 #endif
-
-inline Ref<Text> DeleteFromTextNodeCommand::protectedNode() const
-{
-    return m_node;
-}
 
 } // namespace WebCore

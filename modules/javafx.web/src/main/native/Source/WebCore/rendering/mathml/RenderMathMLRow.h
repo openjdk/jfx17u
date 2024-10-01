@@ -37,7 +37,7 @@ class MathMLRowElement;
 class RenderMathMLRow : public RenderMathMLBlock {
     WTF_MAKE_ISO_ALLOCATED(RenderMathMLRow);
 public:
-    RenderMathMLRow(Type, MathMLRowElement&, RenderStyle&&);
+    RenderMathMLRow(MathMLRowElement&, RenderStyle&&);
     MathMLRowElement& element() const;
 
 protected:
@@ -50,6 +50,7 @@ protected:
     void computePreferredLogicalWidths() override;
 
 private:
+    bool isRenderMathMLRow() const final { return true; }
     ASCIILiteral renderName() const override { return "RenderMathMLRow"_s; }
 };
 

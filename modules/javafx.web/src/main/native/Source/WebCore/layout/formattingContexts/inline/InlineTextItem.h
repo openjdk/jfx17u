@@ -33,6 +33,8 @@ namespace Layout {
 
 class InlineItemsBuilder;
 
+using InlineItems = Vector<InlineItem>;
+
 class InlineTextItem : public InlineItem {
 public:
     static InlineTextItem createWhitespaceItem(const InlineTextBox&, unsigned start, unsigned length, UBiDiLevel, bool isWordSeparator, std::optional<InlineLayoutUnit> width);

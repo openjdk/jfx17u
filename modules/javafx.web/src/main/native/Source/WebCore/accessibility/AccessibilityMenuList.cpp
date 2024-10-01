@@ -51,7 +51,8 @@ bool AccessibilityMenuList::press()
 #if !PLATFORM(IOS_FAMILY)
     auto element = this->element();
     AXObjectCache::AXNotification notification = AXObjectCache::AXPressDidFail;
-    if (CheckedPtr menuList = dynamicDowncast<RenderMenuList>(renderer()); menuList && element && !element->isDisabledFormControl()) {
+    if (element && !element->isDisabledFormControl() && is<RenderMenuList>(renderer())) {
+        RenderMenuList* menuList = downcast<RenderMenuList>(renderer());
         if (menuList->popupIsVisible())
             menuList->hidePopup();
         else
@@ -101,8 +102,8 @@ bool AccessibilityMenuList::isCollapsed() const
         return true;
 
 #if !PLATFORM(IOS_FAMILY)
-    CheckedPtr menuList = dynamicDowncast<RenderMenuList>(renderer());
-    return !(menuList && menuList->popupIsVisible());
+    auto* renderer = this->renderer();
+    return !(is<RenderMenuList>(renderer) && downcast<RenderMenuList>(*renderer).popupIsVisible());
 #else
     return true;
 #endif
@@ -133,12 +134,14 @@ void AccessibilityMenuList::didUpdateActiveOption(int optionIndex)
         // You can reproduce the issue in the GTK+ port by removing this check and running
         // accessibility/insert-selected-option-into-select-causes-crash.html (will crash).
         int popupChildrenSize = static_cast<int>(childObjects[0]->children().size());
-        if (auto* accessibilityMenuListPopup = dynamicDowncast<AccessibilityMenuListPopup>(*childObjects[0]); accessibilityMenuListPopup && optionIndex >= 0 && optionIndex < popupChildrenSize)
-            accessibilityMenuListPopup->didUpdateActiveOption(optionIndex);
+        if (is<AccessibilityMenuListPopup>(*childObjects[0]) && optionIndex >= 0 && optionIndex < popupChildrenSize)
+            downcast<AccessibilityMenuListPopup>(*childObjects[0]).didUpdateActiveOption(optionIndex);
     }
 
+#if ENABLE(ACCESSIBILITY)
     if (auto* cache = document->axObjectCache())
         cache->deferMenuListValueChange(element());
+#endif
 }
 
 } // namespace WebCore

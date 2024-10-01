@@ -221,7 +221,8 @@ public:
     {
         ASSERT(!operand.isConstant());
 
-        return &m_graph.m_variableAccessData.alloc(operand);
+        m_graph.m_variableAccessData.append(operand);
+        return &m_graph.m_variableAccessData.last();
     }
 
     Graph& m_graph;

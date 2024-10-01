@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "BackgroundFetchFailureReason.h"
 #include "BackgroundFetchOptions.h"
 #include "BackgroundFetchRecordIdentifier.h"
@@ -168,3 +170,5 @@ private:
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

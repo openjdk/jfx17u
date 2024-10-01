@@ -27,12 +27,12 @@ namespace WebCore {
 
 class SourceGraphic : public FilterEffect {
 public:
-    WEBCORE_EXPORT static Ref<SourceGraphic> create(DestinationColorSpace = DestinationColorSpace::SRGB());
+    WEBCORE_EXPORT static Ref<SourceGraphic> create();
 
     static AtomString effectName() { return FilterEffect::sourceGraphicName(); }
 
 private:
-    explicit SourceGraphic(DestinationColorSpace);
+    SourceGraphic();
 
     unsigned numberOfEffectInputs() const override { return 0; }
 
@@ -45,4 +45,4 @@ private:
 
 } //namespace WebCore
 
-SPECIALIZE_TYPE_TRAITS_FILTER_FUNCTION(SourceGraphic)
+SPECIALIZE_TYPE_TRAITS_FILTER_EFFECT(SourceGraphic)

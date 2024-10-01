@@ -35,12 +35,17 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(ANGLEInstancedArrays);
 
 ANGLEInstancedArrays::ANGLEInstancedArrays(WebGLRenderingContextBase& context)
-    : WebGLExtension(context, WebGLExtensionName::ANGLEInstancedArrays)
+    : WebGLExtension(context)
 {
-    context.protectedGraphicsContextGL()->ensureExtensionEnabled("GL_ANGLE_instanced_arrays"_s);
+    context.graphicsContextGL()->ensureExtensionEnabled("GL_ANGLE_instanced_arrays"_s);
 }
 
 ANGLEInstancedArrays::~ANGLEInstancedArrays() = default;
+
+WebGLExtension::ExtensionName ANGLEInstancedArrays::getName() const
+{
+    return ANGLEInstancedArraysName;
+}
 
 bool ANGLEInstancedArrays::supported(GraphicsContextGL& context)
 {
@@ -49,26 +54,26 @@ bool ANGLEInstancedArrays::supported(GraphicsContextGL& context)
 
 void ANGLEInstancedArrays::drawArraysInstancedANGLE(GCGLenum mode, GCGLint first, GCGLsizei count, GCGLsizei primcount)
 {
-    if (isContextLost())
+    auto context = WebGLExtensionScopedContext(this);
+    if (context.isLost())
         return;
-    auto& context = this->context();
-    context.drawArraysInstanced(mode, first, count, primcount);
+    context->drawArraysInstanced(mode, first, count, primcount);
 }
 
 void ANGLEInstancedArrays::drawElementsInstancedANGLE(GCGLenum mode, GCGLsizei count, GCGLenum type, long long offset, GCGLsizei primcount)
 {
-    if (isContextLost())
+    auto context = WebGLExtensionScopedContext(this);
+    if (context.isLost())
         return;
-    auto& context = this->context();
-    context.drawElementsInstanced(mode, count, type, offset, primcount);
+    context->drawElementsInstanced(mode, count, type, offset, primcount);
 }
 
 void ANGLEInstancedArrays::vertexAttribDivisorANGLE(GCGLuint index, GCGLuint divisor)
 {
-    if (isContextLost())
+    auto context = WebGLExtensionScopedContext(this);
+    if (context.isLost())
         return;
-    auto& context = this->context();
-    context.vertexAttribDivisor(index, divisor);
+    context->vertexAttribDivisor(index, divisor);
 }
 
 } // namespace WebCore

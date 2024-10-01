@@ -30,7 +30,6 @@
 
 #include "CodeBlock.h"
 #include "DFGCommon.h"
-#include "ExecutableBaseInlines.h"
 #include "JSCellInlines.h"
 #include "Options.h"
 
@@ -71,44 +70,20 @@ bool mightCompileFunctionForConstruct(CodeBlock* codeBlock)
         && codeBlock->ownerExecutable()->isOkToOptimize();
 }
 
-bool mightInlineFunctionForCall(JITType jitType, CodeBlock* codeBlock)
+bool mightInlineFunctionForCall(CodeBlock* codeBlock)
 {
-    if (codeBlock->ownerExecutable()->inlineAttribute() != InlineAttribute::Always) {
-        if (jitType == JITType::DFGJIT) {
-            if (codeBlock->bytecodeCost() > Options::maximumFunctionForCallInlineCandidateBytecodeCostForDFG())
-                return false;
-        } else {
-            if (codeBlock->bytecodeCost() > Options::maximumFunctionForCallInlineCandidateBytecodeCostForFTL())
-                return false;
-        }
-    }
-    return isSupportedForInlining(codeBlock);
+    return codeBlock->bytecodeCost() <= Options::maximumFunctionForCallInlineCandidateBytecodeCost()
+        && isSupportedForInlining(codeBlock);
 }
-bool mightInlineFunctionForClosureCall(JITType jitType, CodeBlock* codeBlock)
+bool mightInlineFunctionForClosureCall(CodeBlock* codeBlock)
 {
-    if (codeBlock->ownerExecutable()->inlineAttribute() != InlineAttribute::Always) {
-        if (jitType == JITType::DFGJIT) {
-            if (codeBlock->bytecodeCost() > Options::maximumFunctionForClosureCallInlineCandidateBytecodeCostForDFG())
-                return false;
-        } else {
-            if (codeBlock->bytecodeCost() > Options::maximumFunctionForClosureCallInlineCandidateBytecodeCostForFTL())
-                return false;
-        }
-    }
-    return isSupportedForInlining(codeBlock);
+    return codeBlock->bytecodeCost() <= Options::maximumFunctionForClosureCallInlineCandidateBytecodeCost()
+        && isSupportedForInlining(codeBlock);
 }
-bool mightInlineFunctionForConstruct(JITType jitType, CodeBlock* codeBlock)
+bool mightInlineFunctionForConstruct(CodeBlock* codeBlock)
 {
-    if (codeBlock->ownerExecutable()->inlineAttribute() != InlineAttribute::Always) {
-        if (jitType == JITType::DFGJIT) {
-            if (codeBlock->bytecodeCost() > Options::maximumFunctionForConstructInlineCandidateBytecodeCostForDFG())
-                return false;
-        } else {
-            if (codeBlock->bytecodeCost() > Options::maximumFunctionForConstructInlineCandidateBytecodeCostForFTL())
-                return false;
-        }
-    }
-    return isSupportedForInlining(codeBlock);
+    return codeBlock->bytecodeCost() <= Options::maximumFunctionForConstructInlineCandidateBytecoodeCost()
+        && isSupportedForInlining(codeBlock);
 }
 bool canUseOSRExitFuzzing(CodeBlock* codeBlock)
 {

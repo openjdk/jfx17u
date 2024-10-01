@@ -429,9 +429,12 @@ String PlatformKeyboardEvent::keyValueForWPEKeyCode(unsigned keyCode)
         break;
     }
 
-    char32_t unicodeCharacter = wpe_key_code_to_unicode(keyCode);
-    if (unicodeCharacter && U_IS_UNICODE_CHAR(unicodeCharacter))
-        return makeString(unicodeCharacter);
+    UChar32 unicodeCharacter = wpe_key_code_to_unicode(keyCode);
+    if (unicodeCharacter && U_IS_UNICODE_CHAR(unicodeCharacter)) {
+        StringBuilder builder;
+        builder.appendCharacter(unicodeCharacter);
+        return builder.toString();
+    }
 
     return "Unidentified"_s;
 }
@@ -1317,9 +1320,12 @@ String PlatformKeyboardEvent::singleCharacterString(unsigned val)
         break;
     }
 
-    char32_t unicodeCharacter = wpe_key_code_to_unicode(val);
-    if (unicodeCharacter && U_IS_UNICODE_CHAR(unicodeCharacter))
-        return makeString(unicodeCharacter);
+    UChar32 unicodeCharacter = wpe_key_code_to_unicode(val);
+    if (unicodeCharacter && U_IS_UNICODE_CHAR(unicodeCharacter)) {
+        StringBuilder builder;
+        builder.appendCharacter(unicodeCharacter);
+        return builder.toString();
+    }
 
     return { };
 }
@@ -1342,9 +1348,7 @@ void PlatformKeyboardEvent::disambiguateKeyDownEvent(Type type, bool backwardsCo
 
 OptionSet<PlatformEvent::Modifier> PlatformKeyboardEvent::currentStateOfModifierKeys()
 {
-    if (s_currentModifiers)
-        return *s_currentModifiers;
-    return { };
+    return { }; // FIXME: Implement.
 }
 
 } // namespace WebCore

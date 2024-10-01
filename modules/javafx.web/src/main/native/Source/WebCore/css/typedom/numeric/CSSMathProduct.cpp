@@ -45,11 +45,11 @@ ExceptionOr<Ref<CSSMathProduct>> CSSMathProduct::create(FixedVector<CSSNumberish
 ExceptionOr<Ref<CSSMathProduct>> CSSMathProduct::create(Vector<Ref<CSSNumericValue>> values)
 {
     if (values.isEmpty())
-        return Exception { ExceptionCode::SyntaxError };
+        return Exception { SyntaxError };
 
     auto type = CSSNumericType::multiplyTypes(values);
     if (!type)
-        return Exception { ExceptionCode::TypeError };
+        return Exception { TypeError };
 
     return adoptRef(*new CSSMathProduct(WTFMove(values), WTFMove(*type)));
 }
@@ -123,7 +123,7 @@ RefPtr<CSSCalcExpressionNode> CSSMathProduct::toCalcExpressionNode() const
         auto value = item->toCalcExpressionNode();
         if (!value)
             return nullptr;
-        values.append(value.releaseNonNull());
+        values.uncheckedAppend(value.releaseNonNull());
     }
     return CSSCalcOperationNode::createProduct(WTFMove(values));
 }

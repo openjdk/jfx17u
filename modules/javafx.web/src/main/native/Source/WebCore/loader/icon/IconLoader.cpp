@@ -31,7 +31,6 @@
 #include "CachedResourceRequest.h"
 #include "CachedResourceRequestInitiatorTypes.h"
 #include "Document.h"
-#include "DocumentInlines.h"
 #include "DocumentLoader.h"
 #include "FrameDestructionObserverInlines.h"
 #include "FrameLoader.h"
@@ -60,7 +59,7 @@ void IconLoader::startLoading()
     if (m_resource)
         return;
 
-    RefPtr frame = m_documentLoader->frame();
+    auto* frame = m_documentLoader->frame();
     if (!frame)
         return;
 
@@ -91,16 +90,18 @@ void IconLoader::startLoading()
 
     auto cachedResource = frame->document()->cachedResourceLoader().requestIcon(WTFMove(request));
     m_resource = cachedResource.value_or(nullptr);
-    if (CachedResourceHandle resource = m_resource)
-        resource->addClient(*this);
+    if (m_resource)
+        m_resource->addClient(*this);
     else
         LOG_ERROR("Failed to start load for icon at url %s (error: %s)", resourceRequestURL.string().ascii().data(), cachedResource.error().localizedDescription().utf8().data());
 }
 
 void IconLoader::stopLoading()
 {
-    if (CachedResourceHandle resource = std::exchange(m_resource, nullptr))
-        resource->removeClient(*this);
+    if (m_resource) {
+        m_resource->removeClient(*this);
+        m_resource = nullptr;
+    }
 }
 
 void IconLoader::notifyFinished(CachedResource& resource, const NetworkLoadMetrics&)
@@ -109,7 +110,7 @@ void IconLoader::notifyFinished(CachedResource& resource, const NetworkLoadMetri
 
     // If we got a status code indicating an invalid response, then lets
     // ignore the data and not try to decode the error page as an icon.
-    RefPtr data = m_resource->resourceBuffer();
+    auto* data = m_resource->resourceBuffer();
     int status = m_resource->response().httpStatusCode();
     if (status && (status < 200 || status > 299))
         data = nullptr;
@@ -124,7 +125,7 @@ void IconLoader::notifyFinished(CachedResource& resource, const NetworkLoadMetri
 
     // DocumentLoader::finishedLoadingIcon destroys this IconLoader as it finishes. This will automatically
     // trigger IconLoader::stopLoading() during destruction, so we should just return here.
-    Ref { m_documentLoader.get() }->finishedLoadingIcon(*this, data.get());
+    m_documentLoader->finishedLoadingIcon(*this, data);
 }
 
 }

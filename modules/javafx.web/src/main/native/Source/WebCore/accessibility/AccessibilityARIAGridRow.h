@@ -43,7 +43,7 @@ public:
     AccessibilityChildrenVector disclosedRows() override;
     AXCoreObject* disclosedByRow() const override;
 
-    AXCoreObject* rowHeader() final;
+    AXCoreObject* headerObject() override;
 
 private:
     explicit AccessibilityARIAGridRow(RenderObject*);

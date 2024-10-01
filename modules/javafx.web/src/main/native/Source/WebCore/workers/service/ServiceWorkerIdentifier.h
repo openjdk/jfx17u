@@ -25,11 +25,15 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include <wtf/ObjectIdentifier.h>
 
 namespace WebCore {
 
-enum class ServiceWorkerIdentifierType { };
+enum ServiceWorkerIdentifierType { };
 using ServiceWorkerIdentifier = AtomicObjectIdentifier<ServiceWorkerIdentifierType>;
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

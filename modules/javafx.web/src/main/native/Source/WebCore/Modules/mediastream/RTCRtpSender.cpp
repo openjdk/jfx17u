@@ -33,7 +33,6 @@
 
 #if ENABLE(WEB_RTC)
 
-#include "ContextDestructionObserverInlines.h"
 #include "JSDOMPromiseDeferred.h"
 #include "Logging.h"
 #include "RTCDTMFSender.h"
@@ -111,29 +110,29 @@ void RTCRtpSender::setTrack(Ref<MediaStreamTrack>&& track)
 void RTCRtpSender::replaceTrack(RefPtr<MediaStreamTrack>&& withTrack, Ref<DeferredPromise>&& promise)
 {
     if (withTrack && m_trackKind != withTrack->kind()) {
-        promise->reject(ExceptionCode::TypeError);
+        promise->reject(TypeError);
         return;
     }
 
     if (!m_connection) {
-        promise->reject(ExceptionCode::InvalidStateError);
+        promise->reject(InvalidStateError);
         return;
     }
 
-    m_connection->chainOperation(WTFMove(promise), [this, weakThis = WeakPtr { *this }, withTrack = WTFMove(withTrack)](Ref<DeferredPromise>&& promise) mutable {
+    m_connection->chainOperation(WTFMove(promise), [this, weakThis = WeakPtr { *this }, withTrack = WTFMove(withTrack)](auto&& promise) mutable {
         if (!weakThis)
             return;
         if (isStopped()) {
-            promise->reject(ExceptionCode::InvalidStateError);
+            promise->reject(InvalidStateError);
             return;
         }
 
         if (!m_backend->replaceTrack(*this, withTrack.get())) {
-            promise->reject(ExceptionCode::InvalidModificationError);
+            promise->reject(InvalidModificationError);
             return;
         }
 
-        RefPtr context = m_connection->scriptExecutionContext();
+        auto* context = m_connection->scriptExecutionContext();
         if (!context)
             return;
 
@@ -157,7 +156,7 @@ RTCRtpSendParameters RTCRtpSender::getParameters()
 void RTCRtpSender::setParameters(const RTCRtpSendParameters& parameters, DOMPromiseDeferred<void>&& promise)
 {
     if (isStopped()) {
-        promise.reject(ExceptionCode::InvalidStateError);
+        promise.reject(InvalidStateError);
         return;
     }
     return m_backend->setParameters(parameters, WTFMove(promise));
@@ -173,7 +172,7 @@ ExceptionOr<void> RTCRtpSender::setStreams(const FixedVector<std::reference_wrap
 ExceptionOr<void> RTCRtpSender::setMediaStreamIds(const FixedVector<String>& streamIds)
 {
     if (!m_connection || m_connection->isClosed() || !m_backend)
-        return Exception { ExceptionCode::InvalidStateError, "connection is closed"_s };
+        return Exception { InvalidStateError, "connection is closed"_s };
     m_backend->setMediaStreamIds(streamIds);
     return { };
 }
@@ -181,7 +180,7 @@ ExceptionOr<void> RTCRtpSender::setMediaStreamIds(const FixedVector<String>& str
 void RTCRtpSender::getStats(Ref<DeferredPromise>&& promise)
 {
     if (!m_connection) {
-        promise->reject(ExceptionCode::InvalidStateError);
+        promise->reject(InvalidStateError);
         return;
     }
     m_connection->getStats(*this, WTFMove(promise));
@@ -239,7 +238,7 @@ ExceptionOr<void> RTCRtpSender::setTransform(std::unique_ptr<RTCRtpTransform>&& 
     }
 
     if (transform->isAttached())
-        return Exception { ExceptionCode::InvalidStateError, "transform is already in use"_s };
+        return Exception { InvalidStateError, "transform is already in use"_s };
 
     transform->attachToSender(*this, m_transform.get());
     m_transform = WTFMove(transform);

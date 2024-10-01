@@ -65,33 +65,36 @@ EncodedJSValue constructJSHTMLElement(JSGlobalObject* lexicalGlobalObject, CallF
     if (newTarget == htmlElementConstructorValue)
         return throwVMTypeError(lexicalGlobalObject, scope, "new.target is not a valid custom element constructor"_s);
 
-    Ref document = downcast<Document>(*context);
+    auto& document = downcast<Document>(*context);
 
-    RefPtr window = document->domWindow();
+    auto* window = document.domWindow();
     if (!window)
         return throwVMTypeError(lexicalGlobalObject, scope, "new.target is not a valid custom element constructor"_s);
 
-    RefPtr registry = window->customElementRegistry();
+    auto* registry = window->customElementRegistry();
     if (!registry)
         return throwVMTypeError(lexicalGlobalObject, scope, "new.target is not a valid custom element constructor"_s);
 
-    RefPtr elementInterface = registry->findInterface(newTarget);
+    auto* elementInterface = registry->findInterface(newTarget);
     if (!elementInterface)
         return throwVMTypeError(lexicalGlobalObject, scope, "new.target does not define a custom element"_s);
 
     if (!elementInterface->isUpgradingElement()) {
+        Ref<Document> protectedDocument(document);
+        Ref<JSCustomElementInterface> protectedElementInterface(*elementInterface);
+
         Structure* baseStructure = getDOMStructure<JSHTMLElement>(vm, *newTargetGlobalObject);
         auto* newElementStructure = InternalFunction::createSubclassStructure(lexicalGlobalObject, newTarget, baseStructure);
         RETURN_IF_EXCEPTION(scope, { });
 
-        Ref element = elementInterface->createElement(document);
+        Ref<HTMLElement> element = elementInterface->createElement(document);
         element->setIsDefinedCustomElement(*elementInterface);
         auto* jsElement = JSHTMLElement::create(newElementStructure, newTargetGlobalObject, element.get());
         cacheWrapper(newTargetGlobalObject->world(), element.ptr(), jsElement);
         return JSValue::encode(jsElement);
     }
 
-    RefPtr elementToUpgrade = elementInterface->lastElementInConstructionStack();
+    Element* elementToUpgrade = elementInterface->lastElementInConstructionStack();
     if (!elementToUpgrade) {
         throwTypeError(lexicalGlobalObject, scope, "Cannot instantiate a custom element inside its own constructor during upgrades"_s);
         return JSValue::encode(jsUndefined());

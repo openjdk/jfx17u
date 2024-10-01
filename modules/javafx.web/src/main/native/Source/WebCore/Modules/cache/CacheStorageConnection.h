@@ -28,7 +28,6 @@
 
 #include "DOMCacheEngine.h"
 #include "RetrieveRecordsOptions.h"
-#include <wtf/Forward.h>
 #include <wtf/HashMap.h>
 #include <wtf/ThreadSafeRefCounted.h>
 
@@ -41,8 +40,7 @@ class CacheStorageConnection : public ThreadSafeRefCounted<CacheStorageConnectio
 public:
     virtual ~CacheStorageConnection() = default;
 
-    using OpenPromise = NativePromise<DOMCacheEngine::CacheIdentifierOperationResult, DOMCacheEngine::Error>;
-    virtual Ref<OpenPromise> open(const ClientOrigin&, const String& cacheName) = 0;
+    virtual void open(const ClientOrigin&, const String& cacheName, DOMCacheEngine::CacheIdentifierCallback&&) = 0;
     virtual void remove(DOMCacheIdentifier, DOMCacheEngine::RemoveCacheIdentifierCallback&&) = 0;
     virtual void retrieveCaches(const ClientOrigin&, uint64_t updateCounter, DOMCacheEngine::CacheInfosCallback&&) = 0;
 
@@ -52,8 +50,6 @@ public:
 
     virtual void reference(DOMCacheIdentifier /* cacheIdentifier */) = 0;
     virtual void dereference(DOMCacheIdentifier /* cacheIdentifier */) = 0;
-    virtual void lockStorage(const ClientOrigin&) = 0;
-    virtual void unlockStorage(const ClientOrigin&) = 0;
 
     uint64_t computeRecordBodySize(const FetchResponse&, const DOMCacheEngine::ResponseBody&);
 

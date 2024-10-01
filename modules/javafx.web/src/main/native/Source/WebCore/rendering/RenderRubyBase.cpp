@@ -44,12 +44,11 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(RenderRubyBase);
 
 RenderRubyBase::RenderRubyBase(Document& document, RenderStyle&& style)
-    : RenderBlockFlow(Type::RubyBase, document, WTFMove(style))
+    : RenderBlockFlow(document, WTFMove(style))
     , m_initialOffset(0)
     , m_isAfterExpansion(true)
 {
     setInline(false);
-    ASSERT(isRenderRubyBase());
 }
 
 RenderRubyBase::~RenderRubyBase() = default;
@@ -98,14 +97,14 @@ void RenderRubyBase::cachePriorCharactersIfNeeded(const CachedLineBreakIteratorF
 
 bool RenderRubyBase::isEmptyOrHasInFlowContent() const
 {
-    auto* firstChild = dynamicDowncast<RenderElement>(this->firstChild());
-    if (!firstChild)
+    auto* firstChild = this->firstChild();
+    if (!firstChild || !is<RenderElement>(*firstChild))
         return true;
 
     if (firstChild->isOutOfFlowPositioned())
         return false;
 
-    for (auto& child : childrenOfType<RenderObject>(*firstChild)) {
+    for (auto& child : childrenOfType<RenderObject>(*downcast<RenderElement>(firstChild))) {
         if (!child.isOutOfFlowPositioned())
             return true;
     }

@@ -97,8 +97,9 @@ CSSStyleSheet* StyleSheetList::namedItem(const AtomString& name) const
     // ### Bad implementation because returns a single element (are IDs always unique?)
     // and doesn't look for name attribute.
     // But unicity of stylesheet ids is good practice anyway ;)
-    if (RefPtr element = dynamicDowncast<HTMLStyleElement>(m_document->getElementById(name)))
-        return element->sheet();
+    Element* element = m_document->getElementById(name);
+    if (is<HTMLStyleElement>(element))
+        return downcast<HTMLStyleElement>(element)->sheet();
     return nullptr;
 }
 

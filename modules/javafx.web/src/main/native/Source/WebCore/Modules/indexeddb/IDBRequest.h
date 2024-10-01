@@ -126,7 +126,6 @@ public:
 
     void setTransactionOperationID(uint64_t transactionOperationID) { m_currentTransactionOperationID = transactionOperationID; }
     bool willAbortTransactionAfterDispatchingEvent() const;
-    void transactionTransitionedToFinishing();
 
 protected:
     IDBRequest(ScriptExecutionContext&, IDBClient::IDBConnectionProxy&, IndexedDB::RequestType);
@@ -157,7 +156,6 @@ private:
 
     virtual void cancelForStop();
 
-    // EventTarget
     void refEventTarget() final { ref(); }
     void derefEventTarget() final { deref(); }
     void uncaughtExceptionInEventHandler() final;
@@ -198,8 +196,7 @@ private:
     IndexedDB::IndexRecordType m_requestedIndexRecordType { IndexedDB::IndexRecordType::Key };
 
     bool m_shouldExposeTransactionToDOM { true };
-    enum class PendingActivityType : uint8_t { EndingEvent, CursorIteration, None };
-    PendingActivityType m_pendingActivity { PendingActivityType::EndingEvent };
+    bool m_hasPendingActivity { true };
     bool m_hasUncaughtException { false };
     RefPtr<Event> m_eventBeingDispatched;
 };

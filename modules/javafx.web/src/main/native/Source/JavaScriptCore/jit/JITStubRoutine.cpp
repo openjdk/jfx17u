@@ -89,15 +89,6 @@ bool JITStubRoutine::visitWeak(VM& vm)
     return result;
 }
 
-CallLinkInfo* JITStubRoutine::callLinkInfoAt(const ConcurrentJSLocker& locker, unsigned index)
-{
-    CallLinkInfo* result = nullptr;
-    runWithDowncast([&](auto* derived) {
-        result = derived->callLinkInfoAtImpl(locker, index);
-    });
-    return result;
-}
-
 void JITStubRoutine::markRequiredObjects(AbstractSlotVisitor& visitor)
 {
     runWithDowncast([&](auto* derived) {
@@ -115,7 +106,8 @@ void JITStubRoutine::markRequiredObjects(SlotVisitor& visitor)
 void JITStubRoutine::operator delete(JITStubRoutine* stubRoutine, std::destroying_delete_t)
 {
     stubRoutine->runWithDowncast([&](auto* derived) {
-        std::decay_t<decltype(*derived)>::destroy(derived);
+        std::destroy_at(derived);
+        std::decay_t<decltype(*derived)>::freeAfterDestruction(derived);
     });
 }
 

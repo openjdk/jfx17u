@@ -55,7 +55,7 @@ DOMCacheStorage::~DOMCacheStorage() = default;
 
 std::optional<ClientOrigin> DOMCacheStorage::origin() const
 {
-    RefPtr origin = scriptExecutionContext() ? scriptExecutionContext()->securityOrigin() : nullptr;
+    auto* origin = scriptExecutionContext() ? scriptExecutionContext()->securityOrigin() : nullptr;
     if (!origin)
         return std::nullopt;
 
@@ -141,34 +141,13 @@ void DOMCacheStorage::has(const String& name, DOMPromiseDeferred<IDLBoolean>&& p
     });
 }
 
-Ref<DOMCache> DOMCacheStorage::findCacheOrCreate(DOMCacheEngine::CacheInfo&& info, ScriptExecutionContext& context)
+Ref<DOMCache> DOMCacheStorage::findCacheOrCreate(DOMCacheEngine::CacheInfo&& info)
 {
    auto position = m_caches.findIf([&] (const auto& cache) { return info.identifier == cache->identifier(); });
    if (position != notFound)
        return m_caches[position].copyRef();
-    return DOMCache::create(context, WTFMove(info.name), info.identifier, m_connection.copyRef());
+   return DOMCache::create(*scriptExecutionContext(), WTFMove(info.name), info.identifier, m_connection.copyRef());
 }
-
-class ConnectionStorageLock {
-    WTF_MAKE_FAST_ALLOCATED;
-
-public:
-    ConnectionStorageLock(Ref<CacheStorageConnection>&& connection, const ClientOrigin& origin)
-        : m_connection(WTFMove(connection))
-        , m_origin(origin)
-    {
-        m_connection->lockStorage(m_origin);
-    }
-
-    ~ConnectionStorageLock()
-    {
-        m_connection->unlockStorage(m_origin);
-    }
-
-private:
-    Ref<CacheStorageConnection> m_connection;
-    ClientOrigin m_origin;
-};
 
 void DOMCacheStorage::retrieveCaches(CompletionHandler<void(std::optional<Exception>&&)>&& callback)
 {
@@ -178,18 +157,13 @@ void DOMCacheStorage::retrieveCaches(CompletionHandler<void(std::optional<Except
         return;
     }
 
-    m_connection->retrieveCaches(*origin, m_updateCounter, [this, callback = WTFMove(callback), pendingActivity = makePendingActivity(*this), connectionStorageLock = makeUnique<ConnectionStorageLock>(m_connection.copyRef(), *origin)](DOMCacheEngine::CacheInfosOrError&& result) mutable {
+    m_connection->retrieveCaches(*origin, m_updateCounter, [this, callback = WTFMove(callback), pendingActivity = makePendingActivity(*this)](DOMCacheEngine::CacheInfosOrError&& result) mutable {
         if (m_isStopped) {
             callback(DOMCacheEngine::convertToException(DOMCacheEngine::Error::Stopped));
             return;
         }
-        RefPtr context = scriptExecutionContext();
         if (!result.has_value()) {
-            callback(DOMCacheEngine::convertToExceptionAndLog(context.get(), result.error()));
-            return;
-        }
-        if (!context) {
-            callback(convertToException(DOMCacheEngine::Error::Stopped));
+            callback(DOMCacheEngine::convertToExceptionAndLog(scriptExecutionContext(), result.error()));
             return;
         }
 
@@ -198,8 +172,8 @@ void DOMCacheStorage::retrieveCaches(CompletionHandler<void(std::optional<Except
         if (m_updateCounter != cachesInfo.updateCounter) {
             m_updateCounter = cachesInfo.updateCounter;
 
-            m_caches = WTF::map(WTFMove(cachesInfo.infos), [&] (DOMCacheEngine::CacheInfo&& info) {
-                return findCacheOrCreate(WTFMove(info), *context);
+            m_caches = WTF::map(WTFMove(cachesInfo.infos), [this] (DOMCacheEngine::CacheInfo&& info) {
+                return findCacheOrCreate(WTFMove(info));
             });
         }
         callback(std::nullopt);
@@ -227,33 +201,23 @@ void DOMCacheStorage::open(const String& name, DOMPromiseDeferred<IDLInterface<D
 
 void DOMCacheStorage::doOpen(const String& name, DOMPromiseDeferred<IDLInterface<DOMCache>>&& promise)
 {
-    RefPtr context = scriptExecutionContext();
-    if (!context) {
-        promise.reject(convertToException(DOMCacheEngine::Error::Stopped));
-        return;
-    }
-
     auto position = m_caches.findIf([&](auto& item) { return item->name() == name; });
     if (position != notFound) {
-        promise.resolve(DOMCache::create(*context, String { m_caches[position]->name() }, m_caches[position]->identifier(), m_connection.copyRef()));
+        promise.resolve(DOMCache::create(*scriptExecutionContext(), String { m_caches[position]->name() }, m_caches[position]->identifier(), m_connection.copyRef()));
         return;
     }
 
-    context->enqueueTaskWhenSettled(m_connection->open(*origin(), name), TaskSource::DOMManipulation, [this, name, promise = WTFMove(promise), pendingActivity = makePendingActivity(*this), connectionStorageLock = makeUnique<ConnectionStorageLock>(m_connection.copyRef(), *origin())](const DOMCacheEngine::CacheIdentifierOrError& result) mutable {
-        RefPtr context = scriptExecutionContext();
-        if (!result.has_value()) {
-            promise.reject(DOMCacheEngine::convertToExceptionAndLog(context.get(), result.error()));
-            return;
-        }
-        if (!context) {
-            promise.reject(convertToException(DOMCacheEngine::Error::Stopped));
-            return;
-        }
+    m_connection->open(*origin(), name, [this, name, promise = WTFMove(promise), pendingActivity = makePendingActivity(*this)](const DOMCacheEngine::CacheIdentifierOrError& result) mutable {
+        if (!result.has_value())
+            promise.reject(DOMCacheEngine::convertToExceptionAndLog(scriptExecutionContext(), result.error()));
+        else {
             if (result.value().hadStorageError)
-            logConsolePersistencyError(context.get(), name);
-        auto cache = DOMCache::create(*context, String { name }, result.value().identifier, m_connection.copyRef());
+                logConsolePersistencyError(scriptExecutionContext(), name);
+
+            auto cache = DOMCache::create(*scriptExecutionContext(), String { name }, result.value().identifier, m_connection.copyRef());
             promise.resolve(cache);
             m_caches.append(WTFMove(cache));
+        }
     });
 }
 

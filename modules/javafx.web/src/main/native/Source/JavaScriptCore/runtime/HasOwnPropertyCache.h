@@ -28,13 +28,12 @@
 #include "JSObject.h"
 #include "PropertySlot.h"
 #include "Structure.h"
-#include <wtf/UniqueRef.h>
 
 namespace JSC {
 
 DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(HasOwnPropertyCache);
 
-class alignas(8) HasOwnPropertyCache {
+class HasOwnPropertyCache {
     static const uint32_t size = 2 * 1024;
     static_assert(hasOneBitSet(size), "size should be a power of two.");
 public:
@@ -58,12 +57,12 @@ public:
         HasOwnPropertyCacheMalloc::free(cache);
     }
 
-    static UniqueRef<HasOwnPropertyCache> create()
+    static HasOwnPropertyCache* create()
     {
         size_t allocationSize = sizeof(Entry) * size;
         HasOwnPropertyCache* result = static_cast<HasOwnPropertyCache*>(HasOwnPropertyCacheMalloc::malloc(allocationSize));
         result->clearBuffer();
-        return UniqueRef { *result };
+        return result;
     }
 
     ALWAYS_INLINE static uint32_t hash(StructureID structureID, UniquedStringImpl* impl)
@@ -129,5 +128,12 @@ private:
             new (&buffer[i]) Entry();
     }
 };
+
+ALWAYS_INLINE HasOwnPropertyCache& VM::ensureHasOwnPropertyCache()
+{
+    if (UNLIKELY(!m_hasOwnPropertyCache))
+        m_hasOwnPropertyCache = std::unique_ptr<HasOwnPropertyCache>(HasOwnPropertyCache::create());
+    return *m_hasOwnPropertyCache;
+}
 
 } // namespace JSC

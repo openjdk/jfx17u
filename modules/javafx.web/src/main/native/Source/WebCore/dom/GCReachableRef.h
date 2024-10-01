@@ -36,20 +36,20 @@ class Node;
 
 class GCReachableRefMap {
 public:
-    static inline bool contains(EventTarget& target) { return target.isInGCReacheableRefMap(); }
-    static inline void add(EventTarget& target)
+    static inline bool contains(Node& node) { return node.isInGCReacheableRefMap(); }
+    static inline void add(Node& node)
     {
-        if (map().add(&target).isNewEntry)
-            target.setIsInGCReacheableRefMap(true);
+        if (map().add(&node).isNewEntry)
+            node.setIsInGCReacheableRefMap(true);
     }
-    static inline void remove(EventTarget& target)
+    static inline void remove(Node& node)
     {
-        if (map().remove(&target))
-            target.setIsInGCReacheableRefMap(false);
+        if (map().remove(&node))
+            node.setIsInGCReacheableRefMap(false);
     }
 
 private:
-    static HashCountedSet<EventTarget*>& map();
+    static HashCountedSet<Node*>& map();
 };
 
 template <typename T, typename = std::enable_if_t<std::is_same<T, typename std::remove_const<T>::type>::value>>
@@ -138,15 +138,13 @@ template<typename P> struct HashTraits<WebCore::GCReachableRef<P>> : SimpleClass
 
 template <typename T, typename U>
 struct GetPtrHelper<WebCore::GCReachableRef<T, U>> {
-    using PtrType = T*;
-    using UnderlyingType = T;
+    typedef T* PtrType;
     static T* getPtr(const WebCore::GCReachableRef<T, U>& reference) { return const_cast<T*>(reference.ptr()); }
 };
 
 template <typename T, typename U>
 struct IsSmartPtr<WebCore::GCReachableRef<T, U>> {
     static const bool value = true;
-    static constexpr bool isNullable = true;
 };
 
 template<typename P> struct PtrHash<WebCore::GCReachableRef<P>> : PtrHashBase<WebCore::GCReachableRef<P>, IsSmartPtr<WebCore::GCReachableRef<P>>::value> {

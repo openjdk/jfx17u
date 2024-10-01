@@ -152,11 +152,13 @@ void CanvasCaptureMediaStreamTrack::Source::canvasResized(CanvasBase& canvas)
     setSize(IntSize(m_canvas->width(), m_canvas->height()));
 }
 
-void CanvasCaptureMediaStreamTrack::Source::canvasChanged(CanvasBase&, const FloatRect&)
+void CanvasCaptureMediaStreamTrack::Source::canvasChanged(CanvasBase& canvas, const std::optional<FloatRect>&)
 {
-    // If canvas needs preparation, the capture will be scheduled once document prepares the canvas.
-    if (m_canvas->needsPreparationForDisplay())
+    ASSERT_UNUSED(canvas, m_canvas == &canvas);
+#if ENABLE(WEBGL)
+    if (m_canvas->renderingContext() && m_canvas->renderingContext()->needsPreparationForDisplay() && m_canvas->hasObserver(m_canvas->document()))
         return;
+#endif
     scheduleCaptureCanvas();
 }
 
@@ -192,13 +194,8 @@ void CanvasCaptureMediaStreamTrack::Source::captureCanvas()
 
     if (!m_canvas->originClean())
         return;
-    RefPtr<VideoFrame> videoFrame = [&]() -> RefPtr<VideoFrame> {
-#if ENABLE(WEBGL)
-        if (auto* gl = dynamicDowncast<WebGLRenderingContextBase>(m_canvas->renderingContext()))
-            return gl->surfaceBufferToVideoFrame(CanvasRenderingContext::SurfaceBuffer::DisplayBuffer);
-#endif
-        return m_canvas->toVideoFrame();
-    }();
+
+    auto videoFrame = m_canvas->toVideoFrame();
     if (!videoFrame)
         return;
 

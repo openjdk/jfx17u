@@ -66,12 +66,12 @@ static void raiseDOMErrorException(JNIEnv* env, WebCore::ExceptionCode ec)
 
 void raiseTypeErrorException(JNIEnv* env)
 {
-    raiseDOMErrorException(env, ExceptionCode::TypeError);
+    raiseDOMErrorException(env, WebCore::TypeError);
 }
 
 void raiseNotSupportedErrorException(JNIEnv* env)
 {
-    raiseDOMErrorException(env, ExceptionCode::NotSupportedError);
+    raiseDOMErrorException(env, WebCore::NotSupportedError);
 }
 
 void raiseDOMErrorException(JNIEnv* env, Exception&& ec)

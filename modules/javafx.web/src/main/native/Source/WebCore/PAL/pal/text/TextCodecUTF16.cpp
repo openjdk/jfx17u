@@ -40,25 +40,25 @@ inline TextCodecUTF16::TextCodecUTF16(bool littleEndian)
 
 void TextCodecUTF16::registerEncodingNames(EncodingNameRegistrar registrar)
 {
-    registrar("UTF-16LE"_s, "UTF-16LE"_s);
-    registrar("UTF-16BE"_s, "UTF-16BE"_s);
+    registrar("UTF-16LE", "UTF-16LE");
+    registrar("UTF-16BE", "UTF-16BE");
 
-    registrar("ISO-10646-UCS-2"_s, "UTF-16LE"_s);
-    registrar("UCS-2"_s, "UTF-16LE"_s);
-    registrar("UTF-16"_s, "UTF-16LE"_s);
-    registrar("Unicode"_s, "UTF-16LE"_s);
-    registrar("csUnicode"_s, "UTF-16LE"_s);
-    registrar("unicodeFEFF"_s, "UTF-16LE"_s);
+    registrar("ISO-10646-UCS-2", "UTF-16LE");
+    registrar("UCS-2", "UTF-16LE");
+    registrar("UTF-16", "UTF-16LE");
+    registrar("Unicode", "UTF-16LE");
+    registrar("csUnicode", "UTF-16LE");
+    registrar("unicodeFEFF", "UTF-16LE");
 
-    registrar("unicodeFFFE"_s, "UTF-16BE"_s);
+    registrar("unicodeFFFE", "UTF-16BE");
 }
 
 void TextCodecUTF16::registerCodecs(TextCodecRegistrar registrar)
 {
-    registrar("UTF-16LE"_s, [] {
+    registrar("UTF-16LE", [] {
         return makeUnique<TextCodecUTF16>(true);
     });
-    registrar("UTF-16BE"_s, [] {
+    registrar("UTF-16BE", [] {
         return makeUnique<TextCodecUTF16>(false);
     });
 }
@@ -79,8 +79,7 @@ String TextCodecUTF16::decode(const char* bytes, size_t length, bool flush, bool
         if (m_leadSurrogate) {
             auto leadSurrogate = *std::exchange(m_leadSurrogate, std::nullopt);
             if (U16_IS_TRAIL(codeUnit)) {
-                char32_t codePoint = U16_GET_SUPPLEMENTARY(leadSurrogate, codeUnit);
-                result.append(codePoint);
+                result.appendCharacter(U16_GET_SUPPLEMENTARY(leadSurrogate, codeUnit));
                 return;
             }
             sawError = true;

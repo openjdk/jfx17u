@@ -37,7 +37,6 @@
 #include "HTMLLabelElement.h"
 #include "HTMLMapElement.h"
 #include "HTMLNameCollection.h"
-#include "TreeScopeInlines.h"
 #include "TypedElementDescendantIteratorInlines.h"
 
 namespace WebCore {
@@ -49,22 +48,21 @@ void TreeScopeOrderedMap::clear()
     m_map.clear();
 }
 
-void TreeScopeOrderedMap::add(const AtomString& key, Element& element, const TreeScope& treeScope)
+void TreeScopeOrderedMap::add(const AtomStringImpl& key, Element& element, const TreeScope& treeScope)
 {
-    ASSERT_WITH_SECURITY_IMPLICATION(!key.isNull());
     RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(&element.treeScope() == &treeScope);
     ASSERT_WITH_SECURITY_IMPLICATION(treeScope.rootNode().containsIncludingShadowDOM(&element));
 
     if (!element.isInTreeScope())
         return;
-    Map::AddResult addResult = m_map.ensure(key, [&element] {
+    Map::AddResult addResult = m_map.ensure(&key, [&element] {
         return MapEntry(&element);
     });
     MapEntry& entry = addResult.iterator->value;
 
 #if ASSERT_ENABLED || ENABLE(SECURITY_ASSERTIONS)
     ASSERT_WITH_SECURITY_IMPLICATION(!entry.registeredElements.contains(&element));
-    entry.registeredElements.add(element);
+    entry.registeredElements.add(&element);
 #endif
 
     if (addResult.isNewEntry)
@@ -76,16 +74,15 @@ void TreeScopeOrderedMap::add(const AtomString& key, Element& element, const Tre
     entry.orderedList.clear();
 }
 
-void TreeScopeOrderedMap::remove(const AtomString& key, Element& element)
+void TreeScopeOrderedMap::remove(const AtomStringImpl& key, Element& element)
 {
-    ASSERT_WITH_SECURITY_IMPLICATION(!key.isNull());
     m_map.checkConsistency();
-    auto it = m_map.find(key);
+    auto it = m_map.find(&key);
 
     RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(it != m_map.end());
 
     MapEntry& entry = it->value;
-    ASSERT_WITH_SECURITY_IMPLICATION(entry.registeredElements.remove(element));
+    ASSERT_WITH_SECURITY_IMPLICATION(entry.registeredElements.remove(&element));
     RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(entry.count);
     if (entry.count == 1) {
         RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(!entry.element || entry.element == &element);
@@ -99,46 +96,46 @@ void TreeScopeOrderedMap::remove(const AtomString& key, Element& element)
 }
 
 template <typename KeyMatchingFunction>
-inline RefPtr<Element> TreeScopeOrderedMap::get(const AtomString& key, const TreeScope& scope, const KeyMatchingFunction& keyMatches) const
+inline Element* TreeScopeOrderedMap::get(const AtomStringImpl& key, const TreeScope& scope, const KeyMatchingFunction& keyMatches) const
 {
-    ASSERT_WITH_SECURITY_IMPLICATION(!key.isNull());
     m_map.checkConsistency();
 
-    auto it = m_map.find(key);
+    auto it = m_map.find(&key);
     if (it == m_map.end())
         return nullptr;
 
     MapEntry& entry = it->value;
     ASSERT(entry.count);
     if (entry.element) {
-        Ref element = *entry.element;
-        RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(&element->treeScope() == &scope);
-        ASSERT_WITH_SECURITY_IMPLICATION(entry.registeredElements.contains(element.ptr()));
-        return element;
+        auto& element = *entry.element;
+        RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(&element.treeScope() == &scope);
+        ASSERT_WITH_SECURITY_IMPLICATION(entry.registeredElements.contains(&element));
+        return &element;
     }
 
     // We know there's at least one node that matches; iterate to find the first one.
     Ref rootNode = scope.rootNode();
-    for (Ref<Element> element : descendantsOfType<Element>(rootNode.get())) {
-        if (!element->isInTreeScope())
+    for (auto& element : descendantsOfType<Element>(rootNode)) {
+        if (!element.isInTreeScope())
             continue;
         if (!keyMatches(key, element))
             continue;
-        entry.element = element.ptr();
-        RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(&element->treeScope() == &scope);
-        ASSERT_WITH_SECURITY_IMPLICATION(entry.registeredElements.contains(entry.element.get()));
-        return element;
+        entry.element = &element;
+        RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(&element.treeScope() == &scope);
+        ASSERT_WITH_SECURITY_IMPLICATION(entry.registeredElements.contains(entry.element));
+        return &element;
     }
 
 #if ASSERT_ENABLED
     // FormListedElement may call getElementById to find its owner form in the middle of a tree removal.
     if (auto* currentScope = ContainerChildRemovalScope::currentScope()) {
         ASSERT(&scope.rootNode() == &currentScope->parentOfRemovedTree().rootNode());
-        Ref removedTree = currentScope->removedChild();
-        for (Ref element : descendantsOfType<Element>(downcast<ContainerNode>(removedTree.get()))) {
+        Node& removedTree = currentScope->removedChild();
+        ASSERT(is<ContainerNode>(removedTree));
+        for (auto& element : descendantsOfType<Element>(downcast<ContainerNode>(removedTree))) {
             if (!keyMatches(key, element))
                 continue;
-            bool removedFromAncestorHasNotBeenCalledYet = element->isConnected();
+            bool removedFromAncestorHasNotBeenCalledYet = element.isConnected();
             ASSERT(removedFromAncestorHasNotBeenCalledYet);
             return nullptr;
         }
@@ -150,12 +147,11 @@ inline RefPtr<Element> TreeScopeOrderedMap::get(const AtomString& key, const Tre
 }
 
 template <typename KeyMatchingFunction>
-inline Vector<WeakRef<Element, WeakPtrImplWithEventTargetData>>* TreeScopeOrderedMap::getAll(const AtomString& key, const TreeScope& scope, const KeyMatchingFunction& keyMatches) const
+inline Vector<Element*>* TreeScopeOrderedMap::getAll(const AtomStringImpl& key, const TreeScope& scope, const KeyMatchingFunction& keyMatches) const
 {
-    ASSERT_WITH_SECURITY_IMPLICATION(!key.isNull());
     m_map.checkConsistency();
 
-    auto mapIterator = m_map.find(key);
+    auto mapIterator = m_map.find(&key);
     if (mapIterator == m_map.end())
         return nullptr;
 
@@ -164,10 +160,10 @@ inline Vector<WeakRef<Element, WeakPtrImplWithEventTargetData>>* TreeScopeOrdere
 
     if (entry.orderedList.isEmpty()) {
         entry.orderedList.reserveCapacity(entry.count);
-        auto elementDescendants = descendantsOfType<Element>(scope.protectedRootNode().get());
+        auto elementDescendants = descendantsOfType<Element>(scope.rootNode());
         for (auto it = entry.element ? elementDescendants.beginAt(*entry.element) : elementDescendants.begin(); it; ++it) {
             if (keyMatches(key, *it))
-                entry.orderedList.append(*it);
+                entry.orderedList.append(&*it);
         }
         RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(entry.orderedList.size() == entry.count);
     }
@@ -175,69 +171,67 @@ inline Vector<WeakRef<Element, WeakPtrImplWithEventTargetData>>* TreeScopeOrdere
     return &entry.orderedList;
 }
 
-RefPtr<Element> TreeScopeOrderedMap::getElementById(const AtomString& key, const TreeScope& scope) const
+Element* TreeScopeOrderedMap::getElementById(const AtomStringImpl& key, const TreeScope& scope) const
 {
-    return get(key, scope, [] (const AtomString& key, const Element& element) {
-        return element.getIdAttribute() == key;
+    return get(key, scope, [] (const AtomStringImpl& key, const Element& element) {
+        return element.getIdAttribute().impl() == &key;
     });
 }
 
-RefPtr<Element> TreeScopeOrderedMap::getElementByName(const AtomString& key, const TreeScope& scope) const
+Element* TreeScopeOrderedMap::getElementByName(const AtomStringImpl& key, const TreeScope& scope) const
 {
-    return get(key, scope, [] (const AtomString& key, const Element& element) {
-        return element.getNameAttribute() == key;
+    return get(key, scope, [] (const AtomStringImpl& key, const Element& element) {
+        return element.getNameAttribute().impl() == &key;
     });
 }
 
-RefPtr<HTMLMapElement> TreeScopeOrderedMap::getElementByMapName(const AtomString& key, const TreeScope& scope) const
+HTMLMapElement* TreeScopeOrderedMap::getElementByMapName(const AtomStringImpl& key, const TreeScope& scope) const
 {
-    return downcast<HTMLMapElement>(get(key, scope, [] (const AtomString& key, const Element& element) {
-        auto* mapElement = dynamicDowncast<HTMLMapElement>(element);
-        return mapElement && mapElement->getName() == key;
+    return downcast<HTMLMapElement>(get(key, scope, [] (const AtomStringImpl& key, const Element& element) {
+        return is<HTMLMapElement>(element) && downcast<HTMLMapElement>(element).getName().impl() == &key;
     }));
 }
 
-RefPtr<HTMLImageElement> TreeScopeOrderedMap::getElementByUsemap(const AtomString& key, const TreeScope& scope) const
+HTMLImageElement* TreeScopeOrderedMap::getElementByUsemap(const AtomStringImpl& key, const TreeScope& scope) const
 {
-    return downcast<HTMLImageElement>(get(key, scope, [] (const AtomString& key, const Element& element) {
+    return downcast<HTMLImageElement>(get(key, scope, [] (const AtomStringImpl& key, const Element& element) {
         // FIXME: HTML5 specification says we should match both image and object elements.
-        auto* imageElement = dynamicDowncast<HTMLImageElement>(element);
-        return imageElement && imageElement->matchesUsemap(key);
+        return is<HTMLImageElement>(element) && downcast<HTMLImageElement>(element).matchesUsemap(key);
     }));
 }
 
-const Vector<WeakRef<Element, WeakPtrImplWithEventTargetData>>* TreeScopeOrderedMap::getElementsByLabelForAttribute(const AtomString& key, const TreeScope& scope) const
+const Vector<Element*>* TreeScopeOrderedMap::getElementsByLabelForAttribute(const AtomStringImpl& key, const TreeScope& scope) const
 {
-    return getAll(key, scope, [] (const AtomString& key, const Element& element) {
-        return is<HTMLLabelElement>(element) && element.attributeWithoutSynchronization(forAttr) == key;
+    return getAll(key, scope, [] (const AtomStringImpl& key, const Element& element) {
+        return is<HTMLLabelElement>(element) && element.attributeWithoutSynchronization(forAttr).impl() == &key;
     });
 }
 
-RefPtr<Element> TreeScopeOrderedMap::getElementByWindowNamedItem(const AtomString& key, const TreeScope& scope) const
+Element* TreeScopeOrderedMap::getElementByWindowNamedItem(const AtomStringImpl& key, const TreeScope& scope) const
 {
-    return get(key, scope, [] (const AtomString& key, const Element& element) {
-        return WindowNameCollection::elementMatches(element, key);
+    return get(key, scope, [] (const AtomStringImpl& key, const Element& element) {
+        return WindowNameCollection::elementMatches(element, &key);
     });
 }
 
-RefPtr<Element> TreeScopeOrderedMap::getElementByDocumentNamedItem(const AtomString& key, const TreeScope& scope) const
+Element* TreeScopeOrderedMap::getElementByDocumentNamedItem(const AtomStringImpl& key, const TreeScope& scope) const
 {
-    return get(key, scope, [] (const AtomString& key, const Element& element) {
-        return DocumentNameCollection::elementMatches(element, key);
+    return get(key, scope, [] (const AtomStringImpl& key, const Element& element) {
+        return DocumentNameCollection::elementMatches(element, &key);
     });
 }
 
-const Vector<WeakRef<Element, WeakPtrImplWithEventTargetData>>* TreeScopeOrderedMap::getAllElementsById(const AtomString& key, const TreeScope& scope) const
+const Vector<Element*>* TreeScopeOrderedMap::getAllElementsById(const AtomStringImpl& key, const TreeScope& scope) const
 {
-    return getAll(key, scope, [] (const AtomString& key, const Element& element) {
-        return element.getIdAttribute() == key;
+    return getAll(key, scope, [] (const AtomStringImpl& key, const Element& element) {
+        return element.getIdAttribute().impl() == &key;
     });
 }
 
 const Vector<AtomString> TreeScopeOrderedMap::keys() const
 {
     return WTF::map(m_map, [](auto& entry) -> AtomString {
-        return entry.key;
+        return const_cast<AtomStringImpl*>(entry.key);
     });
 }
 

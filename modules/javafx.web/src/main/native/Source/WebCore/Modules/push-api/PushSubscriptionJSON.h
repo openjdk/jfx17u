@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if ENABLE(SERVICE_WORKER)
+
 #include "EpochTimeStamp.h"
 
 #include <optional>
@@ -40,3 +42,5 @@ struct PushSubscriptionJSON {
 };
 
 } // namespace WebCore
+
+#endif // ENABLE(SERVICE_WORKER)

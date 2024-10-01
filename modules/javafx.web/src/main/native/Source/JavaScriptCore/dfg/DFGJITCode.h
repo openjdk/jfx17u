@@ -70,13 +70,23 @@ struct UnlinkedStructureStubInfo : JSC::UnlinkedStructureStubInfo {
 };
 
 struct UnlinkedCallLinkInfo : JSC::UnlinkedCallLinkInfo {
-    void setUpCall(CallLinkInfo::CallType callType)
+    void setUpCall(CallLinkInfo::CallType callType, GPRReg calleeGPR)
     {
         this->callType = callType;
+        this->calleeGPR = calleeGPR;
+    }
+
+    void setFrameShuffleData(const CallFrameShuffleData& shuffleData)
+    {
+        m_frameShuffleData = makeUnique<CallFrameShuffleData>(shuffleData);
+        m_frameShuffleData->shrinkToFit();
     }
 
     CodeOrigin codeOrigin;
     CallLinkInfo::CallType callType { CallLinkInfo::CallType::None };
+    GPRReg callLinkInfoGPR { InvalidGPRReg };
+    GPRReg calleeGPR { InvalidGPRReg };
+    std::unique_ptr<CallFrameShuffleData> m_frameShuffleData;
 };
 
 class LinkerIR {
@@ -84,8 +94,9 @@ class LinkerIR {
 public:
     using Constant = unsigned;
 
-    enum class Type : uint8_t {
+    enum class Type : uint16_t {
         Invalid,
+        StructureStubInfo,
         CallLinkInfo,
         CellPointer,
         NonCellPointer,
@@ -105,12 +116,12 @@ public:
         ObjectPrototypeChainIsSaneWatchpointSet,
     };
 
-    using Value = JITConstant<Type>;
+    using Value = CompactPointerTuple<void*, Type>;
 
     struct ValueHash {
         static unsigned hash(const Value& p)
         {
-            return p.hash();
+            return computeHash(p.type(), p.pointer());
         }
 
         static bool equal(const Value& a, const Value& b)
@@ -147,10 +158,11 @@ private:
     FixedVector<Value> m_constants;
 };
 
-class JITData final : public ButterflyArray<JITData, StructureStubInfo, void*> {
+class JITData final : public TrailingArray<JITData, void*> {
+    WTF_MAKE_FAST_ALLOCATED;
     friend class JSC::LLIntOffsetsExtractor;
 public:
-    using Base = ButterflyArray<JITData, StructureStubInfo, void*>;
+    using Base = TrailingArray<JITData, void*>;
     using ExitVector = FixedVector<MacroAssemblerCodeRef<OSRExitPtrTag>>;
 
     static ptrdiff_t offsetOfExits() { return OBJECT_OFFSETOF(JITData, m_exits); }
@@ -171,30 +183,15 @@ public:
         m_isInvalidated = 1;
     }
 
-    auto stubInfos() -> decltype(leadingSpan())
-    {
-        return leadingSpan();
-    }
-
-    StructureStubInfo& stubInfo(unsigned index)
-    {
-        auto span = stubInfos();
-        return span[span.size() - index - 1];
-    }
-
+    FixedVector<StructureStubInfo>& stubInfos() { return m_stubInfos; }
     FixedVector<OptimizingCallLinkInfo>& callLinkInfos() { return m_callLinkInfos; }
 
-    static ptrdiff_t offsetOfGlobalObject() { return OBJECT_OFFSETOF(JITData, m_globalObject); }
-    static ptrdiff_t offsetOfStackOffset() { return OBJECT_OFFSETOF(JITData, m_stackOffset); }
-
-    explicit JITData(unsigned stubInfoSize, unsigned poolSize, const JITCode&, ExitVector&&);
-
 private:
+    explicit JITData(const JITCode&, ExitVector&&);
 
     bool tryInitialize(VM&, CodeBlock*, const JITCode&);
 
-    JSGlobalObject* m_globalObject { nullptr }; // This is not marked since owner CodeBlock will mark JSGlobalObject.
-    intptr_t m_stackOffset { 0 };
+    FixedVector<StructureStubInfo> m_stubInfos;
     FixedVector<OptimizingCallLinkInfo> m_callLinkInfos;
     FixedVector<CodeBlockJettisoningWatchpoint> m_watchpoints;
     ExitVector m_exits;
@@ -207,7 +204,6 @@ public:
     ~JITCode() final;
 
     CommonData* dfgCommon() final;
-    const CommonData* dfgCommon() const final;
     JITCode* dfg() final;
     bool isUnlinked() const { return common.isUnlinked(); }
 
@@ -311,7 +307,7 @@ public:
 
 inline std::unique_ptr<JITData> JITData::tryCreate(VM& vm, CodeBlock* codeBlock, const JITCode& jitCode, ExitVector&& exits)
 {
-    auto result = std::unique_ptr<JITData> { createImpl(jitCode.m_unlinkedStubInfos.size(), jitCode.m_linkerIR.size(), jitCode, WTFMove(exits)) };
+    auto result = std::unique_ptr<JITData> { new (NotNull, fastMalloc(Base::allocationSize(jitCode.m_linkerIR.size()))) JITData(jitCode, WTFMove(exits)) };
     if (result->tryInitialize(vm, codeBlock, jitCode))
         return result;
     return nullptr;

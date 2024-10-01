@@ -26,6 +26,7 @@
 #pragma once
 
 #include <cstdint>
+#include <wtf/EnumTraits.h>
 
 namespace WebCore::WebGPU {
 
@@ -35,3 +36,15 @@ enum class QueryType : uint8_t {
 };
 
 } // namespace WebCore::WebGPU
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::WebGPU::QueryType> {
+    using values = EnumValues<
+        WebCore::WebGPU::QueryType,
+        WebCore::WebGPU::QueryType::Occlusion,
+        WebCore::WebGPU::QueryType::Timestamp
+    >;
+};
+
+} // namespace WTF

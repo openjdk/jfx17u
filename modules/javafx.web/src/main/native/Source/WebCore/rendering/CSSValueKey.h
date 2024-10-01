@@ -30,14 +30,18 @@
 namespace WebCore {
 
 struct CSSValueKey {
-    unsigned hash() const;
 
-    friend bool operator==(const CSSValueKey&, const CSSValueKey&) = default;
+    unsigned hash() const;
 
     unsigned cssValueID;
     bool useDarkAppearance;
     bool useElevatedUserInterfaceLevel;
 };
+
+inline bool operator==(const CSSValueKey& a, const CSSValueKey& b)
+{
+    return a.cssValueID == b.cssValueID && a.useDarkAppearance == b.useDarkAppearance && a.useElevatedUserInterfaceLevel == b.useElevatedUserInterfaceLevel;
+}
 
 inline unsigned CSSValueKey::hash() const
 {

@@ -22,7 +22,6 @@
 #define FontCascadeFonts_h
 
 #include "Font.h"
-#include "FontCascadeDescription.h"
 #include "FontRanges.h"
 #include "FontSelector.h"
 #include "GlyphPage.h"
@@ -32,7 +31,6 @@
 #include <wtf/HashFunctions.h>
 #include <wtf/HashTraits.h>
 #include <wtf/MainThread.h>
-#include <wtf/TriState.h>
 
 #if PLATFORM(IOS_FAMILY)
 #include "WebCoreThread.h"
@@ -40,6 +38,7 @@
 
 namespace WebCore {
 
+class FontCascadeDescription;
 class FontPlatformData;
 class FontSelector;
 class GraphicsContext;
@@ -58,11 +57,10 @@ public:
 
     bool isForPlatformFont() const { return m_isForPlatformFont; }
 
-    GlyphData glyphDataForCharacter(char32_t, const FontCascadeDescription&, FontVariant, ResolvedEmojiPolicy);
+    GlyphData glyphDataForCharacter(UChar32, const FontCascadeDescription&, FontVariant, ResolvedEmojiPolicy);
 
     bool isFixedPitch(const FontCascadeDescription&);
-
-    bool canTakeFixedPitchFastContentMeasuring(const FontCascadeDescription&);
+    void determinePitch(const FontCascadeDescription&);
 
     bool isLoadingCustomFonts() const;
 
@@ -74,7 +72,7 @@ public:
     WidthCache& widthCache() { return m_widthCache; }
     const WidthCache& widthCache() const { return m_widthCache; }
 
-    const Font& primaryFont(FontCascadeDescription&);
+    const Font& primaryFont(const FontCascadeDescription&);
     WEBCORE_EXPORT const FontRanges& realizeFallbackRangesAt(const FontCascadeDescription&, unsigned fallbackIndex);
 
     void pruneSystemFallbacks();
@@ -83,24 +81,18 @@ private:
     FontCascadeFonts(RefPtr<FontSelector>&&);
     FontCascadeFonts(const FontPlatformData&);
 
-    GlyphData glyphDataForSystemFallback(char32_t, const FontCascadeDescription&, FontVariant, ResolvedEmojiPolicy, bool systemFallbackShouldBeInvisible);
-    GlyphData glyphDataForVariant(char32_t, const FontCascadeDescription&, FontVariant, ResolvedEmojiPolicy, unsigned fallbackIndex = 0);
-
-    WEBCORE_EXPORT void determinePitch(const FontCascadeDescription&);
-    WEBCORE_EXPORT void determineCanTakeFixedPitchFastContentMeasuring(const FontCascadeDescription&);
+    GlyphData glyphDataForSystemFallback(UChar32, const FontCascadeDescription&, FontVariant, ResolvedEmojiPolicy, bool systemFallbackShouldBeInvisible);
+    GlyphData glyphDataForVariant(UChar32, const FontCascadeDescription&, FontVariant, ResolvedEmojiPolicy, unsigned fallbackIndex = 0);
 
     Vector<FontRanges, 1> m_realizedFallbackRanges;
     unsigned m_lastRealizedFallbackIndex { 0 };
 
     class GlyphPageCacheEntry {
     public:
-        GlyphPageCacheEntry() = default;
-        GlyphPageCacheEntry(RefPtr<GlyphPage>&&);
-
-        GlyphData glyphDataForCharacter(char32_t);
+        GlyphData glyphDataForCharacter(UChar32);
 
         void setSingleFontPage(RefPtr<GlyphPage>&&);
-        void setGlyphDataForCharacter(char32_t, GlyphData);
+        void setGlyphDataForCharacter(UChar32, GlyphData);
 
         bool isNull() const { return !m_singleFont && !m_mixedFont; }
         bool isMixedFont() const { return !!m_mixedFont; }
@@ -115,7 +107,7 @@ private:
 
     HashSet<RefPtr<Font>> m_systemFallbackFontSet;
 
-    SingleThreadWeakPtr<const Font> m_cachedPrimaryFont;
+    const Font* m_cachedPrimaryFont;
     RefPtr<FontSelector> m_fontSelector;
 
     WidthCache m_widthCache;
@@ -124,7 +116,6 @@ private:
     unsigned short m_generation;
     Pitch m_pitch { UnknownPitch };
     bool m_isForPlatformFont { false };
-    TriState m_canTakeFixedPitchFastContentMeasuring : 2 { TriState::Indeterminate };
 #if ASSERT_ENABLED
     std::optional<Ref<Thread>> m_thread;
 #endif
@@ -135,21 +126,14 @@ inline bool FontCascadeFonts::isFixedPitch(const FontCascadeDescription& descrip
     if (m_pitch == UnknownPitch)
         determinePitch(description);
     return m_pitch == FixedPitch;
-}
+};
 
-inline bool FontCascadeFonts::canTakeFixedPitchFastContentMeasuring(const FontCascadeDescription& description)
-{
-    if (m_canTakeFixedPitchFastContentMeasuring == TriState::Indeterminate)
-        determineCanTakeFixedPitchFastContentMeasuring(description);
-    return m_canTakeFixedPitchFastContentMeasuring == TriState::True;
-}
-
-inline const Font& FontCascadeFonts::primaryFont(FontCascadeDescription& description)
+inline const Font& FontCascadeFonts::primaryFont(const FontCascadeDescription& description)
 {
     ASSERT(m_thread ? m_thread->ptr() == &Thread::current() : isMainThread());
     if (!m_cachedPrimaryFont) {
         auto& primaryRanges = realizeFallbackRangesAt(description, 0);
-        m_cachedPrimaryFont = primaryRanges.glyphDataForCharacter(' ', ExternalResourceDownloadPolicy::Allow).font.get();
+        m_cachedPrimaryFont = primaryRanges.glyphDataForCharacter(' ', ExternalResourceDownloadPolicy::Allow).font;
         if (!m_cachedPrimaryFont)
             m_cachedPrimaryFont = primaryRanges.rangeAt(0).font(ExternalResourceDownloadPolicy::Allow);
         else if (m_cachedPrimaryFont->isInterstitial()) {
@@ -157,19 +141,12 @@ inline const Font& FontCascadeFonts::primaryFont(FontCascadeDescription& descrip
                 auto& localRanges = realizeFallbackRangesAt(description, index);
                 if (localRanges.isNull())
                     break;
-                WeakPtr font = localRanges.glyphDataForCharacter(' ', ExternalResourceDownloadPolicy::Forbid).font.get();
+                auto* font = localRanges.glyphDataForCharacter(' ', ExternalResourceDownloadPolicy::Forbid).font;
                 if (font && !font->isInterstitial()) {
-                    m_cachedPrimaryFont = WTFMove(font);
+                    m_cachedPrimaryFont = font;
                     break;
                 }
             }
-        }
-
-        ASSERT(m_cachedPrimaryFont);
-        auto fontSizeAdjust = description.fontSizeAdjust();
-        if (fontSizeAdjust.isFromFont()) {
-            auto aspectValue = fontSizeAdjust.resolve(description.computedSize(), m_cachedPrimaryFont->fontMetrics());
-            description.setFontSizeAdjust({ fontSizeAdjust.metric, FontSizeAdjust::ValueType::FromFont, aspectValue });
         }
     }
     return *m_cachedPrimaryFont;

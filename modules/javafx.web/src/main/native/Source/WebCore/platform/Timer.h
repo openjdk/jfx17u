@@ -41,12 +41,6 @@
 
 namespace WebCore {
 
-class TimerAlignment : public CanMakeWeakPtr<TimerAlignment> {
-public:
-    virtual ~TimerAlignment() = default;
-    virtual std::optional<MonotonicTime> alignedFireTime(bool hasReachedMaxNestingLevel, MonotonicTime) const = 0;
-};
-
 class TimerBase {
     WTF_MAKE_NONCOPYABLE(TimerBase);
     WTF_MAKE_FAST_ALLOCATED;
@@ -63,47 +57,31 @@ public:
     void startRepeating(Seconds repeatInterval) { start(repeatInterval, repeatInterval); }
     void startOneShot(Seconds delay) { start(delay, 0_s); }
 
-    inline void stop();
-    inline bool isActive() const;
+    WEBCORE_EXPORT void stop();
+    bool isActive() const;
 
-    MonotonicTime nextFireTime() const { return m_heapItemWithBitfields.pointer() ? m_heapItemWithBitfields.pointer()->time : MonotonicTime { }; }
     WEBCORE_EXPORT Seconds nextFireInterval() const;
     Seconds nextUnalignedFireInterval() const;
     Seconds repeatInterval() const { return m_repeatInterval; }
 
-    void setTimerAlignment(TimerAlignment& alignment) { m_alignment = alignment; }
-    TimerAlignment* timerAlignment() { return m_alignment.get(); }
-
-    bool hasReachedMaxNestingLevel() const { return bitfields().hasReachedMaxNestingLevel; }
-    void setHasReachedMaxNestingLevel(bool);
-
-    void augmentFireInterval(Seconds delta) { setNextFireTime(m_heapItemWithBitfields.pointer()->time + delta); }
+    void augmentFireInterval(Seconds delta) { setNextFireTime(m_heapItem->time + delta); }
     void augmentRepeatInterval(Seconds delta) { augmentFireInterval(delta); m_repeatInterval += delta; }
 
     void didChangeAlignmentInterval();
 
     WEBCORE_EXPORT static void fireTimersInNestedEventLoop();
 
-protected:
-    struct TimerBitfields {
-        uint8_t hasReachedMaxNestingLevel : 1 { false };
-        uint8_t shouldRestartWhenTimerFires : 1 { false }; // DeferrableOneShotTimer
-    };
-
-    TimerBitfields bitfields() const { return bitwise_cast<TimerBitfields>(m_heapItemWithBitfields.type()); }
-    void setBitfields(const TimerBitfields& bitfields) { return m_heapItemWithBitfields.setType(bitwise_cast<uint8_t>(bitfields)); }
-
 private:
     virtual void fired() = 0;
 
-    WEBCORE_EXPORT void stopSlowCase();
+    virtual std::optional<MonotonicTime> alignedFireTime(MonotonicTime) const { return std::nullopt; }
 
     void checkConsistency() const;
     void checkHeapIndex() const;
 
     void setNextFireTime(MonotonicTime);
 
-    bool inHeap() const { return m_heapItemWithBitfields.pointer() && m_heapItemWithBitfields.pointer()->isInHeap(); }
+    bool inHeap() const { return m_heapItem && m_heapItem->isInHeap(); }
 
     bool hasValidHeapPosition() const;
     void updateHeapIfNeeded(MonotonicTime oldTime);
@@ -117,17 +95,19 @@ private:
     void heapPopMin();
     static void heapDeleteNullMin(ThreadTimerHeap&);
 
-    WeakPtr<TimerAlignment> m_alignment;
+    MonotonicTime nextFireTime() const { return m_heapItem ? m_heapItem->time : MonotonicTime { }; }
+
     MonotonicTime m_unalignedNextFireTime; // m_nextFireTime not considering alignment interval
     Seconds m_repeatInterval; // 0 if not repeating
 
-    CompactRefPtrTuple<ThreadTimerHeapItem, uint8_t> m_heapItemWithBitfields;
+    RefPtr<ThreadTimerHeapItem> m_heapItem;
     Ref<Thread> m_thread { Thread::current() };
 
     friend class ThreadTimers;
     friend class TimerHeapLessThanFunction;
     friend class TimerHeapReference;
 };
+
 
 class Timer : public TimerBase {
     WTF_MAKE_FAST_ALLOCATED;
@@ -162,12 +142,6 @@ private:
     Function<void()> m_function;
 };
 
-inline void TimerBase::stop()
-{
-    if (m_heapItemWithBitfields.pointer())
-        stopSlowCase();
-}
-
 inline bool TimerBase::isActive() const
 {
     // FIXME: Write this in terms of USE(WEB_THREAD) instead of PLATFORM(IOS_FAMILY).
@@ -177,13 +151,6 @@ inline bool TimerBase::isActive() const
     ASSERT(WebThreadIsCurrent() || pthread_main_np() || m_thread.ptr() == &Thread::current());
 #endif // PLATFORM(IOS_FAMILY)
     return static_cast<bool>(nextFireTime());
-}
-
-inline void TimerBase::setHasReachedMaxNestingLevel(bool value)
-{
-    auto values = bitfields();
-    values.hasReachedMaxNestingLevel = value;
-    setBitfields(values);
 }
 
 class DeferrableOneShotTimer : protected TimerBase {
@@ -198,6 +165,7 @@ public:
     DeferrableOneShotTimer(Function<void()>&& function, Seconds delay)
         : m_function(WTFMove(function))
         , m_delay(delay)
+        , m_shouldRestartWhenTimerFires(false)
     {
     }
 
@@ -208,7 +176,7 @@ public:
         // can be quite expensive.
 
         if (isActive()) {
-            setShouldRestartWhenTimerFires(true);
+            m_shouldRestartWhenTimerFires = true;
             return;
         }
         startOneShot(m_delay);
@@ -216,7 +184,7 @@ public:
 
     void stop()
     {
-        setShouldRestartWhenTimerFires(false);
+        m_shouldRestartWhenTimerFires = false;
         TimerBase::stop();
     }
 
@@ -225,8 +193,8 @@ public:
 private:
     void fired() override
     {
-        if (bitfields().shouldRestartWhenTimerFires) {
-            setShouldRestartWhenTimerFires(false);
+        if (m_shouldRestartWhenTimerFires) {
+            m_shouldRestartWhenTimerFires = false;
             startOneShot(m_delay);
             return;
         }
@@ -234,16 +202,10 @@ private:
         m_function();
     }
 
-    void setShouldRestartWhenTimerFires(bool value)
-    {
-        auto values = bitfields();
-        values.shouldRestartWhenTimerFires = value;
-        setBitfields(values);
-    }
-
     Function<void()> m_function;
 
     Seconds m_delay;
+    bool m_shouldRestartWhenTimerFires;
 };
 
 }

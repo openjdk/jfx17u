@@ -27,20 +27,20 @@ namespace WebCore {
 
 template<>
 struct SVGPropertyTraits<ChannelSelectorType> {
-    static unsigned highestEnumValue() { return enumToUnderlyingType(ChannelSelectorType::CHANNEL_A); }
+    static unsigned highestEnumValue() { return CHANNEL_A; }
 
     static String toString(ChannelSelectorType type)
     {
         switch (type) {
-        case ChannelSelectorType::CHANNEL_UNKNOWN:
+        case CHANNEL_UNKNOWN:
             return emptyString();
-        case ChannelSelectorType::CHANNEL_R:
+        case CHANNEL_R:
             return "R"_s;
-        case ChannelSelectorType::CHANNEL_G:
+        case CHANNEL_G:
             return "G"_s;
-        case ChannelSelectorType::CHANNEL_B:
+        case CHANNEL_B:
             return "B"_s;
-        case ChannelSelectorType::CHANNEL_A:
+        case CHANNEL_A:
             return "A"_s;
         }
 
@@ -51,14 +51,14 @@ struct SVGPropertyTraits<ChannelSelectorType> {
     static ChannelSelectorType fromString(const String& value)
     {
         if (value == "R"_s)
-            return ChannelSelectorType::CHANNEL_R;
+            return CHANNEL_R;
         if (value == "G"_s)
-            return ChannelSelectorType::CHANNEL_G;
+            return CHANNEL_G;
         if (value == "B"_s)
-            return ChannelSelectorType::CHANNEL_B;
+            return CHANNEL_B;
         if (value == "A"_s)
-            return ChannelSelectorType::CHANNEL_A;
-        return ChannelSelectorType::CHANNEL_UNKNOWN;
+            return CHANNEL_A;
+        return CHANNEL_UNKNOWN;
     }
 };
 
@@ -95,8 +95,8 @@ private:
 
     Ref<SVGAnimatedString> m_in1 { SVGAnimatedString::create(this) };
     Ref<SVGAnimatedString> m_in2 { SVGAnimatedString::create(this) };
-    Ref<SVGAnimatedEnumeration> m_xChannelSelector { SVGAnimatedEnumeration::create(this, ChannelSelectorType::CHANNEL_A) };
-    Ref<SVGAnimatedEnumeration> m_yChannelSelector { SVGAnimatedEnumeration::create(this, ChannelSelectorType::CHANNEL_A) };
+    Ref<SVGAnimatedEnumeration> m_xChannelSelector { SVGAnimatedEnumeration::create(this, CHANNEL_A) };
+    Ref<SVGAnimatedEnumeration> m_yChannelSelector { SVGAnimatedEnumeration::create(this, CHANNEL_A) };
     Ref<SVGAnimatedNumber> m_scale { SVGAnimatedNumber::create(this) };
 };
 

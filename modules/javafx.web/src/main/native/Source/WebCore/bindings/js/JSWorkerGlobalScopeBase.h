@@ -28,9 +28,14 @@
 
 #include "JSDOMGlobalObject.h"
 #include "JSDOMWrapper.h"
+
+#if ENABLE(SERVICE_WORKER)
 #include "ServiceWorkerGlobalScope.h"
+#endif
 
 namespace WebCore {
+
+class WorkerGlobalScope;
 
 class JSWorkerGlobalScopeBase : public JSDOMGlobalObject {
 public:

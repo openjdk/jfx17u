@@ -34,13 +34,13 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(CSSTransitionEvent);
 
 CSSTransitionEvent::CSSTransitionEvent(const AtomString& type, WebAnimation* animation, std::optional<Seconds> scheduledTime, double elapsedTime, PseudoId pseudoId, const String propertyName)
-    : StyleOriginatedAnimationEvent(type, animation, scheduledTime, elapsedTime, pseudoId)
+    : DeclarativeAnimationEvent(type, animation, scheduledTime, elapsedTime, pseudoId)
     , m_propertyName(propertyName)
 {
 }
 
 CSSTransitionEvent::CSSTransitionEvent(const AtomString& type, const Init& initializer, IsTrusted isTrusted)
-    : StyleOriginatedAnimationEvent(type, initializer, isTrusted, initializer.elapsedTime, initializer.pseudoElement)
+    : DeclarativeAnimationEvent(type, initializer, isTrusted, initializer.elapsedTime, initializer.pseudoElement)
     , m_propertyName(initializer.propertyName)
 {
 }

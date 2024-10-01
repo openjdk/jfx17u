@@ -26,6 +26,6 @@
 [
     LegacyNoInterfaceObject,
     Conditional=WEBGL,
-    GenerateIsReachable,
+    GenerateIsReachable=ImplWebGLRenderingContext,
 ] interface OESElementIndexUint {
 };

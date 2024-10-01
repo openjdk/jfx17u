@@ -26,7 +26,7 @@
 #include "config.h"
 #include "ManagedMediaSource.h"
 
-#if ENABLE(MEDIA_SOURCE)
+#if ENABLE(MANAGED_MEDIA_SOURCE)
 
 #include "Event.h"
 #include "EventNames.h"
@@ -70,7 +70,6 @@ void ManagedMediaSource::setStreaming(bool streaming)
 {
     if (m_streaming == streaming)
         return;
-    ALWAYS_LOG(LOGIDENTIFIER, streaming);
     m_streaming = streaming;
     if (streaming) {
         scheduleEvent(eventNames().startstreamingEvent);
@@ -94,7 +93,7 @@ bool ManagedMediaSource::isBuffered(const PlatformTimeRanges& ranges) const
 
     ASSERT(ranges.length() == 1);
 
-    auto bufferedRanges = m_private->buffered();
+    auto bufferedRanges = buffered();
     if (!bufferedRanges.length())
         return false;
     bufferedRanges.intersectWith(ranges);
@@ -165,7 +164,6 @@ void ManagedMediaSource::monitorSourceBuffers()
 
 void ManagedMediaSource::streamingTimerFired()
 {
-    ALWAYS_LOG(LOGIDENTIFIER, "Disabling streaming due to policy ", *m_highThreshold);
     m_streamingAllowed = false;
     notifyElementUpdateMediaState();
 }
@@ -182,6 +180,5 @@ bool ManagedMediaSource::isOpen() const
 #endif
 }
 
-} // namespace WebCore
-
-#endif // ENABLE(MEDIA_SOURCE)
+}
+#endif

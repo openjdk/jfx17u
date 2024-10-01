@@ -21,7 +21,6 @@
 
 #pragma once
 
-#include <cstdint>
 #include <string>
 #include <wtf/Forward.h>
 #include <wtf/text/LChar.h>

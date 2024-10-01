@@ -48,21 +48,20 @@ InsertNodeBeforeCommand::InsertNodeBeforeCommand(Ref<Node>&& insertChild, Node& 
 
 void InsertNodeBeforeCommand::doApply()
 {
-    RefPtr parent = m_refChild->parentNode();
+    ContainerNode* parent = m_refChild->parentNode();
     if (!parent || (m_shouldAssumeContentIsAlwaysEditable == DoNotAssumeContentIsAlwaysEditable && !isEditableNode(*parent)))
         return;
     ASSERT(isEditableNode(*parent));
 
-    parent->insertBefore(protectedInsertChild(), m_refChild.copyRef());
+    parent->insertBefore(m_insertChild, m_refChild.ptr());
 }
 
 void InsertNodeBeforeCommand::doUnapply()
 {
-    auto insertChild = protectedInsertChild();
-    if (!isEditableNode(insertChild))
+    if (!isEditableNode(m_insertChild))
         return;
 
-    insertChild->remove();
+    m_insertChild->remove();
 }
 
 #ifndef NDEBUG

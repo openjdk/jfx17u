@@ -28,16 +28,19 @@
 #if ENABLE(MEDIA_SOURCE)
 #include "JSMediaSource.h"
 
+#if ENABLE(MANAGED_MEDIA_SOURCE)
 #include "JSManagedMediaSource.h"
+#endif
 
 namespace WebCore {
 using namespace JSC;
 
 JSValue toJSNewlyCreated(JSGlobalObject*, JSDOMGlobalObject* globalObject, Ref<MediaSource>&& source)
 {
+#if ENABLE(MANAGED_MEDIA_SOURCE)
     if (source->isManaged())
         return createWrapper<ManagedMediaSource>(globalObject, WTFMove(source));
-
+#endif
     return createWrapper<MediaSource>(globalObject, WTFMove(source));
 }
 
@@ -48,4 +51,4 @@ JSValue toJS(JSGlobalObject* lexicalGlobalObject, JSDOMGlobalObject* globalObjec
 
 } // namespace WebCore
 
-#endif // ENABLE(MEDIA_SOURCE)
+#endif

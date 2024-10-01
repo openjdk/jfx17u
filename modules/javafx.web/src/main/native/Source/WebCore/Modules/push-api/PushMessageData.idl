@@ -24,6 +24,7 @@
  */
 
 [
+    Conditional=SERVICE_WORKER,
     EnabledBySetting=PushAPIEnabled,
     Exposed=ServiceWorker,
 ] interface PushMessageData {

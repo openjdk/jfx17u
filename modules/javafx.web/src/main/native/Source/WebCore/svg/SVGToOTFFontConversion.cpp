@@ -202,8 +202,8 @@ private:
 
     typedef void (SVGToOTFFontConverter::*FontAppendingFunction)();
     void appendTable(const char identifier[4], FontAppendingFunction);
-    void appendFormat12CMAPTable(const Vector<std::pair<char32_t, Glyph>>& codepointToGlyphMappings);
-    void appendFormat4CMAPTable(const Vector<std::pair<char32_t, Glyph>>& codepointToGlyphMappings);
+    void appendFormat12CMAPTable(const Vector<std::pair<UChar32, Glyph>>& codepointToGlyphMappings);
+    void appendFormat4CMAPTable(const Vector<std::pair<UChar32, Glyph>>& codepointToGlyphMappings);
     void appendCMAPTable();
     void appendGSUBTable();
     void appendHEADTable();
@@ -236,8 +236,8 @@ private:
     void appendLigatureSubtable(size_t subtableRecordLocation);
     void appendArabicReplacementSubtable(size_t subtableRecordLocation, ASCIILiteral arabicForm);
     void appendScriptSubtable(unsigned featureCount);
-    Vector<Glyph, 1> glyphsForCodepoint(char32_t) const;
-    Glyph firstGlyph(const Vector<Glyph, 1>&, char32_t) const;
+    Vector<Glyph, 1> glyphsForCodepoint(UChar32) const;
+    Glyph firstGlyph(const Vector<Glyph, 1>&, UChar32) const;
 
     template<typename T> T scaleUnitsPerEm(T value) const
     {
@@ -288,7 +288,7 @@ static uint16_t integralLog2(uint16_t x)
     return result;
 }
 
-void SVGToOTFFontConverter::appendFormat12CMAPTable(const Vector<std::pair<char32_t, Glyph>>& mappings)
+void SVGToOTFFontConverter::appendFormat12CMAPTable(const Vector<std::pair<UChar32, Glyph>>& mappings)
 {
     // Braindead scheme: One segment for each character
     ASSERT(m_glyphs.size() < 0xFFFF);
@@ -306,7 +306,7 @@ void SVGToOTFFontConverter::appendFormat12CMAPTable(const Vector<std::pair<char3
     overwrite32(subtableLocation + 12, mappings.size());
 }
 
-void SVGToOTFFontConverter::appendFormat4CMAPTable(const Vector<std::pair<char32_t, Glyph>>& bmpMappings)
+void SVGToOTFFontConverter::appendFormat4CMAPTable(const Vector<std::pair<UChar32, Glyph>>& bmpMappings)
 {
     auto subtableLocation = m_result.size();
     append16(4); // Format 4
@@ -367,11 +367,11 @@ void SVGToOTFFontConverter::appendCMAPTable()
     append16(10); // Unicode
     append32(28); // Byte offset of subtable
 
-    Vector<std::pair<char32_t, Glyph>> mappings;
-    char32_t previousCodepoint = std::numeric_limits<char32_t>::max();
+    Vector<std::pair<UChar32, Glyph>> mappings;
+    UChar32 previousCodepoint = std::numeric_limits<UChar32>::max();
     for (size_t i = 0; i < m_glyphs.size(); ++i) {
         auto& glyph = m_glyphs[i];
-        char32_t codepoint;
+        UChar32 codepoint;
         auto codePoints = StringView(glyph.codepoints).codePoints();
         auto iterator = codePoints.begin();
         if (iterator == codePoints.end())
@@ -390,7 +390,7 @@ void SVGToOTFFontConverter::appendCMAPTable()
 
     appendFormat12CMAPTable(mappings);
 
-    Vector<std::pair<char32_t, Glyph>> bmpMappings;
+    Vector<std::pair<UChar32, Glyph>> bmpMappings;
     for (auto& mapping : mappings) {
         if (mapping.first < 0x10000)
             bmpMappings.append(mapping);
@@ -713,7 +713,7 @@ void SVGToOTFFontConverter::appendCFFTable()
         m_result.appendVector(glyph.charString);
 }
 
-Glyph SVGToOTFFontConverter::firstGlyph(const Vector<Glyph, 1>& v, char32_t codepoint) const
+Glyph SVGToOTFFontConverter::firstGlyph(const Vector<Glyph, 1>& v, UChar32 codepoint) const
 {
 #if !ASSERT_ENABLED
     UNUSED_PARAM(codepoint);
@@ -996,7 +996,7 @@ void SVGToOTFFontConverter::appendVMTXTable()
     }
 }
 
-static String codepointToString(char32_t codepoint)
+static String codepointToString(UChar32 codepoint)
 {
     UChar buffer[2];
     uint8_t length = 0;
@@ -1005,7 +1005,7 @@ static String codepointToString(char32_t codepoint)
     return error ? String() : String(buffer, length);
 }
 
-Vector<Glyph, 1> SVGToOTFFontConverter::glyphsForCodepoint(char32_t codepoint) const
+Vector<Glyph, 1> SVGToOTFFontConverter::glyphsForCodepoint(UChar32 codepoint) const
 {
     return m_codepointsToIndicesMap.get(codepointToString(codepoint));
 }
@@ -1299,14 +1299,14 @@ void SVGToOTFFontConverter::processGlyphElement(const SVGElement& glyphOrMissing
 
 void SVGToOTFFontConverter::appendLigatureGlyphs()
 {
-    HashSet<uint32_t> ligatureCodepoints;
-    HashSet<uint32_t> nonLigatureCodepoints;
+    HashSet<UChar32> ligatureCodepoints;
+    HashSet<UChar32> nonLigatureCodepoints;
     for (auto& glyph : m_glyphs) {
         auto codePoints = StringView(glyph.codepoints).codePoints();
         auto codePointsIterator = codePoints.begin();
         if (codePointsIterator == codePoints.end())
             continue;
-        char32_t codepoint = *codePointsIterator;
+        UChar32 codepoint = *codePointsIterator;
         ++codePointsIterator;
         if (codePointsIterator == codePoints.end())
             nonLigatureCodepoints.add(codepoint);
@@ -1316,6 +1316,7 @@ void SVGToOTFFontConverter::appendLigatureGlyphs()
                 ligatureCodepoints.add(*codePointsIterator);
         }
     }
+
     for (auto codepoint : nonLigatureCodepoints)
         ligatureCodepoints.remove(codepoint);
     for (auto codepoint : ligatureCodepoints) {
@@ -1332,7 +1333,7 @@ bool SVGToOTFFontConverter::compareCodepointsLexicographically(const GlyphData& 
     auto iterator1 = codePoints1.begin();
     auto iterator2 = codePoints2.begin();
     while (iterator1 != codePoints1.end() && iterator2 != codePoints2.end()) {
-        char32_t codepoint1, codepoint2;
+        UChar32 codepoint1, codepoint2;
         codepoint1 = *iterator1;
         codepoint2 = *iterator2;
 

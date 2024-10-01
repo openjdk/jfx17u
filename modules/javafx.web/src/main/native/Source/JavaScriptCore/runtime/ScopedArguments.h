@@ -115,12 +115,8 @@ public:
             m_scope->variableAt(m_table->get(i)).set(vm, m_scope.get(), value);
 
             auto* watchpointSet = m_table->getWatchpointSet(i);
-            if (watchpointSet) {
-#if ASSERT_ENABLED
-                ASSERT(m_scope->symbolTable()->hasScopedWatchpointSet(watchpointSet));
-#endif
+            if (watchpointSet)
                 watchpointSet->touch(vm, "Write to ScopedArgument.");
-            }
         } else
             storage()[i - namedLength].set(vm, this, value);
     }

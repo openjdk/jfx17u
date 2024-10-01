@@ -32,16 +32,13 @@
 #include <wtf/RefPtr.h>
 #include <wtf/ThreadSafeRefCounted.h>
 
-namespace WTF {
-class WorkQueue;
-}
-
 namespace PAL {
 class SessionID;
 }
 
 namespace WebCore {
 struct ClientOrigin;
+class StorageQuotaManager;
 
 namespace IDBClient {
 class IDBConnectionToServer;
@@ -123,6 +120,8 @@ public:
     void dispatchTask(Function<void()>&&);
     void dispatchTaskReply(Function<void()>&&);
 
+    WebCore::StorageQuotaManager* quotaManager(const WebCore::ClientOrigin&);
+
 private:
     InProcessIDBServer(PAL::SessionID, const String& databaseDirectoryPath = nullString());
 
@@ -130,5 +129,7 @@ private:
     std::unique_ptr<WebCore::IDBServer::IDBServer> m_server;
     RefPtr<WebCore::IDBClient::IDBConnectionToServer> m_connectionToServer;
     RefPtr<WebCore::IDBServer::IDBConnectionToClient> m_connectionToClient;
-    Ref<WTF::WorkQueue> m_queue;
+    Ref<WorkQueue> m_queue;
+
+    HashMap<WebCore::ClientOrigin, RefPtr<WebCore::StorageQuotaManager>> m_quotaManagers;
 };

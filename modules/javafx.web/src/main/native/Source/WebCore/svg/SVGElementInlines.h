@@ -48,8 +48,7 @@ inline bool Element::hasTagName(const SVGQualifiedName& tagName) const
 
 inline bool Node::hasTagName(const SVGQualifiedName& name) const
 {
-    auto* svgElement = dynamicDowncast<SVGElement>(*this);
-    return svgElement && svgElement->hasTagName(name);
+    return isSVGElement() && downcast<SVGElement>(*this).hasTagName(name);
 }
 
 }

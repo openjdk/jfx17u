@@ -64,9 +64,15 @@ public:
     void setGlyphDisplayListIfNeeded(const LayoutRun& run, const PaintInfo& paintInfo, const TextRun& textRun)
     {
         if (!TextPainter::shouldUseGlyphDisplayList(paintInfo))
-            const_cast<LayoutRun&>(run).removeFromGlyphDisplayListCache();
+            TextPainter::removeGlyphDisplayList(run);
         else
             m_glyphDisplayList = GlyphDisplayListCache::singleton().get(run, m_font, m_context, textRun);
+    }
+
+    template<typename LayoutRun>
+    static void removeGlyphDisplayList(const LayoutRun& run)
+    {
+        GlyphDisplayListCache::singleton().remove(run);
     }
 
     static bool shouldUseGlyphDisplayList(const PaintInfo&);

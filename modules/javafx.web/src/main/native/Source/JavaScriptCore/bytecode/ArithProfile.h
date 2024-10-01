@@ -53,7 +53,7 @@ struct ObservedType {
     constexpr ObservedType withNonNumber() const { return ObservedType(m_bits | TypeNonNumber); }
     constexpr ObservedType withoutNonNumber() const { return ObservedType(m_bits & ~TypeNonNumber); }
 
-    friend constexpr bool operator==(const ObservedType&, const ObservedType&) = default;
+    constexpr bool operator==(const ObservedType& other) const { return m_bits == other.m_bits; }
 
     static constexpr uint8_t TypeEmpty = 0x0;
     static constexpr uint8_t TypeInt32 = 0x1;

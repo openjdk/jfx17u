@@ -36,7 +36,7 @@ struct MediaPositionState {
 
     String toJSONString() const;
 
-    friend bool operator==(const MediaPositionState&, const MediaPositionState&) = default;
+    bool operator==(const MediaPositionState& other) const { return duration == other.duration && playbackRate == other.playbackRate && position == other.position; }
 };
 
 }

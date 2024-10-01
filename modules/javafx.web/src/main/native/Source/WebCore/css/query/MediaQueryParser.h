@@ -31,15 +31,18 @@
 namespace WebCore {
 namespace MQ {
 
-struct MediaQueryParser : public GenericMediaQueryParser<MediaQueryParser>  {
+class MediaQueryParser : public GenericMediaQueryParser<MediaQueryParser>  {
+public:
+    MediaQueryParser(const MediaQueryParserContext&);
+
     static MediaQueryList parse(const String&, const MediaQueryParserContext&);
     static MediaQueryList parse(CSSParserTokenRange, const MediaQueryParserContext&);
     static std::optional<MediaQuery> parseCondition(CSSParserTokenRange, const MediaQueryParserContext&);
 
-    static MediaQueryList consumeMediaQueryList(CSSParserTokenRange&, const MediaQueryParserContext&);
-    static std::optional<MediaQuery> consumeMediaQuery(CSSParserTokenRange&, const MediaQueryParserContext&);
+    MediaQueryList consumeMediaQueryList(CSSParserTokenRange&);
+    std::optional<MediaQuery> consumeMediaQuery(CSSParserTokenRange&);
+    const FeatureSchema* schemaForFeatureName(const AtomString&) const;
 
-    static const FeatureSchema* schemaForFeatureName(const AtomString&, const MediaQueryParserContext&);
     static Vector<const FeatureSchema*> featureSchemas();
 };
 

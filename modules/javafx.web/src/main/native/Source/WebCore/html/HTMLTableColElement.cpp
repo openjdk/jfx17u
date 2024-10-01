@@ -78,14 +78,15 @@ void HTMLTableColElement::attributeChanged(const QualifiedName& name, const Atom
 
     if (name == spanAttr) {
         m_span = clampHTMLNonNegativeIntegerToRange(newValue, minSpan, maxSpan, defaultSpan);
-        if (CheckedPtr col = dynamicDowncast<RenderTableCol>(renderer()))
-            col->updateFromElement();
+        if (is<RenderTableCol>(renderer()))
+            downcast<RenderTableCol>(*renderer()).updateFromElement();
     } else if (name == widthAttr) {
         if (!newValue.isEmpty()) {
-            if (CheckedPtr col = dynamicDowncast<RenderTableCol>(renderer())) {
+            if (is<RenderTableCol>(renderer())) {
+                auto& col = downcast<RenderTableCol>(*renderer());
                 int newWidth = parseHTMLInteger(newValue).value_or(0);
-                if (newWidth != col->width())
-                    col->setNeedsLayoutAndPrefWidthsRecalc();
+                if (newWidth != col.width())
+                    col.setNeedsLayoutAndPrefWidthsRecalc();
             }
         }
     }

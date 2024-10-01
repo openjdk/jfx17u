@@ -53,7 +53,7 @@ public:
 private:
     ExceptionOr<bool> sendBeacon(Document&, const String& url, std::optional<FetchBody::Init>&&);
 
-    static ASCIILiteral supplementName();
+    static const char* supplementName();
 
     void notifyFinished(CachedResource&, const NetworkLoadMetrics&) final;
     void logError(const ResourceError&);

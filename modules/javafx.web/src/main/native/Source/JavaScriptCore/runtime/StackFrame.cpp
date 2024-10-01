@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Apple Inc. All rights reserved.
+ * Copyright (C) 2016-2021 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -45,12 +45,6 @@ StackFrame::StackFrame(VM& vm, JSCell* owner, JSCell* callee, CodeBlock* codeBlo
 {
 }
 
-StackFrame::StackFrame(VM& vm, JSCell* owner, CodeBlock* codeBlock, BytecodeIndex bytecodeIndex)
-    : m_codeBlock(vm, owner, codeBlock)
-    , m_bytecodeIndex(bytecodeIndex)
-{
-}
-
 StackFrame::StackFrame(Wasm::IndexOrName indexOrName)
     : m_wasmFunctionIndexOrName(indexOrName)
     , m_isWasmFrame(true)
@@ -64,10 +58,18 @@ SourceID StackFrame::sourceID() const
     return m_codeBlock->ownerExecutable()->sourceID();
 }
 
-static String processSourceURL(VM& vm, const JSC::StackFrame& frame, const String& sourceURL)
+String StackFrame::sourceURL(VM& vm) const
 {
+    if (m_isWasmFrame)
+        return "[wasm code]"_s;
+
+    if (!m_codeBlock)
+        return "[native code]"_s;
+
+    String sourceURL = m_codeBlock->ownerExecutable()->sourceURL();
+
     if (vm.clientData && !sourceURL.startsWithIgnoringASCIICase("http"_s)) {
-        String overrideURL = vm.clientData->overrideSourceURL(frame, sourceURL);
+        String overrideURL = vm.clientData->overrideSourceURL(*this, sourceURL);
         if (!overrideURL.isNull())
             return overrideURL;
     }
@@ -77,26 +79,9 @@ static String processSourceURL(VM& vm, const JSC::StackFrame& frame, const Strin
     return emptyString();
 }
 
-String StackFrame::sourceURL(VM& vm) const
-{
-    if (m_isWasmFrame)
-        return "[wasm code]"_s;
-
-    if (!m_codeBlock)
-        return "[native code]"_s;
-
-    return processSourceURL(vm, *this, m_codeBlock->ownerExecutable()->sourceURL());
-}
-
 String StackFrame::sourceURLStripped(VM& vm) const
 {
-    if (m_isWasmFrame)
-        return "[wasm code]"_s;
-
-    if (!m_codeBlock)
-        return "[native code]"_s;
-
-    return processSourceURL(vm, *this, m_codeBlock->ownerExecutable()->sourceURLStripped());
+    return URL(sourceURL(vm)).strippedForUseAsReport();
 }
 
 String StackFrame::functionName(VM& vm) const
@@ -123,30 +108,27 @@ String StackFrame::functionName(VM& vm) const
     if (m_callee) {
         if (m_callee->isObject())
             name = getCalculatedDisplayName(vm, jsCast<JSObject*>(m_callee.get())).impl();
-
-        return name.isNull() ? emptyString() : name;
-    }
-
-    if (m_codeBlock) {
-        if (auto* executable = jsDynamicCast<FunctionExecutable*>(m_codeBlock->ownerExecutable()))
-            name = executable->ecmaName().impl();
     }
 
     return name.isNull() ? emptyString() : name;
 }
 
-LineColumn StackFrame::computeLineAndColumn() const
+void StackFrame::computeLineAndColumn(unsigned& line, unsigned& column) const
 {
-    if (!m_codeBlock)
-        return { };
+    if (!m_codeBlock) {
+        line = 0;
+        column = 0;
+        return;
+    }
 
-    auto lineColumn = m_codeBlock->lineColumnForBytecodeIndex(m_bytecodeIndex);
+    int divot = 0;
+    int unusedStartOffset = 0;
+    int unusedEndOffset = 0;
+    m_codeBlock->expressionRangeForBytecodeIndex(m_bytecodeIndex, divot, unusedStartOffset, unusedEndOffset, line, column);
 
     ScriptExecutable* executable = m_codeBlock->ownerExecutable();
     if (std::optional<int> overrideLineNumber = executable->overrideLineNumber(m_codeBlock->vm()))
-        lineColumn.line = overrideLineNumber.value();
-
-    return lineColumn;
+        line = overrideLineNumber.value();
 }
 
 String StackFrame::toString(VM& vm) const
@@ -157,8 +139,10 @@ String StackFrame::toString(VM& vm) const
     if (sourceURL.isEmpty() || !hasLineAndColumnInfo())
         return makeString(functionName, '@', sourceURL);
 
-    auto lineColumn = computeLineAndColumn();
-    return makeString(functionName, '@', sourceURL, ':', lineColumn.line, ':', lineColumn.column);
+    unsigned line;
+    unsigned column;
+    computeLineAndColumn(line, column);
+    return makeString(functionName, '@', sourceURL, ':', line, ':', column);
 }
 
 } // namespace JSC

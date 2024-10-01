@@ -30,6 +30,7 @@
 
 #include "WebCoreOpaqueRoot.h"
 #include "WebGLCompressedTextureS3TC.h"
+#include "WebGLContextGroup.h"
 #include "WebGLDebugRendererInfo.h"
 #include "WebGLDebugShaders.h"
 #include "WebGLLoseContext.h"
@@ -37,27 +38,11 @@
 
 namespace WebCore {
 
-WebGLObject::WebGLObject(WebGLRenderingContextBase& context, PlatformGLObject object)
-    : m_context(context.createRefForContextObject())
-    , m_object(object)
+void WebGLObject::setObject(PlatformGLObject object)
 {
-}
-
-WebGLRenderingContextBase* WebGLObject::context() const
-{
-    return m_context.get();
-}
-
-Lock& WebGLObject::objectGraphLockForContext()
-{
-    // Should not call this if the object or context has been deleted.
-    ASSERT(m_context);
-    return m_context->objectGraphLock();
-}
-
-GraphicsContextGL* WebGLObject::graphicsContextGL() const
-{
-    return m_context ? m_context->graphicsContextGL() : nullptr;
+    ASSERT(!m_object);
+    ASSERT(!m_deleted);
+    m_object = object;
 }
 
 void WebGLObject::runDestructor()
@@ -80,12 +65,12 @@ void WebGLObject::deleteObject(const AbstractLocker& locker, GraphicsContextGL* 
     if (!m_object)
         return;
 
-    if (!m_context)
+    if (!hasGroupOrContext())
         return;
 
     if (!m_attachmentCount) {
         if (!context3d)
-            context3d = graphicsContextGL();
+            context3d = getAGraphicsContextGL();
 
         if (context3d)
             deleteObjectImpl(locker, context3d, m_object);
@@ -95,18 +80,17 @@ void WebGLObject::deleteObject(const AbstractLocker& locker, GraphicsContextGL* 
         m_object = 0;
 }
 
+void WebGLObject::detach()
+{
+    m_attachmentCount = 0; // Make sure OpenGL resource is deleted.
+}
+
 void WebGLObject::onDetached(const AbstractLocker& locker, GraphicsContextGL* context3d)
 {
-    ASSERT(m_attachmentCount); // FIXME: handle attachment with WebGLAttachmentPoint RAII object and remove the ifs.
     if (m_attachmentCount)
         --m_attachmentCount;
     if (m_deleted)
         deleteObject(locker, context3d);
-}
-
-bool WebGLObject::validate(const WebGLRenderingContextBase& context) const
-{
-    return &context == m_context;
 }
 
 WebCoreOpaqueRoot root(WebGLObject* object)

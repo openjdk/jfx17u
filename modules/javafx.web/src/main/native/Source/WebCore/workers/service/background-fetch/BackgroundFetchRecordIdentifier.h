@@ -29,7 +29,7 @@
 
 namespace WebCore {
 
-enum class BackgroundFetchRecordIdentifierType { };
+enum BackgroundFetchRecordIdentifierType { };
 using BackgroundFetchRecordIdentifier = ObjectIdentifier<BackgroundFetchRecordIdentifierType>;
 
 } // namespace WebCore

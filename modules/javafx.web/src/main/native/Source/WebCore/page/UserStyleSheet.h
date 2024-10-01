@@ -38,11 +38,20 @@ class UserStyleSheet {
 public:
     UserStyleSheet()
         : m_injectedFrames(UserContentInjectedFrames::InjectInAllFrames)
-        , m_level(UserStyleLevel::User)
+        , m_level(UserStyleUserLevel)
     {
     }
 
-    WEBCORE_EXPORT UserStyleSheet(const String&, const URL&, Vector<String>&&, Vector<String>&&, UserContentInjectedFrames, UserStyleLevel, std::optional<PageIdentifier> = std::nullopt);
+    UserStyleSheet(const String& source, const URL& url, Vector<String>&& allowlist, Vector<String>&& blocklist, UserContentInjectedFrames injectedFrames, UserStyleLevel level, std::optional<PageIdentifier> pageID = std::nullopt)
+        : m_source(source)
+        , m_url(url)
+        , m_allowlist(WTFMove(allowlist))
+        , m_blocklist(WTFMove(blocklist))
+        , m_injectedFrames(injectedFrames)
+        , m_level(level)
+        , m_pageID(pageID)
+    {
+    }
 
     const String& source() const { return m_source; }
     const URL& url() const { return m_url; }

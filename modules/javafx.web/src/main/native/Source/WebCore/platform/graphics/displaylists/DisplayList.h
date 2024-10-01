@@ -25,8 +25,17 @@
 
 #pragma once
 
-#include "DisplayListItems.h"
+#include "DecomposedGlyphs.h"
+#include "DisplayListItemBuffer.h"
+#include "DisplayListItemType.h"
 #include "DisplayListResourceHeap.h"
+#include "Filter.h"
+#include "FloatRect.h"
+#include "Font.h"
+#include "GraphicsContext.h"
+#include "ImageBuffer.h"
+#include <wtf/FastMalloc.h>
+#include <wtf/HashSet.h>
 #include <wtf/Noncopyable.h>
 #include <wtf/Vector.h>
 #include <wtf/text/WTFString.h>
@@ -36,39 +45,101 @@ class TextStream;
 }
 
 namespace WebCore {
+
 namespace DisplayList {
 
 class DisplayList {
     WTF_MAKE_NONCOPYABLE(DisplayList); WTF_MAKE_FAST_ALLOCATED;
+    friend class RecorderImpl;
+    friend class Replayer;
 public:
-    DisplayList() = default;
+    WEBCORE_EXPORT DisplayList();
+    WEBCORE_EXPORT DisplayList(DisplayList&&);
+    WEBCORE_EXPORT DisplayList(ItemBufferHandles&&);
 
-    WEBCORE_EXPORT void append(Item&&);
-    void shrinkToFit();
+    WEBCORE_EXPORT ~DisplayList();
+
+    WEBCORE_EXPORT DisplayList& operator=(DisplayList&&);
+
+    void dump(WTF::TextStream&) const;
 
     WEBCORE_EXPORT void clear();
     WEBCORE_EXPORT bool isEmpty() const;
-
-    const Vector<Item>& items() const { return m_items; }
-    Vector<Item>& items() { return m_items; }
-    const ResourceHeap& resourceHeap() const { return m_resourceHeap; }
-
-    void cacheImageBuffer(ImageBuffer&);
-    void cacheNativeImage(NativeImage&);
-    void cacheFont(Font&);
-    void cacheDecomposedGlyphs(DecomposedGlyphs&);
-    void cacheGradient(Gradient&);
-    void cacheFilter(Filter&);
+    WEBCORE_EXPORT size_t sizeInBytes() const;
 
     WEBCORE_EXPORT String asText(OptionSet<AsTextFlag>) const;
-    void dump(WTF::TextStream&) const;
+
+    const ResourceHeap& resourceHeap() const { return m_resourceHeap; }
+
+    WEBCORE_EXPORT void setItemBufferReadingClient(ItemBufferReadingClient*);
+    WEBCORE_EXPORT void setItemBufferWritingClient(ItemBufferWritingClient*);
+    WEBCORE_EXPORT void prepareToAppend(ItemBufferHandle&&);
+
+    void shrinkToFit();
+
+#if !defined(NDEBUG) || !LOG_DISABLED
+    CString description() const;
+    WEBCORE_EXPORT void dump() const;
+#endif
+
+    WEBCORE_EXPORT void forEachItemBuffer(Function<void(const ItemBufferHandle&)>&&) const;
+
+    template<typename T, class... Args> void append(Args&&... args);
+    void append(ItemHandle);
+
+    class Iterator;
+
+    WEBCORE_EXPORT Iterator begin() const;
+    WEBCORE_EXPORT Iterator end() const;
 
 private:
-    Vector<Item> m_items;
-    ResourceHeap m_resourceHeap;
+    ItemBuffer* itemBufferIfExists() const { return m_items.get(); }
+    WEBCORE_EXPORT ItemBuffer& itemBuffer();
+
+    void cacheImageBuffer(WebCore::ImageBuffer& imageBuffer)
+    {
+        m_resourceHeap.add(imageBuffer.renderingResourceIdentifier(), Ref { imageBuffer });
+    }
+
+    void cacheNativeImage(NativeImage& image)
+    {
+        m_resourceHeap.add(image.renderingResourceIdentifier(), Ref { image });
+    }
+
+    void cacheFont(Font& font)
+    {
+        m_resourceHeap.add(font.renderingResourceIdentifier(), Ref { font });
+    }
+
+    void cacheDecomposedGlyphs(DecomposedGlyphs& decomposedGlyphs)
+    {
+        m_resourceHeap.add(decomposedGlyphs.renderingResourceIdentifier(), Ref { decomposedGlyphs });
+    }
+
+    void cacheGradient(Gradient& gradient)
+    {
+        m_resourceHeap.add(gradient.renderingResourceIdentifier(), Ref { gradient });
+    }
+
+    void cacheFilter(Filter& filter)
+    {
+        m_resourceHeap.add(filter.renderingResourceIdentifier(), Ref { filter });
+    }
+
+    static bool shouldDumpForFlags(OptionSet<AsTextFlag>, ItemHandle);
+
+    LocalResourceHeap m_resourceHeap;
+    std::unique_ptr<ItemBuffer> m_items;
 };
+
+template<typename T, class... Args>
+void DisplayList::append(Args&&... args)
+{
+    itemBuffer().append<T>(std::forward<Args>(args)...);
+}
 
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const DisplayList&);
 
 } // DisplayList
+
 } // WebCore

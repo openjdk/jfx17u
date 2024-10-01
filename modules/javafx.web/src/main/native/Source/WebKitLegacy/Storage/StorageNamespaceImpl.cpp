@@ -31,7 +31,6 @@
 #include <WebCore/SecurityOrigin.h>
 #include <WebCore/StorageMap.h>
 #include <WebCore/StorageType.h>
-#include <wtf/CheckedPtr.h>
 #include <wtf/MainThread.h>
 #include <wtf/NeverDestroyed.h>
 #include <wtf/text/StringHash.h>
@@ -40,9 +39,9 @@ using namespace WebCore;
 
 namespace WebKit {
 
-static HashMap<String, WeakRef<StorageNamespaceImpl>>& localStorageNamespaceMap()
+static HashMap<String, StorageNamespaceImpl*>& localStorageNamespaceMap()
 {
-    static NeverDestroyed<HashMap<String, WeakRef<StorageNamespaceImpl>>> localStorageNamespaceMap;
+    static NeverDestroyed<HashMap<String, StorageNamespaceImpl*>> localStorageNamespaceMap;
 
     return localStorageNamespaceMap;
 }
@@ -56,12 +55,14 @@ Ref<StorageNamespaceImpl> StorageNamespaceImpl::getOrCreateLocalStorageNamespace
 {
     ASSERT(!databasePath.isNull());
 
-    RefPtr<StorageNamespaceImpl> storageNamespace;
-    auto& slot = localStorageNamespaceMap().ensure(databasePath, [&] {
-        storageNamespace = adoptRef(*new StorageNamespaceImpl(StorageType::Local, databasePath, quota, sessionID));
-        return WeakRef { *storageNamespace };
-    }).iterator->value;
-    return storageNamespace ? storageNamespace.releaseNonNull() : Ref { slot.get() };
+    auto& slot = localStorageNamespaceMap().add(databasePath, nullptr).iterator->value;
+    if (slot)
+        return *slot;
+
+    Ref<StorageNamespaceImpl> storageNamespace = adoptRef(*new StorageNamespaceImpl(StorageType::Local, databasePath, quota, sessionID));
+    slot = storageNamespace.ptr();
+
+    return storageNamespace;
 }
 
 StorageNamespaceImpl::StorageNamespaceImpl(StorageType storageType, const String& path, unsigned quota, PAL::SessionID sessionID)

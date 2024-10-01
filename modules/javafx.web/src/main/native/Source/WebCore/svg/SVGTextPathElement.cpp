@@ -22,14 +22,12 @@
 #include "config.h"
 #include "SVGTextPathElement.h"
 
-#include "LegacyRenderSVGResource.h"
 #include "NodeName.h"
+#include "RenderSVGResource.h"
 #include "RenderSVGTextPath.h"
 #include "SVGDocumentExtensions.h"
 #include "SVGElementInlines.h"
-#include "SVGElementTypeHelpers.h"
 #include "SVGNames.h"
-#include "SVGPathElement.h"
 #include <wtf/IsoMallocInlines.h>
 #include <wtf/NeverDestroyed.h>
 
@@ -159,15 +157,13 @@ void SVGTextPathElement::buildPendingResource()
             treeScope.addPendingSVGResource(target.identifier, *this);
             ASSERT(hasPendingResources());
         }
-    } else if (RefPtr pathElement = dynamicDowncast<SVGPathElement>(*target.element))
-        pathElement->addReferencingElement(*this);
+    } else if (target.element->hasTagName(SVGNames::pathTag))
+        downcast<SVGElement>(*target.element).addReferencingElement(*this);
 }
 
 Node::InsertedIntoAncestorResult SVGTextPathElement::insertedIntoAncestor(InsertionType insertionType, ContainerNode& parentOfInsertedTree)
 {
     SVGTextContentElement::insertedIntoAncestor(insertionType, parentOfInsertedTree);
-    if (!insertionType.connectedToDocument)
-        return InsertedIntoAncestorResult::Done;
     return InsertedIntoAncestorResult::NeedsPostInsertionCallback;
 }
 

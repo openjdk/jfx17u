@@ -43,24 +43,19 @@
 
 namespace WebCore {
 
-Ref<PathJava> PathJava::create()
+UniqueRef<PathJava> PathJava::create()
 {
-    return adoptRef(*new PathJava);
+    return makeUniqueRef<PathJava>();
 }
 
-Ref<PathJava> PathJava::create(const PathStream& stream)
+UniqueRef<PathJava> PathJava::create(const PathStream& stream)
 {
     auto pathJava = PathJava::create();
 
-    for (auto& segment : stream.segments())
-        pathJava->addSegment(segment);
-    return pathJava;
-}
+    stream.applySegments([&](const PathSegment& segment) {
+        pathJava->appendSegment(segment);
+    });
 
-Ref<PathJava> PathJava::create(const PathSegment& segment)
-{
-    auto pathJava = PathJava::create();
-    pathJava->addSegment(segment);
     return pathJava;
 }
 
@@ -103,31 +98,31 @@ RefPtr<RQRef> copyPath(RefPtr<RQRef> p)
     return RQRef::create(ref);
 }
 
-Ref<PathJava> PathJava::create(RefPtr<RQRef>&& platformPath, RefPtr<PathStream>&& elementsStream)
+UniqueRef<PathJava> PathJava::create(RefPtr<RQRef>&& platformPath, std::unique_ptr<PathStream>&& elementsStream)
 {
-    return adoptRef(*new PathJava(WTFMove(platformPath), WTFMove(elementsStream)));
+    return makeUniqueRef<PathJava>(WTFMove(platformPath), WTFMove(elementsStream));
 }
 
 PathJava::PathJava()
     : m_platformPath(createEmptyPath())
-    , m_elementsStream(PathStream::create())
+    , m_elementsStream(PathStream::create().moveToUniquePtr())
 {
 }
 
-PathJava::PathJava(RefPtr<RQRef>&& platformPath, RefPtr<PathStream>&& elementsStream)
+PathJava::PathJava(RefPtr<RQRef>&& platformPath, std::unique_ptr<PathStream>&& elementsStream)
     : m_platformPath(WTFMove(platformPath))
     , m_elementsStream(WTFMove(elementsStream))
 {
     ASSERT(m_platformPath);
 }
 
-Ref<PathImpl> PathJava::copy() const
+UniqueRef<PathImpl> PathJava::clone() const
 {
     auto platformPathCopy = createEmptyPath();
 
-    auto elementsStream = m_elementsStream ? RefPtr<PathImpl> { m_elementsStream->copy() } : nullptr;
+    auto elementsStream = m_elementsStream ? m_elementsStream->clone().moveToUniquePtr() : nullptr;
 
-    return PathJava::create(WTFMove(platformPathCopy), downcast<PathStream>(WTFMove(elementsStream)));
+    return PathJava::create(WTFMove(platformPathCopy), std::unique_ptr<PathStream> { downcast<PathStream>(elementsStream.release()) });
 }
 
 PlatformPathPtr PathJava::platformPath() const
@@ -135,8 +130,14 @@ PlatformPathPtr PathJava::platformPath() const
     return m_platformPath.get();
 }
 
+bool PathJava::operator==(const PathImpl& other) const
+{
+    if (!is<PathJava>(other))
+        return false;
+    return m_platformPath == downcast<PathJava>(other).m_platformPath;
+}
 
-void PathJava::add(PathMoveTo moveto)
+void PathJava::moveTo(const FloatPoint& p)
 {
     ASSERT(m_platformPath);
 
@@ -146,11 +147,11 @@ void PathJava::add(PathMoveTo moveto)
         "(DD)V");
     ASSERT(mid);
 
-    env->CallVoidMethod(*m_platformPath, mid, (jdouble)moveto.point.x(), (jdouble)moveto.point.y());
+    env->CallVoidMethod(*m_platformPath, mid, (jdouble)p.x(), (jdouble)p.y());
     WTF::CheckAndClearException(env);
 }
 
-void PathJava::add(PathLineTo lineTo)
+void PathJava::addLineTo(const FloatPoint& p)
 {
     ASSERT(m_platformPath);
 
@@ -160,11 +161,11 @@ void PathJava::add(PathLineTo lineTo)
         "(DD)V");
     ASSERT(mid);
 
-    env->CallVoidMethod(*m_platformPath, mid, (jdouble)lineTo.point.x(), (jdouble)lineTo.point.y());
+    env->CallVoidMethod(*m_platformPath, mid, (jdouble)p.x(), (jdouble)p.y());
     WTF::CheckAndClearException(env);
 }
 
-void PathJava::add(PathQuadCurveTo quadTo)
+void PathJava::addQuadCurveTo(const FloatPoint& cp, const FloatPoint& p)
 {
     ASSERT(m_platformPath);
 
@@ -174,11 +175,11 @@ void PathJava::add(PathQuadCurveTo quadTo)
                                             "(DDDD)V");
     ASSERT(mid);
 
-    env->CallVoidMethod(*m_platformPath, mid, (jdouble)quadTo.controlPoint.x(), (jdouble)quadTo.controlPoint.y(), (jdouble)quadTo.endPoint.x(), (jdouble)quadTo.endPoint.y());
+    env->CallVoidMethod(*m_platformPath, mid, (jdouble)cp.x(), (jdouble)cp.y(), (jdouble)p.x(), (jdouble)p.y());
     WTF::CheckAndClearException(env);
 }
 
-void PathJava::add(PathBezierCurveTo bezierTo)
+void PathJava::addBezierCurveTo(const FloatPoint& controlPoint1, const FloatPoint& controlPoint2, const FloatPoint& endPoint)
 {
     ASSERT(m_platformPath);
 
@@ -189,9 +190,9 @@ void PathJava::add(PathBezierCurveTo bezierTo)
     ASSERT(mid);
 
     env->CallVoidMethod(*m_platformPath, mid,
-                        (jdouble)bezierTo.controlPoint1.x(), (jdouble)bezierTo.controlPoint1.y(),
-                        (jdouble)bezierTo.controlPoint2.x(), (jdouble)bezierTo.controlPoint2.y(),
-                        (jdouble)bezierTo.endPoint.x(), (jdouble)bezierTo.endPoint.y());
+                        (jdouble)controlPoint1.x(), (jdouble)controlPoint1.y(),
+                        (jdouble)controlPoint2.x(), (jdouble)controlPoint2.y(),
+                        (jdouble)endPoint.x(), (jdouble)endPoint.y());
     WTF::CheckAndClearException(env);
 }
 
@@ -200,7 +201,7 @@ static inline float areaOfTriangleFormedByPoints(const FloatPoint& p1, const Flo
     return p1.x() * (p2.y() - p3.y()) + p2.x() * (p3.y() - p1.y()) + p3.x() * (p1.y() - p2.y());
 }
 
-void PathJava::add(PathArcTo arcTo)
+void PathJava::addArcTo(const FloatPoint& p1, const FloatPoint& p2, float radius)
 {
     ASSERT(m_platformPath);
 
@@ -211,16 +212,15 @@ void PathJava::add(PathArcTo arcTo)
     ASSERT(mid);
 
     env->CallVoidMethod(*m_platformPath, mid,
-                        (jdouble)arcTo.controlPoint1.x(), (jdouble)arcTo.controlPoint1.y(),
-                        (jdouble)arcTo.controlPoint2.x(), (jdouble)arcTo.controlPoint2.y(), (jdouble)arcTo.radius);
+                        (jdouble)p1.x(), (jdouble)p1.y(),
+                        (jdouble)p2.x(), (jdouble)p2.y(), (jdouble)radius);
     WTF::CheckAndClearException(env);
 }
 
-void PathJava::add(PathArc arc)
+void PathJava::addArc(const FloatPoint& p, float radius, float startAngle, float endAngle, RotationDirection direction)
 {
     ASSERT(m_platformPath);
     bool clockwise = false;
-    const RotationDirection direction = arc.direction;
     if (direction == RotationDirection::Counterclockwise) {
         clockwise = true;
     } else if (direction == RotationDirection::Clockwise) {
@@ -233,22 +233,18 @@ void PathJava::add(PathArc arc)
         "(DDDDDZ)V");
     ASSERT(mid);
 
-    env->CallVoidMethod(*m_platformPath, mid, (jdouble)arc.center.x(), (jdouble)arc.center.y(),
-        (jdouble)arc.radius, (jdouble)arc.startAngle, (jdouble)arc.endAngle,
+    env->CallVoidMethod(*m_platformPath, mid, (jdouble)p.x(), (jdouble)p.y(),
+        (jdouble)radius, (jdouble)startAngle, (jdouble)endAngle,
         bool_to_jbool(clockwise));
     WTF::CheckAndClearException(env);
 }
-void PathJava::add(PathClosedArc closedArc)
+
+void PathJava::addEllipse(const FloatPoint& point, float radiusX, float radiusY, float rotation, float startAngle, float endAngle, RotationDirection direction)
 {
     notImplemented();
 }
 
-void PathJava::add(PathEllipse ellipse)
-{
-    notImplemented();
-}
-
-void PathJava::add(PathEllipseInRect ellipseInRect)
+void PathJava::addEllipseInRect(const FloatRect& r)
 {
     ASSERT(m_platformPath);
 
@@ -258,12 +254,12 @@ void PathJava::add(PathEllipseInRect ellipseInRect)
     ASSERT(mid);
 
     env->CallVoidMethod(*m_platformPath, mid,
-                        (jdouble)ellipseInRect.rect.x(), (jdouble)ellipseInRect.rect.y(),
-                        (jdouble)ellipseInRect.rect.width(), (jdouble)ellipseInRect.rect.height());
+                        (jdouble)r.x(), (jdouble)r.y(),
+                        (jdouble)r.width(), (jdouble)r.height());
     WTF::CheckAndClearException(env);
 }
 
-void PathJava::add(PathRect rect)
+void PathJava::addRect(const FloatRect& r)
 {
     ASSERT(m_platformPath);
 
@@ -273,17 +269,17 @@ void PathJava::add(PathRect rect)
         "(DDDD)V");
     ASSERT(mid);
 
-    env->CallVoidMethod(*m_platformPath, mid, (jdouble)rect.rect.x(), (jdouble)rect.rect.y(),
-                              (jdouble)rect.rect.width(), (jdouble)rect.rect.height());
+    env->CallVoidMethod(*m_platformPath, mid, (jdouble)r.x(), (jdouble)r.y(),
+                              (jdouble)r.width(), (jdouble)r.height());
     WTF::CheckAndClearException(env);
 }
 
-void PathJava::add(PathRoundedRect roundedRect)
+void PathJava::addRoundedRect(const FloatRoundedRect& roundedRect, PathRoundedRect::Strategy)
 {
-    addBeziersForRoundedRect(roundedRect.roundedRect);
+    addBeziersForRoundedRect(roundedRect);
 }
 
-void PathJava::add(PathCloseSubpath)
+void PathJava::closeSubpath()
 {
     ASSERT(m_platformPath);
 

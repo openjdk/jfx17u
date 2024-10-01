@@ -65,7 +65,7 @@ enum SandboxFlag {
     SandboxAll                  = -1 // Mask with all bits set to 1.
 };
 
-using SandboxFlags = int;
+typedef int SandboxFlags;
 
 class SecurityContext {
 public:
@@ -73,8 +73,7 @@ public:
     SandboxFlags creationSandboxFlags() const { return m_creationSandboxFlags; }
 
     SandboxFlags sandboxFlags() const { return m_sandboxFlags; }
-    WEBCORE_EXPORT ContentSecurityPolicy* contentSecurityPolicy();
-    CheckedPtr<ContentSecurityPolicy> checkedContentSecurityPolicy();
+    ContentSecurityPolicy* contentSecurityPolicy() { return m_contentSecurityPolicy.get(); }
 
     bool isSecureTransitionTo(const URL&) const;
 
@@ -83,10 +82,7 @@ public:
 
     bool isSandboxed(SandboxFlags mask) const { return m_sandboxFlags & mask; }
 
-    SecurityOriginPolicy* securityOriginPolicy() const;
-
-    bool hasEmptySecurityOriginPolicyAndContentSecurityPolicy() const { return m_hasEmptySecurityOriginPolicy && m_hasEmptyContentSecurityPolicy; }
-    bool hasInitializedSecurityOriginPolicyOrContentSecurityPolicy() const { return m_securityOriginPolicy || m_contentSecurityPolicy; }
+    SecurityOriginPolicy* securityOriginPolicy() const { return m_securityOriginPolicy.get(); }
 
     // Explicitly override the security origin for this security context.
     // Note: It is dangerous to change the security origin of a script context
@@ -97,8 +93,6 @@ public:
     // Note: It is dangerous to change the content security policy of a script
     //       context that already contains content.
     void setContentSecurityPolicy(std::unique_ptr<ContentSecurityPolicy>&&);
-
-    inline void setEmptySecurityOriginPolicyAndContentSecurityPolicy();
 
     const CrossOriginEmbedderPolicy& crossOriginEmbedderPolicy() const { return m_crossOriginEmbedderPolicy; }
     void setCrossOriginEmbedderPolicy(const CrossOriginEmbedderPolicy& crossOriginEmbedderPolicy) { m_crossOriginEmbedderPolicy = crossOriginEmbedderPolicy; }
@@ -113,7 +107,6 @@ public:
     virtual void inheritPolicyContainerFrom(const PolicyContainer&);
 
     WEBCORE_EXPORT SecurityOrigin* securityOrigin() const;
-    WEBCORE_EXPORT RefPtr<SecurityOrigin> protectedSecurityOrigin() const;
 
     static SandboxFlags parseSandboxPolicy(StringView policy, String& invalidTokensErrorMessage);
     static bool isSupportedSandboxPolicy(StringView);
@@ -155,7 +148,6 @@ protected:
 
 private:
     void addSandboxFlags(SandboxFlags);
-    virtual std::unique_ptr<ContentSecurityPolicy> makeEmptyContentSecurityPolicy() = 0;
 
     RefPtr<SecurityOriginPolicy> m_securityOriginPolicy;
     std::unique_ptr<ContentSecurityPolicy> m_contentSecurityPolicy;
@@ -171,17 +163,6 @@ private:
     bool m_isStrictMixedContentMode { false };
     bool m_usedLegacyTLS { false };
     bool m_wasPrivateRelayed { false };
-    bool m_hasEmptySecurityOriginPolicy { false };
-    bool m_hasEmptyContentSecurityPolicy { false };
 };
-
-void SecurityContext::setEmptySecurityOriginPolicyAndContentSecurityPolicy()
-{
-    ASSERT(!m_securityOriginPolicy);
-    ASSERT(!m_contentSecurityPolicy);
-    m_haveInitializedSecurityOrigin = true;
-    m_hasEmptySecurityOriginPolicy = true;
-    m_hasEmptyContentSecurityPolicy = true;
-}
 
 } // namespace WebCore

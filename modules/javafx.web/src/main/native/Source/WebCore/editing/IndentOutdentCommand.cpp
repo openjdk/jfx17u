@@ -44,13 +44,13 @@ namespace WebCore {
 
 using namespace HTMLNames;
 
-static bool isListOrIndentBlockquote(const Node& node)
+static bool isListOrIndentBlockquote(const Node* node)
 {
-    return node.hasTagName(ulTag) || node.hasTagName(olTag) || node.hasTagName(blockquoteTag);
+    return node && (node->hasTagName(ulTag) || node->hasTagName(olTag) || node->hasTagName(blockquoteTag));
 }
 
-IndentOutdentCommand::IndentOutdentCommand(Ref<Document>&& document, EIndentType typeOfAction)
-    : ApplyBlockElementCommand(WTFMove(document), blockquoteTag, "margin: 0 0 0 40px; border: none; padding: 0px;"_s)
+IndentOutdentCommand::IndentOutdentCommand(Document& document, EIndentType typeOfAction)
+    : ApplyBlockElementCommand(document, blockquoteTag, "margin: 0 0 0 40px; border: none; padding: 0px;"_s)
     , m_typeOfAction(typeOfAction)
 {
 }
@@ -58,13 +58,13 @@ IndentOutdentCommand::IndentOutdentCommand(Ref<Document>&& document, EIndentType
 bool IndentOutdentCommand::tryIndentingAsListItem(const Position& start, const Position& end)
 {
     // If our selection is not inside a list, bail out.
-    auto lastNodeInSelectedParagraph = start.protectedDeprecatedNode();
+    RefPtr lastNodeInSelectedParagraph = start.deprecatedNode();
     RefPtr<Element> listNode = enclosingList(lastNodeInSelectedParagraph.get());
     if (!listNode)
         return false;
 
     // Find the block that we want to indent.  If it's not a list item (e.g., a div inside a list item), we bail out.
-    RefPtr<Element> selectedListItem = enclosingBlock(WTFMove(lastNodeInSelectedParagraph));
+    RefPtr<Element> selectedListItem = enclosingBlock(lastNodeInSelectedParagraph.get());
 
     if (!selectedListItem || !selectedListItem->hasTagName(liTag))
         return false;
@@ -75,9 +75,9 @@ bool IndentOutdentCommand::tryIndentingAsListItem(const Position& start, const P
 
     RefPtr<Element> newList;
     if (is<HTMLUListElement>(*listNode))
-        newList = HTMLUListElement::create(protectedDocument());
+        newList = HTMLUListElement::create(document());
     else
-        newList = HTMLOListElement::create(protectedDocument());
+        newList = HTMLOListElement::create(document());
     insertNodeBefore(*newList, *selectedListItem);
 
     moveParagraphWithClones(start, end, newList.get(), selectedListItem.get());
@@ -97,7 +97,7 @@ void IndentOutdentCommand::indentIntoBlockquote(const Position& start, const Pos
         if (enclosingCell)
             return enclosingCell;
         if (enclosingList(start.containerNode()))
-            return enclosingBlock(start.protectedContainerNode());
+            return enclosingBlock(start.containerNode());
         return editableRootForPosition(start);
     }();
 
@@ -141,13 +141,12 @@ void IndentOutdentCommand::outdentParagraph()
         return;
 
     // Use InsertListCommand to remove the selection from the list
-    auto document = protectedDocument();
     if (enclosingNode->hasTagName(olTag)) {
-        applyCommandToComposite(InsertListCommand::create(WTFMove(document), InsertListCommand::Type::OrderedList));
+        applyCommandToComposite(InsertListCommand::create(document(), InsertListCommand::Type::OrderedList));
         return;
     }
     if (enclosingNode->hasTagName(ulTag)) {
-        applyCommandToComposite(InsertListCommand::create(WTFMove(document), InsertListCommand::Type::UnorderedList));
+        applyCommandToComposite(InsertListCommand::create(document(), InsertListCommand::Type::UnorderedList));
         return;
     }
 
@@ -175,18 +174,18 @@ void IndentOutdentCommand::outdentParagraph()
             }
         }
 
-        document->updateLayoutIgnorePendingStylesheets();
+        document().updateLayoutIgnorePendingStylesheets();
         visibleStartOfParagraph = VisiblePosition(visibleStartOfParagraph.deepEquivalent());
         visibleEndOfParagraph = VisiblePosition(visibleEndOfParagraph.deepEquivalent());
         if (visibleStartOfParagraph.isNotNull() && !isStartOfParagraph(visibleStartOfParagraph))
-            insertNodeAt(HTMLBRElement::create(document), visibleStartOfParagraph.deepEquivalent());
+            insertNodeAt(HTMLBRElement::create(document()), visibleStartOfParagraph.deepEquivalent());
         if (visibleEndOfParagraph.isNotNull() && !isEndOfParagraph(visibleEndOfParagraph))
-            insertNodeAt(HTMLBRElement::create(document), visibleEndOfParagraph.deepEquivalent());
+            insertNodeAt(HTMLBRElement::create(document()), visibleEndOfParagraph.deepEquivalent());
 
         return;
     }
 
-    auto startOfParagraphNode = visibleStartOfParagraph.deepEquivalent().protectedDeprecatedNode();
+    RefPtr startOfParagraphNode = visibleStartOfParagraph.deepEquivalent().deprecatedNode();
     RefPtr enclosingBlockFlow = enclosingBlock(startOfParagraphNode.get());
     RefPtr<Node> splitBlockquoteNode = enclosingNode;
     if (enclosingBlockFlow != enclosingNode)
@@ -196,7 +195,7 @@ void IndentOutdentCommand::outdentParagraph()
         RefPtr highestInlineNode = highestEnclosingNodeOfType(visibleStartOfParagraph.deepEquivalent(), isInline, CannotCrossEditingBoundary, enclosingBlockFlow.get());
         splitElement(*enclosingNode, highestInlineNode ? *highestInlineNode : *visibleStartOfParagraph.deepEquivalent().deprecatedNode());
     }
-    auto placeholder = HTMLBRElement::create(document);
+    auto placeholder = HTMLBRElement::create(document());
     insertNodeBefore(placeholder, *splitBlockquoteNode);
     if (!placeholder->isConnected())
         return;

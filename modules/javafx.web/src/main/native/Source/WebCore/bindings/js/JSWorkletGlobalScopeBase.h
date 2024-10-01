@@ -29,9 +29,10 @@
 #include "JSDOMGlobalObject.h"
 #include "JSDOMWrapper.h"
 #include "JSEventTarget.h"
-#include "WorkletGlobalScope.h"
 
 namespace WebCore {
+
+class WorkletGlobalScope;
 
 class JSWorkletGlobalScopeBase : public JSDOMGlobalObject {
 public:

@@ -332,31 +332,31 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_DocumentImpl_getCompatModeImpl
 JNIEXPORT jboolean JNICALL Java_com_sun_webkit_dom_DocumentImpl_getWebkitIsFullScreenImpl(JNIEnv*, jclass, jlong peer)
 {
     WebCore::JSMainThreadNullState state;
-    return IMPL->fullscreenManagerIfExists()->isFullscreen();
+    return IMPL->fullscreenManager().isFullscreen();
 }
 
 JNIEXPORT jboolean JNICALL Java_com_sun_webkit_dom_DocumentImpl_getWebkitFullScreenKeyboardInputAllowedImpl(JNIEnv*, jclass, jlong peer)
 {
     WebCore::JSMainThreadNullState state;
-    return IMPL->fullscreenManagerIfExists()->isFullscreenKeyboardInputAllowed();
+    return IMPL->fullscreenManager().isFullscreenKeyboardInputAllowed();
 }
 
 JNIEXPORT jlong JNICALL Java_com_sun_webkit_dom_DocumentImpl_getWebkitCurrentFullScreenElementImpl(JNIEnv* env, jclass, jlong peer)
 {
     WebCore::JSMainThreadNullState state;
-    return JavaReturn<Element>(env, WTF::getPtr(IMPL->fullscreenManagerIfExists()->currentFullscreenElement()));
+    return JavaReturn<Element>(env, WTF::getPtr(IMPL->fullscreenManager().currentFullscreenElement()));
 }
 
 JNIEXPORT jboolean JNICALL Java_com_sun_webkit_dom_DocumentImpl_getWebkitFullscreenEnabledImpl(JNIEnv*, jclass, jlong peer)
 {
     WebCore::JSMainThreadNullState state;
-    return IMPL->fullscreenManagerIfExists()->isFullscreenEnabled();
+    return IMPL->fullscreenManager().isFullscreenEnabled();
 }
 
 JNIEXPORT jlong JNICALL Java_com_sun_webkit_dom_DocumentImpl_getWebkitFullscreenElementImpl(JNIEnv* env, jclass, jlong peer)
 {
     WebCore::JSMainThreadNullState state;
-    return JavaReturn<Element>(env, WTF::getPtr(IMPL->fullscreenManagerIfExists()->fullscreenElement()));
+    return JavaReturn<Element>(env, WTF::getPtr(IMPL->fullscreenManager().fullscreenElement()));
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_DocumentImpl_getVisibilityStateImpl(JNIEnv* env, jclass, jlong peer)
@@ -1553,14 +1553,14 @@ JNIEXPORT jboolean JNICALL Java_com_sun_webkit_dom_DocumentImpl_hasFocusImpl(JNI
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_DocumentImpl_webkitCancelFullScreenImpl(JNIEnv*, jclass, jlong peer)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->fullscreenManagerIfExists()->cancelFullscreen();
+    IMPL->fullscreenManager().cancelFullscreen();
 }
 
 
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_DocumentImpl_webkitExitFullscreenImpl(JNIEnv*, jclass, jlong peer)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->fullscreenManagerIfExists()->exitFullscreen();
+    IMPL->fullscreenManager().exitFullscreen();
 }
 
 

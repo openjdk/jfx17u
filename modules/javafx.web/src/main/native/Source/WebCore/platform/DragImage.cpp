@@ -26,7 +26,6 @@
 #include "config.h"
 #include "DragImage.h"
 
-#include "BitmapImage.h"
 #include "FrameSnapshotting.h"
 #include "ImageBuffer.h"
 #include "LocalFrame.h"
@@ -34,8 +33,8 @@
 #include "NotImplemented.h"
 #include "Position.h"
 #include "RenderElement.h"
-#include "RenderSelection.h"
 #include "RenderView.h"
+#include "SelectionRangeData.h"
 #include "SimpleRange.h"
 #include "TextIndicator.h"
 
@@ -111,7 +110,7 @@ static DragImageRef createDragImageFromSnapshot(RefPtr<ImageBuffer> snapshot, No
         orientation = downcast<RenderElement>(*renderer).imageOrientation();
     }
 
-    auto image = BitmapImage::create(ImageBuffer::sinkIntoNativeImage(WTFMove(snapshot)));
+    RefPtr<Image> image = ImageBuffer::sinkIntoImage(WTFMove(snapshot), PreserveResolution::Yes);
     if (!image)
         return nullptr;
     return createDragImageFromImage(image.get(), orientation);
@@ -147,7 +146,7 @@ struct ScopedFrameSelectionState {
     {
         if (auto* renderView = frame.contentRenderer()) {
             ASSERT(selection);
-            renderView->selection().set(selection.value(), RenderSelection::RepaintMode::Nothing);
+            renderView->selection().set(selection.value(), SelectionRangeData::RepaintMode::Nothing);
         }
     }
 
@@ -192,7 +191,7 @@ DragImageRef createDragImageForRange(LocalFrame& frame, const SimpleRange& range
     int startOffset = start.deprecatedEditingOffset();
     int endOffset = end.deprecatedEditingOffset();
     ASSERT(startOffset >= 0 && endOffset >= 0);
-    view->selection().set({ startRenderer, endRenderer, static_cast<unsigned>(startOffset), static_cast<unsigned>(endOffset) }, RenderSelection::RepaintMode::Nothing);
+    view->selection().set({ startRenderer, endRenderer, static_cast<unsigned>(startOffset), static_cast<unsigned>(endOffset) }, SelectionRangeData::RepaintMode::Nothing);
     // We capture using snapshotFrameRect() because we fake up the selection using
     // FrameView but snapshotSelection() uses the selection from the Frame itself.
     return createDragImageFromSnapshot(snapshotFrameRect(frame, view->selection().boundsClippedToVisibleContent(), WTFMove(options)), nullptr);

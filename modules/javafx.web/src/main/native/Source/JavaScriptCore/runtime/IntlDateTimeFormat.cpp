@@ -27,7 +27,6 @@
 #include "config.h"
 #include "IntlDateTimeFormat.h"
 
-#include "ISO8601.h"
 #include "IntlCache.h"
 #include "IntlObjectInlines.h"
 #include "JSBoundFunction.h"
@@ -185,6 +184,121 @@ Vector<String> IntlDateTimeFormat::localeData(const String& locale, RelevantExte
         ASSERT_NOT_REACHED();
     }
     return keyLocaleData;
+}
+
+static JSObject* toDateTimeOptionsAnyDate(JSGlobalObject* globalObject, JSValue originalOptions)
+{
+    // 12.1.1 ToDateTimeOptions abstract operation (ECMA-402 2.0)
+    VM& vm = globalObject->vm();
+    auto scope = DECLARE_THROW_SCOPE(vm);
+
+    // 1. If options is undefined, then let options be null, else let options be ToObject(options).
+    // 2. ReturnIfAbrupt(options).
+    // 3. Let options be ObjectCreate(options).
+    JSObject* options;
+    if (originalOptions.isUndefined())
+        options = constructEmptyObject(vm, globalObject->nullPrototypeObjectStructure());
+    else {
+        JSObject* originalToObject = originalOptions.toObject(globalObject);
+        RETURN_IF_EXCEPTION(scope, { });
+        options = constructEmptyObject(globalObject, originalToObject);
+    }
+
+    // 4. Let needDefaults be true.
+    bool needDefaults = true;
+
+    // 5. If required is "date" or "any",
+    // Always "any".
+
+    // a. For each of the property names "weekday", "year", "month", "day":
+    // i. Let prop be the property name.
+    // ii. Let value be Get(options, prop).
+    // iii. ReturnIfAbrupt(value).
+    // iv. If value is not undefined, then let needDefaults be false.
+    JSValue weekday = options->get(globalObject, vm.propertyNames->weekday);
+    RETURN_IF_EXCEPTION(scope, { });
+    if (!weekday.isUndefined())
+        needDefaults = false;
+
+    JSValue year = options->get(globalObject, vm.propertyNames->year);
+    RETURN_IF_EXCEPTION(scope, { });
+    if (!year.isUndefined())
+        needDefaults = false;
+
+    JSValue month = options->get(globalObject, vm.propertyNames->month);
+    RETURN_IF_EXCEPTION(scope, { });
+    if (!month.isUndefined())
+        needDefaults = false;
+
+    JSValue day = options->get(globalObject, vm.propertyNames->day);
+    RETURN_IF_EXCEPTION(scope, { });
+    if (!day.isUndefined())
+        needDefaults = false;
+
+    // 6. If required is "time" or "any",
+    // Always "any".
+
+    // a. For each of the property names ""dayPeriod", hour", "minute", "second", "fractionalSecondDigits":
+    // i. Let prop be the property name.
+    // ii. Let value be Get(options, prop).
+    // iii. ReturnIfAbrupt(value).
+    // iv. If value is not undefined, then let needDefaults be false.
+    JSValue dayPeriod = options->get(globalObject, vm.propertyNames->dayPeriod);
+    RETURN_IF_EXCEPTION(scope, { });
+    if (!dayPeriod.isUndefined())
+        needDefaults = false;
+
+    JSValue hour = options->get(globalObject, vm.propertyNames->hour);
+    RETURN_IF_EXCEPTION(scope, { });
+    if (!hour.isUndefined())
+        needDefaults = false;
+
+    JSValue minute = options->get(globalObject, vm.propertyNames->minute);
+    RETURN_IF_EXCEPTION(scope, { });
+    if (!minute.isUndefined())
+        needDefaults = false;
+
+    JSValue second = options->get(globalObject, vm.propertyNames->second);
+    RETURN_IF_EXCEPTION(scope, { });
+    if (!second.isUndefined())
+        needDefaults = false;
+
+    JSValue fractionalSecondDigits = options->get(globalObject, vm.propertyNames->fractionalSecondDigits);
+    RETURN_IF_EXCEPTION(scope, { });
+    if (!fractionalSecondDigits.isUndefined())
+        needDefaults = false;
+
+    JSValue dateStyle = options->get(globalObject, vm.propertyNames->dateStyle);
+    RETURN_IF_EXCEPTION(scope, { });
+    JSValue timeStyle = options->get(globalObject, vm.propertyNames->timeStyle);
+    RETURN_IF_EXCEPTION(scope, { });
+
+    if (!dateStyle.isUndefined() || !timeStyle.isUndefined())
+        needDefaults = false;
+
+    // 7. If needDefaults is true and defaults is either "date" or "all", then
+    // Defaults is always "date".
+    if (needDefaults) {
+        // a. For each of the property names "year", "month", "day":
+        // i. Let status be CreateDatePropertyOrThrow(options, prop, "numeric").
+        // ii. ReturnIfAbrupt(status).
+        JSString* numeric = jsNontrivialString(vm, "numeric"_s);
+
+        options->putDirect(vm, vm.propertyNames->year, numeric);
+        RETURN_IF_EXCEPTION(scope, { });
+
+        options->putDirect(vm, vm.propertyNames->month, numeric);
+        RETURN_IF_EXCEPTION(scope, { });
+
+        options->putDirect(vm, vm.propertyNames->day, numeric);
+        RETURN_IF_EXCEPTION(scope, { });
+    }
+
+    // 8. If needDefaults is true and defaults is either "time" or "all", then
+    // Defaults is always "date". Ignore this branch.
+
+    // 9. Return options.
+    return options;
 }
 
 template<typename Container>
@@ -468,196 +582,8 @@ inline void IntlDateTimeFormat::replaceHourCycleInPattern(Vector<UChar, 32>& pat
     }
 }
 
-String IntlDateTimeFormat::buildSkeleton(Weekday weekday, Era era, Year year, Month month, Day day, TriState hour12, HourCycle hourCycle, Hour hour, DayPeriod dayPeriod, Minute minute, Second second, unsigned fractionalSecondDigits, TimeZoneName timeZoneName)
-{
-    StringBuilder skeletonBuilder;
-
-    switch (weekday) {
-    case Weekday::Narrow:
-        skeletonBuilder.append("EEEEE");
-        break;
-    case Weekday::Short:
-        skeletonBuilder.append("EEE");
-        break;
-    case Weekday::Long:
-        skeletonBuilder.append("EEEE");
-        break;
-    case Weekday::None:
-        break;
-    }
-
-    switch (era) {
-    case Era::Narrow:
-        skeletonBuilder.append("GGGGG");
-        break;
-    case Era::Short:
-        skeletonBuilder.append("GGG");
-        break;
-    case Era::Long:
-        skeletonBuilder.append("GGGG");
-        break;
-    case Era::None:
-        break;
-    }
-
-    switch (year) {
-    case Year::TwoDigit:
-        skeletonBuilder.append("yy");
-        break;
-    case Year::Numeric:
-        skeletonBuilder.append('y');
-        break;
-    case Year::None:
-        break;
-    }
-
-    switch (month) {
-    case Month::TwoDigit:
-        skeletonBuilder.append("MM");
-        break;
-    case Month::Numeric:
-        skeletonBuilder.append('M');
-        break;
-    case Month::Narrow:
-        skeletonBuilder.append("MMMMM");
-        break;
-    case Month::Short:
-        skeletonBuilder.append("MMM");
-        break;
-    case Month::Long:
-        skeletonBuilder.append("MMMM");
-        break;
-    case Month::None:
-        break;
-    }
-
-    switch (day) {
-    case Day::TwoDigit:
-        skeletonBuilder.append("dd");
-        break;
-    case Day::Numeric:
-        skeletonBuilder.append('d');
-        break;
-    case Day::None:
-        break;
-    }
-
-    {
-        // Specifically, this hour-cycle / hour12 behavior is slightly different from the spec.
-        // But the spec behavior is known to cause surprising behaviors, and the spec change is ongoing.
-        // We implement SpiderMonkey's behavior.
-        //
-        //     > No option present: "j"
-        //     > hour12 = true: "h"
-        //     > hour12 = false: "H"
-        //     > hourCycle = h11: "h", plus modifying the resolved pattern to use the hour symbol "K".
-        //     > hourCycle = h12: "h", plus modifying the resolved pattern to use the hour symbol "h".
-        //     > hourCycle = h23: "H", plus modifying the resolved pattern to use the hour symbol "H".
-        //     > hourCycle = h24: "H", plus modifying the resolved pattern to use the hour symbol "k".
-        //
-        UChar skeletonCharacter = 'j';
-        if (hour12 == TriState::Indeterminate) {
-            switch (hourCycle) {
-            case HourCycle::None:
-                break;
-            case HourCycle::H11:
-            case HourCycle::H12:
-                skeletonCharacter = 'h';
-                break;
-            case HourCycle::H23:
-            case HourCycle::H24:
-                skeletonCharacter = 'H';
-                break;
-            }
-        } else {
-            if (hour12 == TriState::True)
-                skeletonCharacter = 'h';
-            else
-                skeletonCharacter = 'H';
-        }
-
-        switch (hour) {
-        case Hour::TwoDigit:
-            skeletonBuilder.append(skeletonCharacter);
-            skeletonBuilder.append(skeletonCharacter);
-            break;
-        case Hour::Numeric:
-            skeletonBuilder.append(skeletonCharacter);
-            break;
-        case Hour::None:
-            break;
-        }
-    }
-
-    // dayPeriod must be set after setting hour.
-    // https://unicode-org.atlassian.net/browse/ICU-20731
-    switch (dayPeriod) {
-    case DayPeriod::Narrow:
-        skeletonBuilder.append("BBBBB");
-        break;
-    case DayPeriod::Short:
-        skeletonBuilder.append('B');
-        break;
-    case DayPeriod::Long:
-        skeletonBuilder.append("BBBB");
-        break;
-    case DayPeriod::None:
-        break;
-    }
-
-    switch (minute) {
-    case Minute::TwoDigit:
-        skeletonBuilder.append("mm");
-        break;
-    case Minute::Numeric:
-        skeletonBuilder.append('m');
-        break;
-    case Minute::None:
-        break;
-    }
-
-    switch (second) {
-    case Second::TwoDigit:
-        skeletonBuilder.append("ss");
-        break;
-    case Second::Numeric:
-        skeletonBuilder.append('s');
-        break;
-    case Second::None:
-        break;
-    }
-
-    for (unsigned i = 0; i < fractionalSecondDigits; ++i)
-        skeletonBuilder.append('S');
-
-    switch (timeZoneName) {
-    case TimeZoneName::Short:
-        skeletonBuilder.append('z');
-        break;
-    case TimeZoneName::Long:
-        skeletonBuilder.append("zzzz");
-        break;
-    case TimeZoneName::ShortOffset:
-        skeletonBuilder.append('O');
-        break;
-    case TimeZoneName::LongOffset:
-        skeletonBuilder.append("OOOO");
-        break;
-    case TimeZoneName::ShortGeneric:
-        skeletonBuilder.append('v');
-        break;
-    case TimeZoneName::LongGeneric:
-        skeletonBuilder.append("vvvv");
-        break;
-    case TimeZoneName::None:
-        break;
-    }
-
-    return skeletonBuilder.toString();
-}
-
 // https://tc39.github.io/ecma402/#sec-initializedatetimeformat
-void IntlDateTimeFormat::initializeDateTimeFormat(JSGlobalObject* globalObject, JSValue locales, JSValue originalOptions, RequiredComponent required, Defaults defaults)
+void IntlDateTimeFormat::initializeDateTimeFormat(JSGlobalObject* globalObject, JSValue locales, JSValue originalOptions)
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -665,7 +591,7 @@ void IntlDateTimeFormat::initializeDateTimeFormat(JSGlobalObject* globalObject, 
     Vector<String> requestedLocales = canonicalizeLocaleList(globalObject, locales);
     RETURN_IF_EXCEPTION(scope, void());
 
-    JSObject* options = intlCoerceOptionsToObject(globalObject, originalOptions);
+    JSObject* options = toDateTimeOptionsAnyDate(globalObject, originalOptions);
     RETURN_IF_EXCEPTION(scope, void());
 
     ResolveLocaleOptions localeOptions;
@@ -729,71 +655,229 @@ void IntlDateTimeFormat::initializeDateTimeFormat(JSGlobalObject* globalObject, 
     m_dataLocale = resolved.dataLocale;
     CString dataLocaleWithExtensions = makeString(m_dataLocale, "-u-ca-"_s, m_calendar, "-nu-"_s, m_numberingSystem).utf8();
 
-    JSValue tzValue = jsUndefined();
-    if (options) {
-        tzValue = options->get(globalObject, vm.propertyNames->timeZone);
-        RETURN_IF_EXCEPTION(scope, void());
-    }
+    JSValue tzValue = options->get(globalObject, vm.propertyNames->timeZone);
+    RETURN_IF_EXCEPTION(scope, void());
     String tz;
-    String timeZoneForICU;
     if (!tzValue.isUndefined()) {
         String originalTz = tzValue.toWTFString(globalObject);
         RETURN_IF_EXCEPTION(scope, void());
-        if (auto minutesValue = ISO8601::parseUTCOffsetInMinutes(originalTz)) {
-            int64_t minutes = minutesValue.value();
-            int64_t absMinutes = std::abs(minutes);
-            tz = makeString(minutes < 0 ? '-' : '+', pad('0', 2, absMinutes / 60), ':', pad('0', 2, absMinutes % 60));
-            timeZoneForICU = makeString("GMT", minutes < 0 ? '-' : '+', pad('0', 2, absMinutes / 60), pad('0', 2, absMinutes % 60));
-        } else {
-            tz = canonicalizeTimeZoneName(originalTz);
-            if (tz.isNull()) {
-                String message = tryMakeString("invalid time zone: "_s, originalTz);
-                if (!message)
-                    message = "invalid time zone"_s;
-                throwRangeError(globalObject, scope, message);
-                return;
-            }
+        tz = canonicalizeTimeZoneName(originalTz);
+        if (tz.isNull()) {
+            String message = tryMakeString("invalid time zone: "_s, originalTz);
+            if (!message)
+                message = "invalid time zone"_s;
+            throwRangeError(globalObject, scope, message);
+            return;
         }
     } else
         tz = vm.dateCache.defaultTimeZone();
     m_timeZone = tz;
-    if (!timeZoneForICU.isNull())
-        m_timeZoneForICU = WTFMove(timeZoneForICU);
-    else
-        m_timeZoneForICU = tz;
+
+    StringBuilder skeletonBuilder;
 
     Weekday weekday = intlOption<Weekday>(globalObject, options, vm.propertyNames->weekday, { { "narrow"_s, Weekday::Narrow }, { "short"_s, Weekday::Short }, { "long"_s, Weekday::Long } }, "weekday must be \"narrow\", \"short\", or \"long\""_s, Weekday::None);
     RETURN_IF_EXCEPTION(scope, void());
+    switch (weekday) {
+    case Weekday::Narrow:
+        skeletonBuilder.append("EEEEE");
+        break;
+    case Weekday::Short:
+        skeletonBuilder.append("EEE");
+        break;
+    case Weekday::Long:
+        skeletonBuilder.append("EEEE");
+        break;
+    case Weekday::None:
+        break;
+    }
 
     Era era = intlOption<Era>(globalObject, options, vm.propertyNames->era, { { "narrow"_s, Era::Narrow }, { "short"_s, Era::Short }, { "long"_s, Era::Long } }, "era must be \"narrow\", \"short\", or \"long\""_s, Era::None);
     RETURN_IF_EXCEPTION(scope, void());
+    switch (era) {
+    case Era::Narrow:
+        skeletonBuilder.append("GGGGG");
+        break;
+    case Era::Short:
+        skeletonBuilder.append("GGG");
+        break;
+    case Era::Long:
+        skeletonBuilder.append("GGGG");
+        break;
+    case Era::None:
+        break;
+    }
 
     Year year = intlOption<Year>(globalObject, options, vm.propertyNames->year, { { "2-digit"_s, Year::TwoDigit }, { "numeric"_s, Year::Numeric } }, "year must be \"2-digit\" or \"numeric\""_s, Year::None);
     RETURN_IF_EXCEPTION(scope, void());
+    switch (year) {
+    case Year::TwoDigit:
+        skeletonBuilder.append("yy");
+        break;
+    case Year::Numeric:
+        skeletonBuilder.append('y');
+        break;
+    case Year::None:
+        break;
+    }
 
     Month month = intlOption<Month>(globalObject, options, vm.propertyNames->month, { { "2-digit"_s, Month::TwoDigit }, { "numeric"_s, Month::Numeric }, { "narrow"_s, Month::Narrow }, { "short"_s, Month::Short }, { "long"_s, Month::Long } }, "month must be \"2-digit\", \"numeric\", \"narrow\", \"short\", or \"long\""_s, Month::None);
     RETURN_IF_EXCEPTION(scope, void());
+    switch (month) {
+    case Month::TwoDigit:
+        skeletonBuilder.append("MM");
+        break;
+    case Month::Numeric:
+        skeletonBuilder.append('M');
+        break;
+    case Month::Narrow:
+        skeletonBuilder.append("MMMMM");
+        break;
+    case Month::Short:
+        skeletonBuilder.append("MMM");
+        break;
+    case Month::Long:
+        skeletonBuilder.append("MMMM");
+        break;
+    case Month::None:
+        break;
+    }
 
     Day day = intlOption<Day>(globalObject, options, vm.propertyNames->day, { { "2-digit"_s, Day::TwoDigit }, { "numeric"_s, Day::Numeric } }, "day must be \"2-digit\" or \"numeric\""_s, Day::None);
     RETURN_IF_EXCEPTION(scope, void());
+    switch (day) {
+    case Day::TwoDigit:
+        skeletonBuilder.append("dd");
+        break;
+    case Day::Numeric:
+        skeletonBuilder.append('d');
+        break;
+    case Day::None:
+        break;
+    }
 
     DayPeriod dayPeriod = intlOption<DayPeriod>(globalObject, options, vm.propertyNames->dayPeriod, { { "narrow"_s, DayPeriod::Narrow }, { "short"_s, DayPeriod::Short }, { "long"_s, DayPeriod::Long } }, "dayPeriod must be \"narrow\", \"short\", or \"long\""_s, DayPeriod::None);
     RETURN_IF_EXCEPTION(scope, void());
 
     Hour hour = intlOption<Hour>(globalObject, options, vm.propertyNames->hour, { { "2-digit"_s, Hour::TwoDigit }, { "numeric"_s, Hour::Numeric } }, "hour must be \"2-digit\" or \"numeric\""_s, Hour::None);
     RETURN_IF_EXCEPTION(scope, void());
+    {
+        // Specifically, this hour-cycle / hour12 behavior is slightly different from the spec.
+        // But the spec behavior is known to cause surprising behaviors, and the spec change is ongoing.
+        // We implement SpiderMonkey's behavior.
+        //
+        //     > No option present: "j"
+        //     > hour12 = true: "h"
+        //     > hour12 = false: "H"
+        //     > hourCycle = h11: "h", plus modifying the resolved pattern to use the hour symbol "K".
+        //     > hourCycle = h12: "h", plus modifying the resolved pattern to use the hour symbol "h".
+        //     > hourCycle = h23: "H", plus modifying the resolved pattern to use the hour symbol "H".
+        //     > hourCycle = h24: "H", plus modifying the resolved pattern to use the hour symbol "k".
+        //
+        UChar skeletonCharacter = 'j';
+        if (hour12 == TriState::Indeterminate) {
+            switch (hourCycle) {
+            case HourCycle::None:
+                break;
+            case HourCycle::H11:
+            case HourCycle::H12:
+                skeletonCharacter = 'h';
+                break;
+            case HourCycle::H23:
+            case HourCycle::H24:
+                skeletonCharacter = 'H';
+                break;
+            }
+        } else {
+            if (hour12 == TriState::True)
+                skeletonCharacter = 'h';
+            else
+                skeletonCharacter = 'H';
+        }
+
+        switch (hour) {
+        case Hour::TwoDigit:
+            skeletonBuilder.append(skeletonCharacter);
+            skeletonBuilder.append(skeletonCharacter);
+            break;
+        case Hour::Numeric:
+            skeletonBuilder.append(skeletonCharacter);
+            break;
+        case Hour::None:
+            break;
+        }
+    }
+
+    // dayPeriod must be set after setting hour.
+    // https://unicode-org.atlassian.net/browse/ICU-20731
+    switch (dayPeriod) {
+    case DayPeriod::Narrow:
+        skeletonBuilder.append("BBBBB");
+        break;
+    case DayPeriod::Short:
+        skeletonBuilder.append('B');
+        break;
+    case DayPeriod::Long:
+        skeletonBuilder.append("BBBB");
+        break;
+    case DayPeriod::None:
+        break;
+    }
 
     Minute minute = intlOption<Minute>(globalObject, options, vm.propertyNames->minute, { { "2-digit"_s, Minute::TwoDigit }, { "numeric"_s, Minute::Numeric } }, "minute must be \"2-digit\" or \"numeric\""_s, Minute::None);
     RETURN_IF_EXCEPTION(scope, void());
+    switch (minute) {
+    case Minute::TwoDigit:
+        skeletonBuilder.append("mm");
+        break;
+    case Minute::Numeric:
+        skeletonBuilder.append('m');
+        break;
+    case Minute::None:
+        break;
+    }
 
     Second second = intlOption<Second>(globalObject, options, vm.propertyNames->second, { { "2-digit"_s, Second::TwoDigit }, { "numeric"_s, Second::Numeric } }, "second must be \"2-digit\" or \"numeric\""_s, Second::None);
     RETURN_IF_EXCEPTION(scope, void());
+    switch (second) {
+    case Second::TwoDigit:
+        skeletonBuilder.append("ss");
+        break;
+    case Second::Numeric:
+        skeletonBuilder.append('s');
+        break;
+    case Second::None:
+        break;
+    }
 
     unsigned fractionalSecondDigits = intlNumberOption(globalObject, options, vm.propertyNames->fractionalSecondDigits, 1, 3, 0);
     RETURN_IF_EXCEPTION(scope, void());
+    for (unsigned i = 0; i < fractionalSecondDigits; ++i)
+        skeletonBuilder.append('S');
 
     TimeZoneName timeZoneName = intlOption<TimeZoneName>(globalObject, options, vm.propertyNames->timeZoneName, { { "short"_s, TimeZoneName::Short }, { "long"_s, TimeZoneName::Long }, { "shortOffset"_s, TimeZoneName::ShortOffset }, { "longOffset"_s, TimeZoneName::LongOffset }, { "shortGeneric"_s, TimeZoneName::ShortGeneric}, { "longGeneric"_s, TimeZoneName::LongGeneric } }, "timeZoneName must be \"short\", \"long\", \"shortOffset\", \"longOffset\", \"shortGeneric\", or \"longGeneric\""_s, TimeZoneName::None);
     RETURN_IF_EXCEPTION(scope, void());
+    switch (timeZoneName) {
+    case TimeZoneName::Short:
+        skeletonBuilder.append('z');
+        break;
+    case TimeZoneName::Long:
+        skeletonBuilder.append("zzzz");
+        break;
+    case TimeZoneName::ShortOffset:
+        skeletonBuilder.append('O');
+        break;
+    case TimeZoneName::LongOffset:
+        skeletonBuilder.append("OOOO");
+        break;
+    case TimeZoneName::ShortGeneric:
+        skeletonBuilder.append('v');
+        break;
+    case TimeZoneName::LongGeneric:
+        skeletonBuilder.append("vvvv");
+        break;
+    case TimeZoneName::None:
+        break;
+    }
 
     intlStringOption(globalObject, options, vm.propertyNames->formatMatcher, { "basic"_s, "best fit"_s }, "formatMatcher must be either \"basic\" or \"best fit\""_s, "best fit"_s);
     RETURN_IF_EXCEPTION(scope, void());
@@ -832,21 +916,11 @@ void IntlDateTimeFormat::initializeDateTimeFormat(JSGlobalObject* globalObject, 
             return UDAT_NONE;
         };
 
-        if (UNLIKELY(required == RequiredComponent::Date && m_timeStyle != DateTimeStyle::None)) {
-            throwTypeError(globalObject, scope, "timeStyle is specified while formatting date is requested"_s);
-            return;
-        }
-
-        if (UNLIKELY(required == RequiredComponent::Time && m_dateStyle != DateTimeStyle::None)) {
-            throwTypeError(globalObject, scope, "dateStyle is specified while formatting time is requested"_s);
-            return;
-        }
-
         // We cannot use this UDateFormat directly yet because we need to enforce specified hourCycle.
         // First, we create UDateFormat via dateStyle and timeStyle. And then convert it to pattern string.
         // After updating this pattern string with hourCycle, we create a final UDateFormat with the updated pattern string.
         UErrorCode status = U_ZERO_ERROR;
-        StringView timeZoneView(m_timeZoneForICU);
+        StringView timeZoneView(m_timeZone);
         auto dateFormatFromStyle = std::unique_ptr<UDateFormat, UDateFormatDeleter>(udat_open(parseUDateFormatStyle(m_timeStyle), parseUDateFormatStyle(m_dateStyle), dataLocaleWithExtensions.data(), timeZoneView.upconvertedCharacters(), timeZoneView.length(), nullptr, -1, &status));
         if (U_FAILURE(status)) {
             throwTypeError(globalObject, scope, "failed to initialize DateTimeFormat"_s);
@@ -898,37 +972,8 @@ void IntlDateTimeFormat::initializeDateTimeFormat(JSGlobalObject* globalObject, 
             }
         }
     } else {
-        bool needDefaults = true;
-        if (required == RequiredComponent::Date || required == RequiredComponent::Any) {
-            // i. For each property name prop of « "weekday", "year", "month", "day" », do
-            //     1. Let value be formatOptions.[[<prop>]].
-            //     2. If value is not undefined, let needDefaults be false.
-            if (weekday != Weekday::None || year != Year::None || month != Month::None || day != Day::None)
-                needDefaults = false;
-        }
-
-        if (required == RequiredComponent::Time || required == RequiredComponent::Any) {
-            // i. For each property name prop of « "dayPeriod", "hour", "minute", "second", "fractionalSecondDigits" », do
-            //     1. Let value be formatOptions.[[<prop>]].
-            //     2. If value is not undefined, let needDefaults be false.
-            if (dayPeriod != DayPeriod::None || hour != Hour::None || minute != Minute::None || second != Second::None || fractionalSecondDigits != 0)
-                needDefaults = false;
-        }
-
-        if (needDefaults && (defaults == Defaults::Date || defaults == Defaults::All)) {
-            year = Year::Numeric;
-            month = Month::Numeric;
-            day = Day::Numeric;
-        }
-
-        if (needDefaults && (defaults == Defaults::Time || defaults == Defaults::All)) {
-            hour = Hour::Numeric;
-            minute = Minute::Numeric;
-            second = Second::Numeric;
-        }
-
-        String skeleton = buildSkeleton(weekday, era, year, month, day, hour12, hourCycle, hour, dayPeriod, minute, second, fractionalSecondDigits, timeZoneName);
         UErrorCode status = U_ZERO_ERROR;
+        String skeleton = skeletonBuilder.toString();
         patternBuffer = vm.intlCache().getBestDateTimePattern(dataLocaleWithExtensions, StringView(skeleton).upconvertedCharacters().get(), skeleton.length(), status);
         if (U_FAILURE(status)) {
             throwTypeError(globalObject, scope, "failed to initialize DateTimeFormat"_s);
@@ -946,7 +991,7 @@ void IntlDateTimeFormat::initializeDateTimeFormat(JSGlobalObject* globalObject, 
     dataLogLnIf(IntlDateTimeFormatInternal::verbose, "locale:(", m_locale, "),dataLocale:(", dataLocaleWithExtensions, "),pattern:(", pattern, ")");
 
     UErrorCode status = U_ZERO_ERROR;
-    StringView timeZoneView(m_timeZoneForICU);
+    StringView timeZoneView(m_timeZone);
     m_dateFormat = std::unique_ptr<UDateFormat, UDateFormatDeleter>(udat_open(UDAT_PATTERN, UDAT_PATTERN, dataLocaleWithExtensions.data(), timeZoneView.upconvertedCharacters(), timeZoneView.length(), pattern.upconvertedCharacters(), pattern.length(), &status));
     if (U_FAILURE(status)) {
         throwTypeError(globalObject, scope, "failed to initialize DateTimeFormat"_s);
@@ -1435,7 +1480,7 @@ UDateIntervalFormat* IntlDateTimeFormat::createDateIntervalFormatIfNecessary(JSG
     CString dataLocaleWithExtensions = localeBuilder.toString().utf8();
 
     UErrorCode status = U_ZERO_ERROR;
-    StringView timeZoneView(m_timeZoneForICU);
+    StringView timeZoneView(m_timeZone);
     m_dateIntervalFormat = std::unique_ptr<UDateIntervalFormat, UDateIntervalFormatDeleter>(udtitvfmt_open(dataLocaleWithExtensions.data(), skeleton.data(), skeleton.size(), timeZoneView.upconvertedCharacters(), timeZoneView.length(), &status));
     if (U_FAILURE(status)) {
         throwTypeError(globalObject, scope, "failed to initialize DateIntervalFormat"_s);

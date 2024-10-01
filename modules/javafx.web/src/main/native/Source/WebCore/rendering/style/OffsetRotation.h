@@ -41,7 +41,7 @@ public:
     bool canBlend(const OffsetRotation&) const;
     WEBCORE_EXPORT OffsetRotation blend(const OffsetRotation&, const BlendingContext&) const;
 
-    friend bool operator==(const OffsetRotation&, const OffsetRotation&) = default;
+    bool operator==(const OffsetRotation&) const;
 
 private:
     float m_angle { 0 };

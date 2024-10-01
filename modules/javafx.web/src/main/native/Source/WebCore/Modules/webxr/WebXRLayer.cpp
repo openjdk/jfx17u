@@ -28,7 +28,6 @@
 
 #if ENABLE(WEBXR)
 
-#include "ContextDestructionObserverInlines.h"
 #include <wtf/IsoMallocInlines.h>
 
 namespace WebCore {

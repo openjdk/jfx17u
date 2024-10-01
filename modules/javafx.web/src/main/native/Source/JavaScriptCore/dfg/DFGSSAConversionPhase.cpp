@@ -462,12 +462,13 @@ public:
             unsigned entrypointIndex = pair.key;
             BasicBlock* oldRoot = pair.value;
             ArgumentsVector& arguments = m_graph.m_rootToArguments.find(oldRoot)->value;
-            auto argumentFormats = arguments.map([&](auto& argument) {
-                Node* node = m_argumentMapping.get(argument);
+            Vector<FlushFormat> argumentFormats;
+            argumentFormats.reserveInitialCapacity(arguments.size());
+            for (unsigned i = 0; i < arguments.size(); ++i) {
+                Node* node = m_argumentMapping.get(arguments[i]);
                 RELEASE_ASSERT(node);
-                return node->stackAccessData()->format;
-            });
-
+                argumentFormats.uncheckedAppend(node->stackAccessData()->format);
+            }
             m_graph.m_argumentFormats[entrypointIndex] = WTFMove(argumentFormats);
         }
 

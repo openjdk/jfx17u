@@ -125,15 +125,9 @@ static Ref<CSSVariableData> variableDataForPositiveDuration(Seconds durationInSe
     return CSSVariableData::create(tokenRange);
 }
 
-Ref<Document> ConstantPropertyMap::protectedDocument() const
-{
-    return m_document.get();
-}
-
 void ConstantPropertyMap::updateConstantsForSafeAreaInsets()
 {
-    RefPtr page = m_document->page();
-    FloatBoxExtent unobscuredSafeAreaInsets = page ? page->unobscuredSafeAreaInsets() : FloatBoxExtent();
+    FloatBoxExtent unobscuredSafeAreaInsets = m_document.page() ? m_document.page()->unobscuredSafeAreaInsets() : FloatBoxExtent();
     setValueForProperty(ConstantProperty::SafeAreaInsetTop, variableDataForPositivePixelLength(unobscuredSafeAreaInsets.top()));
     setValueForProperty(ConstantProperty::SafeAreaInsetRight, variableDataForPositivePixelLength(unobscuredSafeAreaInsets.right()));
     setValueForProperty(ConstantProperty::SafeAreaInsetBottom, variableDataForPositivePixelLength(unobscuredSafeAreaInsets.bottom()));
@@ -143,32 +137,31 @@ void ConstantPropertyMap::updateConstantsForSafeAreaInsets()
 void ConstantPropertyMap::didChangeSafeAreaInsets()
 {
     updateConstantsForSafeAreaInsets();
-    protectedDocument()->invalidateMatchedPropertiesCacheAndForceStyleRecalc();
+    m_document.invalidateMatchedPropertiesCacheAndForceStyleRecalc();
 }
 
 void ConstantPropertyMap::updateConstantsForFullscreen()
 {
-    RefPtr page = m_document->page();
-    FloatBoxExtent fullscreenInsets = page ? page->fullscreenInsets() : FloatBoxExtent();
+    FloatBoxExtent fullscreenInsets = m_document.page() ? m_document.page()->fullscreenInsets() : FloatBoxExtent();
     setValueForProperty(ConstantProperty::FullscreenInsetTop, variableDataForPositivePixelLength(fullscreenInsets.top()));
     setValueForProperty(ConstantProperty::FullscreenInsetRight, variableDataForPositivePixelLength(fullscreenInsets.right()));
     setValueForProperty(ConstantProperty::FullscreenInsetBottom, variableDataForPositivePixelLength(fullscreenInsets.bottom()));
     setValueForProperty(ConstantProperty::FullscreenInsetLeft, variableDataForPositivePixelLength(fullscreenInsets.left()));
 
-    Seconds fullscreenAutoHideDuration = page ? page->fullscreenAutoHideDuration() : 0_s;
+    Seconds fullscreenAutoHideDuration = m_document.page() ? m_document.page()->fullscreenAutoHideDuration() : 0_s;
     setValueForProperty(ConstantProperty::FullscreenAutoHideDuration, variableDataForPositiveDuration(fullscreenAutoHideDuration));
 }
 
 void ConstantPropertyMap::didChangeFullscreenInsets()
 {
     updateConstantsForFullscreen();
-    protectedDocument()->invalidateMatchedPropertiesCacheAndForceStyleRecalc();
+    m_document.invalidateMatchedPropertiesCacheAndForceStyleRecalc();
 }
 
 void ConstantPropertyMap::setFullscreenAutoHideDuration(Seconds duration)
 {
     setValueForProperty(ConstantProperty::FullscreenAutoHideDuration, variableDataForPositiveDuration(duration));
-    protectedDocument()->invalidateMatchedPropertiesCacheAndForceStyleRecalc();
+    m_document.invalidateMatchedPropertiesCacheAndForceStyleRecalc();
 }
 
 }

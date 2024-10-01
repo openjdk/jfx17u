@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2018 Yusuke Suzuki <utatane.tea@gmail.com>.
- * Copyright (C) 2018-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2018-2021 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,7 +30,6 @@
 #include "ObjectPropertyConditionSet.h"
 #include "PropertyOffset.h"
 #include "StructureSet.h"
-#include <wtf/TZoneMalloc.h>
 
 namespace JSC {
 namespace DOMJIT {
@@ -41,7 +40,7 @@ class InByStatus;
 struct DumpContext;
 
 class InByVariant {
-    WTF_MAKE_TZONE_ALLOCATED(InByVariant);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     InByVariant(CacheableIdentifier, const StructureSet& = StructureSet(), PropertyOffset = invalidOffset, const ObjectPropertyConditionSet& = ObjectPropertyConditionSet());
 

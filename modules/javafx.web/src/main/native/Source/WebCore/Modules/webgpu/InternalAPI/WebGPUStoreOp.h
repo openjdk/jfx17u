@@ -26,6 +26,7 @@
 #pragma once
 
 #include <cstdint>
+#include <wtf/EnumTraits.h>
 
 namespace WebCore::WebGPU {
 
@@ -35,3 +36,15 @@ enum class StoreOp : uint8_t {
 };
 
 } // namespace WebCore::WebGPU
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::WebGPU::StoreOp> {
+    using values = EnumValues<
+        WebCore::WebGPU::StoreOp,
+        WebCore::WebGPU::StoreOp::Store,
+        WebCore::WebGPU::StoreOp::Discard
+    >;
+};
+
+} // namespace WTF

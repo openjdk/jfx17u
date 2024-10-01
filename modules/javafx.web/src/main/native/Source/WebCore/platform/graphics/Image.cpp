@@ -35,9 +35,6 @@
 #include "Length.h"
 #include "MIMETypeRegistry.h"
 #include "SVGImage.h"
-#if !PLATFORM(JAVA)
-#include "ShareableBitmap.h"
-#endif
 #include "SharedBuffer.h"
 #include <math.h>
 #include <wtf/MainThread.h>
@@ -67,20 +64,6 @@ RefPtr<ImageObserver> Image::imageObserver() const
 void Image::setImageObserver(RefPtr<ImageObserver>&& observer)
 {
     m_imageObserver = observer.get();
-}
-
-ImageAdapter& Image::adapter()
-{
-    if (!m_adapter)
-        m_adapter = makeUnique<ImageAdapter>(*this);
-    return *m_adapter;
-}
-
-void Image::invalidateAdapter()
-{
-    if (!m_adapter)
-        return;
-    m_adapter->invalidate();
 }
 
 Image& Image::nullImage()
@@ -113,17 +96,6 @@ RefPtr<Image> Image::create(ImageObserver& observer)
 
     return BitmapImage::create(&observer);
 }
-#if USE(CG)
-std::optional<Ref<Image>> Image::create(RefPtr<ShareableBitmap>&& bitmap)
-{
-    if (!bitmap)
-        return std::nullopt;
-    RefPtr image = bitmap->createImage();
-    if (!image)
-        return std::nullopt;
-    return image.releaseNonNull();
-}
-#endif
 
 bool Image::supportsType(const String& type)
 {
@@ -182,7 +154,7 @@ void Image::fillWithSolidColor(GraphicsContext& ctxt, const FloatRect& dstRect, 
     ctxt.setCompositeOperation(previousOperator);
 }
 
-void Image::drawPattern(GraphicsContext& ctxt, const FloatRect& destRect, const FloatRect& tileRect, const AffineTransform& patternTransform, const FloatPoint& phase, const FloatSize& spacing, ImagePaintingOptions options)
+void Image::drawPattern(GraphicsContext& ctxt, const FloatRect& destRect, const FloatRect& tileRect, const AffineTransform& patternTransform,  const FloatPoint& phase, const FloatSize& spacing, const ImagePaintingOptions& options)
 {
     auto tileImage = preTransformedNativeImageForCurrentFrame(options.orientation() == ImageOrientation::Orientation::FromImage);
     if (!tileImage)
@@ -194,7 +166,7 @@ void Image::drawPattern(GraphicsContext& ctxt, const FloatRect& destRect, const 
         observer->didDraw(*this);
 }
 
-ImageDrawResult Image::drawTiled(GraphicsContext& ctxt, const FloatRect& destRect, const FloatPoint& srcPoint, const FloatSize& scaledTileSize, const FloatSize& spacing, ImagePaintingOptions options)
+ImageDrawResult Image::drawTiled(GraphicsContext& ctxt, const FloatRect& destRect, const FloatPoint& srcPoint, const FloatSize& scaledTileSize, const FloatSize& spacing, const ImagePaintingOptions& options)
 {
     Color color = singlePixelSolidColor();
     if (color.isValid()) {
@@ -300,7 +272,7 @@ ImageDrawResult Image::drawTiled(GraphicsContext& ctxt, const FloatRect& destRec
 }
 
 // FIXME: Merge with the other drawTiled eventually, since we need a combination of both for some things.
-ImageDrawResult Image::drawTiled(GraphicsContext& ctxt, const FloatRect& dstRect, const FloatRect& srcRect, const FloatSize& tileScaleFactor, TileRule hRule, TileRule vRule, ImagePaintingOptions options)
+ImageDrawResult Image::drawTiled(GraphicsContext& ctxt, const FloatRect& dstRect, const FloatRect& srcRect, const FloatSize& tileScaleFactor, TileRule hRule, TileRule vRule, const ImagePaintingOptions& options)
 {
     Color color = singlePixelSolidColor();
     if (color.isValid()) {
@@ -401,18 +373,6 @@ DestinationColorSpace Image::colorSpace()
 {
     return DestinationColorSpace::SRGB();
 }
-#if USE(CG)
-RefPtr<ShareableBitmap> Image::toShareableBitmap() const
-{
-    RefPtr bitmap = ShareableBitmap::create({ IntSize(size()) });
-    std::unique_ptr graphicsContext = bitmap->createGraphicsContext();
-    if (!graphicsContext)
-        return nullptr;
-
-    graphicsContext->drawImage(const_cast<Image&>(*this), IntPoint());
-    return bitmap;
-}
-#endif
 
 void Image::dump(TextStream& ts) const
 {
@@ -439,8 +399,6 @@ TextStream& operator<<(TextStream& ts, const Image& image)
         ts << "gradient image";
     else if (image.isSVGImage())
         ts << "svg image";
-    else if (image.isSVGResourceImage())
-        ts << "svg resource image";
     else if (image.isSVGImageForContainer())
         ts << "svg image for container";
     else if (image.isPDFDocumentImage())
@@ -450,4 +408,17 @@ TextStream& operator<<(TextStream& ts, const Image& image)
     return ts;
 }
 
-} // namespace WebCore
+#if !PLATFORM(COCOA) && !PLATFORM(GTK) && !PLATFORM(WIN) && !PLATFORM(JAVA)
+
+void BitmapImage::invalidatePlatformData()
+{
+}
+
+Ref<Image> Image::loadPlatformResource(const char* resource)
+{
+    WTFLogAlways("WARNING: trying to load platform resource '%s'", resource);
+    return BitmapImage::create();
+}
+
+#endif // !PLATFORM(COCOA) && !PLATFORM(GTK) && !PLATFORM(WIN)
+}
