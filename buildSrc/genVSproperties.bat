@@ -36,11 +36,12 @@ REM Handling of 11.0 and 14.0 is excluded here.
 REM The previous officially supported VS version was 12.0
 REM So, the search order is 150, then 120, then 100
 set VSVER=150
-set "VSVARS32FILE=C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\VC\Auxiliary\Build\vcvars32.bat"
+set "VS150COMNTOOLS=C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Auxiliary/Build"
+set "VSVARS32FILE=C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars32.bat"
 if not "%VS150COMNTOOLS%"=="" (
     set "VS150COMNTOOLS=%VS150COMNTOOLS%"
 ) else (
-  if exist "%VSVARS32FILE%" set "VS150COMNTOOLS=C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\VC\Auxiliary\Build"
+  if exist "%VSVARS32FILE%" set "VS150COMNTOOLS=C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build"
 )
 set VSVARSDIR=%VS150COMNTOOLS%
 if "%VSVARSDIR%"=="" set VSVER=120

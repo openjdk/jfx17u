@@ -27,6 +27,7 @@
 
 #include "Frame.h"
 #include "FrameView.h"
+#include "LocalFrameView.h"
 #include "GraphicsContext.h"
 #include "HostWindow.h"
 #include "Page.h"
