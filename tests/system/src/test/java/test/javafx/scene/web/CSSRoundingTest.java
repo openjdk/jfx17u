@@ -100,47 +100,45 @@ public class CSSRoundingTest {
                 }
             });
 
-            String content = """
-                <html>
-                <head>
-                <style type="text/css">
-                    body, div {
-                        margin: 0;
-                        padding: 0;
-                        border: 0;
-                    }
-                    #top, #bottom {
-                        line-height: 1.5;
-                        font-size: 70%;
-                        background:green;
-                        color:white;
-                        width:100%;
-                    }
-                    #top {
-                        padding:.6em 0 .7em;
-                    }
-                    #bottom {
-                      position:absolute;
-                      top:2.8em;
-                    }
-                </style>
-                </head>
-                <body>
-                <div id="top">no gap below</div>
-                <div id="bottom">no gap above</div>
-                <div id="description"></div>
-                <div id="console"></div>
-                <script>
-                description("This test checks that floating point rounding doesn't cause misalignment.  There should be no gap between the divs.");
-                var divtop = document.getElementById("top").getBoundingClientRect();
-                var divbottom = document.getElementById("bottom").getBoundingClientRect();
-                console.log("divtop.bottom: " + divtop.bottom);
-                console.log("divbottom.top: " + divbottom.top);
-                window.testResults = { topBottom: Math.round(divtop.bottom), bottomTop: Math.round(divbottom.top) };
-                </script>
-                </body>
-                </html>
-                """;
+            String content = "<html>\n" +
+                    "<head>\n" +
+                    "<style type=\"text/css\">\n" +
+                    "    body, div {\n" +
+                    "        margin: 0;\n" +
+                    "        padding: 0;\n" +
+                    "        border: 0;\n" +
+                    "    }\n" +
+                    "    #top, #bottom {\n" +
+                    "        line-height: 1.5;\n" +
+                    "        font-size: 70%;\n" +
+                    "        background:green;\n" +
+                    "        color:white;\n" +
+                    "        width:100%;\n" +
+                    "    }\n" +
+                    "    #top {\n" +
+                    "        padding:.6em 0 .7em;\n" +
+                    "    }\n" +
+                    "    #bottom {\n" +
+                    "      position:absolute;\n" +
+                    "      top:2.8em;\n" +
+                    "    }\n" +
+                    "</style>\n" +
+                    "</head>\n" +
+                    "<body>\n" +
+                    "<div id=\"top\">no gap below</div>\n" +
+                    "<div id=\"bottom\">no gap above</div>\n" +
+                    "<div id=\"description\"></div>\n" +
+                    "<div id=\"console\"></div>\n" +
+                    "<script>\n" +
+                    "description(\"This test checks that floating point rounding doesn't cause misalignment.  There should be no gap between the divs.\");\n" +
+                    "var divtop = document.getElementById(\"top\").getBoundingClientRect();\n" +
+                    "var divbottom = document.getElementById(\"bottom\").getBoundingClientRect();\n" +
+                    "console.log(\"divtop.bottom: \" + divtop.bottom);\n" +
+                    "console.log(\"divbottom.top: \" + divbottom.top);\n" +
+                    "window.testResults = { topBottom: Math.round(divtop.bottom), bottomTop: Math.round(divbottom.top) };\n" +
+                    "</script>\n" +
+                    "</body>\n" +
+                    "</html>\n";
             webView.getEngine().loadContent(content);
         });
 
@@ -149,13 +147,12 @@ public class CSSRoundingTest {
         Util.sleep(1000);
 
         Util.runAndWait(() -> {
-            webView.getEngine().executeScript("""
-                var divtop = document.getElementById("top").getBoundingClientRect();
-                var divbottom = document.getElementById("bottom").getBoundingClientRect();
-                var topBottom = Math.round(divtop.bottom);
-                var bottomTop = Math.round(divbottom.top);
-                window.testResults = { topBottom: topBottom, bottomTop: bottomTop };
-                """);
+            webView.getEngine().executeScript(
+                    "var divtop = document.getElementById(\"top\").getBoundingClientRect();\n" +
+                    "var divbottom = document.getElementById(\"bottom\").getBoundingClientRect();\n" +
+                    "var topBottom = Math.round(divtop.bottom);\n" +
+                    "var bottomTop = Math.round(divbottom.top);\n" +
+                    "window.testResults = { topBottom: topBottom, bottomTop: bottomTop };\n");
 
             int topBottom = ((Number) webView.getEngine().executeScript("window.testResults.topBottom")).intValue();
             int bottomTop = ((Number) webView.getEngine().executeScript("window.testResults.bottomTop")).intValue();
