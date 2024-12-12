@@ -2799,11 +2799,6 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
      */
     private void addToPile(T cell) {
         assert cell != null;
-        // We have to remove the cell from the sheet or else they are rendered. When they are rendered, they
-        // re-add their old content to the child list.
-        // When it happens, the content disappears from the cell that should hold the content.
-        sheet.getChildren()
-            .remove( cell );
         pile.addLast(cell);
     }
 
