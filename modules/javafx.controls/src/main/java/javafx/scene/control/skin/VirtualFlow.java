@@ -805,6 +805,9 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
         if (vertical == null) {
             vertical = new BooleanPropertyBase(true) {
                 @Override protected void invalidated() {
+                    resetIndex(cells);
+                    resetIndex(pile);
+
                     pile.clear();
                     sheetChildren.clear();
                     cells.clear();
@@ -1073,9 +1076,10 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
             lastHeight = -1;
             releaseCell(accumCell);
             sheet.getChildren().clear();
-            for (int i = 0, max = cells.size(); i < max; i++) {
-                cells.get(i).updateIndex(-1);
-            }
+
+            resetIndex(cells);
+            resetIndex(pile);
+
             cells.clear();
             pile.clear();
             releaseAllPrivateCells();
@@ -1083,9 +1087,9 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
             lastWidth = -1;
             lastHeight = -1;
             releaseCell(accumCell);
-            for (int i = 0, max = cells.size(); i < max; i++) {
-                cells.get(i).updateIndex(-1);
-            }
+
+            resetIndex(cells);
+
             addAllToPile();
             releaseAllPrivateCells();
         } else if (needsReconfigureCells) {
@@ -1344,6 +1348,18 @@ public class VirtualFlow<T extends IndexedCell> extends Region {
         lastPosition = getPosition();
         recalculateEstimatedSize();
         cleanPile();
+    }
+
+    /**
+     * Resets the index to -1 to all cells.
+     * This is to properly clean them up and ensure that no listeners are called because they retain their old index.
+     *
+     * @param cells the cells
+     */
+    private void resetIndex(ArrayLinkedList<T> cells) {
+        for (T cell : cells) {
+            cell.updateIndex(-1);
+        }
     }
 
     /** {@inheritDoc} */
