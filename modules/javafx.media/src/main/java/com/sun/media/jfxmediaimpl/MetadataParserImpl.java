@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -104,6 +104,10 @@ public abstract class MetadataParserImpl extends Thread implements com.sun.media
         metadata.put(tag, value);
     }
 
+    protected void disposeMetadata() {
+        metadata.clear();
+    }
+
     protected void done() {
         synchronized (listeners) {
             if (!metadata.isEmpty()) {
@@ -124,6 +128,10 @@ public abstract class MetadataParserImpl extends Thread implements com.sun.media
             return rawMetaBlob.position();
         }
         return streamPosition;
+    }
+
+    protected long getStreamLength() {
+        return locator.getContentLength();
     }
 
     protected void startRawMetadata(int sizeHint) {
