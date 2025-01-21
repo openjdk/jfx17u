@@ -2007,7 +2007,7 @@ static gboolean dshowwrapper_load_decoder_h264(GstStructure *s, GstDShowWrapper 
             if (gst_buffer_map(codec_data, &info, GST_MAP_READ))
             {
                 if (info.size <= MAX_HEADER_SIZE)
-                    header_size = (gint)dshowwrapper_get_avc_config(codec_data_info.data, codec_data_info.size, header, MAX_HEADER_SIZE, &decoder->lengthSizeMinusOne);
+                    header_size = (gint)dshowwrapper_get_avc_config(info.data, info.size, header, 256, &avcProfile, &avcLevel, &lengthSizeMinusOne);
                 gst_buffer_unmap(codec_data, &info);
             }
         }
