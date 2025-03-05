@@ -75,7 +75,7 @@ jobs:
 
     steps:
       - name: Checkout the source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           path: jfx
 
@@ -92,7 +92,7 @@ jobs:
 # FIXME: enable cache for boot JDK
 #      - name: Restore boot JDK from cache
 #        id: bootjdk
-#        uses: actions/cache@v2
+#        uses: actions/cache@v4
 #        with:
 #          path: ~/bootjdk/${{ env.BOOT_JDK_VERSION }}
 #          key: bootjdk-${{ runner.os }}-${{ env.BOOT_JDK_VERSION }}-${{ env.BOOT_JDK_SHA256 }}-v1
@@ -158,7 +158,7 @@ jobs:
 
     steps:
       - name: Checkout the source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           path: jfx
 
@@ -174,7 +174,7 @@ jobs:
 # FIXME: enable cache for boot JDK
 #      - name: Restore boot JDK from cache
 #        id: bootjdk
-#        uses: actions/cache@v2
+#        uses: actions/cache@v4
 #        with:
 #          path: ~/bootjdk/${{ env.BOOT_JDK_VERSION }}
 #          key: bootjdk-${{ runner.os }}-${{ env.BOOT_JDK_VERSION }}-${{ env.BOOT_JDK_SHA256 }}-v1
@@ -245,14 +245,14 @@ jobs:
 
     steps:
       - name: Checkout the source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           path: jfx
 
 # FIXME: enable cache for boot JDK
 #      - name: Restore boot JDK from cache
 #        id: bootjdk
-#        uses: actions/cache@v2
+#        uses: actions/cache@v4
 #        with:
 #          path: ~/bootjdk/${{ env.BOOT_JDK_VERSION }}
 #          key: bootjdk-${{ runner.os }}-${{ env.BOOT_JDK_VERSION }}-${{ env.BOOT_JDK_SHA256 }}-v1
@@ -267,7 +267,7 @@ jobs:
 
       - name: Restore cygwin packages from cache
         id: cygwin
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: ~/cygwin/packages
           key: cygwin-packages-${{ runner.os }}-v1
