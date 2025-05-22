@@ -216,13 +216,21 @@ LINUX.strip = "${toolchainDir}strip"
 LINUX.stripArgs = [ "-x" ]
 
 LINUX.glass = [:]
-LINUX.glass.variants = ["glass", "glassgtk2", "glassgtk3"]
+LINUX.glass.variants = ["glass", "glassgtk2", "glassgtk3", "glassmf", "glassgtk3mf"]
 
 FileTree ft_gtk_launcher = fileTree("${project(":graphics").projectDir}/src/main/native-glass/gtk/") {
     include("**/launcher.c")
 }
 
 FileTree ft_gtk = fileTree("${project(":graphics").projectDir}/src/main/native-glass/gtk/") {
+    exclude("**/launcher.c")
+}
+
+FileTree ft_gtkmf_launcher = fileTree("${project(":graphics").projectDir}/src/main/native-glass/gtkmf/") {
+    include("**/launcher.c")
+}
+
+FileTree ft_gtkmf = fileTree("${project(":graphics").projectDir}/src/main/native-glass/gtkmf/") {
     exclude("**/launcher.c")
 }
 
@@ -253,6 +261,24 @@ LINUX.glass.glassgtk3.ccFlags = IS_STATIC_BUILD ?
 LINUX.glass.glassgtk3.linker = linker
 LINUX.glass.glassgtk3.linkFlags = IS_STATIC_BUILD ? linkFlags : [linkFlags, gtk3LinkFlags].flatten()
 LINUX.glass.glassgtk3.lib = "glassgtk3"
+
+LINUX.glass.glassmf = [:]
+LINUX.glass.glassmf.nativeSource = ft_gtkmf_launcher.getFiles()
+LINUX.glass.glassmf.compiler = compiler
+LINUX.glass.glassmf.ccFlags = [cppFlags, "-Werror"].flatten()
+LINUX.glass.glassmf.linker = linker
+LINUX.glass.glassmf.linkFlags = IS_STATIC_BUILD? linkFlags : [linkFlags, "-lX11", "-ldl"].flatten()
+LINUX.glass.glassmf.lib = "glassmf"
+
+LINUX.glass.glassgtk3mf = [:]
+LINUX.glass.glassgtk3mf.nativeSource =  ft_gtkmf.getFiles()
+LINUX.glass.glassgtk3mf.compiler = compiler
+LINUX.glass.glassgtk3mf.ccFlags = IS_STATIC_BUILD ?
+        ["-fno-threadsafe-statics", cppFlags, gtk3CCFlags].flatten() :
+        [cppFlags, gtk3CCFlags, "-Werror"].flatten()
+LINUX.glass.glassgtk3mf.linker = linker
+LINUX.glass.glassgtk3mf.linkFlags = IS_STATIC_BUILD ? linkFlags : [linkFlags, gtk3LinkFlags].flatten()
+LINUX.glass.glassgtk3mf.lib = "glassgtk3mf"
 
 LINUX.decora = [:]
 LINUX.decora.compiler = compiler

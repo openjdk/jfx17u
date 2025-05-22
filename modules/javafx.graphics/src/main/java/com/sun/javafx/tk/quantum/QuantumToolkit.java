@@ -135,7 +135,7 @@ import static com.sun.javafx.logging.PulseLogger.PULSE_LOGGING_ENABLED;
 import com.sun.javafx.scene.input.DragboardHelper;
 import java.util.Optional;
 
-public final class QuantumToolkit extends Toolkit {
+public class QuantumToolkit extends Toolkit {
 
     @SuppressWarnings("removal")
     public static final boolean verbose =
