@@ -58,6 +58,8 @@ final class GtkApplication extends Application implements
     private static final int forcedGtkVersion;
 
 
+    private static native int _openURI(String uri);
+
     static  {
         //check for SWT-GTK lib presence
         @SuppressWarnings("removal")
@@ -465,6 +467,11 @@ final class GtkApplication extends Application implements
     @Override
     protected File staticCommonDialogs_showFolderChooser(Window owner, String folder, String title) {
         return GtkCommonDialogs.showFolderChooser(owner, folder, title);
+    }
+
+    @Override
+    protected void _showDocument(String uri) {
+        _openURI(uri);
     }
 
     @Override
