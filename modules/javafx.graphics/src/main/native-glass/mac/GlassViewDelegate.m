@@ -45,6 +45,8 @@
 #import "GlassPasteboard.h"
 #import "GlassTouches.h"
 
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 //#define VERBOSE
 #ifndef VERBOSE
     #define LOG(MSG, ...)
@@ -428,6 +430,9 @@ static jint getSwipeDirFromEvent(NSEvent *theEvent)
 
         case NSScrollWheel:
             type = com_sun_glass_events_MouseEvent_WHEEL;
+            break;
+
+        default:
             break;
     }
 
