@@ -1022,6 +1022,8 @@ void pathApplierFunctionFast(void *i, const CGPathElement *e) {
         type = 4;
         coordCount = 0;
         break;
+    default:
+        goto fail;
     }
     info->pointTypes[info->numTypes++] = type;
 
