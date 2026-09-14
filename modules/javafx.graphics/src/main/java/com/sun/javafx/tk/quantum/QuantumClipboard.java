@@ -38,6 +38,8 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.SocketPermission;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.security.AccessControlContext;
@@ -381,7 +383,7 @@ final class QuantumClipboard implements TKClipboard {
         if (rawData == null) {
             Object htmlData = assistant.getData(Clipboard.HTML_TYPE);
             if (htmlData != null) {
-                String url = parseIMG(htmlData);
+                String url = getLocalHtmlImageUrl(htmlData);
                 if (url != null) {
                     try {
                         @SuppressWarnings("removal")
@@ -426,6 +428,35 @@ final class QuantumClipboard implements TKClipboard {
     private static final Pattern findTagIMG =
             Pattern.compile("IMG\\s+SRC=\\\"([^\\\"]+)\\\"",
                             Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
+
+    /**
+     * Extracts an image URL from HTML clipboard content and rejects values that
+     * would require a network fetch. Only data: URIs and local file: URIs are
+     * accepted.
+     */
+    private String getLocalHtmlImageUrl(Object htmlData) {
+        String url = parseIMG(htmlData);
+        if (url == null) {
+            return null;
+        }
+        try {
+            URI uri = new URI(url);
+            String scheme = uri.getScheme();
+            if ("data".equalsIgnoreCase(scheme)) {
+                return uri.toString();
+            }
+            if ("file".equalsIgnoreCase(scheme)) {
+                uri = uri.normalize();
+                String host = uri.getHost();
+                if (host == null || host.isEmpty()
+                        || "localhost".equalsIgnoreCase(host)) {
+                    return uri.toString();
+                }
+            }
+        } catch (URISyntaxException ex) {
+        }
+        return null;
+    }
 
     private String parseIMG(Object data) {
         if (data == null) {
@@ -494,7 +525,7 @@ final class QuantumClipboard implements TKClipboard {
                 // RT-16812 - IE puts images on the clipboard in a HTML IMG url
                 try {
                     //HTML header could be improperly formatted and we can get an exception here
-                    if (parseIMG(assistant.getData(Clipboard.HTML_TYPE)) != null) {
+                    if (getLocalHtmlImageUrl(assistant.getData(Clipboard.HTML_TYPE)) != null) {
                         set.add(DataFormat.IMAGE);
                     }
                 } catch (Exception ex) {
@@ -537,9 +568,8 @@ final class QuantumClipboard implements TKClipboard {
                        t.equalsIgnoreCase(Clipboard.URI_TYPE)) {
                 return true;
             } else if (dataFormat == DataFormat.IMAGE &&
-                       t.equalsIgnoreCase(Clipboard.HTML_TYPE) &&
-                       parseIMG(assistant.getData(Clipboard.HTML_TYPE)) != null) {
-                return true;
+                       t.equalsIgnoreCase(Clipboard.HTML_TYPE)) {
+                return getLocalHtmlImageUrl(assistant.getData(Clipboard.HTML_TYPE)) != null;
             } else if (dataFormat == DataFormat.FILES &&
                     t.equalsIgnoreCase(Clipboard.FILE_LIST_TYPE)) {
                 return true;
